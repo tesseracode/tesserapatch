@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -26,99 +25,6 @@ func ApplyPatchStrict(repoRoot, patch string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("git apply failed: %s: %w", strings.TrimSpace(string(out)), err)
-	}
-	return nil
-}
-
-// PathsAffectedByPatch returns the union of both diff-header sides plus
-// rename/copy source and destination paths. Unapply needs the full set: a
-// reverse rename recreates the a-side path and removes the b-side path.
-func PathsAffectedByPatch(patch string) []string {
-	seen := map[string]struct{}{}
-	var paths []string
-	add := func(raw string, stripDiffPrefix bool) {
-		raw = strings.TrimSpace(raw)
-		if raw == "" || raw == "/dev/null" {
-			return
-		}
-		if tab := strings.IndexByte(raw, '\t'); tab >= 0 {
-			raw = raw[:tab]
-		}
-		if unquoted, err := strconv.Unquote(raw); err == nil {
-			raw = unquoted
-		}
-		if stripDiffPrefix {
-			switch {
-			case strings.HasPrefix(raw, "a/"):
-				raw = strings.TrimPrefix(raw, "a/")
-			case strings.HasPrefix(raw, "b/"):
-				raw = strings.TrimPrefix(raw, "b/")
-			}
-		}
-		if raw == "" {
-			return
-		}
-		raw = filepath.ToSlash(raw)
-		if _, ok := seen[raw]; ok {
-			return
-		}
-		seen[raw] = struct{}{}
-		paths = append(paths, raw)
-	}
-
-	inHeader := false
-	for _, line := range strings.Split(patch, "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			inHeader = true
-			fields := pathsFromDiffGitHeader(strings.TrimPrefix(line, "diff --git "))
-			for _, field := range fields {
-				add(field, true)
-			}
-		case strings.HasPrefix(line, "@@"):
-			inHeader = false
-		case inHeader && strings.HasPrefix(line, "--- "):
-			add(strings.TrimPrefix(line, "--- "), true)
-		case inHeader && strings.HasPrefix(line, "+++ "):
-			add(strings.TrimPrefix(line, "+++ "), true)
-		case inHeader && strings.HasPrefix(line, "rename from "):
-			add(strings.TrimPrefix(line, "rename from "), false)
-		case inHeader && strings.HasPrefix(line, "rename to "):
-			add(strings.TrimPrefix(line, "rename to "), false)
-		case inHeader && strings.HasPrefix(line, "copy from "):
-			add(strings.TrimPrefix(line, "copy from "), false)
-		case inHeader && strings.HasPrefix(line, "copy to "):
-			add(strings.TrimPrefix(line, "copy to "), false)
-		}
-	}
-	return paths
-}
-
-func pathsFromDiffGitHeader(input string) []string {
-	if strings.HasPrefix(input, `"`) {
-		fields := splitGitDiffPaths(input)
-		if len(fields) == 2 {
-			return fields
-		}
-		return nil
-	}
-
-	// Unquoted paths may contain spaces. For the fallback cases that lack
-	// ---/+++ headers (binary or mode-only changes), select the delimiter
-	// whose a/ and b/ payloads are byte-identical. Renames and copies are
-	// covered unambiguously by their dedicated from/to headers.
-	for offset := 0; offset < len(input); {
-		rel := strings.Index(input[offset:], " b/")
-		if rel < 0 {
-			break
-		}
-		at := offset + rel
-		left, right := input[:at], input[at+1:]
-		if strings.HasPrefix(left, "a/") && strings.HasPrefix(right, "b/") &&
-			strings.TrimPrefix(left, "a/") == strings.TrimPrefix(right, "b/") {
-			return []string{left, right}
-		}
-		offset = at + len(" b/")
 	}
 	return nil
 }

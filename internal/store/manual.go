@@ -38,6 +38,26 @@ func ManualPhase(phase string) (ManualArtifact, bool) {
 	return m, ok
 }
 
+// ManualCheckpoint describes the artifact a manual advance has just
+// validated, handed to the optional checkpoint hook BEFORE the feature
+// state moves.
+//
+// It exists so a caller can act on exactly the bytes the store validated
+// — `implement --manual` is a governed producer event (ADR-036 D15 P6)
+// and must checkpoint the bytes it accepted, not a re-read of the file
+// that could have changed in between. The type is deliberately plain
+// data: the store knows nothing about who consumes it.
+type ManualCheckpoint struct {
+	// Slug and Phase name the advance being checkpointed.
+	Slug  string
+	Phase string
+	// Path is the resolved path the store validated.
+	Path string
+	// Data is the exact validated bytes. It is non-nil only for a phase
+	// whose contract reads the artifact's content (today: implement).
+	Data []byte
+}
+
 // AdvanceStateManually validates that the expected artifact for a phase
 // exists under the feature directory and advances feature state WITHOUT
 // invoking the provider. It records the manual transition in the feature's
@@ -49,6 +69,18 @@ func ManualPhase(phase string) (ManualArtifact, bool) {
 //   - artifact file does not exist at the expected path
 //   - for implement, artifact is not valid JSON
 func (s *Store) AdvanceStateManually(slug, phase string) error {
+	return s.AdvanceStateManuallyWithCheckpoint(slug, phase, nil)
+}
+
+// AdvanceStateManuallyWithCheckpoint is AdvanceStateManually with an
+// optional hook invoked AFTER the artifact has passed every validation
+// the phase requires and BEFORE the state transition.
+//
+// That position is the contract: a hook never sees an artifact the store
+// refused, and a hook that itself fails aborts the advance, so a failed
+// checkpoint leaves the feature exactly where it was. A nil hook makes
+// this identical to AdvanceStateManually.
+func (s *Store) AdvanceStateManuallyWithCheckpoint(slug, phase string, checkpoint func(ManualCheckpoint) error) error {
 	m, ok := ManualPhase(phase)
 	if !ok {
 		return fmt.Errorf("--manual is not supported for phase %q", phase)
@@ -64,6 +96,7 @@ func (s *Store) AdvanceStateManually(slug, phase string) error {
 	if info.IsDir() {
 		return fmt.Errorf("expected artifact is a directory, not a file: %s", fullPath)
 	}
+	var validated []byte
 	if m.ValidateJSON {
 		data, rerr := os.ReadFile(fullPath)
 		if rerr != nil {
@@ -74,6 +107,12 @@ func (s *Store) AdvanceStateManually(slug, phase string) error {
 		}
 		if !json.Valid(data) {
 			return fmt.Errorf("artifact is not valid JSON: %s\n\nFix the JSON syntax and re-run with --manual.", fullPath)
+		}
+		validated = data
+	}
+	if checkpoint != nil {
+		if cerr := checkpoint(ManualCheckpoint{Slug: slug, Phase: m.Phase, Path: fullPath, Data: validated}); cerr != nil {
+			return cerr
 		}
 	}
 	notes := fmt.Sprintf("Phase advanced manually (--manual); artifact authored at %s", m.Path)

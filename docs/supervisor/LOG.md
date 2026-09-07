@@ -1,3 +1,107 @@
+## Review — GH #15 implementation S1 final — 2026-09-07
+
+**Reviewer**: `gh15-s1-validated-review`
+
+### Checklist
+
+- [x] One strict normalized effect grammar
+- [x] PI-3 through PI-7 migrated fail-closed
+- [x] PI-12 b-side path/order projection preserved
+- [x] Legitimate typechanges and mixed quoted operands supported
+- [x] P1-P7 immutable observation timing and exact bytes
+- [x] Batched no-lazy-fetch Git reads
+- [x] Targeted, owning-package and full 22-shard suites pass
+- [x] Vet/build/gofmt clean
+
+### Verdict: APPROVED
+
+### Notes
+
+Zero blockers. Carry observation-body memory into S2 and the editor-error
+public note into S6.
+
+### Action Taken
+
+Approve S1 and authorize its checkpoint/push. S2 becomes eligible afterward.
+
+## Supervisor Decision — GH #15 S1 approved — 2026-09-07
+
+**Decision**: **APPROVED**
+
+The exact staged 22-shard suite passes after the PIB-214 store-surface
+allowance and accepted ADR-index hash correction. Push S1 before dispatching
+S2.
+
+## Review — GH #15 implementation S1 rev-2 — 2026-09-07
+
+**Reviewer**: `gh15-s1-rev2-review`, `gh15-s1-rev3-review`,
+`gh15-s1-parser-confirm`
+
+### Verdict: NEEDS REVISION → APPROVED
+
+### Findings
+
+Legitimate Git typechanges, independently quoted rename operands and Git's
+owner-execute mode required correction. Follow-up hardening narrowed
+typechange coalescing and rejected extra quoted operands.
+
+### Action Taken
+
+Corrected all three, added focused regressions, and revalidated.
+
+## Review — GH #15 implementation S1 rev-1 — 2026-09-06
+
+**Reviewer**: `gh15-s1-rev1-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+The duplicate-destination refusal referenced `dup` outside the scope of its
+`if` initializer, so every S1 owning package failed to compile. All rev-0
+semantic findings were otherwise closed by static review.
+
+### Action Taken
+
+Hoisted the map lookup into loop scope. Format and resource-gated validation
+are required before review resumes.
+
+## Review — GH #15 implementation S1 rev-0 — 2026-09-06
+
+**Reviewer**: `gh15-s1-code-review`
+
+### Verdict: NEEDS REVISION
+
+### Findings
+
+P6 observes raw input rather than the bytes its valid arm writes; P3 observes
+the old patch rather than `newPatch`; P7 fires for non-bound resolved paths;
+P2 misses the category-(c) branch; manual implement is unwired; two producer
+IDs differ from the closed enum. Duplicate destinations are not refused,
+preimage-set path hashing is not byte-exact for invalid UTF-8, and PI-3 can
+surface a strict error only after record artifacts have landed.
+
+### Action Taken
+
+Dispatch S1 revision 1. Batch immutable Git observations, bind exact producer
+bytes, complete P1-P7 timing, fix enum/digest/duplicate semantics and preflight
+strict parsing before writes. S2-S6 remain frozen.
+
+## Supervisor Decision — GH #15 implementation S1 dispatch — 2026-09-06
+
+**Decision**: **S1 DISPATCHED**
+
+WAVE_BASE is `77b3e9b0c00c3261b3c1a5d7ccc17f09cf1bebb3`, the pushed,
+approved S0 baseline. S1 owns strict normalized effects, complete parser
+inventory migration, typed immutable observations and editor error
+propagation. S2-S6 production surfaces remain frozen.
+
+### Review carry-forward
+
+Widen the S0 `openInEditor` guard to the whole `internal/cli` package and bind
+the P6 raw-arm reachability guard to the validator actually passed by
+`RunImplement`.
+
 ## Review — GH #15 implementation S0 final — 2026-09-05
 
 **Reviewer**: `gh15-s0-final-review`

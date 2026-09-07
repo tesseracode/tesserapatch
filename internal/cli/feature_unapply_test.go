@@ -232,7 +232,11 @@ func TestFeatureUnapplyUnicodeDeletedPathAndRollback(t *testing.T) {
 			t.Fatalf("touched_paths = %v", session.TouchedPaths)
 		}
 		reverse := string(mustRead(t, filepath.Join(attempts[0], "reverse.patch")))
-		if got := gitutil.PathsAffectedByPatch(reverse); len(got) != 1 || got[0] != "café.txt" {
+		got, perr := gitutil.PathsAffectedByPatchStrict(reverse)
+		if perr != nil {
+			t.Fatalf("PathsAffectedByPatchStrict: %v\n%s", perr, reverse)
+		}
+		if len(got) != 1 || got[0] != "café.txt" {
 			t.Fatalf("reverse.patch paths = %v\n%s", got, reverse)
 		}
 	})
@@ -1614,7 +1618,11 @@ func newDeletedPathUnapplyFixture(t *testing.T, name, slug, content string) unap
 	runUnapplyGit(t, dir, "add", "-A")
 	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "deleted-path feature")
 	patch := runUnapplyGit(t, dir, "show", "--format=", "--binary", "HEAD")
-	if got := gitutil.PathsAffectedByPatch(patch); len(got) != 1 || got[0] != name {
+	got, perr := gitutil.PathsAffectedByPatchStrict(patch)
+	if perr != nil {
+		t.Fatalf("PathsAffectedByPatchStrict: %v\n%s", perr, patch)
+	}
+	if len(got) != 1 || got[0] != name {
 		t.Fatalf("fixture patch paths = %v\n%s", got, patch)
 	}
 	if err := s.WriteArtifact(feature.Slug, "post-apply.patch", patch); err != nil {
@@ -1703,7 +1711,10 @@ func newFileToDirectoryUnapplyFixture(t *testing.T) unapplyFixture {
 	runUnapplyGit(t, dir, "add", "-A")
 	runUnapplyGit(t, dir, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "replace config file with directory")
 	patch := runUnapplyGit(t, dir, "show", "--format=", "--binary", "HEAD")
-	paths := gitutil.PathsAffectedByPatch(patch)
+	paths, perr := gitutil.PathsAffectedByPatchStrict(patch)
+	if perr != nil {
+		t.Fatalf("PathsAffectedByPatchStrict: %v\n%s", perr, patch)
+	}
 	if strings.Join(paths, ",") != "config,config/default.yaml" {
 		t.Fatalf("fixture patch paths = %v\n%s", paths, patch)
 	}

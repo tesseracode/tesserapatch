@@ -1,9 +1,14 @@
-// Strict `diff --git` header parsing (GH #7 rev-3 F2).
+// Strict `diff --git` OPERAND grammar (GH #7 rev-3 F2, GH #15 / ADR-036 D1).
 //
-// FilesInPatch is a fail-soft scanner: it splits each header on the
-// first ` b/` and silently skips any line it cannot split. That is
-// tolerable for advisory callers, but it is a safety hole for the two
-// surfaces that derive a WRITE SCOPE from a patch:
+// This file owns the operand layer: Git's C-quoting decoder and the
+// two-operand `a/<path> b/<path>` header split. The record layer that
+// consumes it — the normalized effect model, the record boundaries, and
+// the FilesInPatchStrict / PathsAffectedByPatchStrict projections — lives
+// in patch_effects.go, which is the one authoritative effect grammar.
+//
+// The demoted fail-soft scanner (PI-2) split each header on the first
+// ` b/` and silently skipped any line it could not split. That is a
+// safety hole for every surface that derives a WRITE SCOPE from a patch:
 //
 //   - workflow.RefreshAfterAccept — the touched-path set drives the
 //     regenerated post-apply.patch;
@@ -12,12 +17,12 @@
 //
 // A path that Git C-quotes (because it contains a space plus a control
 // byte, a quote, a backslash, or a newline) renders as
-// `diff --git "a/wt/new\nline" "b/wt/new\nline"`. FilesInPatch's
+// `diff --git "a/wt/new\nline" "b/wt/new\nline"`. The fail-soft
 // ` b/` split misses it, the scope silently becomes EMPTY, and an empty
 // scope means "everything" to `git diff` — so a stale
 // worktree-only patch broadened the refresh to unrelated working-tree
 // dirt. Silently producing an empty scope is precisely the failure mode
-// this file removes: FilesInPatchStrict returns an error instead.
+// this grammar removes: it returns an error instead.
 //
 // GH #7 rev-4 tightens the grammar three ways:
 //
@@ -144,10 +149,20 @@ func parseDiffGitOperands(header string) (a, b diffOperand, ok bool, err error) 
 		return a, b, false, fmt.Errorf("empty diff --git operands")
 	}
 
-	if strings.HasPrefix(header, `"`) {
+	// Git quotes each operand independently. A rename may therefore be
+	// `a/plain "b/quoted\303\251"` (or the reverse), so any header that
+	// contains a quote must use the field parser rather than the
+	// unquoted same-payload delimiter.
+	if strings.Contains(header, `"`) {
 		fields := splitGitDiffPaths(header)
 		if len(fields) != 2 {
-			return a, b, false, fmt.Errorf("expected exactly two operands, found %d", len(fields))
+			// An independently unquoted operand may itself contain spaces.
+			// Validate every quoted token and require plausible a/b prefixes,
+			// then let rename/copy metadata disambiguate the full paths.
+			if err := validateAmbiguousMixedOperands(fields); err != nil {
+				return a, b, false, err
+			}
+			return a, b, false, nil
 		}
 		for idx, field := range fields {
 			wantPrefix := "a/"
@@ -186,9 +201,6 @@ func parseDiffGitOperands(header string) (a, b diffOperand, ok bool, err error) 
 	if !strings.HasPrefix(header, "a/") {
 		return a, b, false, fmt.Errorf("a-side operand does not start with %q", "a/")
 	}
-	if strings.Contains(header, `"`) {
-		return a, b, false, fmt.Errorf("unquoted operands must not contain a double quote")
-	}
 	for offset := 0; offset < len(header); {
 		rel := strings.Index(header[offset:], " b/")
 		if rel < 0 {
@@ -216,6 +228,38 @@ func parseDiffGitOperands(header string) (a, b diffOperand, ok bool, err error) 
 	return a, b, false, nil
 }
 
+func validateAmbiguousMixedOperands(fields []string) error {
+	if len(fields) < 2 {
+		return fmt.Errorf("expected two operands, found %d", len(fields))
+	}
+	quoted := 0
+	for _, field := range fields {
+		if strings.HasPrefix(field, `"`) {
+			quoted++
+		}
+	}
+	if quoted != 1 {
+		return fmt.Errorf("expected one independently quoted operand, found %d across %d fields", quoted, len(fields))
+	}
+	decoded := make([]string, len(fields))
+	for i, field := range fields {
+		value, err := decodeDiffOperandField(field)
+		if err != nil {
+			return fmt.Errorf("operand %s: %v", field, err)
+		}
+		decoded[i] = value
+	}
+	if !strings.HasPrefix(decoded[0], "a/") {
+		return fmt.Errorf("a-side operand does not start with %q", "a/")
+	}
+	for _, field := range decoded[1:] {
+		if strings.HasPrefix(field, "b/") {
+			return nil
+		}
+	}
+	return fmt.Errorf("no %q b-side operand", "b/")
+}
+
 // decodeDiffOperandField decodes one operand field: quoted fields go
 // through the Git C decoder, unquoted fields are taken verbatim so that
 // whitespace bytes Git permits unquoted are preserved.
@@ -230,133 +274,6 @@ func decodeDiffOperandField(field string) (string, error) {
 		return field, nil
 	}
 	return unquoteGitCStyle(field)
-}
-
-// FilesInPatchStrict returns the b-side path of every file entry in a
-// unified diff, decoding Git's C-quoting byte-correctly.
-//
-// Handled: quoted and unquoted paths, paths containing spaces, tabs,
-// newlines and octal-escaped bytes, renames, copies, mode-only entries,
-// binary entries, new and deleted files.
-//
-// Refused (error, nil slice — never a partial or empty scope):
-//
-//   - non-blank input containing zero `diff --git` headers;
-//   - a header whose a-side OR b-side operand is malformed;
-//   - a quoted operand using an escape Git does not emit;
-//   - an operand without a valid `a/` / `b/` prefix, or with an empty
-//     path;
-//   - a header that no corroborating line can disambiguate.
-//
-// Whitespace-only input is NOT an error: it legitimately touches
-// nothing. Callers that derive a write scope MUST use this function.
-func FilesInPatchStrict(patch string) ([]string, error) {
-	seen := map[string]bool{}
-	var out []string
-	add := func(p string) {
-		if p == "" || seen[p] {
-			return
-		}
-		seen[p] = true
-		out = append(out, p)
-	}
-
-	headers := 0
-	lines := strings.Split(patch, "\n")
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-		if !strings.HasPrefix(line, "diff --git ") {
-			continue
-		}
-		headers++
-		header := strings.TrimPrefix(line, "diff --git ")
-
-		// Corroborating headers live between this `diff --git` line and
-		// the first hunk (or the next entry). `rename to` / `copy to`
-		// and `+++` are unambiguous single-path lines, so they resolve
-		// the cases the two-operand header cannot.
-		var renameTo, copyTo, plusPath, minusPath string
-		for j := i + 1; j < len(lines); j++ {
-			next := lines[j]
-			if strings.HasPrefix(next, "diff --git ") || strings.HasPrefix(next, "@@") {
-				break
-			}
-			switch {
-			case strings.HasPrefix(next, "rename to "):
-				renameTo = strings.TrimPrefix(next, "rename to ")
-			case strings.HasPrefix(next, "copy to "):
-				copyTo = strings.TrimPrefix(next, "copy to ")
-			case strings.HasPrefix(next, "+++ "):
-				plusPath = strings.TrimPrefix(next, "+++ ")
-			case strings.HasPrefix(next, "--- "):
-				minusPath = strings.TrimPrefix(next, "--- ")
-			}
-		}
-
-		path, err := resolveDiffEntryPath(header, renameTo, copyTo, plusPath, minusPath)
-		if err != nil {
-			return nil, fmt.Errorf("unparseable diff header %q: %w", line, err)
-		}
-		add(path)
-	}
-
-	if headers == 0 && strings.TrimSpace(patch) != "" {
-		return nil, fmt.Errorf("patch contains no `diff --git` header but is not empty (%d byte(s)); refusing to treat it as touching nothing", len(patch))
-	}
-	return out, nil
-}
-
-// resolveDiffEntryPath determines the b-side path of one file entry.
-//
-// Both operands are validated FIRST. Only once the header itself is
-// well-formed — but ambiguous, as an unquoted rename or copy is — are
-// the corroborating `rename to` / `copy to` / `+++` / `---` lines
-// consulted.
-func resolveDiffEntryPath(header, renameTo, copyTo, plusPath, minusPath string) (string, error) {
-	_, b, ok, err := parseDiffGitOperands(header)
-	if err != nil {
-		return "", err
-	}
-	if ok {
-		return b.Path, nil
-	}
-	for _, candidate := range []string{renameTo, copyTo} {
-		if candidate == "" {
-			continue
-		}
-		p, derr := decodeDiffOperandField(candidate)
-		if derr != nil {
-			return "", derr
-		}
-		if p != "" {
-			return p, nil
-		}
-	}
-	for _, candidate := range []string{plusPath, minusPath} {
-		if candidate == "" {
-			continue
-		}
-		p, derr := decodeDiffOperandField(stripDiffTimestamp(candidate))
-		if derr != nil {
-			return "", derr
-		}
-		p = stripDiffSidePrefix(p)
-		if p != "" && p != "/dev/null" {
-			return p, nil
-		}
-	}
-	return "", fmt.Errorf("no unambiguous path in the header or its corroborating lines")
-}
-
-// stripDiffSidePrefix removes the `a/` or `b/` diff-side prefix.
-func stripDiffSidePrefix(p string) string {
-	switch {
-	case strings.HasPrefix(p, "a/"):
-		return strings.TrimPrefix(p, "a/")
-	case strings.HasPrefix(p, "b/"):
-		return strings.TrimPrefix(p, "b/")
-	}
-	return p
 }
 
 // stripDiffTimestamp drops the optional tab-separated timestamp field

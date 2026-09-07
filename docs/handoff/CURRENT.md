@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 GH #15 recipe-generation authority planning is **APPROVED**, Accepted at
 PRD/ADR rev-7 and pushed at `e76e0f7`. GH #13 consumer planning is now
@@ -87,6 +87,27 @@ The resource gate recovered and S0 is **APPROVED**. All `TestRGAS0*` tests
 pass serially in `internal/cli`, `internal/gitutil` and `internal/workflow`;
 the serial `./cmd/tpatch` build passes. Final review found zero blockers.
 S1 is now unblocked but not yet dispatched.
+S1 strict effects and immutable capture is now dispatched from WAVE_BASE
+`77b3e9b0c00c3261b3c1a5d7ccc17f09cf1bebb3`. It owns the normalized
+effect grammar, complete parser migration, PI-7 strict all-paths scope,
+immutable observations and editor error propagation. S2-S6 remain frozen.
+S1 rev-0 is NEEDS REVISION. Review found P6 and P3 binding the wrong bytes,
+P7 emitting for non-bound paths, P2 missing its category-(c) observation,
+manual implement unwired, two producer enum mismatches, missing duplicate-
+destination refusal, a non-byte-exact path digest, and post-write PI-3 parse
+risk. The observation implementation also needs batched Git reads before S1
+can be accepted.
+S1 rev-1 closes those findings, but static review found one compile blocker in
+the duplicate-destination guard: `dup` escaped its `if` initializer scope.
+The lookup is hoisted and revision 2 validation is active.
+S1 rev-2 then closed three real Git compatibility defects: legitimate
+delete+add typechanges are coalesced, independently quoted rename operands are
+accepted through authoritative rename/copy headers, and executable mode uses
+Git's owner-bit rule. Final hardening restricts typechange coalescing to object
+type transitions and rejects extra quoted operands.
+S1 is **APPROVED** with zero blockers. All targeted and owning-package tests,
+the CLI regression selector, vet/build and the exact 22-shard full suite pass
+in the staged state. S2 is unblocked but not dispatched.
 
 ### Historical execution record
 
@@ -2045,13 +2066,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s0`
+- **Task ID**: `implement-recipe-generation-authority-s1`
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Freeze pre-v0.17 record/apply/verify and governed-producer
-  behavior before implementing ADR-036.
-- **Status**: **Complete — S0 APPROVED**
+- **Description**: Implement ADR-036 strict normalized effects, migrate the
+  complete parser inventory and capture immutable producer observations.
+- **Status**: **Complete — S1 APPROVED**
 - **Assigned**: 2026-09-02
-- **WAVE_BASE**: `4ea7b0bb9d5fe60d8d8850141762268600395210`
+- **WAVE_BASE**: `77b3e9b0c00c3261b3c1a5d7ccc17f09cf1bebb3`
 - **Release target**: `v0.17.0`
 
 ## Prerequisite Status
@@ -2111,6 +2132,14 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- `internal/gitutil/patch_effects.go`
+- `internal/patchobs/patchobs.go`
+- `internal/patchobs/gitread.go`
+- `internal/workflow/patch_effect_adapters.go`
+- `internal/cli/producer_observation.go`
+- S1 migrations across `internal/cli`, `internal/workflow`,
+  `internal/gitutil` and `internal/store/manual.go`
+- S1 tests in `internal/{cli,gitutil,patchobs,workflow}`
 - `internal/cli/recipe_authority_s0_cli_test.go`
 - `internal/gitutil/recipe_authority_s0_pi12_test.go`
 - `internal/workflow/recipe_authority_s0_adjacent_fixture_test.go`
@@ -2616,6 +2645,17 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
+- GH #15 S1 S0/S1 selector across gitutil/patchobs/store/workflow/cli:
+  **PASS**.
+- Full `internal/gitutil`, `internal/patchobs`, `internal/store` and
+  `internal/workflow` suites: **PASS**.
+- Existing CLI record/apply/edit/feature-patch/unapply/land/nested-worktree
+  regression families: **PASS** (41.786s).
+- Changed-package `go vet -p=1` and serial `go build -p=1 ./cmd/tpatch`:
+  **PASS**.
+- Exact `scripts/wave-close-test-shards.sh` 22-shard suite in staged state:
+  **PASS**; primary CLI package 512.874s plus all 21 CLI shards.
+- Final independent S1 review: **APPROVED**, zero blockers.
 - GH #15 S0 static review: initial NEEDS REVISION on one unfirable P6
   source guard; corrected with a third same-guard mutation fixture.
 - External S0 static review: **APPROVED WITH NOTES**. The two gofmt
@@ -8213,9 +8253,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Push the approved S0 test/tracking commits.
-2. Dispatch S1 strict normalized effects and immutable capture.
-3. Keep S2-S6 sequential and GH #13 implementation blocked until v0.17.0.
+1. Commit and push the approved S1 implementation and tracking.
+2. Dispatch S2 pure derivation, preimage synthesis and provenance convergence.
+3. Keep S3-S6 sequential and GH #13 implementation blocked until v0.17.0.
 
 ## Blockers
 
@@ -8240,9 +8280,14 @@ at 471.544s. Formatting, vet and CLI build pass.
   293-row matrix and journaled accept contract are fixed implementation inputs.
 - GH #15 implementation order is S0 → S1 → S2 → S3 → S4 → S5 → S6. S0
   changes tests/fixtures only and must be reviewed before S1 production work.
-- S1 review should widen two non-blocking S0 source guards: scan the whole
-  `internal/cli` package for `openInEditor` call sites, and bind the P6
-  reachability guard to the validator actually passed by `RunImplement`.
+- S1 closed both S0 review notes: `openInEditor` call sites are scanned across
+  the whole `internal/cli` package, and P6 reachability is bound to
+  `RunImplement`'s actual validator expression.
+- S2 must decide how long exact pre/postimage bodies remain resident; S1
+  batches Git processes but retains all bodies in memory for future pure
+  derivation.
+- S6 must document the intentional `tpatch edit` behavior change: editor
+  process failures now propagate as non-zero exits.
 
 - `internal/intent` must not import `internal/store`; the status schema is
   mirrored locally on purpose and kept honest by the AST parity guard.

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/safety"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -30,52 +31,17 @@ type RecipeStaleness struct {
 	DetectedAt string `json:"detected_at"`
 }
 
-// patchFileChange is the parsed view of a single file entry in a
-// unified diff. `New` and `Deleted` are mutually exclusive; both false
-// means "modified in place".
-type patchFileChange struct {
-	Path    string
-	New     bool
-	Deleted bool
-}
-
-// parsePatchTouchedFiles walks a unified diff and returns one entry per
-// touched file. Robust against `git diff` output as produced by
-// CapturePatch / CapturePatchFromCommits.
-func parsePatchTouchedFiles(patch string) []patchFileChange {
-	var out []patchFileChange
-	var cur *patchFileChange
-	flush := func() {
-		if cur != nil && cur.Path != "" {
-			out = append(out, *cur)
-		}
-		cur = nil
-	}
-	for _, line := range strings.Split(patch, "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			flush()
-			cur = &patchFileChange{}
-			// `diff --git a/<path> b/<path>` — take the b-side path.
-			parts := strings.Fields(line)
-			if len(parts) >= 4 {
-				cur.Path = strings.TrimPrefix(parts[3], "b/")
-			}
-		case cur != nil && strings.HasPrefix(line, "deleted file mode"):
-			cur.Deleted = true
-		case cur != nil && strings.HasPrefix(line, "new file mode"):
-			cur.New = true
-		case cur != nil && strings.HasPrefix(line, "rename to "):
-			cur.Path = strings.TrimSpace(strings.TrimPrefix(line, "rename to "))
-		}
-	}
-	flush()
-	return out
-}
-
 // RecipeFromPatch derives a minimal ApplyRecipe from a captured unified
 // diff by emitting a `write-file` op for each non-deleted file using
 // the post-image content read from the working tree at repoRoot.
+//
+// The touched-file set comes from the strict normalized effect grammar
+// through `patchEffectViews` (PI-1). A patch the grammar refuses returns
+// its error rather than a silently short operation list: a derivation
+// that cannot read the patch has nothing to derive. That includes a patch
+// naming one destination path twice — the authority refuses it, so this
+// derivation no longer keeps a first-seen `seen` map that would have
+// dropped the second record's effect without telling anybody.
 //
 // Deleted files are returned in the `skipped` slice with a reason
 // message: the current recipe schema has no delete-file op (a known
@@ -84,20 +50,21 @@ func parsePatchTouchedFiles(patch string) []patchFileChange {
 // The recipe is intended for replay/inspection — `artifacts/post-apply.patch`
 // remains the reconcile source of truth.
 func RecipeFromPatch(repoRoot, slug, patch string) (ApplyRecipe, []string, error) {
-	files := parsePatchTouchedFiles(patch)
+	files, err := patchEffectViews(patch)
+	if err != nil {
+		return ApplyRecipe{}, nil, err
+	}
 	// Determinism: alphabetical by path so two captures of the same
 	// patch produce byte-identical recipes.
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 
 	recipe := ApplyRecipe{Feature: slug}
 	var skipped []string
-	seen := map[string]bool{}
 	for _, fc := range files {
-		if fc.Path == "" || seen[fc.Path] {
+		if fc.Path == "" {
 			continue
 		}
-		seen[fc.Path] = true
-		if fc.Deleted {
+		if fc.ChangeKind == gitutil.ChangeKindDelete {
 			skipped = append(skipped, fmt.Sprintf("%s (deleted — recipe schema has no delete-file op)", fc.Path))
 			continue
 		}
@@ -131,6 +98,21 @@ const (
 	AutogenSkipped     AutogenAction = "skipped"     // autogen disabled and no recipe present
 )
 
+// AutogenOutcome is what AutogenRecipeForRecord decided, together with
+// the operation count of the recipe it actually derived.
+//
+// Operations exists because a `diff --git` prefix counter cannot compute
+// one: it counts file records, so it double-counts a path with two
+// records and counts a line that never produced an operation
+// (PRD §6.1.3, PI-10). The producer that derived the recipe is the only
+// caller holding a real operation count, so it reports it here.
+type AutogenOutcome struct {
+	Action       AutogenAction
+	SkippedPaths []string
+	DriftReason  string
+	Operations   int
+}
+
 // AutogenRecipeForRecord materialises or stale-marks apply-recipe.json
 // after `tpatch record` captures a patch.
 //
@@ -148,44 +130,50 @@ const (
 // (with replace-in-file ops, search/replace context, created_by edges)
 // is preserved; the sidecar tells the operator to regenerate when they
 // are ready, without silent data loss.
-func AutogenRecipeForRecord(s *store.Store, slug, patch string, autogen, regenerate bool) (AutogenAction, []string, string, error) {
+func AutogenRecipeForRecord(s *store.Store, slug, patch string, autogen, regenerate bool) (AutogenOutcome, error) {
 	derived, skipped, err := RecipeFromPatch(s.Root, slug, patch)
 	if err != nil {
-		return "", skipped, "", err
+		return AutogenOutcome{SkippedPaths: skipped}, err
 	}
+	outcome := AutogenOutcome{SkippedPaths: skipped, Operations: len(derived.Operations)}
 
 	existing, recipeErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
 	haveExisting := recipeErr == nil && strings.TrimSpace(existing) != ""
 
 	if !haveExisting {
 		if !autogen {
-			return AutogenSkipped, skipped, "", nil
+			outcome.Action = AutogenSkipped
+			return outcome, nil
 		}
 		if err := writeRecipe(s, slug, derived); err != nil {
-			return "", skipped, "", err
+			return outcome, err
 		}
-		return AutogenGenerated, skipped, "", nil
+		outcome.Action = AutogenGenerated
+		return outcome, nil
 	}
 
 	var existingRecipe ApplyRecipe
 	if jerr := json.Unmarshal([]byte(existing), &existingRecipe); jerr != nil {
-		return resolveStale(s, slug, derived, "existing apply-recipe.json is unparseable JSON", regenerate, skipped)
+		return resolveStale(s, slug, derived, "existing apply-recipe.json is unparseable JSON", regenerate, outcome)
 	}
 	drift, reason := compareRecipeFileSets(existingRecipe, derived)
 	if !drift {
 		_ = clearStaleMarker(s, slug)
-		return AutogenNoop, skipped, "", nil
+		outcome.Action = AutogenNoop
+		return outcome, nil
 	}
-	return resolveStale(s, slug, derived, reason, regenerate, skipped)
+	return resolveStale(s, slug, derived, reason, regenerate, outcome)
 }
 
-func resolveStale(s *store.Store, slug string, derived ApplyRecipe, reason string, regenerate bool, skipped []string) (AutogenAction, []string, string, error) {
+func resolveStale(s *store.Store, slug string, derived ApplyRecipe, reason string, regenerate bool, outcome AutogenOutcome) (AutogenOutcome, error) {
+	outcome.DriftReason = reason
 	if regenerate {
 		if err := writeRecipe(s, slug, derived); err != nil {
-			return "", skipped, "", err
+			return outcome, err
 		}
 		_ = clearStaleMarker(s, slug)
-		return AutogenRegenerated, skipped, reason, nil
+		outcome.Action = AutogenRegenerated
+		return outcome, nil
 	}
 	sb := RecipeStaleness{
 		Stale:      true,
@@ -194,9 +182,10 @@ func resolveStale(s *store.Store, slug string, derived ApplyRecipe, reason strin
 	}
 	data, _ := json.MarshalIndent(sb, "", "  ")
 	if err := s.WriteArtifact(slug, "recipe-stale.json", string(data)+"\n"); err != nil {
-		return "", skipped, reason, err
+		return outcome, err
 	}
-	return AutogenStale, skipped, reason, nil
+	outcome.Action = AutogenStale
+	return outcome, nil
 }
 
 func writeRecipe(s *store.Store, slug string, recipe ApplyRecipe) error {

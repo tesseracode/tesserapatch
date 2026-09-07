@@ -35,6 +35,17 @@ does not consume either decision. §6.4 now cites ADR-024 D1 explicitly for the
 separate per-feature manifest boundary it applies. No decision, schema,
 acceptance row or release boundary changed.
 
+### S1 implementation clarification — 2026-09-06
+
+PI-3's strict parse runs in each producer's discovery window before the first
+bound write; its later manifest reparse remains a hard defense but is not the
+first refusal. PI-4 alone uses its pre-existing fail-soft evidence channel.
+PI-12 preserves b-side path/order semantics while accepting new fail-closed
+path/header safety checks. `ordinal` indexes normalized effects, so Git's
+adjacent delete+add representation of a real object-type change becomes one
+modify effect whose fragment spans both records. No schema field, producer
+rule, coverage predicate or matrix count changed.
+
 ## 1. Summary
 
 `tpatch record` currently derives `apply-recipe.json` from the canonical patch
@@ -543,8 +554,8 @@ S1 migrates the complete derived inventory, not a subset:
 |---|---|---|---|
 | PI-1 | `parsePatchTouchedFiles` (`internal/workflow/recipe_autogen.go:45-84`) | `strings.Fields` b-side split; path + effect | **removed** |
 | PI-2 | `gitutil.FilesInPatch` (`internal/gitutil/gitutil.go:885-911`) | fail-soft ` b/` split | **deleted or demoted to a test-only helper**; unreachable from production |
-| PI-3 | `AppendPatchGenerationForFeature` → `touched_paths` (`internal/workflow/patch_generations.go:76`) | PI-2 consumer | strict normalized path authority, or an exact adapter over it; the strict error propagates to this caller's **existing** continue-on-error handling |
-| PI-4 | `touchedPathsFromPostApplyPatch` (`internal/workflow/reconcile_derivation.go:118-124`) | PI-2 consumer | same authority; the strict error propagates to this caller's **existing** continue-on-error handling |
+| PI-3 | `AppendPatchGenerationForFeature` → `touched_paths` (`internal/workflow/patch_generations.go:76`) | PI-2 consumer | each producer preflights the same strict adapter before any bound write; the appender reparses as a hard defense |
+| PI-4 | `touchedPathsFromPostApplyPatch` (`internal/workflow/reconcile_derivation.go:118-124`) | PI-2 consumer | same authority; its existing evidence caller remains fail-soft |
 | PI-5 | `parsePatchNoveltyPaths` + `parseDiffGitPaths` + `cleanPatchPath` (`internal/workflow/file_novelty.go:130-231`) | naive split and quote-trim; claims path **and** change kind | adapter projecting path and `change_kind` from the strict effect set |
 | PI-6 | `parsePatchHunks` (`internal/workflow/hunk_overlap.go:150-175`) | PI-5 helper for path attribution | path attribution from the strict adapter; the hunk-range projection is unchanged |
 | PI-7 | `PathsAffectedByPatch` + `pathsFromDiffGitHeader` (`internal/gitutil/unapply.go:36-125`) | **quoting-aware** both-side union including rename/copy sources; returns no error | new strict **all-paths** projection `PathsAffectedByPatchStrict`; all three call sites fail closed on its error |
@@ -552,7 +563,7 @@ S1 migrates the complete derived inventory, not a subset:
 | PI-9 | `stripGitInternalFileStanzas` + `headerPathIsGitInternal` (`internal/gitutil/gitutil.go:1170-1270`) | multi-dialect sanitizer; **no** path/effect authority | retained, registered, guarded |
 | PI-10 | `countPatchFiles` (`internal/cli/cobra.go:2094-2101`) | display counter with **four** production consumers: correct file counts at `internal/cli/cobra.go:1863`, `internal/cli/feature_patch.go:163` and `internal/cli/record_collision.go:96`, and **incorrectly an operation count** at `internal/cli/cobra.go:1908` | retained, registered, guarded as a **human file count only**; the three file-count consumers are unchanged and the operation-count consumer is removed/migrated |
 | PI-11 | `FilesInPatchStrict` and its grammar (`internal/gitutil/patch_paths_strict.go:235-253`) | strict header grammar, b-side projection | **the authority**, extended to the full normalized effect model; the b-side projection keeps its exact current result |
-| PI-12 | Existing `FilesInPatchStrict` b-side callers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | **unchanged contract**; a regression guard pins what they receive |
+| PI-12 | Existing `FilesInPatchStrict` b-side callers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | preserve b-side path/order projection; new malformed/path-safety refusals fail closed |
 
 An adapter is acceptable only if it derives its output from the strict
 normalized effect set and propagates the strict error. It may not re-implement
@@ -592,7 +603,8 @@ S1 therefore adds a second strict entry point over the same grammar:
 // path a patch touches on either side: each effect's canonical path plus
 // its old_path for rename and copy effects. It preserves the rollback
 // scope PathsAffectedByPatch provides today and refuses, with an error,
-// every input FilesInPatchStrict refuses.
+// every malformed input the shared grammar refuses. Authority-only
+// duplicate-destination checks may be stricter than PI-12 compatibility.
 func PathsAffectedByPatchStrict(patch string) ([]string, error)
 ```
 
@@ -608,17 +620,19 @@ All three production call sites migrate and **fail closed**:
 | `internal/cli/feature_unapply.go:156` | `gitutil.PathsAffectedByPatch(patch)` feeds `ValidateWorktreePaths` and the unapply scope; no error channel | strict call; a parse error returns before any snapshot, reverse patch or artifact write |
 
 **None of these three has an existing fail-soft handler.** The migration adds a
-new refusal path at each, and this PRD does not claim to reuse one. That claim
-would be true only of PI-3 and PI-4, whose callers already tolerate an error.
+new refusal path at each. PI-3 is preflighted before producer writes and
+reparsed defensively; PI-4 alone reaches an existing fail-soft evidence
+channel.
 
 #### 6.1.2 PI-12's b-side contract is frozen
 
 Five shipped call sites consume `FilesInPatchStrict`'s b-side list today:
 `internal/cli/land.go:767`, `internal/cli/land.go:1212`,
 `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009`
-and `internal/workflow/verify_landed.go:1163`. Their semantics are **unchanged**
-by this PRD: they receive exactly the b-side paths they receive today, in the
-same order, with the same refusals.
+and `internal/workflow/verify_landed.go:1163`. Their **path/order projection**
+is unchanged: they receive exactly the b-side paths they receive today in the
+same order. The shared grammar may add fail-closed malformed/path-safety
+refusals; it may not widen the returned path set.
 
 This is stated as a contract because extending the shared grammar is the
 obvious way to break it. Adding rename and copy sources to
@@ -1267,13 +1281,11 @@ without extending it:
   cosmetic: an effect already excluded by a capability, safety or availability
   condition does not satisfy that code's condition, so set equality neither
   permits nor requires it there;
-- `ordinal` is the **one-based position of the effect's record in the strict
-  grammar's parse of the canonical patch**, counted from the first recognized
-  record start with no gaps. It is a property of the patch, not of the recipe
-  or of the JSON array's order, and `patch_fragment_sha256`'s boundaries follow
-  that same order — fragment *n* spans record *n*, ending immediately before
-  record *n+1* or at end of file for the last ordinal — so one parse recomputes
-  both;
+- `ordinal` is the **one-based normalized-effect order** produced from the
+  strict grammar's canonical-patch record order, contiguous from `1` and
+  independent of recipe or JSON array order. A legitimate adjacent delete+add
+  typechange pair becomes one modify effect whose `patch_fragment_sha256`
+  spans both records; the following effect receives the next ordinal;
 - `coverage_status` is defined by ADR-036 D3's canonical ten-predicate iff,
   reproduced in §6.5, and a contradictory record — `complete` with a non-empty
   `reasons`, a non-`represented` effect, an **empty `effects` array**, an
@@ -2736,10 +2748,11 @@ than the mapped subset alone, is disjointness: no token appears in both layers.
   no production path reaches it.
 - **Migrate the complete derived inventory** onto the strict authority or exact
   adapters over it: `touched_paths` (PI-3,
-  `internal/workflow/patch_generations.go:76`) and the reconcile derivation
-  fallback (PI-4, `internal/workflow/reconcile_derivation.go:118-124`)
-  propagate the strict error into their **existing** continue-on-error
-  handlers; file novelty path **and change-kind** classification (PI-5,
+  `internal/workflow/patch_generations.go:76`) is preflighted before producer
+  writes and reparsed defensively; the reconcile derivation fallback (PI-4,
+  `internal/workflow/reconcile_derivation.go:118-124`) reaches its existing
+  fail-soft evidence handler; file novelty path **and change-kind**
+  classification (PI-5,
   `internal/workflow/file_novelty.go:130-231`) and hunk-overlap path
   attribution (PI-6, `internal/workflow/hunk_overlap.go:150-175`) move to
   adapters.
@@ -3032,7 +3045,7 @@ Token-presence-only fixtures do not satisfy a semantic guard.
 | RGA-072 | G | Reconcile derivation migration | Wrong-input fixture `derivation-failsoft-quoted-drop` (the fail-soft splitter restored under `touchedPathsFromPostApplyPatch`) fails the same path-totality validator |
 | RGA-073 | G | File-novelty migration | Wrong-input fixture `novelty-fields-split-and-naive-dequote` (`parseDiffGitPaths` plus `cleanPatchPath`'s `strings.Trim(path, "\"")` restored under `parsePatchNoveltyPaths`) fails the same path-and-change-kind validator |
 | RGA-074 | G | Hunk-overlap path attribution | Wrong-input fixture `hunk-overlap-fields-path-attribution` (hunk ranges attributed by the naive header splitter) fails the same path-attribution validator; the hunk-range projection itself is unchanged |
-| RGA-075 | U | PI-3/PI-4 error routing | The strict error surfaces through each caller's **existing** continue-on-error handler (`internal/workflow/patch_generations.go:76`, `internal/workflow/reconcile_derivation.go:118-124`); no silently short path list is returned |
+| RGA-075 | U | PI-3/PI-4 error routing | PI-3 is preflighted through the strict adapter before any producer write and reparsed defensively by `AppendPatchGenerationForFeature`; PI-4 reaches its existing fail-soft evidence caller. Neither returns a silently short path list |
 | RGA-076 | U | `PathsAffectedByPatchStrict` union | Returns the sorted, unique union of each effect's canonical path plus `old_path` for rename and copy, and is not the b-side projection |
 | RGA-077 | U | Rename old side retained | A rename effect yields both source and destination paths, matching `internal/gitutil/unapply_test.go:83-102` |
 | RGA-078 | U | Copy old side retained | A copy effect yields both source and destination paths |
@@ -3053,7 +3066,7 @@ Token-presence-only fixtures do not satisfy a semantic guard.
 | RGA-093 | U | Ordinary `100644` modify | Both presence flags true, exact pre/postimage hashes, stable `effect_sha256` |
 | RGA-094 | U | Quoted path with a space in effects | The strict decoded repo-relative path appears in effects, in `touched_paths`, in novelty and in reverse-apply scope |
 | RGA-095 | U | CRLF and no-newline-at-EOF | Exact-byte hashes and a stable `effect_sha256` |
-| RGA-096 | U | Strict error propagation | An unparseable header surfaces the strict error to every migrated caller in the shape §6.1 assigns it — existing handler for PI-3/PI-4, new refusal for PI-7 |
+| RGA-096 | U | Strict error propagation | An unparseable header refuses PI-3 producers before their first bound write, declines PI-4 evidence through its existing fail-soft channel, and reaches the new PI-7 refusal paths |
 | RGA-097 | G | Parser totality | Wrong-input fixture `effects-rename-arm-deleted` (one effect arm removed from the normalizer) fails the same effect validator; contradictory, duplicate-destination and escaping paths refuse generation authority |
 | RGA-098 | U | Unparseable patch record | A present, non-empty patch the strict grammar refuses yields `patch_present: true`, `patch_sha256` over the exact raw bytes, `effects: []`, `coverage_status: incomplete`, `cross_base_status: unsupported` and `canonical-patch-unparseable`; no effect list is invented and no publication is skipped |
 | RGA-099 | G | Unparseable patch silence | Wrong-input fixtures `unparseable-patch-publishes-nothing` and `unparseable-patch-reported-absent` (`patch_present: false` for a patch that exists) each fail the same publication validator |
@@ -3146,7 +3159,7 @@ Token-presence-only fixtures do not satisfy a semantic guard.
 | RGA-176 | U | `reason_codes` shape | Sorted ascending, non-null, duplicate-free; `[]` exactly when `disposition: represented`, non-empty for every other disposition; and **set-equal** to the full set of effect-local codes whose raising condition holds for that effect |
 | RGA-177 | U | `reasons` shape | Required, non-null, sorted ascending, duplicate-free; `[]` exactly when no record-level condition holds; and **set-equal** to the full set of record-level codes whose raising conditions hold |
 | RGA-178 | G | Applicable reason omitted | Wrong-input fixture `applicable-reason-omitted` (a binary rename publishing only `effect-rename-unsupported`, and a record publishing `producer-patch-rewrite` without `recipe-not-regenerated`) fails the same exhaustiveness validator that the complete sorted arrays pass; the mirror fixture `inapplicable-reason-present` fails it too |
-| RGA-179 | U | `ordinal` is the grammar's record order | `ordinal` is one-based over the strict grammar's recognized record starts in the canonical patch, contiguous with no gaps, independent of the effect array's JSON order and of the recipe; effect *n*'s `patch_fragment_sha256` covers the range from record *n*'s first byte to the byte before record *n+1*'s, or to EOF for the last ordinal, so both are recomputed from one parse |
+| RGA-179 | U | `ordinal` is normalized-effect order | `ordinal` is one-based and contiguous over normalized effects in strict-grammar order. A legitimate adjacent delete+add typechange is one modify effect whose `patch_fragment_sha256` spans both records; following effects remain gapless |
 | RGA-180 | U | Record-level code in an effect | An effect whose `reason_codes` contains `canonical-patch-missing`, `canonical-patch-unparseable`, `recipe-undecodable`, `producer-patch-rewrite`, `simulation-mismatch`, `operation-surplus` or any other record-level code is refused at decode |
 | RGA-181 | U | Effect-local code in `reasons` | A record whose `reasons` contains `effect-rename-unsupported`, `operation-missing`, `path-unsafe`, `preimage-unavailable`, `postimage-unavailable` or any other effect-local code is refused at decode |
 | RGA-182 | U | No occurrence in both arrays | For every incompleteness cause, the code appears in exactly one array; a record duplicating one occurrence across both is refused |

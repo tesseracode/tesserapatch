@@ -13,6 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -88,11 +89,143 @@ func editCmd() *cobra.Command {
 			if !exists {
 				return fmt.Errorf("artifact %q does not exist for feature %s", artifact, slug)
 			}
-			openInEditor(cmd.OutOrStdout(), path)
-			return nil
+			return runEditWithObservation(cmd, s, slug, path)
 		},
 	}
 	return cmd
+}
+
+// runEditWithObservation is P7 (ADR-036 D2, PRD §6.2).
+//
+// `tpatch edit` observes an operator's in-place mutation; it does not
+// author one and it holds no capture of the tree those bytes describe.
+// Four rules make that observable rather than assumed:
+//
+//   - the trigger is the RESOLVED path, never the artifact token the
+//     operator typed. Only `<feature>/artifacts/apply-recipe.json` and
+//     `<feature>/artifacts/post-apply.patch` are bound artifacts. A
+//     same-named decoy at the feature root resolves FIRST and shadows the
+//     canonical file, and editing it is therefore not a P7 event —
+//     publishing one would describe a file no producer reads. `spec.md`,
+//     `request.md` and every other artifact are non-events for the same
+//     reason;
+//   - the BEFORE snapshot is taken of that resolved path, before the
+//     editor process starts;
+//   - an unset `$EDITOR` is not an event. No process runs, so no byte can
+//     change, so nothing is observed and nothing is handed to the seam.
+//     This is modelled explicitly so an implementation cannot
+//     "helpfully" record a no-op event on a path where nothing happened;
+//   - an editor error does not excuse observation. The AFTER snapshot is
+//     taken even when `c.Run` fails, and when the bytes changed the
+//     observation is handed over BEFORE the error is returned. Otherwise
+//     a failed editor that still saved leaves a mutated bound artifact
+//     beside a record claiming the old bytes.
+//
+// A GUI editor that forks and exits before the operator's later save is a
+// different case: at the moment the editor returns, no mutation is
+// observable, so P7 correctly observes nothing. The later save runs with
+// no tpatch process alive, which makes it external tamper — caught at
+// read time, not covered here.
+func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path string) error {
+	bound := classifyBoundArtifact(s, slug, path)
+	// An edit is observed only when BOTH hold: the resolved path is a
+	// bound artifact, and an editor process will actually start. An unset
+	// `$EDITOR` starts no process, so no byte can change; the pointer
+	// line is still printed by openInEditor and nothing is observed.
+	observed := bound != boundArtifactNone && editorStarted()
+
+	var before patchobs.ArtifactSnapshot
+	if observed {
+		before = patchobs.SnapshotArtifact(path)
+	}
+	editErr := openInEditor(cmd.OutOrStdout(), path)
+	if !observed {
+		return editErr
+	}
+	after := patchobs.SnapshotArtifact(path)
+
+	if obs, mutated := observeArtifactEdit(s, slug, bound, before, after); mutated {
+		patchobs.Emit(obs)
+	}
+	return editErr
+}
+
+// boundArtifactKind names which canonical bound artifact a resolved path
+// is, if any.
+type boundArtifactKind int
+
+const (
+	boundArtifactNone boundArtifactKind = iota
+	boundArtifactRecipe
+	boundArtifactPatch
+)
+
+// classifyBoundArtifact decides P7's trigger from the RESOLVED path.
+//
+// The comparison is exact against the two canonical locations under the
+// feature's `artifacts/` directory, on cleaned paths, so neither a
+// feature-root decoy nor a `.`/`..` spelling of the same file can be
+// mistaken for — or hidden from — the bound set.
+func classifyBoundArtifact(s *store.Store, slug, resolved string) boundArtifactKind {
+	artifacts := filepath.Join(featureDirPath(s, slug), "artifacts")
+	clean := filepath.Clean(resolved)
+	switch clean {
+	case filepath.Join(artifacts, "apply-recipe.json"):
+		return boundArtifactRecipe
+	case filepath.Join(artifacts, "post-apply.patch"):
+		return boundArtifactPatch
+	default:
+		return boundArtifactNone
+	}
+}
+
+// observeArtifactEdit builds P7's observation from the before/after pair.
+// The second result reports whether a mutation was proven: an editor the
+// operator quit without saving changed nothing, so nothing is published.
+//
+// The canonical patch the observation binds depends on WHICH artifact was
+// edited:
+//
+//   - editing `post-apply.patch` means the AFTER snapshot IS the
+//     canonical patch, so the observation binds those bytes. A patch that
+//     is really there is never recorded as missing;
+//   - editing `apply-recipe.json` leaves the canonical patch untouched,
+//     so the observation binds whatever is currently readable at
+//     `artifacts/post-apply.patch`, and records its absence honestly when
+//     there is none.
+func observeArtifactEdit(s *store.Store, slug string, bound boundArtifactKind, before, after patchobs.ArtifactSnapshot) (patchobs.Observation, bool) {
+	probe := patchobs.Observation{ArtifactBefore: &before, ArtifactAfter: &after}
+	if !probe.ArtifactMutated() {
+		return patchobs.Observation{}, false
+	}
+
+	patch, present := "", false
+	switch bound {
+	case boundArtifactPatch:
+		if after.Observed && after.Present {
+			patch, present = string(after.Bytes), true
+		}
+	case boundArtifactRecipe:
+		body, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+		if err == nil {
+			patch, present = body, true
+		}
+	}
+
+	obs := patchobs.Observe(patchobs.Input{
+		Producer:     patchobs.ProducerEdit,
+		RepoRoot:     s.Root,
+		Slug:         slug,
+		Patch:        patch,
+		PatchPresent: present,
+		// P7 runs no patch capture at all, so its capture mode is
+		// `no-capture` and its reference is unavailable: it holds no
+		// preimage anybody could reconstruct.
+		Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeNoCapture},
+	})
+	obs.ArtifactBefore = &before
+	obs.ArtifactAfter = &after
+	return obs, true
 }
 
 // ─── amend ───────────────────────────────────────────────────────────────────

@@ -30,6 +30,7 @@ import (
 	"os"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -76,6 +77,46 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 		if err != nil {
 			return fmt.Errorf("refresh: regenerate post-apply.patch: %w", err)
 		}
+	}
+
+	// P3: the immutable observation is taken here, against the accepted
+	// upstream commit the refresh diffs from, and BEFORE the canonical
+	// patch write below (ADR-036 D2).
+	//
+	// It binds `newPatch` — the bytes about to be written — not the
+	// pre-refresh `originalPatch`. The event P3 owns is the patch WRITE,
+	// so an observation of the bytes being replaced would describe a
+	// state the producer is in the act of ending. `originalPatch` keeps
+	// its one remaining role above: it is the pre-write context the
+	// refresh scope is derived from.
+	//
+	// `PatchPresent` is true even when `newPatch` is empty. The file is
+	// about to exist, which is a different statement from "no canonical
+	// patch was readable"; a patch that is present and semantically empty
+	// is recorded as such by the observation's own record-level reason.
+	//
+	// The reference is the accepted upstream commit, and postimages come
+	// from the working tree the accept just produced — which is exactly
+	// the state `newPatch` was diffed out of.
+	obs := patchobs.ObserveAndEmit(patchobs.Input{
+		Producer:     patchobs.ProducerReconcileAccept,
+		RepoRoot:     s.Root,
+		Slug:         slug,
+		Patch:        newPatch,
+		PatchPresent: true,
+		Capture: patchobs.CaptureDescriptor{
+			Mode:      patchobs.CaptureModeReconcile,
+			Pathspecs: files,
+			ClaimIDs:  []string{},
+		},
+		PreimageRef: upstreamCommit,
+	})
+	// PI-3: the strict refusal is raised HERE, before the first bound
+	// write, so a patch whose effects nobody can derive never reaches
+	// post-apply.patch, the numbered snapshot, or the generation append
+	// that re-parses the same bytes downstream.
+	if perr := obs.PreflightError(); perr != nil {
+		return fmt.Errorf("refresh: regenerated post-apply.patch is unreadable, refusing to bind it: %w", perr)
 	}
 
 	// post-apply.patch is the source of truth for future reconciles.

@@ -13,39 +13,10 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
-func TestFilesInPatch(t *testing.T) {
-	patch := `diff --git a/foo.txt b/foo.txt
-index 111..222 100644
---- a/foo.txt
-+++ b/foo.txt
-@@ -1 +1 @@
--hi
-+hello
-diff --git a/bar/baz.go b/bar/baz.go
-new file mode 100644
---- /dev/null
-+++ b/bar/baz.go
-@@ -0,0 +1 @@
-+package baz
-diff --git a/foo.txt b/foo.txt
-`
-	got := gitutil.FilesInPatch(patch)
-	want := []string{"foo.txt", "bar/baz.go"}
-	if len(got) != len(want) {
-		t.Fatalf("len=%d want %d: %v", len(got), len(want), got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("at %d: got %q want %q", i, got[i], want[i])
-		}
-	}
-}
-
-func TestFilesInPatchEmpty(t *testing.T) {
-	if got := gitutil.FilesInPatch(""); len(got) != 0 {
-		t.Errorf("expected no files, got %v", got)
-	}
-}
+// TestFilesInPatch and TestFilesInPatchEmpty moved to
+// internal/gitutil/legacy_patch_scanners_test.go when GH #15 S1 demoted
+// gitutil.FilesInPatch (PI-2) out of production. The demoted scanner is
+// test-only and therefore unreachable from this package.
 
 func TestRefreshAfterAcceptRegeneratesArtifacts(t *testing.T) {
 	tmpDir := t.TempDir()

@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/provider"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -187,10 +189,20 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 		recipeContent = heuristicRecipe(slug)
 	}
 
-	// Try to parse and re-serialize for clean formatting
+	// Try to parse and re-serialize for clean formatting.
+	//
+	// P6 (ADR-036 D2): `implement` runs no patch capture at all — its
+	// whole job is to author a recipe — so its capture mode is
+	// `no-capture` and its reference is unavailable. Each arm takes its
+	// observation immediately above the write it binds, with the EXACT
+	// byte payload that write receives. The two arms bind different bytes
+	// — the raw response and the reserialized recipe — so one observation
+	// taken before the parse would describe bytes the valid arm never
+	// writes.
 	var recipe ApplyRecipe
 	if err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe); err != nil {
 		// Save raw content if not valid JSON
+		ObserveImplementCheckpoint(s, slug, recipeContent)
 		if err := s.WriteArtifact(slug, "apply-recipe.json", recipeContent); err != nil {
 			return err
 		}
@@ -206,7 +218,13 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 				"warning: created_by inference skipped: %v\n", ierr)
 		}
 		data, _ := json.MarshalIndent(recipe, "", "  ")
-		if err := s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n"); err != nil {
+		// The payload is bound to ONE identifier so the observation and
+		// the write cannot drift apart: the trailing newline, the
+		// indentation and whatever the inference step did or did not do
+		// to `recipe` are all inside the bytes both statements receive.
+		reserialized := string(data) + "\n"
+		ObserveImplementCheckpoint(s, slug, reserialized)
+		if err := s.WriteArtifact(slug, "apply-recipe.json", reserialized); err != nil {
 			return err
 		}
 	}
@@ -241,6 +259,52 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 	// code has not been executed/applied yet. The `apply` command moves
 	// it the rest of the way through implementing → applied.
 	return s.MarkFeatureState(slug, store.StateImplementing, "implement", "Apply recipe generated")
+}
+
+// ObserveImplementCheckpoint is P6's immutable observation (ADR-036 D2,
+// PRD §6.2). It is taken immediately above the write or checkpoint it
+// binds, and `recipeBytes` must be the EXACT byte payload of that event:
+//
+//   - `RunImplement`'s raw-invalid arm passes the raw provider response,
+//     because that is what it writes;
+//   - `RunImplement`'s valid arm passes the reserialized recipe INCLUDING
+//     its trailing newline, because that is what it writes;
+//   - `implement --manual` passes the exact bytes the store validated,
+//     because a checkpoint binds bytes it did not author.
+//
+// `implement` performs no patch capture, so the capture mode is
+// `no-capture` with empty pathspecs and claim IDs, and no reference ref
+// is supplied — which yields `unavailable` rather than a reference the
+// producer never established. A no-capture producer observes no tree, so
+// any effects of the canonical patch carry `preimage_observed: false` /
+// `postimage_observed: false` with the matching unavailable reasons,
+// rather than claiming proven absence on both sides.
+//
+// The canonical patch is included when it is readable and recorded as
+// missing when it is not; P6 never defaults a real patch to absent.
+//
+// The returned observation is the one handed to the seam, so a caller
+// that needs to assert what it bound can read it rather than re-derive it.
+func ObserveImplementCheckpoint(s *store.Store, slug, recipeBytes string) patchobs.Observation {
+	patch, patchErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
+	obs := patchobs.Observe(patchobs.Input{
+		Producer:     patchobs.ProducerImplement,
+		RepoRoot:     s.Root,
+		Slug:         slug,
+		Patch:        patch,
+		PatchPresent: patchErr == nil,
+		Capture:      patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeNoCapture},
+	})
+	checkpoint := patchobs.ArtifactSnapshot{
+		Path:     filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "apply-recipe.json"),
+		Observed: true,
+		Present:  true,
+		Bytes:    []byte(recipeBytes),
+		SHA256:   store.SHA256HexString(recipeBytes),
+	}
+	obs.ArtifactAfter = &checkpoint
+	patchobs.Emit(obs)
+	return obs
 }
 
 func heuristicRecipe(slug string) string {

@@ -433,27 +433,44 @@ func rgaS0PICallers(relPath, src, symbol string) ([]string, error) {
 	return out, nil
 }
 
-// TestRGAS0PatchHeaderReaderInventory freezes the CURRENT registry of
-// production `diff --git` readers (PRD §2.5 + §6.1). S1 removes PI-1,
-// demotes PI-2 and migrates PI-3..PI-7; every one of those edits must
-// move a line here.
+// TestRGAS0PatchHeaderReaderInventory freezes the registry of production
+// `diff --git` readers (PRD §2.5 + §6.1).
+//
+// GH #15 S1 moved five lines here, and each move is deliberate:
+//
+//   - PI-1 (`parsePatchTouchedFiles`) is REMOVED;
+//   - PI-2 (`gitutil.FilesInPatch`) and the PI-7 union
+//     (`PathsAffectedByPatch`) are DEMOTED to test-only helpers in
+//     internal/gitutil/legacy_patch_scanners_test.go, so neither appears
+//     in a production scan by construction;
+//   - PI-5 (`parsePatchNoveltyPaths`) and PI-6 (`parsePatchHunks`) now
+//     PROJECT the strict effect set and carry no `diff --git` literal of
+//     their own, which is exactly what "thin adapter" means here;
+//   - PI-11's grammar moved into patch_effects.go, where the record
+//     boundary scanner and the record normalizer are the two functions
+//     that read the token.
+//
+// PI-8, PI-9 and PI-10 are unchanged: they are registered
+// non-authoritative scanners and stay registered.
 func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 	want := map[string]string{
-		// authoritative strict grammar (PI-12)
-		"internal/gitutil/patch_paths_strict.go|FilesInPatchStrict": "PI-12 strict authority",
-		// fail-soft scanner and its two production consumers (PI-2/3/4)
-		"internal/gitutil/gitutil.go|FilesInPatch": "PI-2 fail-soft scanner",
-		// both-sides union (PI-7)
-		"internal/gitutil/unapply.go|PathsAffectedByPatch": "PI-7 union",
-		// naive path/effect readers slated for adapter migration (PI-1/5/6)
-		"internal/workflow/recipe_autogen.go|parsePatchTouchedFiles": "PI-1 recipe autogen",
-		"internal/workflow/file_novelty.go|parsePatchNoveltyPaths":   "PI-5 novelty classifier",
-		"internal/workflow/hunk_overlap.go|parsePatchHunks":          "PI-6 hunk attribution",
+		// the authoritative strict effect grammar (PI-11)
+		"internal/gitutil/patch_effects.go|patchRecordStarts":  "PI-11 record boundaries",
+		"internal/gitutil/patch_effects.go|normalizeOneRecord": "PI-11 record normalizer",
 		// registered NON-authoritative scanners (PI-8/9/10)
 		"internal/store/store.go|headerReferencedGitPath":         "PI-8 .git containment",
 		"internal/gitutil/gitutil.go|stripGitInternalFileStanzas": "PI-9 sanitization",
 		"internal/gitutil/gitutil.go|headerPathIsGitInternal":     "PI-9 sanitization",
 		"internal/cli/cobra.go|countPatchFiles":                   "PI-10 display counter",
+	}
+	// Readers S1 removed or demoted out of production. A reappearance is
+	// a regression, not a refactor.
+	gone := map[string]string{
+		"internal/workflow/recipe_autogen.go|parsePatchTouchedFiles": "PI-1, removed",
+		"internal/gitutil/gitutil.go|FilesInPatch":                   "PI-2, demoted to test-only",
+		"internal/gitutil/unapply.go|PathsAffectedByPatch":           "PI-7 legacy union, demoted to test-only",
+		"internal/workflow/file_novelty.go|parsePatchNoveltyPaths":   "PI-5, now an adapter",
+		"internal/workflow/hunk_overlap.go|parsePatchHunks":          "PI-6, now an adapter",
 	}
 
 	got := map[string]bool{}
@@ -470,6 +487,11 @@ func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 	for key, role := range want {
 		if !got[key] {
 			t.Errorf("registered %s reader %q disappeared from production", role, key)
+		}
+	}
+	for key, role := range gone {
+		if got[key] {
+			t.Errorf("%s reader %q is back in production; S1 removed or demoted it deliberately", role, key)
 		}
 	}
 	for key := range got {
@@ -522,33 +544,60 @@ func TestRGAS0PatchHeaderReaderScannerIsSensitive(t *testing.T) {
 }
 
 // TestRGAS0PatchParserCallsiteInventory freezes WHO calls each parser.
-// PRD §8 S1 names five `FilesInPatchStrict` callers (PI-12), two
-// `FilesInPatch` callers (PI-3, PI-4) and three `PathsAffectedByPatch`
-// call sites (PI-7). Identity is (file, enclosing function), never a line
-// number, so ordinary edits above a call do not churn this guard.
+//
+// After GH #15 S1 the shape is: PI-12's five shipped b-side callers plus
+// the one registered adapter that projects the same b-side list for PI-3
+// and PI-4; PI-7's three call sites on the strict both-side union; the
+// small set of functions allowed to touch the normalizer directly; and
+// the two functions allowed to call the unexported shared parse.
+// `FilesInPatch` and `PathsAffectedByPatch` have ZERO production callers
+// because both are demoted to test-only helpers.
+//
+// Identity is (file, enclosing function), never a line number, so
+// ordinary edits above a call do not churn this guard.
 func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 	want := map[string]map[string]int{
 		"FilesInPatchStrict": {
+			// PI-12: the five shipped b-side consumers, unchanged.
 			"internal/cli/land.go|computePathSet":                                  1,
 			"internal/cli/land.go|runLandDryRun":                                   1,
 			"internal/workflow/refresh.go|RefreshAfterAccept":                      1,
 			"internal/workflow/verify_landed.go|(*verifyRunContext).identitiesFor": 1,
 			"internal/workflow/verify_landed.go|firstPatchPath":                    1,
+			// the registered adapter PI-3 and PI-4 consume.
+			"internal/workflow/patch_effect_adapters.go|strictTouchedPaths": 1,
 		},
-		"FilesInPatch": {
-			"internal/workflow/patch_generations.go|AppendPatchGenerationForFeature":   1,
-			"internal/workflow/reconcile_derivation.go|touchedPathsFromPostApplyPatch": 1,
-		},
-		"PathsAffectedByPatch": {
+		"PathsAffectedByPatchStrict": {
 			"internal/cli/cobra.go|runApplyExecuteChecked":                 1,
 			"internal/cli/cobra.go|validateReapplyMaterialization":         1,
 			"internal/cli/feature_unapply.go|runFeatureUnapplyWithRuntime": 1,
 		},
+		"NormalizePatchEffects": {
+			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict": 1,
+			"internal/workflow/patch_effect_adapters.go|patchEffectViews":  1,
+			"internal/workflow/hunk_overlap.go|parsePatchHunks":            1,
+			"internal/patchobs/patchobs.go|Observe":                        1,
+		},
+		// The unexported shared parse. S1 added it for ONE reason: the
+		// authority refuses a repeated destination path, and PI-12's
+		// frozen b-side list must keep de-duplicating one instead
+		// (PRD §6.1.2). Exactly two functions may call it — the exported
+		// authority and the frozen projection — so a third caller
+		// choosing the weaker mode is a registry failure, not a refactor.
+		"normalizePatchEffects": {
+			"internal/gitutil/patch_effects.go|NormalizePatchEffects": 1,
+			"internal/gitutil/patch_effects.go|FilesInPatchStrict":    1,
+		},
+		"FilesInPatch":         {},
+		"PathsAffectedByPatch": {},
 	}
 	wantTotals := map[string]int{
-		"FilesInPatchStrict":   5,
-		"FilesInPatch":         2,
-		"PathsAffectedByPatch": 3,
+		"FilesInPatchStrict":         6,
+		"PathsAffectedByPatchStrict": 3,
+		"NormalizePatchEffects":      4,
+		"normalizePatchEffects":      2,
+		"FilesInPatch":               0,
+		"PathsAffectedByPatch":       0,
 	}
 
 	files := rgaS0PIProductionFiles(t)
@@ -576,7 +625,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 		}
 		for key, count := range got {
 			if _, registered := expected[key]; !registered {
-				t.Errorf("UNREGISTERED %s call site %q (%d call(s)); PI-12/PI-2/PI-7 migrations must be deliberate", symbol, key, count)
+				t.Errorf("UNREGISTERED %s call site %q (%d call(s)); PI-3..PI-7 and PI-12 migrations must be deliberate", symbol, key, count)
 			}
 		}
 	}

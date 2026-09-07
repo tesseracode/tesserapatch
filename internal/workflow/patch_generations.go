@@ -73,7 +73,24 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 			return false, fmt.Errorf("patch-generations.json: git_patch_id: %w", perr)
 		}
 	}
-	touched := gitutil.FilesInPatch(in.Patch)
+	touched, terr := strictTouchedPaths(in.Patch)
+	if terr != nil {
+		// PI-3: this reparse is the LAST line of defence, not the first.
+		// Every producer that reaches this function has already run the
+		// same bytes through the strict grammar in its own discovery
+		// window and refused before its first bound write, so a refusal
+		// here means a caller skipped that preflight — a bug in the
+		// caller, surfaced rather than degraded into a silently short
+		// `touched_paths` audit list.
+		//
+		// It is deliberately NOT treated as infallible. The earlier claim
+		// that "every caller already tolerates an error" was wrong: two
+		// of the three callers return it, and by the time control
+		// reaches here the canonical patch and the numbered snapshot
+		// have already been written. That is precisely why the preflight
+		// exists upstream.
+		return false, fmt.Errorf("patch-generations.json: touched_paths: %w", terr)
+	}
 	sort.Strings(touched)
 	deps := snapshotGenerationDependencies(s, slug)
 	g := store.PatchGeneration{

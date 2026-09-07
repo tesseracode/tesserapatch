@@ -850,6 +850,13 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// GH #15 S1 adds one deliberately narrow store hook so
+		// `implement --manual` can checkpoint the exact recipe bytes after
+		// validation and before the state transition. The legacy method
+		// delegates to it with a nil callback; no other store surface is
+		// authorized by this allowance.
+		want = append(want, "*Store.AdvanceStateManuallyWithCheckpoint")
+		sort.Strings(want)
 		got, err := prepareS5StoreFunctionSet(current)
 		if err != nil {
 			t.Fatal(err)

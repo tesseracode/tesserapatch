@@ -719,7 +719,7 @@ func embedRecord(cmd *cobra.Command, repoRoot, slug, fromRef string, autoBase bo
 // computePathSet implements PRD §3.3 steps 1–3.
 //
 // Path set =
-//   - FilesInPatch(post-apply.patch)
+//   - FilesInPatchStrict(post-apply.patch)
 //   - everything dirty under .tpatch/features/<slug>/ (record's output)
 //   - .tpatch/upstream.lock and .tpatch/FEATURES.md ONLY when the
 //     embedded record step actually modified them (PRD §3.3 step 3).

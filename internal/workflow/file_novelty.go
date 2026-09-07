@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os/exec"
 	"sort"
-	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -48,7 +47,10 @@ type PathNovelty struct {
 
 func ClassifyFileNovelty(featurePatch string, upstreamCommit, baseCommit string, repoRoot string) (FileNoveltyResult, error) {
 	_ = baseCommit
-	paths := parsePatchNoveltyPaths(featurePatch)
+	paths, err := parsePatchNoveltyPaths(featurePatch)
+	if err != nil {
+		return FileNoveltyResult{}, fmt.Errorf("file novelty: cannot determine which paths the feature patch touches: %w", err)
+	}
 	if len(paths) == 0 {
 		return FileNoveltyResult{Paths: []PathNovelty{}, Classification: FileNoveltyUnknown}, nil
 	}
@@ -127,54 +129,33 @@ func FileNoveltyEvidence(slug, upstreamRef, upstreamCommit, baseCommit, rawVerdi
 	return entry
 }
 
-func parsePatchNoveltyPaths(patch string) []PathNovelty {
-	var out []PathNovelty
-	var current *PathNovelty
-	flush := func() {
-		if current != nil && current.Path != "" {
-			out = append(out, *current)
-		}
-		current = nil
+// parsePatchNoveltyPaths projects the strict normalized effect set onto
+// the novelty view: one entry per record, carrying the canonical path and
+// the change axis read from the record header (PI-5).
+//
+// It used to split `diff --git` on whitespace and dequote with
+// strings.Trim(path, "\""), which dropped every Git C-quoted path and
+// mis-attributed any path containing a space. Both classes are now either
+// classified correctly or refused — the strict error is returned, never
+// absorbed into a short list that would silently classify a patch from a
+// subset of its effects.
+func parsePatchNoveltyPaths(patch string) ([]PathNovelty, error) {
+	views, err := patchEffectViews(patch)
+	if err != nil {
+		return nil, err
 	}
-	for _, line := range strings.Split(patch, "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			flush()
-			oldPath, newPath := parseDiffGitPaths(line)
-			path := newPath
-			if path == "" {
-				path = oldPath
-			}
-			current = &PathNovelty{Path: path, FeatureAction: FileNoveltyActionModify}
-		case current == nil:
+	out := make([]PathNovelty, 0, len(views))
+	for _, view := range views {
+		action, ok := noveltyActionForChangeKind(view.ChangeKind)
+		if !ok {
+			return nil, fmt.Errorf("novelty classification: unmapped change kind %q for %q", view.ChangeKind, view.Path)
+		}
+		if view.Path == "" {
 			continue
-		case strings.HasPrefix(line, "new file mode "):
-			current.FeatureAction = FileNoveltyActionCreate
-		case strings.HasPrefix(line, "deleted file mode "):
-			current.FeatureAction = FileNoveltyActionDelete
-		case strings.HasPrefix(line, "rename from "):
-			current.FeatureAction = FileNoveltyActionRename
-		case strings.HasPrefix(line, "rename to "):
-			current.FeatureAction = FileNoveltyActionRename
-			current.Path = strings.TrimSpace(strings.TrimPrefix(line, "rename to "))
-		case strings.HasPrefix(line, "--- /dev/null"):
-			current.FeatureAction = FileNoveltyActionCreate
-		case strings.HasPrefix(line, "+++ /dev/null"):
-			current.FeatureAction = FileNoveltyActionDelete
-		case strings.HasPrefix(line, "--- ") && current.FeatureAction == FileNoveltyActionModify:
-			oldPath := cleanPatchPath(strings.TrimSpace(strings.TrimPrefix(line, "--- ")))
-			if oldPath != "" && current.Path == "" {
-				current.Path = oldPath
-			}
-		case strings.HasPrefix(line, "+++ "):
-			newPath := cleanPatchPath(strings.TrimSpace(strings.TrimPrefix(line, "+++ ")))
-			if newPath != "" && current.FeatureAction != FileNoveltyActionDelete {
-				current.Path = newPath
-			}
 		}
+		out = append(out, PathNovelty{Path: view.Path, FeatureAction: action})
 	}
-	flush()
-	return dedupePathNovelty(out)
+	return dedupePathNovelty(out), nil
 }
 
 func classifyNovelty(paths []PathNovelty) FileNoveltyClassification {
@@ -208,24 +189,6 @@ func classifyNovelty(paths []PathNovelty) FileNoveltyClassification {
 		return FileNoveltyModifiesExistingFiles
 	}
 	return FileNoveltyUnknown
-}
-
-func parseDiffGitPaths(line string) (string, string) {
-	parts := strings.Fields(line)
-	if len(parts) < 4 {
-		return "", ""
-	}
-	return cleanPatchPath(parts[2]), cleanPatchPath(parts[3])
-}
-
-func cleanPatchPath(path string) string {
-	path = strings.Trim(path, "\"")
-	if path == "/dev/null" {
-		return ""
-	}
-	path = strings.TrimPrefix(path, "a/")
-	path = strings.TrimPrefix(path, "b/")
-	return path
 }
 
 func dedupePathNovelty(paths []PathNovelty) []PathNovelty {

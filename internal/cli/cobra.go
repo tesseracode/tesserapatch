@@ -18,6 +18,7 @@ import (
 	"github.com/tesseracode/tesserapatch/assets"
 	"github.com/tesseracode/tesserapatch/internal/buildinfo"
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/provider"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
@@ -916,7 +917,16 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		if err != nil {
 			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: read canonical patch: %w", slug, err)
 		}
-		paths := uniqueSortedPaths(gitutil.PathsAffectedByPatch(canonical))
+		// PI-7 (ADR-036 D1 / PRD §6.1.1): the reapply snapshot scope is
+		// derived from the strict both-side effect union. This call site
+		// has no pre-existing fail-soft handler, so the migration adds a
+		// new refusal: a patch the grammar cannot read returns BEFORE
+		// SnapshotWorktreePaths runs and before any mutation.
+		affected, pathsErr := gitutil.PathsAffectedByPatchStrict(canonical)
+		if pathsErr != nil {
+			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: canonical patch is unreadable, refusing to snapshot a partial path set: %w", slug, pathsErr)
+		}
+		paths := uniqueSortedPaths(affected)
 		reapplySnapshot, err = gitutil.SnapshotWorktreePaths(s.Root, paths)
 		if err != nil {
 			return workflow.RecipeExecResult{}, fmt.Errorf("reapply %q: snapshot touched paths: %w", slug, err)
@@ -1041,6 +1051,15 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			fmt.Fprint(cmd.ErrOrStderr(), captureWarning)
 		}
 		if patch != "" {
+			// P5: the observation is taken inside the existing
+			// discovery-before-writes window, immediately above the
+			// canonical patch write it binds (ADR-036 D2). Its preflight
+			// error returns BEFORE that write, so a capture the strict
+			// grammar refuses never lands (PI-3).
+			if _, obsErr := observePatchProducer(patchobs.ProducerApplyDone, s, slug, patch,
+				string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
+				return "", 0, obsErr
+			}
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return "", 0, err
 			}
@@ -1124,11 +1143,18 @@ func markApplyProgress(s *store.Store, slug, command, notes string) error {
 }
 
 func validateReapplyMaterialization(root, canonical string, presentAtHEAD bool) error {
+	// PI-7: the diff scope is derived from the strict both-side effect
+	// union, and the parse error returns BEFORE DiffFromCommitForPaths is
+	// called. An empty scope means "everything" to git, so a partial
+	// path set here would silently widen the comparison.
+	affected, err := gitutil.PathsAffectedByPatchStrict(canonical)
+	if err != nil {
+		return fmt.Errorf("reapply: canonical patch is unreadable, refusing to inspect a partial path set: %w", err)
+	}
 	if err := gitutil.ValidatePatchReverse(root, canonical); err != nil {
 		return fmt.Errorf("reapply is incomplete; canonical patch is not fully materialized and state remains unapplied: %w", err)
 	}
-	current, err := gitutil.DiffFromCommitForPaths(
-		root, "HEAD", gitutil.PathsAffectedByPatch(canonical))
+	current, err := gitutil.DiffFromCommitForPaths(root, "HEAD", affected)
 	if err != nil {
 		return fmt.Errorf("reapply: inspect source diff: %w", err)
 	}
@@ -1791,6 +1817,20 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return diffStatErr
 			}
 
+			// P1: the immutable observation is taken here, at the end of
+			// the discovery window and BEFORE the first bound write
+			// below (ADR-036 D2). Everything a later slice publishes is
+			// derived from it and from nothing re-read afterwards.
+			//
+			// Its preflight error returns BEFORE post-apply.patch, the
+			// numbered snapshot, the recipe autogen and the generation
+			// append run (PI-3), so a capture whose effects nobody can
+			// derive leaves the feature directory byte-identical.
+			if _, obsErr := observePatchProducer(patchobs.ProducerRecord, s, slug, patch,
+				captureMode, fromRef, toRef, pathspecs, activeClaimIDs); obsErr != nil {
+				return obsErr
+			}
+
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
 			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 				return err
@@ -1897,15 +1937,24 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
 			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
 			autogen := !noAutogen
-			action, skippedPaths, reason, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, autogen, regen)
+			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, autogen, regen)
+			skippedPaths := autogenOutcome.SkippedPaths
+			reason := autogenOutcome.DriftReason
 			if agErr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "warning: recipe autogen failed: %v\n", agErr)
 			} else {
 				out := cmd.OutOrStdout()
 				w := cmd.ErrOrStderr()
-				switch action {
+				switch autogenOutcome.Action {
 				case workflow.AutogenGenerated:
-					fmt.Fprintf(out, "  Recipe generated: artifacts/apply-recipe.json (%d ops)\n", countPatchFiles(patch)-len(skippedPaths))
+					// PI-10 (PRD §6.1.3): the printed number is the
+					// operation count of the recipe the producer just
+					// derived, not a `diff --git` file count minus the
+					// skip list. The AutogenGenerated arm is by
+					// construction the branch in which a recipe WAS
+					// generated, so it is the only branch that can hold a
+					// real operation count.
+					fmt.Fprintf(out, "  Recipe generated: artifacts/apply-recipe.json (%d ops)\n", autogenOutcome.Operations)
 				case workflow.AutogenRegenerated:
 					fmt.Fprintf(out, "  Recipe regenerated from captured patch (--regenerate-recipe)\n")
 					if reason != "" {
@@ -3434,13 +3483,42 @@ func isManualFlag(cmd *cobra.Command) bool {
 // feature state without invoking the provider. It is the single entry point
 // shared by analyze/define/explore/implement when --manual is set.
 func runManualPhase(cmd *cobra.Command, s *store.Store, slug, phase string) error {
-	if err := s.AdvanceStateManually(slug, phase); err != nil {
+	if err := s.AdvanceStateManuallyWithCheckpoint(slug, phase, manualCheckpointHook(s, slug, phase)); err != nil {
 		return err
 	}
 	m, _ := store.ManualPhase(phase)
 	fmt.Fprintf(cmd.OutOrStdout(), "Phase %s advanced manually for %s (artifact: %s; state: %s)\n", phase, slug, m.Path, m.State)
 	fmt.Fprintln(cmd.OutOrStdout(), "  (manual mode — provider not called)")
 	return nil
+}
+
+// manualCheckpointHook returns the P6 checkpoint hook for
+// `implement --manual` and nil for every other phase (ADR-036 D15 P6).
+//
+// `implement --manual` does not AUTHOR a recipe: it accepts bytes an agent
+// or an operator already wrote. That is still a governed producer event,
+// so it owes the same observation the authoring arms owe — bound to the
+// exact bytes the store validated, plus whatever canonical patch is
+// currently readable.
+//
+// The hook runs after validation and before the state transition, so a
+// refused artifact publishes nothing. `analyze`, `define` and `explore`
+// advance non-bound artifacts and are deliberately not producers.
+func manualCheckpointHook(s *store.Store, slug, phase string) func(store.ManualCheckpoint) error {
+	if phase != "implement" {
+		return nil
+	}
+	return func(checkpoint store.ManualCheckpoint) error {
+		if checkpoint.Data == nil {
+			// The implement contract validates the artifact's content, so
+			// reaching here without bytes means the contract changed
+			// underneath this hook. Checkpointing an empty recipe would
+			// be a fabricated observation, so the advance is refused.
+			return fmt.Errorf("implement --manual: no validated recipe bytes to checkpoint")
+		}
+		workflow.ObserveImplementCheckpoint(s, slug, string(checkpoint.Data))
+		return nil
+	}
 }
 
 // ─── provider ────────────────────────────────────────────────────────────────

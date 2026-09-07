@@ -153,7 +153,15 @@ func runFeatureUnapplyWithRuntime(cmd *cobra.Command, s *store.Store, slug strin
 		return validationError("feature %q canonical patch is empty", slug)
 	}
 
-	touched := gitutil.PathsAffectedByPatch(patch)
+	// PI-7: the unapply scope is the strict both-side effect union, so a
+	// rename's SOURCE is snapshotted and restored alongside its
+	// destination. This call site has no pre-existing fail-soft handler;
+	// a patch the grammar refuses returns here, before any snapshot,
+	// reverse patch or unapply artifact write.
+	touched, err := gitutil.PathsAffectedByPatchStrict(patch)
+	if err != nil {
+		return validationError("feature %q canonical patch is unreadable, refusing to unapply a partial path set: %v", slug, err)
+	}
 	sort.Strings(touched)
 	if len(touched) == 0 {
 		return validationError("feature %q canonical patch names no touched files", slug)

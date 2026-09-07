@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -101,8 +100,8 @@ func latestTouchedPaths(s *store.Store, slug string) ([]string, error) {
 
 // touchedPathsFromPostApplyPatch is the PRD-#3 N2 fallback: it reads
 // the feature's canonical `artifacts/post-apply.patch` and extracts
-// the touched paths via gitutil.FilesInPatch — the SAME helper
-// internal/workflow/patch_generations.go:76 uses to populate
+// the touched paths through the SAME strict b-side projection
+// internal/workflow/patch_generations.go uses to populate
 // patch-generations.json's `touched_paths` in the first place. Reusing
 // it (rather than a bespoke parser) guarantees the fallback and the
 // canonical manifest agree on rename semantics: only the `b/<path>`
@@ -112,15 +111,19 @@ func latestTouchedPaths(s *store.Store, slug string) ([]string, error) {
 // touched_paths set that was not directly comparable to a later
 // manifest's canonical set and could cause false-negative/false-
 // positive D10 hint suppression on rename-shaped patches).
-// A missing post-apply.patch (or an unreadable one) is reported as an
-// error so the caller's existing fail-soft "continue on error" handling
-// (maybeEmitMigrationHint) treats it the same as a missing manifest.
+//
+// A missing post-apply.patch, an unreadable one, and — since GH #15 S1 —
+// one the strict grammar refuses are all reported as an error so the
+// caller's existing fail-soft "continue on error" handling
+// (maybeEmitMigrationHint) treats them the same as a missing manifest.
+// A patch the grammar cannot read yields no path list at all, never a
+// short one.
 func touchedPathsFromPostApplyPatch(s *store.Store, slug string) ([]string, error) {
 	patch, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 	if err != nil {
 		return nil, err
 	}
-	return gitutil.FilesInPatch(patch), nil
+	return strictTouchedPaths(patch)
 }
 
 // isSubset returns true iff every element of `sub` is present in

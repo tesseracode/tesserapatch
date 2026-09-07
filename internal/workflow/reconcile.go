@@ -955,8 +955,8 @@ func persistPathRestructureEvidence(s *store.Store, slug string, result *Reconci
 	if err != nil || strings.TrimSpace(patch) == "" {
 		return nil
 	}
-	featurePaths := featurePathsFromPatch(patch)
-	if len(featurePaths) == 0 {
+	featurePaths, err := featurePathsFromPatch(patch)
+	if err != nil || len(featurePaths) == 0 {
 		return nil
 	}
 	storeCfg, _ := s.LoadConfig()
@@ -983,15 +983,23 @@ func persistPathRestructureEvidence(s *store.Store, slug string, result *Reconci
 	return []store.ReconcileEvidence{entry}
 }
 
-func featurePathsFromPatch(patch string) []string {
-	paths := parsePatchNoveltyPaths(patch)
+// featurePathsFromPatch projects the strict effect set onto the path list
+// the path-restructure detector consumes. A patch the grammar refuses
+// yields an error, and the caller — which is already fail-soft, returning
+// nil on every other failure — declines to persist evidence rather than
+// detecting a restructure from a partial path set.
+func featurePathsFromPatch(patch string) ([]string, error) {
+	paths, err := parsePatchNoveltyPaths(patch)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {
 		if p.Path != "" {
 			out = append(out, p.Path)
 		}
 	}
-	return out
+	return out, nil
 }
 
 func persistBlockedClassificationEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {

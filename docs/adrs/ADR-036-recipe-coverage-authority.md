@@ -42,6 +42,17 @@ does not consume either decision. D3 now cites ADR-024 D1 explicitly for the
 separate per-feature manifest boundary it applies. No decision, schema,
 acceptance row or release boundary changed.
 
+### S1 implementation clarification — 2026-09-06
+
+PI-3's strict parse runs in each producer's discovery window before the first
+bound write; its later manifest reparse remains a hard defense but is not the
+first refusal. PI-4 alone uses its pre-existing fail-soft evidence channel.
+PI-12 preserves b-side path/order semantics while accepting new fail-closed
+path/header safety checks. `ordinal` indexes normalized effects, so Git's
+adjacent delete+add representation of a real object-type change becomes one
+modify effect whose fragment spans both records. No schema field, producer
+rule, coverage predicate or matrix count changed.
+
 ## Context
 
 `RecipeFromPatch` currently parses touched paths with `strings.Fields`, emits
@@ -212,8 +223,8 @@ is:
 |---|---|---|---|---|
 | PI-1 | `parsePatchTouchedFiles` (`internal/workflow/recipe_autogen.go:45-84`) | `strings.Fields` b-side split | path + effect | **removed** |
 | PI-2 | `gitutil.FilesInPatch` (`internal/gitutil/gitutil.go:885-911`) | fail-soft split on the first ` b/` | path | **deleted or demoted to a test-only helper**; unreachable from production |
-| PI-3 | `AppendPatchGenerationForFeature` → `touched_paths` (`internal/workflow/patch_generations.go:76`) | PI-2 consumer | path | migrate to the strict authority or an exact adapter |
-| PI-4 | `touchedPathsFromPostApplyPatch` (`internal/workflow/reconcile_derivation.go:118-124`) | PI-2 consumer | path | migrate to the strict authority or an exact adapter |
+| PI-3 | `AppendPatchGenerationForFeature` → `touched_paths` (`internal/workflow/patch_generations.go:76`) | PI-2 consumer | path | producers preflight the same strict adapter before any bound write; the appender reparses as a hard defense |
+| PI-4 | `touchedPathsFromPostApplyPatch` (`internal/workflow/reconcile_derivation.go:118-124`) | PI-2 consumer | path | migrate to the strict authority; its existing evidence caller remains fail-soft |
 | PI-5 | `parsePatchNoveltyPaths` + `parseDiffGitPaths` + `cleanPatchPath` (`internal/workflow/file_novelty.go:130-231`) | `strings.Fields` split and `strings.Trim(path, "\"")` dequote | path **and** change kind (`create`/`modify`/`delete`/`rename`) | migrate to an adapter projecting path and `change_kind` from the strict effect set |
 | PI-6 | `parsePatchHunks` (`internal/workflow/hunk_overlap.go:150-175`) | PI-5 helper for path attribution; own hunk-range scan | path (hunk ranges are its own) | path attribution from the strict adapter; the hunk-range projection may remain |
 | PI-7 | `PathsAffectedByPatch` + `pathsFromDiffGitHeader` (`internal/gitutil/unapply.go:36-125`) | **already quoting-aware** (`strconv.Unquote`, `internal/gitutil/unapply.go:47-49`); deliberately returns the union of both diff sides plus rename/copy from/to operands (`internal/gitutil/unapply.go:33-35,80-91`) | path, **both-side rollback scope** | migrate to a new strict **all-paths** API (`PathsAffectedByPatchStrict`) that preserves both-side scope; **not** `FilesInPatchStrict`'s b-side projection |
@@ -221,7 +232,7 @@ is:
 | PI-9 | `stripGitInternalFileStanzas` + `headerPathIsGitInternal` (`internal/gitutil/gitutil.go:1170-1270`) | multi-dialect sanitizer (`diff --git`, `diff -ruN`, `Only in`, `Binary files`) | **none** — sanitization only | retained, registered, guarded |
 | PI-10 | `countPatchFiles` (`internal/cli/cobra.go:2094-2101`) | counts `diff --git` prefixes; consumed by **four** production sites — three as a human file count (`internal/cli/cobra.go:1863`, `internal/cli/feature_patch.go:163`, `internal/cli/record_collision.go:96`) **and one, wrongly, as a recipe operation count** (`internal/cli/cobra.go:1908`) | **none** — display counter | retained, registered, guarded as a **human file count only**; the three file-count consumers stay unchanged and the `cobra.go:1908` operation-count use is removed/migrated (see below) |
 | PI-11 | `FilesInPatchStrict` and its grammar (`internal/gitutil/patch_paths_strict.go:235-253`) | strict header grammar, b-side projection | path (b-side) | **the authority**, extended to the full normalized effect model; the b-side projection is retained unchanged for PI-12 |
-| PI-12 | Existing `FilesInPatchStrict` b-side consumers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | path (b-side) | **unchanged contract**; they keep consuming the b-side projection with identical semantics, and extending the shared grammar may not change what they receive |
+| PI-12 | Existing `FilesInPatchStrict` b-side consumers: `internal/cli/land.go:767,1212`, `internal/workflow/refresh.go:59`, `internal/workflow/verify_landed.go:1009,1163` | strict b-side path list | path (b-side) | preserve b-side path/order projection; new malformed/path-safety refusals fail closed |
 
 PI-8, PI-9 and PI-10 are retained deliberately. PI-8 and PI-9 must recognize
 non-Git diff dialects that the strict Git grammar does not model, and their
@@ -298,7 +309,8 @@ grammar:
 // path a patch touches on either side: each effect's canonical path plus
 // its old_path for rename and copy effects. It preserves the rollback
 // scope PathsAffectedByPatch provides today and refuses, with an error,
-// every input FilesInPatchStrict refuses.
+// every malformed input the shared grammar refuses. Authority-only
+// duplicate-destination checks may be stricter than PI-12 compatibility.
 func PathsAffectedByPatchStrict(patch string) ([]string, error)
 ```
 
@@ -316,11 +328,9 @@ All three production call sites migrate to it and **fail closed**:
 | `internal/cli/feature_unapply.go:156` | `gitutil.PathsAffectedByPatch(patch)` feeds `ValidateWorktreePaths` and the unapply scope with no error channel | strict call; a parse error returns before any snapshot, reverse patch or artifact write |
 
 **None of these three has an existing fail-soft handler**, so the migration
-adds a new refusal path at each and may not claim to reuse one. This is the
-opposite of PI-3 and PI-4, where the caller already tolerates an error and the
-strict error joins that existing channel. A migration note that says "propagate
-into the caller's existing continue-on-error handling" is true for PI-3/PI-4
-and false for PI-7.
+adds a new refusal path at each and may not claim to reuse one. PI-3 is
+preflighted before producer writes and reparsed defensively by the appender;
+PI-4 alone joins an existing fail-soft evidence channel.
 
 PI-12 is registered so the shared grammar cannot be extended out from under it.
 `land.go`, `refresh.go` and `verify_landed.go` consume the **b-side** list and
@@ -538,16 +548,12 @@ member. Entries are ordered by normalized effect ordinal; `operation_indexes`
 are one-based and sorted ascending. The artifact carries no timestamp, source
 body, prompt, provider response or secret.
 
-`effects[].ordinal` is the **one-based position of the effect's record in the
-strict grammar's parse of the canonical patch**, counted in the order the
-grammar recognizes record starts, from the first byte of the file. It is a
-property of the patch, not of the recipe, of the effect list's JSON order or
-of any sort the producer chose: the first `diff --git` record the grammar
-admits is ordinal `1`, the next is `2`, and so on with no gaps. Because
-`patch_fragment_sha256`'s boundaries are those same recognized record starts,
-the fragment ranges follow the ordinal order exactly — fragment *n* begins at
-record *n*'s first byte and ends immediately before record *n+1*'s, or at end
-of file for the last ordinal. A consumer therefore recomputes both from one
+`effects[].ordinal` is the **one-based normalized-effect order** produced from
+the strict grammar's canonical-patch record order. It is contiguous from `1`
+and independent of recipe or JSON array order. A legitimate adjacent
+delete+add typechange pair becomes one modify effect; that effect's
+`patch_fragment_sha256` spans both records, and the following normalized
+effect receives the next ordinal. A consumer therefore recomputes both from one
 parse.
 
 #### Field rules

@@ -16,6 +16,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
@@ -85,7 +86,12 @@ agent implements the code).`,
 			}
 			fmt.Fprintf(out, "  Spec written to .tpatch/features/%s/spec.md\n", slug)
 			if editor && interactive {
-				openInEditor(out, filepath.Join(s.Root, ".tpatch", "features", slug, "spec.md"))
+				if err := openInEditor(out, filepath.Join(s.Root, ".tpatch", "features", slug, "spec.md")); err != nil {
+					// spec.md is not a bound artifact, so this is not a
+					// P7 event — but the error is still reported rather
+					// than discarded.
+					fmt.Fprintf(cmd.ErrOrStderr(), "  warning: editor failed: %v\n", err)
+				}
 			}
 			if !confirm(interactive, reader, out, "Continue to explore phase?") {
 				return nil
@@ -163,6 +169,13 @@ agent implements the code).`,
 				fmt.Fprintf(cmd.ErrOrStderr(), "  warning: capture failed: %v\n", patchErr)
 			}
 			if patch != "" {
+				// P4: the observation is taken before the canonical
+				// patch write it binds (ADR-036 D2), and its preflight
+				// error returns before that write runs (PI-3).
+				if _, obsErr := observePatchProducer(patchobs.ProducerCycle, s, slug, patch,
+					string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
+					return obsErr
+				}
 				s.WriteArtifact(slug, "post-apply.patch", patch)
 				if name, _ := s.WritePatch(slug, "cycle", patch); name != "" {
 					fmt.Fprintf(out, "  Saved patch: patches/%s\n", name)
@@ -248,18 +261,32 @@ func confirm(interactive bool, reader *bufio.Reader, out io.Writer, prompt strin
 	return false
 }
 
-func openInEditor(out io.Writer, path string) {
+// openInEditor opens path in `$EDITOR` and RETURNS the editor's error
+// (GH #15 / ADR-036 D2). Discarding it made a producer unable to tell
+// whether the editor ran, and a producer that cannot tell that cannot say
+// truthfully what it observed.
+//
+// An unset `$EDITOR` is deliberately NOT an error and NOT an event: no
+// process starts, so no byte can change. The caller is told so by the nil
+// error and by the pointer line printed here.
+func openInEditor(out io.Writer, path string) error {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		fmt.Fprintf(out, "  (set $EDITOR to review %s in your editor)\n", path)
-		return
+		return nil
 	}
 	c := exec.Command(editor, path)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
-	_ = c.Run()
+	return c.Run()
 }
+
+// editorStarted reports whether openInEditor would start a process for
+// the current environment. P7 uses it to model "an unset $EDITOR is not
+// an event" explicitly, rather than letting it fall out of a byte
+// comparison that could be satisfied by an unrelated no-op.
+func editorStarted() bool { return os.Getenv("EDITOR") != "" }
 
 func truncate(s string, n int) string {
 	s = strings.ReplaceAll(s, "\n", " ")

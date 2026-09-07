@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
@@ -102,6 +103,27 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	if err != nil {
 		return err
 	}
+
+	// P2: the observation is taken once the classification is known and
+	// BEFORE the branch that decides whether anything is written at all
+	// (ADR-036 D2, §6.15 P2). Both of P2's events run through this point:
+	//
+	//   - the writing branch, whose first bound write is below;
+	//   - the category-(c) checkpoint, where the captured patch matches
+	//     the current generation byte-for-byte and the command returns
+	//     without writing. That branch still binds a statement about the
+	//     bytes on disk, so it owes the same observation; taking it after
+	//     the branch would have published only half the producer.
+	//
+	// An empty capture returned earlier and is deliberately no event: the
+	// producer captured nothing, so there is nothing to describe.
+	//
+	// The preflight error returns before either outcome (PI-3).
+	if _, obsErr := observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,
+		string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
+		return obsErr
+	}
+
 	if !classification.Append {
 		if intent == store.PatchGenerationIntentRefresh {
 			fmt.Fprintln(cmd.ErrOrStderr(), "no patch byte change; refresh skipped")
@@ -132,14 +154,14 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 		return err
 	}
 
-	if action, skippedPaths, driftReason, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, true, false); agErr != nil {
+	if autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, true, false); agErr != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "warning: recipe autogen failed: %v\n", agErr)
 	} else {
-		for _, sp := range skippedPaths {
+		for _, sp := range autogenOutcome.SkippedPaths {
 			fmt.Fprintf(cmd.ErrOrStderr(), "  recipe autogen skipped: %s\n", sp)
 		}
-		if action == workflow.AutogenStale && driftReason != "" {
-			fmt.Fprintf(cmd.ErrOrStderr(), "warning: apply-recipe.json drift: %s\n", driftReason)
+		if autogenOutcome.Action == workflow.AutogenStale && autogenOutcome.DriftReason != "" {
+			fmt.Fprintf(cmd.ErrOrStderr(), "warning: apply-recipe.json drift: %s\n", autogenOutcome.DriftReason)
 		}
 	}
 

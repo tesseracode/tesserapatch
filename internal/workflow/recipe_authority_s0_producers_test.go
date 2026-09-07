@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
@@ -428,36 +429,55 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 	})
 
 	t.Run("sensitivity", func(t *testing.T) {
+		// The mutations below are anchored on the GATE and on the WRITE
+		// independently, never on the two being adjacent. S1 inserted
+		// each producer's immutable observation between them (ADR-036
+		// D2), and a mutation fixture that assumed adjacency would break
+		// on that insertion while proving nothing about the gate.
+		cycleGate := "\t\t\tif patch != \"\" {"
 		cycleAnchor := "\t\t\t\ts.WriteArtifact(slug, \"post-apply.patch\", patch)"
-		if !strings.Contains(cycleSrc, cycleAnchor) {
-			t.Fatalf("mutation anchor no longer present:\n%q", cycleAnchor)
+		if !strings.Contains(cycleSrc, cycleGate) || !strings.Contains(cycleSrc, cycleAnchor) {
+			t.Fatalf("cycle mutation anchors no longer present:\n%q\n%q", cycleGate, cycleAnchor)
 		}
 		// Hoisting the write out of the `patch != ""` gate must be caught.
-		mutatedCycle := strings.Replace(cycleSrc,
-			"\t\t\tif patch != \"\" {\n"+cycleAnchor,
-			cycleAnchor+"\n\t\t\tif patch != \"\" {",
-			1)
-		if mutatedCycle == cycleSrc {
-			t.Fatal("cycle capture-gate mutation anchor no longer present")
+		hoisted := strings.Replace(cycleSrc, "\n"+cycleAnchor, "", 1)
+		hoisted = strings.Replace(hoisted, cycleGate, cycleAnchor+"\n"+cycleGate, 1)
+		if hoisted == cycleSrc {
+			t.Fatal("cycle capture-gate mutation produced no change")
 		}
-		if err := rgaS0CheckConditionalPatchWrite("P4 cycle", "phase2.go", mutatedCycle, "cycleCmd"); err == nil {
+		if err := rgaS0CheckConditionalPatchWrite("P4 cycle", "phase2.go", hoisted, "cycleCmd"); err == nil {
 			t.Fatal("guard did not catch the ungated cycle patch write")
 		}
-
-		applyOld := "\t\tif patch != \"\" {\n" +
-			"\t\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n" +
-			"\t\t\t\treturn \"\", 0, err\n" +
-			"\t\t\t}\n"
-		if !strings.Contains(applySrc, applyOld) {
-			t.Fatalf("apply --mode done mutation anchor no longer present:\n%q", applyOld)
+		// So must widening the gate to a condition that is not "the
+		// capture produced bytes".
+		widened := strings.Replace(cycleSrc, cycleGate, "\t\t\tif interactive {", 1)
+		if err := rgaS0CheckConditionalPatchWrite("P4 cycle", "phase2.go", widened, "cycleCmd"); err == nil {
+			t.Fatal("guard did not catch the widened cycle capture gate")
 		}
-		applyNew := "\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n" +
-			"\t\t\treturn \"\", 0, err\n" +
-			"\t\t}\n" +
-			"\t\tif patch != \"\" {\n"
+
+		applyGate := "\t\tif patch != \"\" {"
+		applyAnchor := "\t\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n" +
+			"\t\t\t\treturn \"\", 0, err\n" +
+			"\t\t\t}"
+		if !strings.Contains(applySrc, applyGate) || !strings.Contains(applySrc, applyAnchor) {
+			t.Fatalf("apply --mode done mutation anchors no longer present:\n%q\n%q", applyGate, applyAnchor)
+		}
+		applyHoisted := strings.Replace(applySrc, "\n"+applyAnchor, "", 1)
+		applyHoisted = strings.Replace(applyHoisted, applyGate,
+			"\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n"+
+				"\t\t\treturn \"\", 0, err\n"+
+				"\t\t}\n"+applyGate, 1)
+		if applyHoisted == applySrc {
+			t.Fatal("apply --mode done capture-gate mutation produced no change")
+		}
 		if err := rgaS0CheckConditionalPatchWrite("P5 apply --mode done", "cobra.go",
-			strings.Replace(applySrc, applyOld, applyNew, 1), "runApplyDone"); err == nil {
+			applyHoisted, "runApplyDone"); err == nil {
 			t.Fatal("guard did not catch the ungated apply --mode done patch write")
+		}
+		applyWidened := strings.Replace(applySrc, applyGate, "\t\tif checkpoint {", 1)
+		if err := rgaS0CheckConditionalPatchWrite("P5 apply --mode done", "cobra.go",
+			applyWidened, "runApplyDone"); err == nil {
+			t.Fatal("guard did not catch the widened apply --mode done capture gate")
 		}
 	})
 }
@@ -760,19 +780,229 @@ func TestRGAS0ImplementManualCheckpointBaseline(t *testing.T) {
 	})
 }
 
+// rgaS0ImplementValidatorExpr reports the expression RunImplement
+// actually passes as `RetryOptions.Validate`, plus the declared type of
+// the variable that expression takes the address of.
+//
+// The S0 revision of the reachability row below re-implemented the
+// validator inline (`JSONObjectValidator(&validatorTarget)` with a
+// locally declared `ApplyRecipe`). A review carry-forward flagged that as
+// an assumption rather than a measurement: if RunImplement ever passed a
+// DIFFERENT validator, or decoded into a different target type, the
+// equivalence would keep passing while describing a validator nobody
+// runs. This binds the row to the shipped call.
+func rgaS0ImplementValidatorExpr(src string) (callee, targetVar, targetType string, err error) {
+	file, perr := rgaS0Parse("implement.go", src)
+	if perr != nil {
+		return "", "", "", perr
+	}
+	fn := rgaS0FuncBody(file, "RunImplement")
+	if fn == nil {
+		return "", "", "", fmt.Errorf("RunImplement not found")
+	}
+
+	var validate ast.Expr
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		lit, ok := n.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		ident, ok := lit.Type.(*ast.Ident)
+		if !ok || ident.Name != "RetryOptions" {
+			return true
+		}
+		for _, elt := range lit.Elts {
+			kv, ok := elt.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			if key, ok := kv.Key.(*ast.Ident); ok && key.Name == "Validate" {
+				validate = kv.Value
+			}
+		}
+		return true
+	})
+	if validate == nil {
+		return "", "", "", fmt.Errorf("RunImplement no longer passes RetryOptions.Validate")
+	}
+	call, ok := validate.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return "", "", "", fmt.Errorf("RetryOptions.Validate is no longer a one-argument validator call")
+	}
+	calleeIdent, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return "", "", "", fmt.Errorf("RetryOptions.Validate's callee is not a package-level function")
+	}
+	unary, ok := call.Args[0].(*ast.UnaryExpr)
+	if !ok || unary.Op != token.AND {
+		return "", "", "", fmt.Errorf("the validator no longer decodes into an addressable target")
+	}
+	targetIdent, ok := unary.X.(*ast.Ident)
+	if !ok {
+		return "", "", "", fmt.Errorf("the validator target is not a simple variable")
+	}
+
+	declared := ""
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		decl, ok := n.(*ast.DeclStmt)
+		if !ok {
+			return true
+		}
+		gen, ok := decl.Decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			return true
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, name := range vs.Names {
+				if name.Name != targetIdent.Name {
+					continue
+				}
+				if t, ok := vs.Type.(*ast.Ident); ok {
+					declared = t.Name
+				}
+			}
+		}
+		return true
+	})
+	if declared == "" {
+		return "", "", "", fmt.Errorf("the validator target %q has no local `var x T` declaration to read a type from", targetIdent.Name)
+	}
+	return calleeIdent.Name, targetIdent.Name, declared, nil
+}
+
+// rgaS0ImplementArmDecodeExpr reports how the RAW-INVALID ARM itself
+// decodes: which extractor feeds `json.Unmarshal`, and the declared type
+// of the value it decodes into.
+//
+// The validator half above measures what production validates. This half
+// measures what the arm parses. The reachability equivalence is only a
+// real measurement when BOTH sides are read out of the shipped source: a
+// validator that decodes an `ApplyRecipe` through `mustExtractJSON` and
+// an arm that decoded something else through a different extractor could
+// disagree at runtime while the equivalence kept passing.
+func rgaS0ImplementArmDecodeExpr(src string) (extractor, targetType string, err error) {
+	file, perr := rgaS0Parse("implement.go", src)
+	if perr != nil {
+		return "", "", perr
+	}
+	fn := rgaS0FuncBody(file, "RunImplement")
+	if fn == nil {
+		return "", "", fmt.Errorf("RunImplement not found")
+	}
+
+	var unmarshal *ast.CallExpr
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		if unmarshal != nil {
+			return false
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok || rgaS0CallName(call) != "json.Unmarshal" || len(call.Args) != 2 {
+			return true
+		}
+		unmarshal = call
+		return false
+	})
+	if unmarshal == nil {
+		return "", "", fmt.Errorf("RunImplement no longer decodes the recipe with json.Unmarshal")
+	}
+
+	conversion, ok := unmarshal.Args[0].(*ast.CallExpr)
+	if !ok || len(conversion.Args) != 1 {
+		return "", "", fmt.Errorf("the arm no longer decodes a converted extractor result")
+	}
+	inner, ok := conversion.Args[0].(*ast.CallExpr)
+	if !ok {
+		return "", "", fmt.Errorf("the arm no longer feeds json.Unmarshal from an extractor call")
+	}
+	extractor = rgaS0CallName(inner)
+
+	unary, ok := unmarshal.Args[1].(*ast.UnaryExpr)
+	if !ok || unary.Op != token.AND {
+		return "", "", fmt.Errorf("the arm no longer decodes into an addressable target")
+	}
+	targetIdent, ok := unary.X.(*ast.Ident)
+	if !ok {
+		return "", "", fmt.Errorf("the arm's decode target is not a simple variable")
+	}
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		decl, ok := n.(*ast.DeclStmt)
+		if !ok {
+			return true
+		}
+		gen, ok := decl.Decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			return true
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, name := range vs.Names {
+				if name.Name != targetIdent.Name {
+					continue
+				}
+				if t, ok := vs.Type.(*ast.Ident); ok {
+					targetType = t.Name
+				}
+			}
+		}
+		return true
+	})
+	if targetType == "" {
+		return "", "", fmt.Errorf("the arm's decode target %q has no local `var x T` declaration to read a type from", targetIdent.Name)
+	}
+	return extractor, targetType, nil
+}
+
 // TestRGAS0ImplementRawArmIsCurrentlyUnreachable records an S0 finding the
 // PRD's P6 analysis does not state: the unmarshal-failure arm
-// (`internal/workflow/implement.go:192-195`) cannot be reached through
+// (`internal/workflow/implement.go`) cannot be reached through
 // `RunImplement` today, because the retry validator decodes into the SAME
 // `ApplyRecipe` target through the SAME extractor. A response that would
 // fail the arm's parse fails validation first and is replaced by the
 // heuristic recipe.
 //
-// The arm's write behaviour is therefore frozen structurally
+// The arm's write behaviour is frozen structurally
 // (TestRGAS0ImplementParseArmsSourceContract) and its reachability is
-// frozen here as an equivalence, so S1/S4 cannot quietly make the arm
-// reachable — or quietly delete it — without a visible test change.
+// frozen here as an equivalence, so a later slice cannot quietly make the
+// arm reachable — or quietly delete it — without a visible test change.
+//
+// The equivalence is BOUND to the shipped call: the validator expression
+// is read out of RunImplement's own `RetryOptions` literal, so this row
+// measures the validator production actually runs.
 func TestRGAS0ImplementRawArmIsCurrentlyUnreachable(t *testing.T) {
+	callee, targetVar, targetType, err := rgaS0ImplementValidatorExpr(
+		rgaS0ReadRepoFile(t, "internal/workflow/implement.go"))
+	if err != nil {
+		t.Fatalf("RunImplement's validator expression changed: %v", err)
+	}
+	if callee != "JSONObjectValidator" {
+		t.Fatalf("RunImplement now validates with %s(...), not JSONObjectValidator; the equivalence below no longer describes production", callee)
+	}
+	if targetType != "ApplyRecipe" {
+		t.Fatalf("RunImplement's validator target %s is declared %s, not ApplyRecipe; the raw arm and the validator no longer share a decode target", targetVar, targetType)
+	}
+
+	// The other half of "the same decode path": the arm's own extractor
+	// and decode target, read from the shipped source rather than assumed
+	// to match the corpus below.
+	armExtractor, armTarget, err := rgaS0ImplementArmDecodeExpr(
+		rgaS0ReadRepoFile(t, "internal/workflow/implement.go"))
+	if err != nil {
+		t.Fatalf("the raw-invalid arm's decode expression changed: %v", err)
+	}
+	if armExtractor != "mustExtractJSON" {
+		t.Fatalf("the arm now extracts with %s(...), not mustExtractJSON; the equivalence below no longer describes production", armExtractor)
+	}
+	if armTarget != "ApplyRecipe" {
+		t.Fatalf("the arm decodes into %s, not ApplyRecipe; it no longer shares the validator's decode target", armTarget)
+	}
+
 	responses := []string{
 		`{"feature":"demo","operations":[{"type":"ensure-directory","path":"src/"}]}`,
 		`{"feature":"demo","operations":"not-an-array"}`,
@@ -817,4 +1047,61 @@ func TestRGAS0ImplementRawArmIsCurrentlyUnreachable(t *testing.T) {
 	if err := json.Unmarshal([]byte(mustExtractJSON(heuristicRecipe("demo"))), &heuristicTarget); err != nil {
 		t.Fatalf("the heuristic fallback must decode, else the raw arm would be reachable: %v", err)
 	}
+
+	t.Run("sensitivity", func(t *testing.T) {
+		src := rgaS0ReadRepoFile(t, "internal/workflow/implement.go")
+		for _, tc := range []struct{ name, old, new string }{
+			{
+				name: "validator-stops-being-JSONObjectValidator",
+				old:  "Validate:   JSONObjectValidator(&tmp),",
+				new:  "Validate:   AlwaysValid(&tmp),",
+			},
+			{
+				name: "validator-target-changes-type",
+				old:  "\t\tvar tmp ApplyRecipe",
+				new:  "\t\tvar tmp RecipeProvenance",
+			},
+			{
+				name: "validator-field-disappears",
+				old:  "Validate:   JSONObjectValidator(&tmp),",
+				new:  "LogPrefix:  \"implement-2\",",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				if !strings.Contains(src, tc.old) {
+					t.Fatalf("mutation anchor no longer present:\n%q", tc.old)
+				}
+				mutated := strings.Replace(src, tc.old, tc.new, 1)
+				callee, _, targetType, err := rgaS0ImplementValidatorExpr(mutated)
+				if err == nil && callee == "JSONObjectValidator" && targetType == "ApplyRecipe" {
+					t.Fatalf("guard did not catch mutation %q", tc.name)
+				}
+			})
+		}
+
+		// The arm half of the same equivalence: swapping the extractor or
+		// the decode target must be caught too.
+		for _, tc := range []struct{ name, old, new string }{
+			{
+				name: "arm-stops-using-the-shared-extractor",
+				old:  "json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe)",
+				new:  "json.Unmarshal([]byte(extractJSON(recipeContent)), &recipe)",
+			},
+			{
+				name: "arm-decodes-into-another-type",
+				old:  "\tvar recipe ApplyRecipe\n\tif err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe);",
+				new:  "\tvar recipe RecipeProvenance\n\tif err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe);",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				if !strings.Contains(src, tc.old) {
+					t.Fatalf("mutation anchor no longer present:\n%q", tc.old)
+				}
+				extractor, target, err := rgaS0ImplementArmDecodeExpr(strings.Replace(src, tc.old, tc.new, 1))
+				if err == nil && extractor == "mustExtractJSON" && target == "ApplyRecipe" {
+					t.Fatalf("guard did not catch mutation %q", tc.name)
+				}
+			})
+		}
+	})
 }

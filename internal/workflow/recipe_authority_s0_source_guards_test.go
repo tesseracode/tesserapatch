@@ -695,8 +695,13 @@ func TestRGAS0ImplementParseArmsSourceContract(t *testing.T) {
 				new:  `s.WriteArtifact(slug, "apply-recipe.json", "{}")`,
 			},
 			{
+				// S1 bound the valid arm's payload to one identifier so
+				// the arm's observation and its write cannot drift apart
+				// (ADR-036 D2). The characterization is unchanged — the
+				// success arm still writes RESERIALIZED bytes, never the
+				// raw response — only the spelling of the anchor moved.
 				name: "success-arm-starts-writing-raw-bytes",
-				old:  `s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n")`,
+				old:  `s.WriteArtifact(slug, "apply-recipe.json", reserialized)`,
 				new:  `s.WriteArtifact(slug, "apply-recipe.json", recipeContent)`,
 			},
 			{

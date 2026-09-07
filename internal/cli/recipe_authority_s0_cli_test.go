@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -211,13 +212,24 @@ func rgaS0CommitAll(t *testing.T, dir string) {
 	}
 }
 
-// ── PI-10: the printed number is a FILE count, not an operation count ────
+// ── PI-10: the derived operation count replaces the file counter ────────
 
-// TestRGAS0RecipeGeneratedCountIsAFileCount freezes §2.5.1: the number in
-// the `Recipe generated` line comes from `countPatchFiles`, a `diff --git`
-// prefix counter that never reads the derived recipe. The two answers
-// already disagree today for shapes the counter mis-reads, which is the
-// concrete defect §6.1.3 migrates in S1.
+// TestRGAS0RecipeGeneratedCountIsAFileCount was the S0 record of §2.5.1:
+// the `Recipe generated` number came from `countPatchFiles`, a
+// `diff --git` prefix counter that never read the derived recipe.
+//
+// GH #15 S1 fixed that defect, so this row is AMENDED rather than
+// deleted, and it now measures both halves of the migration:
+//
+//   - `countPatchFiles` still mis-reads every shape it always mis-read.
+//     It stays registered as a human FILE counter, so the evidence that
+//     it cannot compute an operation count must stay live;
+//   - the derivation no longer agrees with it, and for two of the three
+//     shapes the derivation now REFUSES outright, because the strict
+//     grammar will not read a truncated header or a non-header token.
+//
+// The `wantCounted` column is the frozen S0 measurement, unchanged. The
+// derivation column is the deliberate S1 behaviour.
 func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 	root := t.TempDir()
 
@@ -225,41 +237,72 @@ func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 		name        string
 		patch       string
 		wantCounted int
+		wantRefused bool
 		wantOps     int
 		wantSkipped int
+		// wantAgrees marks the control rows where the display counter and
+		// the operation count legitimately AGREE. Every other accepted
+		// row must still disagree, which is why the printed number had to
+		// migrate off the counter.
+		wantAgrees bool
 	}{
 		{
-			// A truncated header: `strings.Fields` yields three fields,
-			// so the lenient parser assigns no path and emits no
-			// operation — but the display counter still counts the line.
-			name:        "truncated-header-counted-but-not-derived",
+			// A truncated header. The display counter still counts the
+			// line; the strict grammar refuses the patch rather than
+			// deriving an operation list from a header it cannot read.
+			name:        "truncated-header-counted-but-refused",
 			patch:       "diff --git a/x.txt\nindex 1..2 100644\n@@ -1 +1 @@\n-a\n+b\n",
 			wantCounted: 1,
-			wantOps:     0,
-			wantSkipped: 0,
+			wantRefused: true,
 		},
 		{
 			// The counter matches on `diff --git` with NO trailing
 			// space, so a token that is not a header at all is counted.
-			name:        "non-header-token-counted",
+			// The grammar sees no record and refuses a non-blank patch.
+			name:        "non-header-token-counted-but-refused",
 			patch:       "diff --gitignore-notes\n",
 			wantCounted: 1,
-			wantOps:     0,
-			wantSkipped: 0,
+			wantRefused: true,
 		},
 		{
-			// Two records for one path: the counter counts records, the
-			// derivation de-duplicates paths.
-			name: "duplicate-path-counted-twice",
+			// Two records for one path. S0 measured a derivation that
+			// silently collapsed them to one operation; S1 REFUSES the
+			// patch instead (PRD §6.1, duplicate-destination rule). The
+			// display counter is unchanged and still counts records, so
+			// the PI-10 divergence this row exists to prove is now a
+			// counted-but-refused divergence rather than a
+			// counted-but-collapsed one.
+			//
+			// The baseline moved deliberately: a collapsed duplicate
+			// dropped a real effect from every consumer of the effect
+			// set without telling anybody, which is exactly what an
+			// authority may not do.
+			name: "duplicate-path-counted-but-refused",
 			patch: "diff --git a/dup.txt b/dup.txt\nindex 1..2 100644\n@@ -1 +1 @@\n-a\n+b\n" +
 				"diff --git a/dup.txt b/dup.txt\nindex 2..3 100644\n@@ -1 +1 @@\n-b\n+c\n",
 			wantCounted: 2,
-			wantOps:     1,
+			wantRefused: true,
+		},
+		{
+			// The wrong-input control for the row above: two records on
+			// two DIFFERENT paths are not duplicates, so the derivation
+			// accepts them and produces one operation per path. Without
+			// this row, "refuses duplicates" could be satisfied by a
+			// grammar that refuses every multi-record patch.
+			name: "two-distinct-paths-are-not-duplicates",
+			patch: "diff --git a/dup.txt b/dup.txt\nindex 1..2 100644\n@@ -1 +1 @@\n-a\n+b\n" +
+				"diff --git a/other.txt b/other.txt\nindex 2..3 100644\n@@ -1 +1 @@\n-b\n+c\n",
+			wantCounted: 2,
+			wantOps:     2,
 			wantSkipped: 0,
+			wantAgrees:  true,
 		},
 	}
 
 	if err := os.WriteFile(filepath.Join(root, "dup.txt"), []byte("c\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "other.txt"), []byte("c\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,6 +312,15 @@ func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 				t.Fatalf("countPatchFiles = %d, want %d", got, tc.wantCounted)
 			}
 			recipe, skipped, err := workflow.RecipeFromPatch(root, "s0", tc.patch)
+			if tc.wantRefused {
+				if err == nil {
+					t.Fatalf("the strict grammar must refuse this shape; got %d op(s)", len(recipe.Operations))
+				}
+				if len(recipe.Operations) != 0 || skipped != nil {
+					t.Fatalf("a refusal must not return a partial derivation: ops=%+v skipped=%v", recipe.Operations, skipped)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("RecipeFromPatch: %v", err)
 			}
@@ -278,18 +330,34 @@ func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 			if len(skipped) != tc.wantSkipped {
 				t.Fatalf("skipped = %d, want %d: %v", len(skipped), tc.wantSkipped, skipped)
 			}
-			printed := countPatchFiles(tc.patch) - len(skipped)
-			if printed == len(recipe.Operations) {
-				t.Fatalf("this row exists because the printed count (%d) currently DIFFERS from the operation count (%d); the PI-10 defect is gone",
-					printed, len(recipe.Operations))
+			// The bite-proof: on every row that is not an explicit
+			// agreement control, the display counter and the real
+			// operation count still disagree.
+			agrees := countPatchFiles(tc.patch) == len(recipe.Operations)
+			if agrees != tc.wantAgrees {
+				t.Fatalf("file count (%d) vs operation count (%d): agrees=%v, want %v",
+					countPatchFiles(tc.patch), len(recipe.Operations), agrees, tc.wantAgrees)
 			}
 		})
 	}
 }
 
-// rgaS0CheckRecipeGeneratedCountPath asserts that the shipped line is
-// printed in the `AutogenGenerated` arm from `countPatchFiles(patch) -
-// len(skippedPaths)` — the exact expression §6.1.3 replaces in S1.
+// rgaS0CheckRecipeGeneratedCountPath asserts where the number in the
+// `Recipe generated` line comes from.
+//
+// S0 pinned the pre-change expression, `countPatchFiles(patch) -
+// len(skippedPaths)`. GH #15 S1 replaced it with the operation count of
+// the recipe the producer just derived (§6.1.3, RGA-067/RGA-069), so this
+// guard is AMENDED to pin the new expression with the same precision:
+//
+//   - the line text is byte-identical to the frozen S0 golden;
+//   - it is still printed exactly once, still inside the
+//     `case workflow.AutogenGenerated` arm, which is by construction the
+//     only branch in which a recipe WAS generated;
+//   - its argument is a single selector reading the derived outcome's
+//     operation count. It is NOT an arithmetic expression, and it does
+//     NOT mention countPatchFiles — the authority-boundary rule is that
+//     a display file counter may never feed an operation count again.
 func rgaS0CheckRecipeGeneratedCountPath(src string) error {
 	fn, err := rgaS0CLIFunc("cobra.go", src, "recordCmd")
 	if err != nil {
@@ -342,27 +410,33 @@ func rgaS0CheckRecipeGeneratedCountPath(src string) error {
 		return fmt.Errorf("want exactly one `Recipe generated` print in the AutogenGenerated arm, got %d", prints)
 	}
 
-	bin, ok := arg.(*ast.BinaryExpr)
-	if !ok || bin.Op != token.SUB {
-		return fmt.Errorf("the operation count is no longer `countPatchFiles(patch) - len(skippedPaths)`")
+	sel, ok := arg.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Operations" {
+		return fmt.Errorf("the printed number is no longer the derived recipe's own operation count")
 	}
-	left, ok := bin.X.(*ast.CallExpr)
-	if !ok || rgaS0CLICallName(left) != "countPatchFiles" {
-		return fmt.Errorf("the minuend is no longer countPatchFiles(...)")
+	recv, ok := sel.X.(*ast.Ident)
+	if !ok || recv.Name != "autogenOutcome" {
+		return fmt.Errorf("the operation count no longer reads the autogen outcome the producer just derived")
 	}
-	right, ok := bin.Y.(*ast.CallExpr)
-	if !ok || rgaS0CLICallName(right) != "len" || len(right.Args) != 1 {
-		return fmt.Errorf("the subtrahend is no longer len(...)")
-	}
-	ident, ok := right.Args[0].(*ast.Ident)
-	if !ok || ident.Name != "skippedPaths" {
-		return fmt.Errorf("the subtrahend no longer counts skippedPaths")
-	}
-	return nil
+
+	// The authority boundary: no display file counter anywhere in the arm.
+	var leaked error
+	ast.Inspect(clause, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if rgaS0CLICallName(call) == "countPatchFiles" {
+			leaked = fmt.Errorf("countPatchFiles is feeding the generated-recipe arm again; PI-10 is a human FILE count only")
+		}
+		return true
+	})
+	return leaked
 }
 
-// TestRGAS0RecipeGeneratedCountPathSource pins the source expression that
-// §6.1.3 migrates, so the migration cannot happen by accident.
+// TestRGAS0RecipeGeneratedCountPathSource pins the migrated source
+// expression, so a regression back to the display counter — or a silent
+// change of the printed line — cannot happen by accident.
 func TestRGAS0RecipeGeneratedCountPathSource(t *testing.T) {
 	src := rgaS0CLISource(t, "internal/cli/cobra.go")
 	if err := rgaS0CheckRecipeGeneratedCountPath(src); err != nil {
@@ -372,19 +446,21 @@ func TestRGAS0RecipeGeneratedCountPathSource(t *testing.T) {
 	t.Run("sensitivity", func(t *testing.T) {
 		for _, tc := range []struct{ name, old, new string }{
 			{
-				name: "count-migrates-to-the-derived-recipe",
-				old:  "countPatchFiles(patch)-len(skippedPaths)",
-				new:  "len(derived.Operations)",
+				// RGA-067's wrong-input fixture: the display counter
+				// reinstated as an operation count.
+				name: "count-regresses-to-the-file-counter",
+				old:  "autogenOutcome.Operations)",
+				new:  "countPatchFiles(patch)-len(skippedPaths))",
+			},
+			{
+				name: "count-comes-from-some-other-value",
+				old:  "autogenOutcome.Operations)",
+				new:  "len(skippedPaths))",
 			},
 			{
 				name: "the-line-text-changes",
 				old:  "  Recipe generated: artifacts/apply-recipe.json (%d ops)\\n",
 				new:  "  Recipe generated: artifacts/apply-recipe.json (%d operations)\\n",
-			},
-			{
-				name: "the-skipped-term-is-dropped",
-				old:  "countPatchFiles(patch)-len(skippedPaths)",
-				new:  "countPatchFiles(patch)-0",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -584,7 +660,7 @@ func TestRGAS0LoadRecipeErrorTextSource(t *testing.T) {
 	})
 }
 
-// ── P7: `tpatch edit` resolution and the discarded editor error ──────────
+// ── P7: `tpatch edit` resolution and the propagated editor error ─────────
 
 // TestRGAS0EditResolvedPathPrecedence freezes P7's trigger: the resolved
 // path, never the typed token. A feature-root decoy shadows the canonical
@@ -700,17 +776,71 @@ func TestRGAS0EditWithoutEditorIsNotAnEvent(t *testing.T) {
 	rgaS0AssertNoCLICoverageArtifact(t, tmp, slug)
 }
 
-// rgaS0CheckOpenInEditorDiscardsError asserts the shipped helper: no error
-// result, and `c.Run()`'s error assigned to the blank identifier. §6.2
-// refactors this in S1; S0 records what it is refactoring from.
-func rgaS0CheckOpenInEditorDiscardsError(src string) error {
+// rgaS0CLIPackageFiles lists every production Go file in internal/cli.
+//
+// The S0 revision of the guard below scanned exactly two files by name,
+// which is what a review carry-forward flagged: a THIRD call site added
+// anywhere else in the package would have been invisible to it. The scan
+// is now package-wide, so the "exactly two call sites" claim is a
+// measurement rather than an assumption.
+func rgaS0CLIPackageFiles(t *testing.T) []string {
+	t.Helper()
+	dir := filepath.Join(rgaS0CLIRepoRoot(t), "internal", "cli")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read internal/cli: %v", err)
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		out = append(out, "internal/cli/"+e.Name())
+	}
+	if len(out) == 0 {
+		t.Fatal("internal/cli production inventory is empty; the walker is broken")
+	}
+	return out
+}
+
+// rgaS0CheckOpenInEditorPropagatesError asserts the MIGRATED helper.
+//
+// S0 recorded the pre-change shape: no result, and `c.Run()`'s error
+// assigned to the blank identifier. GH #15 S1 changed that deliberately
+// (§6.2, ADR-036 D2) — a producer that cannot tell whether the editor ran
+// cannot say truthfully what it observed — so the guard is AMENDED to
+// pin the new contract with the same precision:
+//
+//   - exactly one result, and it is `error`;
+//   - `c.Run()`'s value is RETURNED, never assigned to `_`.
+func rgaS0CheckOpenInEditorPropagatesError(src string) error {
 	fn, err := rgaS0CLIFunc("phase2.go", src, "openInEditor")
 	if err != nil {
 		return err
 	}
-	if fn.Type.Results != nil && len(fn.Type.Results.List) != 0 {
-		return fmt.Errorf("openInEditor now returns %d result(s); the discarded-error baseline is stale", len(fn.Type.Results.List))
+	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+		return fmt.Errorf("openInEditor must return exactly one result (the editor error)")
 	}
+	resultType, ok := fn.Type.Results.List[0].Type.(*ast.Ident)
+	if !ok || resultType.Name != "error" {
+		return fmt.Errorf("openInEditor's result is not `error`")
+	}
+
+	returned := false
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		ret, ok := n.(*ast.ReturnStmt)
+		if !ok || len(ret.Results) != 1 {
+			return true
+		}
+		if call, ok := ret.Results[0].(*ast.CallExpr); ok && rgaS0CLICallName(call) == "c.Run" {
+			returned = true
+		}
+		return true
+	})
+	if !returned {
+		return fmt.Errorf("openInEditor no longer returns c.Run()'s error")
+	}
+
 	discarded := false
 	ast.Inspect(fn.Body, func(n ast.Node) bool {
 		assign, ok := n.(*ast.AssignStmt)
@@ -721,67 +851,112 @@ func rgaS0CheckOpenInEditorDiscardsError(src string) error {
 		if !ok || blank.Name != "_" {
 			return true
 		}
-		call, ok := assign.Rhs[0].(*ast.CallExpr)
-		if ok && rgaS0CLICallName(call) == "c.Run" {
+		if call, ok := assign.Rhs[0].(*ast.CallExpr); ok && rgaS0CLICallName(call) == "c.Run" {
 			discarded = true
 		}
 		return true
 	})
-	if !discarded {
-		return fmt.Errorf("openInEditor no longer discards c.Run()'s error")
+	if discarded {
+		return fmt.Errorf("openInEditor discards c.Run()'s error again")
 	}
 	return nil
 }
 
-// TestRGAS0OpenInEditorSourceContract freezes the two P7 facts §2.7
-// records: the helper cannot report an editor failure, and it has exactly
-// two call sites, only one of which can resolve to a bound artifact.
+// rgaS0OpenInEditorCallSites returns `file|func` for every production
+// call of openInEditor across the WHOLE internal/cli package.
+func rgaS0OpenInEditorCallSites(t *testing.T) []string {
+	t.Helper()
+	var sites []string
+	for _, rel := range rgaS0CLIPackageFiles(t) {
+		src := rgaS0CLISource(t, rel)
+		file, err := parser.ParseFile(token.NewFileSet(), rel, src, parser.ParseComments)
+		if err != nil {
+			t.Fatalf("parse %s: %v", rel, err)
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "openInEditor" {
+					sites = append(sites, rel+"|"+fn.Name.Name)
+				}
+				return true
+			})
+		}
+	}
+	sort.Strings(sites)
+	return sites
+}
+
+// TestRGAS0OpenInEditorSourceContract pins the two P7 facts §2.7 records,
+// in their post-S1 form: the helper CAN now report an editor failure, and
+// it has exactly the call sites the inventory names — measured across the
+// whole package, not across two files chosen by hand.
 func TestRGAS0OpenInEditorSourceContract(t *testing.T) {
 	phase2 := rgaS0CLISource(t, "internal/cli/phase2.go")
-	if err := rgaS0CheckOpenInEditorDiscardsError(phase2); err != nil {
+	if err := rgaS0CheckOpenInEditorPropagatesError(phase2); err != nil {
 		t.Fatalf("openInEditor changed: %v", err)
 	}
 
-	callSites := 0
-	for _, rel := range []string{"internal/cli/phase2.go", "internal/cli/c1.go"} {
+	got := rgaS0OpenInEditorCallSites(t)
+	want := []string{
+		// P7: the only call site that can resolve to a bound artifact.
+		"internal/cli/c1.go|runEditWithObservation",
+		// spec.md; never a P7 event.
+		"internal/cli/phase2.go|cycleCmd",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("openInEditor call sites = %v, want %v", got, want)
+	}
+
+	// Every call site must handle the error. A call in statement
+	// position discards it and is refused.
+	for _, rel := range rgaS0CLIPackageFiles(t) {
 		src := rgaS0CLISource(t, rel)
 		file, err := parser.ParseFile(token.NewFileSet(), rel, src, parser.ParseComments)
 		if err != nil {
 			t.Fatalf("parse %s: %v", rel, err)
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
-			call, ok := n.(*ast.CallExpr)
+			stmt, ok := n.(*ast.ExprStmt)
+			if !ok {
+				return true
+			}
+			call, ok := stmt.X.(*ast.CallExpr)
 			if !ok {
 				return true
 			}
 			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "openInEditor" {
-				callSites++
+				t.Errorf("%s calls openInEditor in statement position, discarding the editor error", rel)
 			}
 			return true
 		})
-	}
-	if callSites != 2 {
-		t.Errorf("openInEditor call sites = %d, want 2 (internal/cli/c1.go and internal/cli/phase2.go)", callSites)
 	}
 
 	t.Run("sensitivity", func(t *testing.T) {
 		for _, tc := range []struct{ name, old, new string }{
 			{
-				name: "error-becomes-propagated",
-				old:  "\t_ = c.Run()",
-				new:  "\treturn c.Run()",
+				name: "error-goes-back-to-being-discarded",
+				old:  "\treturn c.Run()",
+				new:  "\t_ = c.Run()\n\treturn nil",
 			},
 			{
-				name: "signature-gains-an-error-result",
-				old:  "func openInEditor(out io.Writer, path string) {",
-				new:  "func openInEditor(out io.Writer, path string) error {",
+				name: "signature-loses-its-error-result",
+				old:  "func openInEditor(out io.Writer, path string) error {",
+				new:  "func openInEditor(out io.Writer, path string) {",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				if !strings.Contains(phase2, tc.old) {
 					t.Fatalf("mutation anchor no longer present:\n%q", tc.old)
 				}
-				if err := rgaS0CheckOpenInEditorDiscardsError(strings.Replace(phase2, tc.old, tc.new, 1)); err == nil {
+				if err := rgaS0CheckOpenInEditorPropagatesError(strings.Replace(phase2, tc.old, tc.new, 1)); err == nil {
 					t.Fatalf("guard did not catch mutation %q", tc.name)
 				}
 			})

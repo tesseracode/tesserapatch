@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -53,20 +54,39 @@ func deletePatch(path string) string {
 		"@@ -1 +0,0 @@\n-old\n"
 }
 
-func TestParsePatchTouchedFiles(t *testing.T) {
+// TestPatchEffectViews replaces TestParsePatchTouchedFiles: GH #15 S1
+// removed `parsePatchTouchedFiles` (PI-1) and the derivation now projects
+// the strict normalized effect set. The three rows below are the same
+// three the removed splitter was measured on, so the migration is a
+// like-for-like comparison; the fourth row is the behaviour that is new,
+// and deliberately so.
+func TestPatchEffectViews(t *testing.T) {
 	patch := newFilePatch("a.txt", "sub/b.go") + deletePatch("c.md")
-	got := parsePatchTouchedFiles(patch)
+	got, err := patchEffectViews(patch)
+	if err != nil {
+		t.Fatalf("patchEffectViews: %v", err)
+	}
 	if len(got) != 3 {
 		t.Fatalf("want 3 entries, got %d: %+v", len(got), got)
 	}
-	if got[0].Path != "a.txt" || !got[0].New {
+	if got[0].Path != "a.txt" || got[0].ChangeKind != gitutil.ChangeKindAdd {
 		t.Errorf("entry 0: %+v", got[0])
 	}
-	if got[1].Path != "sub/b.go" || !got[1].New {
+	if got[1].Path != "sub/b.go" || got[1].ChangeKind != gitutil.ChangeKindAdd {
 		t.Errorf("entry 1: %+v", got[1])
 	}
-	if got[2].Path != "c.md" || !got[2].Deleted {
+	if got[2].Path != "c.md" || got[2].ChangeKind != gitutil.ChangeKindDelete {
 		t.Errorf("entry 2: %+v", got[2])
+	}
+
+	// The removed splitter silently dropped a header it could not read.
+	// The adapter refuses instead, and it may not return a partial view.
+	views, err := patchEffectViews("diff --git a/x.txt\nindex 1..2 100644\n@@ -1 +1 @@\n-a\n+b\n")
+	if err == nil {
+		t.Fatalf("a truncated header must be refused, got %+v", views)
+	}
+	if views != nil {
+		t.Fatalf("a refusal must not return a partial view: %+v", views)
 	}
 }
 
@@ -124,7 +144,8 @@ func TestAutogenRecipeForRecord_GeneratesWhenMissing(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n"})
 	patch := newFilePatch("a.txt")
 
-	action, skipped, _, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	action, skipped := outcome.Action, outcome.SkippedPaths
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -152,7 +173,8 @@ func TestAutogenRecipeForRecord_SkipsWhenAutogenOff(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n"})
 	patch := newFilePatch("a.txt")
 
-	action, _, _, err := AutogenRecipeForRecord(s, slug, patch, false, false)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, false, false)
+	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -177,7 +199,8 @@ func TestAutogenRecipeForRecord_NoopWhenRecipeMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	action, _, _, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -201,7 +224,8 @@ func TestAutogenRecipeForRecord_StaleWhenRecipeDrifts(t *testing.T) {
 	s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n")
 	patch := newFilePatch("a.txt", "b.txt")
 
-	action, _, reason, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	action, reason := outcome.Action, outcome.DriftReason
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -237,7 +261,8 @@ func TestAutogenRecipeForRecord_RegenerateOverwrites(t *testing.T) {
 	s.WriteArtifact(slug, "recipe-stale.json", `{"stale": true}`+"\n")
 
 	patch := newFilePatch("a.txt", "b.txt")
-	action, _, _, err := AutogenRecipeForRecord(s, slug, patch, true, true)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, true)
+	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -264,7 +289,8 @@ func TestAutogenRecipeForRecord_ClearsStaleWhenAligned(t *testing.T) {
 	s.WriteArtifact(slug, "recipe-stale.json", `{"stale": true}`+"\n")
 
 	patch := newFilePatch("a.txt")
-	action, _, _, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

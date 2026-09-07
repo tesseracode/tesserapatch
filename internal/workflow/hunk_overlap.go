@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -62,7 +63,11 @@ func DetectHunkOverlap(repoRoot, featurePatch, baseCommit, upstreamCommit string
 	if len(eligible) == 0 {
 		return HunkOverlapResult{Classification: HunkOverlapNone, NearbyWindow: hunkOverlapNearbyWindow, Hunks: []HunkOverlap{}}, nil
 	}
-	featureHunks := filterHunksByPath(parsePatchHunks(featurePatch), eligible)
+	featureParsed, err := parsePatchHunks(featurePatch)
+	if err != nil {
+		return HunkOverlapResult{}, fmt.Errorf("hunk overlap: cannot determine which paths the feature patch touches: %w", err)
+	}
+	featureHunks := filterHunksByPath(featureParsed, eligible)
 	if len(featureHunks) == 0 {
 		return HunkOverlapResult{Classification: HunkOverlapUnknown, NearbyWindow: hunkOverlapNearbyWindow, Hunks: []HunkOverlap{}}, nil
 	}
@@ -70,7 +75,11 @@ func DetectHunkOverlap(repoRoot, featurePatch, baseCommit, upstreamCommit string
 	if err != nil {
 		return HunkOverlapResult{}, err
 	}
-	upstreamHunks := groupHunksByPath(parsePatchHunks(upstreamPatch))
+	upstreamParsed, err := parsePatchHunks(upstreamPatch)
+	if err != nil {
+		return HunkOverlapResult{}, fmt.Errorf("hunk overlap: cannot determine which paths the upstream diff touches: %w", err)
+	}
+	upstreamHunks := groupHunksByPath(upstreamParsed)
 	out := make([]HunkOverlap, 0, len(featureHunks))
 	for _, fh := range featureHunks {
 		classification := HunkOverlapNone
@@ -147,27 +156,41 @@ func HunkOverlapEvidence(slug, upstreamRef, upstreamCommit, baseCommit, rawVerdi
 	return entry
 }
 
-func parsePatchHunks(patch string) []patchHunkRange {
+// parsePatchHunks attributes hunk ranges to paths (PI-6).
+//
+// Path attribution comes from the strict normalized effect set: the
+// grammar decides where each record starts and what its canonical path
+// is, and the hunk ranges inside a record are attributed to that path.
+// The hunk-RANGE projection below is unchanged — it is the one part of
+// this reader that never claimed path authority — but it no longer
+// re-derives paths from a `strings.Fields` header split or a `+++` line.
+func parsePatchHunks(patch string) ([]patchHunkRange, error) {
+	effects, err := gitutil.NormalizePatchEffects(patch)
+	if err != nil {
+		return nil, err
+	}
 	var hunks []patchHunkRange
-	path := ""
-	for _, line := range strings.Split(patch, "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			_, newPath := parseDiffGitPaths(line)
-			path = newPath
-		case strings.HasPrefix(line, "+++ "):
-			newPath := cleanPatchPath(strings.TrimSpace(strings.TrimPrefix(line, "+++ ")))
-			if newPath != "" {
-				path = newPath
+	for _, effect := range effects {
+		fragment := patch[effect.FragmentStart:effect.FragmentEnd]
+		for _, line := range strings.Split(fragment, "\n") {
+			if !strings.HasPrefix(line, "@@ ") {
+				continue
 			}
-		case strings.HasPrefix(line, "@@ ") && path != "":
 			oldStart, oldLen, newStart, newLen, ok := parseUnifiedRange(line)
-			if ok {
-				hunks = append(hunks, patchHunkRange{Path: path, OldStart: oldStart, OldLen: oldLen, NewStart: newStart, NewLen: newLen, Header: line})
+			if !ok {
+				continue
 			}
+			hunks = append(hunks, patchHunkRange{
+				Path:     effect.Path,
+				OldStart: oldStart,
+				OldLen:   oldLen,
+				NewStart: newStart,
+				NewLen:   newLen,
+				Header:   line,
+			})
 		}
 	}
-	return hunks
+	return hunks, nil
 }
 
 func parseUnifiedRange(header string) (int, int, int, int, bool) {

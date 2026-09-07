@@ -1538,6 +1538,18 @@ the targeted suites pass.
 S0 is ✅ APPROVED: all 43 targeted tests pass in the three owning packages,
 the serial CLI build passes, and final review reports zero blockers. Push is
 the remaining durability step before S1 dispatch.
+S0 is pushed at `77b3e9b`; S1 is now 🚧 IN PROGRESS from that baseline.
+S2-S6 remain sequentially blocked.
+S1 rev-0 is NEEDS REVISION on observation byte identity/timing, P2/P3/P6/P7
+wiring, enum/digest strictness, duplicate destinations and post-write parse
+risk. Revision 1 is active.
+S1 rev-1 closes those findings; review found one compile blocker in the
+duplicate-destination lookup scope. It is corrected and rev-2 validation is
+active.
+S1 is ✅ APPROVED. The strict normalized grammar, PI-3–PI-7 migrations,
+PI-12 projection, immutable P1–P7 observations and editor error propagation
+pass targeted/owning suites, vet/build and the exact 22-shard full suite.
+S2 is next.
 
 ## Cluster H′ implementation — v0.15.0 typed feature resources + capture adapters ✅ SHIPPED
 
