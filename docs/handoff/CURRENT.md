@@ -2134,6 +2134,13 @@ needed the intentional `observeWithImageBudget` rename and `DeriveRecipe`
 call, and one S1 CLI count fixture still expected a partial delete recipe.
 Both fixtures are corrected without relaxing their guards. Patchobs and
 workflow targeted suites passed in that run; steps 3-7 did not run.
+Retry `37ef612` passed steps 1-3 (targeted families, all core owning packages
+and affected CLI regression families). Independent complete-slice review
+then found a parent-path spelling bypass: `./new.txt` did not match the
+normalized effect `new.txt`. Exclusion targets now use execution-equivalent
+lexical resolution; canonical, `./` and `sub/../` negative fixtures plus
+no-dependency replacement controls are added. Steps 4-7 have not run;
+the production correction requires restarting validation from step 1.
 Formatting caught and corrected two misplaced test-function insertions
 before validation began.
 The implementation must bound observation-body residency, derive exclusively
@@ -2144,9 +2151,9 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2's first validation attempt stopped at
-step 2; fixture corrections are checkpointing before restarting from step 1.
-Final independent review remains pending.
+S0 and S1 are approved and pushed. S2 retry passed steps 1-3, but independent
+review requested the parent-path normalization correction. That correction
+is checkpointing before another run from step 1. Final approval is pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2745,6 +2752,14 @@ remains blocked until that release is implemented, soaked and shipped.
   one S1 CLI fixture still expected a partial delete recipe. Patchobs
   (1.399s) and workflow (2.234s) selected tests pass. Sequence stopped;
   steps 3-7 not attempted. Both fixture expectations are corrected.
+- S2 retry at `37ef612`: steps 1-2 **PASS** (each after its own 60s gate).
+- Step 3 **PASS**: full gitutil (6.446s), patchobs (1.352s), store (2.670s),
+  workflow (83.036s), then affected CLI regression families (86.143s), with
+  fresh gates at 84% free/load1 2.19 and 84% free/load1 3.21 respectively.
+  Full CLI partition remains step 6, not an unsafe unsharded observer run.
+- Independent S2 review: **NEEDS REVISION**, one equivalent-parent-path
+  exclusion defect. Correction and sensitivity controls are authored;
+  steps 4-7 have not run.
 
 ### Prior slices (historical)
 

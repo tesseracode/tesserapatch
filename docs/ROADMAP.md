@@ -1566,6 +1566,9 @@ coverage schema or consumer integration has been added.
 S2 checkpoint is `6bf1cc1`. First gated validation stopped at step 2 on two
 stale S0/S1 fixture expectations (parser-site registry and partial-delete
 operation count); corrections are authored before restarting validation.
+Retry `37ef612` passed steps 1-3. Independent S2 review found one parent-path
+alias bypass in regeneration; execution-equivalent path normalization and
+negative/control fixtures are authored. Validation restarts before acceptance.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

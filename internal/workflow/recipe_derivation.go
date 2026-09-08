@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -96,6 +97,16 @@ func DeriveRecipe(obs patchobs.Observation) (RecipeDerivation, error) {
 	} else if !fullRecipeBaseCommit(obs.Reference.Commit) {
 		return d, fmt.Errorf("recipe derivation: invalid captured commit")
 	}
+	parents := make(map[string]bool, len(obs.ParentCreatedPaths))
+	for _, target := range obs.ParentCreatedPaths {
+		// Match execution's Join semantics without statting or trimming
+		// filenames. Claim-path helpers trim whitespace and inspect disk.
+		relative, err := filepath.Rel(obs.RepoRoot, filepath.Join(obs.RepoRoot, target))
+		if err != nil {
+			return d, fmt.Errorf("recipe derivation: parent target: %w", err)
+		}
+		parents[filepath.ToSlash(relative)] = true
+	}
 	for i, entry := range obs.Effects {
 		e, parsed := entry.Effect, effects[i]
 		if e.Ordinal != parsed.Ordinal || e.Path != parsed.Path || e.OldPath != parsed.OldPath ||
@@ -114,7 +125,7 @@ func DeriveRecipe(obs patchobs.Observation) (RecipeDerivation, error) {
 			e.NewMode, parsed.HeaderNewMode, e.PostimageSHA256, entry.Bytes.Postimage); err != nil {
 			return d, fmt.Errorf("recipe derivation: %s postimage: %w", e.Path, err)
 		}
-		reasons := recipeEffectExclusions(entry, slices.Contains(obs.ParentCreatedPaths, e.Path))
+		reasons := recipeEffectExclusions(entry, parents[e.Path])
 		if len(reasons) != 0 {
 			d.Exclusions = append(d.Exclusions, RecipeExclusion{e.Ordinal, e.Path, reasons})
 			continue

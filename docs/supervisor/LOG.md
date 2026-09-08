@@ -1,3 +1,25 @@
+## Review — GH #15 S2 independent review — 2026-09-07
+
+**Reviewer**: `s2-independent-review`
+**Scope**: complete S2 implementation through `37ef612`, read-only static;
+the coordinator alone ran Go validation.
+
+### Verdict: NEEDS REVISION
+
+One MEDIUM: explicit `created_by` metadata was matched to effect paths as raw
+strings, so `./new.txt` bypassed the parent-created exclusion for `new.txt`.
+Execution resolves those spellings to the same target; explicit regeneration
+could replace the parent-dependent recipe rather than withholding it.
+
+### Action Taken
+
+Normalize exclusion targets using execution's lexical `filepath.Join` plus
+repo-relative projection, without trimming filename bytes or accessing disk.
+Add same-validator autogen cases for canonical, `./` and `sub/../` spellings
+and no-dependency replacement controls. Step 3 had passed before this
+production correction (core packages plus affected CLI regression families);
+steps 4-7 remain unrun. Restart validation from step 1 after checkpointing.
+
 ## Implementation Transition — GH #15 S2 validation attempt 1 stopped — 2026-09-07
 
 **Agent**: Copilot implementation agent

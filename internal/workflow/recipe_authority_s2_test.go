@@ -302,7 +302,7 @@ func rgaS2PureSource(src string) error {
 	}
 	for _, imp := range file.Imports {
 		switch imp.Path.Value {
-		case `"bytes"`, `"encoding/json"`, `"fmt"`, `"slices"`, `"sort"`, `"strings"`, `"unicode/utf8"`,
+		case `"bytes"`, `"encoding/json"`, `"fmt"`, `"path/filepath"`, `"slices"`, `"sort"`, `"strings"`, `"unicode/utf8"`,
 			`"github.com/tesseracode/tesserapatch/internal/gitutil"`,
 			`"github.com/tesseracode/tesserapatch/internal/patchobs"`,
 			`"github.com/tesseracode/tesserapatch/internal/store"`:
@@ -310,7 +310,7 @@ func rgaS2PureSource(src string) error {
 			return fmt.Errorf("impure/unreviewed derivation import %s", imp.Path.Value)
 		}
 	}
-	for _, forbidden := range []string{"patchobs.Observe(", "patchobs.ObserveAndEmit(", "time.Now(", "os.ReadFile("} {
+	for _, forbidden := range []string{"patchobs.Observe(", "patchobs.ObserveAndEmit(", "time.Now(", "os.ReadFile(", "filepath.Abs("} {
 		if strings.Contains(src, forbidden) {
 			return fmt.Errorf("derivation acquired live state via %s", forbidden)
 		}
@@ -327,6 +327,7 @@ func TestRGAS2PurityGuardAndSensitivity(t *testing.T) {
 		strings.Replace(src, `"encoding/json"`, `"encoding/json"`+"\n\t\"os\"", 1),
 		strings.Replace(src, `"encoding/json"`, `"encoding/json"`+"\n\tclock \"time\"", 1),
 		strings.Replace(src, "d := RecipeDerivation{", "obs = patchobs.Observe(obs)\n d := RecipeDerivation{", 1),
+		strings.Replace(src, "d := RecipeDerivation{", "obs.RepoRoot, _ = filepath.Abs(obs.RepoRoot)\n d := RecipeDerivation{", 1),
 	} {
 		if mutation == src || rgaS2PureSource(mutation) == nil {
 			t.Fatal("origin-proved-without-immutable-observation mutation passed the same purity guard")
@@ -460,6 +461,31 @@ func TestRGAS2UnencodablePostimageRefusedWithoutLoss(t *testing.T) {
 	obs := captureRecipeForTest(s.Root, "s2", newFilePatch("a.txt"))
 	if d, err := DeriveRecipe(obs); err == nil || len(d.canonical) != 0 {
 		t.Fatalf("invalid UTF-8 was rewritten by JSON or mislabeled binary: %+v / %v", d, err)
+	}
+}
+
+func TestRGAS2EquivalentParentPathsWithholdRegeneration(t *testing.T) {
+	for _, path := range []string{"z.txt", "./z.txt", "sub/../z.txt"} {
+		t.Run(path, func(t *testing.T) {
+			s, obs := rgaS2Creation(t)
+			raw := fmt.Sprintf(`{"feature":"s2","operations":[{"type":"append-file","path":%q,"content":"child","created_by":"parent"}]}`, path)
+			rgaS2Write(t, s, "apply-recipe.json", raw)
+			rgaS2Write(t, s, "recipe-provenance.json", "historical provenance")
+			out, err := AutogenRecipeForRecord(s, obs, true, true)
+			if err != nil || out.OriginProved || out.ProvenanceWritten || out.Action != AutogenStale ||
+				rgaS2Read(t, s, "apply-recipe.json") != raw ||
+				rgaS2Read(t, s, "recipe-provenance.json") != "historical provenance" ||
+				!strings.Contains(strings.Join(out.SkippedPaths, "\n"), "parent-created-target-unsupported") {
+				t.Fatalf("equivalent parent target bypassed exclusion: %+v / %v", out, err)
+			}
+			// The identical target spelling without the dependency is the
+			// control: explicit regeneration may replace that manual plan.
+			rgaS2Write(t, s, "apply-recipe.json", strings.Replace(raw, `,"created_by":"parent"`, "", 1))
+			out, err = AutogenRecipeForRecord(s, obs, true, true)
+			if err != nil || !out.OriginProved || !out.ProvenanceWritten || out.Action != AutogenRegenerated {
+				t.Fatalf("control replacement refused: %+v / %v", out, err)
+			}
+		})
 	}
 }
 
