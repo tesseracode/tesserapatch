@@ -1609,6 +1609,10 @@ S3 is 🚧 RESOURCE-BLOCKED: the main all-package invocation of step 6 passed
 (CLI 540.959s, workflow 100.705s), but the next gate timed out after 600
 seconds at 60% free memory before shard 2. No Go test failed; the remaining
 21 shards and step 7 are unrun. No S3 acceptance or S4 dispatch.
+The user requested another retry after resource recovery (2026-09-08):
+initial snapshot 87% free/load1 2.21/no Go tools, clean `b84d526`, code
+unchanged from approved `9a63697`. S3 is 🚧 IN PROGRESS again; restart the
+prescribed gated sequence and rerun the exact shard script from its beginning.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

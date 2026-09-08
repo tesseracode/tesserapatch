@@ -1,3 +1,17 @@
+## Implementation Transition — GH #15 S3 resource-recovery retry — 2026-09-08
+
+**Authorization**: user requested another attempt after releasing resources
+**State**: IN PROGRESS
+**Local checkpoint**: `b84d526`
+**WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+
+Tracked state is clean; code has not changed since reviewed `9a63697`.
+Origin remains at docs-only dispatch `394ae78`; the same 13 research files
+remain untouched. Initial resource snapshot is 87% free memory, load1 2.21,
+no active Go tools. Recreate only ignored per-command gate wrappers and
+restart the prescribed sequence, stopping at the first failure. The previous
+partial full-suite run is not counted as a completed script. No S4 dispatch.
+
 ## Implementation Transition — GH #15 S3 resource-blocked full suite — 2026-09-08
 
 **Checkpoint**: `7ec3618` (code `9a63697`)

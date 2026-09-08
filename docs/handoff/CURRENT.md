@@ -4,12 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
-**S3 validation blocker (2026-09-08)**: step 6's main all-package invocation
-passed, but the resource gate stopped before the second shard after 600
-seconds without a qualifying minute. Final sample: 60% free memory
-(required >=80%), load1 4.03, no active Go tools. This is a resource refusal,
-not a failing Go test. The remaining 21 shards and step 7 have not run.
-S3 is not accepted; no S4 dispatch is authorized.
+**S3 validation retry (2026-09-08)**: the user released resources and requested
+another attempt. HEAD is clean at `b84d526`, with no code changes since
+reviewed `9a63697`; the same 13 research files remain untouched. Initial
+snapshot: 87% free memory, load1 2.21, no Go tools. Restart the prescribed
+sequence with a fresh qualifying minute before each invocation. The previous
+step 6 resource refusal is historical; S3 acceptance and S4 remain pending.
 
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
 from freshly fetched WAVE_BASE
@@ -39,8 +39,8 @@ cases return incomplete records instead of adjudication errors. Ignored
 per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
 whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` reviewed
 checkpoint `9a63697` and returned **APPROVED**, with no significant issue.
-The exact 22-shard suite is resource-blocked after its first invocation;
-step 7 and acceptance remain pending.
+The exact 22-shard suite will be rerun from its first invocation after the
+earlier resource refusal; step 7 and acceptance remain pending.
 
 ### S3 contract adjudication (resolved)
 
@@ -2218,7 +2218,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: Blocked — resource gate stopped step 6 before shard 2
+- **Status**: In progress — resource-recovery validation retry requested by user
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2226,6 +2226,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+The user requested a new retry after releasing resources. Git fetch confirms
+local `b84d526` with origin still at docs-only dispatch `394ae78`; tracked
+state is clean and code is identical to reviewed `9a63697`. Initial resource
+snapshot is 87% free/load1 2.21/no Go tools. Recreate ignored gate wrappers
+and restart the sequence without relaxing any condition or counting the
+interrupted full-script run as completed.
 
 The first step 6 invocation passed every package, including CLI 540.959s and
 workflow 100.705s. The next invocation never started: its required resource
@@ -2375,8 +2382,9 @@ worker has delivered the operator's conservative revision and is idle.
 ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
 domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
 Independent implementation review is APPROVED with no significant issue.
-Step 6 passed its main package invocation but is resource-blocked before
-shard 2. Remaining full validation, wave close and acceptance are pending.
+The prior step 6 run passed its main package invocation but was resource-
+blocked before shard 2. Resources have recovered and the prescribed sequence
+is restarting. Full validation, wave close and acceptance remain pending.
 No producer/consumer integration was added.
 
 ## Prerequisite Status
@@ -2450,8 +2458,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Policy fold: `docs/adrs/ADR-039-coverage-complete-operation-domain.md`,
   header pointers in ADR-036/its PRD, `docs/adrs/README.md`, the coordinator
   parity file and directly coupled ADR-index guard pin.
-- The three owned ignored wrappers and stop sentinel in `bin/s3-validation/`
-  are removed at this resource-blocked pause.
+- Ignored gate wrappers in `bin/s3-validation/` were removed at the prior
+  pause and are recreated for this retry; remove owned files when it ends.
 
 ### Completed S2 file record
 
@@ -8723,8 +8731,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- Resource gate: step 6 stopped before shard 2 after 600 seconds at 60%
-  free memory, below the required 80%. Do not relax or bypass the threshold.
+- The prior resource blocker has recovered to an initial 87% snapshot.
+  Require the full continuous 60-second window before each command; do not
+  relax or bypass the original threshold.
 - Full 22-shard success, step 7 and durable close remain outstanding.
 - The D3/D5 policy blocker is resolved by the operator's conservative choice.
   Contract-fold review is APPROVED; implementation revision and Go validation
