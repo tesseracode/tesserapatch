@@ -1602,6 +1602,9 @@ no S3 acceptance is claimed.
 S3 checkpoint `9a63697` passes steps 1-5 with individual resource gates.
 Independent whole-S3 review is active; its verdict precedes the full
 22-shard and wave-close phases.
+Independent whole-S3 review of `27ee8bc..9a63697` is APPROVED with no
+significant issue. The exact resource-gated 22-shard suite is starting;
+S3 acceptance still requires that result and the final wave-close gate.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

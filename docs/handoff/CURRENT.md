@@ -30,9 +30,9 @@ the disjoint implementation revision, which is now delivered. Only gated
 write-file operations contribute v1 reclassification proof; ordinary excluded
 cases return incomplete records instead of adjudication errors. Ignored
 per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
-whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` is reviewing
-checkpoint `9a63697`. Await that verdict before the expensive full-shard
-phase; steps 6-7 and acceptance remain pending.
+whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` reviewed
+checkpoint `9a63697` and returned **APPROVED**, with no significant issue.
+The exact 22-shard suite is starting; step 7 and acceptance remain pending.
 
 ### S3 contract adjudication (resolved)
 
@@ -2358,8 +2358,9 @@ The S3 draft and parity unit are authored but not Go-validated. The core
 worker has delivered the operator's conservative revision and is idle.
 ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
 domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
-Independent implementation review is active; full-shard validation and
-wave close remain pending. No producer/consumer integration was added.
+Independent implementation review is APPROVED with no significant issue.
+The exact full-shard validation is starting; wave close and acceptance remain
+pending. No producer/consumer integration was added.
 
 ## Prerequisite Status
 
@@ -2977,6 +2978,8 @@ remains blocked until that release is implemented, soaked and shipped.
   gated independently at 86-87% free, load1 <=3.68.
 - Step 6 exact full shards and step 7 remain unrun. Independent whole-S3
   review is pending before that phase.
+- Independent whole-S3 review of `27ee8bc..9a63697`: **APPROVED**, no
+  significant issue. Step 6 exact shards are now starting; step 7 remains.
 
 - S3: no Go validation run yet. Dispatch prerequisites pass; S2 terminal CI
   34208708824 is green on all required jobs with no failed steps.
@@ -8687,8 +8690,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Retrieve independent whole-S3 review from
-   `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` and address any findings.
+1. Independent whole-S3 review is APPROVED with no findings to revise.
 2. Complete the resource-gated validation sequence (steps 1-5 currently pass).
    GH #24 is future planning, not this implementation.
 3. Close S3 durably with WAVE_BASE
