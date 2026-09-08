@@ -1589,6 +1589,9 @@ the canonical wire schema and ten-predicate block are unchanged. The requested
 non-blocking planning task is [GH #24](https://github.com/tesseracode/tesserapatch/issues/24)
 for an addendum/new ADR/PRD covering broader operation support. No S4/S5
 integration or broader-domain implementation is authorized.
+Policy/guard checkpoint `ab98ddf` records ADR-039 and the GH #24 task.
+Independent policy-fold review and the disjoint conservative-core revision
+are active; Go validation has not started.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

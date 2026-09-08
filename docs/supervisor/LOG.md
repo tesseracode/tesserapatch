@@ -1,3 +1,16 @@
+## Implementation Transition — GH #15 S3 policy-fold review dispatched — 2026-09-08
+
+**State**: IN PROGRESS
+**Policy checkpoint**: `ab98ddf`
+**Policy reviewer**: `14658582-64a8-48bb-aab5-304dbf42ba2b`
+
+The operator-selected ADR-039 addendum, primary-document pointers, exact
+domain/pointer mutation guards and ADR-index pin are checkpointed separately
+from the worker's conservative-core revision. GH #24 is created and linked.
+The reviewer is read-only and runs no Go commands. The coordinator prepared
+ignored per-command resource wrappers for later serial validation; no Go
+validation has started and no accepted completion is claimed.
+
 ## Operator Adjudication — GH #15 S3 conservative v1 — 2026-09-08
 
 **Decision**: "Conservative v1 (recommended): complete only for

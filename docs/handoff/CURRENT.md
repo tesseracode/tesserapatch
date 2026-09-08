@@ -22,6 +22,11 @@ conservative v1 completeness admits only preimage-bearing write-file
 operations. ADR-039 records the narrow current decision; GH #24 is the
 requested non-blocking planning task for broader support. The worker is
 revising ordinary legacy/replacement cases to truthful incomplete records.
+The policy/parity/index fold is checkpointed at `ab98ddf`. Its independent
+reviewer is `14658582-64a8-48bb-aab5-304dbf42ba2b`
+(`s3-domain-adjudication-review`). The core worker remains responsible for
+the disjoint implementation revision. Ignored per-command gate wrappers are
+prepared in `bin/s3-validation/`; no Go validation has started.
 
 ### S3 contract adjudication (resolved)
 
@@ -2404,6 +2409,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Policy fold: `docs/adrs/ADR-039-coverage-complete-operation-domain.md`,
   header pointers in ADR-036/its PRD, `docs/adrs/README.md`, the coordinator
   parity file and directly coupled ADR-index guard pin.
+- Ignored temporary validation wrappers: `bin/s3-validation/`; remove only
+  these owned scripts when the validation attempt ends.
 
 ### Completed S2 file record
 
@@ -8665,7 +8672,9 @@ at 471.544s. Formatting, vet and CLI build pass.
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.
 - Core worker ID is `560d7825-549b-476b-bba8-3d00567aeff0`; its completion
-  has been retrieved and it is idle. It must not run Go validation or
+  was retrieved and its conservative-domain revision is now active.
+  Policy-fold reviewer is `14658582-64a8-48bb-aab5-304dbf42ba2b`.
+  The worker must not run Go validation or
   stage/commit; the coordinator owns that serial sequence.
 - Record schema/semantic validation and replay authority are different:
   S3 must not treat `complete`, contextual hints or cross-base status as
