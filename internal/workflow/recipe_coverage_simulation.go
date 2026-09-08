@@ -96,7 +96,7 @@ func simulateCoverage(obs patchobs.Observation, recipe ApplyRecipe, assignments 
 			exact = exact && opExact
 			if !reclassifiable {
 				out.AllAlreadyPresent = false
-				if op.Type == "append-file" || op.Type == "replace-in-file" {
+				if !coverageAdmissibleReclassification(op) {
 					out.UnreclassifiableOperations = append(out.UnreclassifiableOperations, index)
 				}
 			}
@@ -118,6 +118,13 @@ func simulateCoverage(obs patchobs.Observation, recipe ApplyRecipe, assignments 
 	out.MismatchPaths = coverageSortedCopy(out.MismatchPaths)
 	slices.Sort(out.UnreclassifiableOperations)
 	return out
+}
+
+// The conservative v1 policy admits only preimage-bearing fixed writes.
+// A valid gate is necessary, not sufficient: observation and precondition
+// failures still prevent an actual already-present proof.
+func coverageAdmissibleReclassification(op RecipeOperation) bool {
+	return op.Type == "write-file" && op.PreimageHash != nil
 }
 
 func simulateCoverageOperation(entry patchobs.EffectObservation, op RecipeOperation, supported bool) (exact, reclassifiable bool) {
@@ -145,9 +152,9 @@ func simulateCoverageOperation(entry patchobs.EffectObservation, op RecipeOperat
 			}
 		}
 		// A fixed write's result is exactly its content and mode 100644.
-		// Reclassification compares that result with the operation postimage,
-		// without writing again, regardless of manual/provider formatting.
-		return bytes.Equal(entry.Bytes.Postimage, []byte(op.Content)), true
+		// Exact transformation alone does not authorize reclassification:
+		// legacy nil-preimage writes remain intact but cannot satisfy v1.
+		return bytes.Equal(entry.Bytes.Postimage, []byte(op.Content)), coverageAdmissibleReclassification(op)
 	case "replace-in-file":
 		if !entry.Effect.PreimagePresent {
 			return false, false
@@ -163,11 +170,9 @@ func simulateCoverageOperation(entry patchobs.EffectObservation, op RecipeOperat
 			bytes.Equal(post[:at], pre[:at]) &&
 			bytes.Equal(post[at:at+len(op.Replace)], []byte(op.Replace)) &&
 			bytes.Equal(post[at+len(op.Replace):], pre[end:])
-		// This is D5's narrow, in-process exact-postimage exception. It
-		// derives no contextual anchor and never calls replace on the result.
-		reclassifiable := exact && op.Search != "" && op.Replace != "" &&
-			!bytes.Contains(post, []byte(op.Search))
-		return exact, reclassifiable
+		// Even an exact replacement remains outside the conservative v1
+		// no-write proof domain. Execution semantics are unchanged.
+		return exact, false
 	default:
 		return false, false
 	}

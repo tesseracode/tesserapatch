@@ -255,8 +255,10 @@ func TestRGAS3RecipeStrictnessAndExactRawHashes(t *testing.T) {
 	}
 	in := RecipeCoverageInput{Observation: obs, Recipe: CoverageArtifact{Present: true, Bytes: []byte(valid)}}
 	c := rgaS3Build(t, in)
-	if c.CoverageStatus != CoverageComplete {
-		t.Fatal("preserved richer legacy write rejected despite exact immutable proof")
+	if !c.RecipePresent || !c.RecipeDecodable || c.RecipeSHA256 != CoverageSHA256([]byte(valid)) ||
+		c.CoverageStatus != CoverageIncomplete || c.CrossBaseStatus != CrossBaseUnsupported ||
+		!slices.Equal(c.Effects[0].ReasonCodes, []string{"operation-not-reclassifiable"}) || len(c.Reasons) != 0 {
+		t.Fatal("valid legacy recipe must remain byte-bound and decodable but lack a v1 reclassification proof")
 	}
 	if CoverageSHA256(nil) != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 		t.Fatal("hash helper is not exact SHA-256")

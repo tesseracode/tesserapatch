@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S3 conservative revision delivered — 2026-09-08
+
+**Worker**: `s3-coverage-implementation`
+**State**: IN PROGRESS — coordinator validation and implementation review
+
+The worker delivered the four-file conservative revision: core cross-base
+invariants, admissible simulation/reclassification and codec/simulation
+fixtures. Only preimage-bearing write-file operations supply v1 no-write
+proof. Legacy writes, exact replacements and appends produce incomplete
+records, not normal-path adjudication errors. Mixed and surplus cases,
+precondition failures and byte preservation have explicit fixtures.
+
+Public APIs/wire schema and producer/consumer behavior are unchanged.
+Worker formatting/scoped whitespace pass; no Go validation, staging or commits
+were performed by the worker. Checkpoint its exact paths, then begin the
+required serial resource-gated sequence and independent whole-S3 review.
+
 ## Review — GH #15 S3 conservative policy fold — 2026-09-08
 
 **Reviewer**: `s3-domain-adjudication-review`

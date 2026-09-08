@@ -382,6 +382,9 @@ func coverageCrossBase(c RecipeCoverage, recipe ApplyRecipe) (string, error) {
 	for _, e := range c.Effects {
 		for _, index := range e.OperationIndexes {
 			op := recipe.Operations[index-1]
+			if !coverageAdmissibleReclassification(op) {
+				return "", fmt.Errorf("coverage: complete record violates the v1 reclassification invariant")
+			}
 			wholeExisting = wholeExisting || (e.PreimagePresent && op.Type == "write-file")
 			creationOnly = creationOnly && !e.PreimagePresent && op.Type == "write-file" &&
 				op.PreimageHash != nil && *op.PreimageHash == ""
@@ -393,7 +396,5 @@ func coverageCrossBase(c RecipeCoverage, recipe ApplyRecipe) (string, error) {
 	if creationOnly {
 		return CrossBaseReferenceTreeOnly, nil
 	}
-	// D3 supplies no fourth branch. Do not invent replay scope or an
-	// incompleteness reason for a recipe that meets the ten predicates.
-	return "", fmt.Errorf("coverage: exact recipe has no defined D3 cross-base branch (requires contract adjudication)")
+	return "", fmt.Errorf("coverage: complete record violates the D3 cross-base invariant")
 }

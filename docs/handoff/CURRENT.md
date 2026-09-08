@@ -26,8 +26,11 @@ The policy/parity/index fold is checkpointed at `ab98ddf`. Its independent
 reviewer is `14658582-64a8-48bb-aab5-304dbf42ba2b`
 (`s3-domain-adjudication-review`), whose verdict is **APPROVED** with no
 significant issue. The core worker remains responsible for
-the disjoint implementation revision. Ignored per-command gate wrappers are
-prepared in `bin/s3-validation/`; no Go validation has started.
+the disjoint implementation revision, which is now delivered. Only gated
+write-file operations contribute v1 reclassification proof; ordinary excluded
+cases return incomplete records instead of adjudication errors. Ignored
+per-command gate wrappers are prepared in `bin/s3-validation/`; the coordinator
+is entering serial validation and independent implementation review.
 
 ### S3 contract adjudication (resolved)
 
@@ -2205,7 +2208,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: In progress — conservative v1 policy selected; implementation revision active
+- **Status**: In progress — conservative revision delivered; validation and implementation review
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2213,6 +2216,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+The conservative revision is delivered in four worker-owned files:
+`recipe_coverage.go`, `recipe_coverage_simulation.go`, and the S3 codec/
+simulation tests. Public APIs/wire fields are unchanged. Ungated writes,
+replacement and append operations now yield truthful incomplete records;
+valid gated writes retain their positive controls and precondition failures
+do not gain false already-present proofs. New admissibility, mixed-recipe,
+surplus and preservation fixtures are included. Worker formatting/whitespace
+checks pass; no Go validation was run by the worker.
 
 The operator selected conservative v1 and requested a future planning task.
 Created GH #24, "Plan an ADR/PRD for broader recipe-coverage completeness".
@@ -2334,11 +2346,11 @@ the strict schema and pure simulation/completeness core. S1 observations,
 S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
 not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
 The S3 draft and parity unit are authored but not Go-validated. The core
-worker is revising the delivered draft under the operator's conservative
-decision. ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future
-broader-domain planning. Contract-fold review is APPROVED; the conservative
-core revision and all Go validation remain pending. No producer/consumer
-integration is underway.
+worker has delivered the operator's conservative revision and is idle.
+ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
+domain planning. Contract-fold review is APPROVED. The coordinator is
+starting Go validation and independent implementation review; no producer/
+consumer integration was added.
 
 ## Prerequisite Status
 
@@ -2958,6 +2970,8 @@ remains blocked until that release is implemented, soaked and shipped.
   did not start Go validation while the contract decision remained open.
 - Independent policy-fold review of `ab98ddf`: **APPROVED**, no significant
   issue. This does not claim a Go validation pass or implementation acceptance.
+- Conservative core revision: worker formatting/scoped whitespace pass.
+  Coordinator serial validation is starting at step 1; no Go result yet.
 
 ### Completed S2 validation
 
@@ -8655,10 +8669,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Finish the conservative v1 revision; ADR-039's narrow policy fold is
-   independently APPROVED. GH #24 is future planning, not this implementation.
-2. Finish the draft against the adjudicated contract, then run the
-   resource-gated serial sequence and independent review.
+1. Checkpoint the delivered conservative revision; ADR-039's narrow policy
+   fold is independently APPROVED.
+2. Run the resource-gated serial sequence and independent implementation
+   review. GH #24 is future planning, not this implementation.
 3. Close S3 durably with WAVE_BASE
    `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
 
@@ -8666,7 +8680,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - The D3/D5 policy blocker is resolved by the operator's conservative choice.
   Contract-fold review is APPROVED; implementation revision and Go validation
-  are pending.
+  have advanced to coordinator validation/review.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.

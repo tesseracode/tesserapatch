@@ -124,8 +124,154 @@ func TestRGAS3ModeExistenceAndPreconditionDomain(t *testing.T) {
 			if !tc.exact && result.AllAlreadyPresent {
 				t.Fatal("failed precondition or unsupported mode produced an already-present proof")
 			}
+			if len(result.UnreclassifiableOperations) != 0 || slices.Contains(c.Effects[0].ReasonCodes, "operation-not-reclassifiable") {
+				t.Fatal("gated write failure was mislabeled as an excluded operation kind")
+			}
+			wantReasons := []string{}
+			if !tc.exact {
+				wantReasons = []string{"simulation-mismatch"}
+			}
+			if !slices.Equal(c.Reasons, wantReasons) {
+				t.Fatalf("gated-write reason set = %v, want %v", c.Reasons, wantReasons)
+			}
 			if !tc.exact && len(result.MismatchPaths) == 0 {
 				t.Fatal("mismatch diagnostic omitted affected paths")
+			}
+		})
+	}
+}
+
+func TestRGAS3ConservativeReclassificationDomain(t *testing.T) {
+	replacementWithGate := rgaS3Write("a.txt", "old\n", "new\n", false)
+	replacementWithGate.Type, replacementWithGate.Search, replacementWithGate.Replace = "replace-in-file", "old", "new"
+	appendWithGate := rgaS3Write("a.txt", "old\n", "new\n", false)
+	appendWithGate.Type = "append-file"
+	for _, tc := range []struct {
+		name, patch, pre, post string
+		op                     RecipeOperation
+		admissible             bool
+		crossBase              string
+	}{
+		{"gated-existing", rgaS3ModifyPatch, "old\n", "new\n", rgaS3Write("a.txt", "old\n", "new\n", false), true, CrossBaseConsumerDerivationRequired},
+		{"gated-creation", rgaS3AddPatch, "", "new\n", rgaS3Write("a.txt", "", "new\n", true), true, CrossBaseReferenceTreeOnly},
+		{"ungated-existing", rgaS3ModifyPatch, "old\n", "new\n", RecipeOperation{Type: "write-file", Path: "a.txt", Content: "new\n"}, false, CrossBaseUnsupported},
+		{"ungated-creation", rgaS3AddPatch, "", "new\n", RecipeOperation{Type: "write-file", Path: "a.txt", Content: "new\n"}, false, CrossBaseUnsupported},
+		{"exact-replacement", rgaS3ModifyPatch, "old\n", "new\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "old", Replace: "new"}, false, CrossBaseUnsupported},
+		{"replacement-with-irrelevant-gate", rgaS3ModifyPatch, "old\n", "new\n", replacementWithGate, false, CrossBaseUnsupported},
+		{"exact-append", rgaS3ModifyPatch, "old\n", "old\nnew\n", RecipeOperation{Type: "append-file", Path: "a.txt", Content: "new\n"}, false, CrossBaseUnsupported},
+		{"append-with-irrelevant-gate", rgaS3ModifyPatch, "old\n", "old\nnew\n", appendWithGate, false, CrossBaseUnsupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			obs := rgaS3Observe(t, tc.patch, rgaS3Image{pre: tc.pre, post: tc.post})
+			in := rgaS3Inputs(t, obs, tc.op)
+			// Noncanonical author formatting must remain byte-bound, even
+			// when the operation is excluded from v1 reclassification.
+			in.Recipe.Bytes = append([]byte(" \n"), in.Recipe.Bytes...)
+			before := bytes.Clone(in.Recipe.Bytes)
+			result, err := SimulateRecipeCoverage(obs, ApplyRecipe{Feature: "s3", Operations: []RecipeOperation{tc.op}})
+			if err != nil || !result.ExactPostimage || result.AllAlreadyPresent != tc.admissible {
+				t.Fatalf("exact transform became an inadmissible proof: %+v %v", result, err)
+			}
+			wantIndexes, wantReasons := []int{}, []string{}
+			wantStatus, wantDisposition := CoverageComplete, "represented"
+			if !tc.admissible {
+				wantIndexes, wantReasons = []int{1}, []string{"operation-not-reclassifiable"}
+				wantStatus, wantDisposition = CoverageIncomplete, "unsupported"
+			}
+			if !slices.Equal(result.UnreclassifiableOperations, wantIndexes) {
+				t.Fatalf("unreclassifiable indexes = %v, want %v", result.UnreclassifiableOperations, wantIndexes)
+			}
+			c := rgaS3Build(t, in)
+			if c.CoverageStatus != wantStatus || c.CrossBaseStatus != tc.crossBase ||
+				c.Effects[0].Disposition != wantDisposition || len(c.Reasons) != 0 ||
+				!slices.Equal(c.Effects[0].ReasonCodes, wantReasons) ||
+				!slices.Equal(c.Effects[0].OperationIndexes, []int{1}) {
+				t.Fatalf("conservative v1 reason/disposition/status mapping: %+v", c)
+			}
+			if !bytes.Equal(before, in.Recipe.Bytes) || c.RecipeSHA256 != CoverageSHA256(before) {
+				t.Fatal("coverage changed or recanonicalized preserved recipe bytes")
+			}
+			// These contradictory claims are structurally plausible because
+			// the wire contains no operation body or preimage gate. Only the
+			// same input-aware validator can prove the admissible domain.
+			wrong := rgaS3Clone(c)
+			wrong.Effects[0].ReasonCodes = []string{}
+			wrong.Effects[0].Disposition = "represented"
+			wrong.CoverageStatus = CoverageComplete
+			wrong.CrossBaseStatus = CrossBaseConsumerDerivationRequired
+			if tc.patch == rgaS3AddPatch {
+				wrong.CrossBaseStatus = CrossBaseReferenceTreeOnly
+			}
+			if tc.admissible {
+				wrong.Effects[0].ReasonCodes = []string{"operation-not-reclassifiable"}
+				wrong.Effects[0].Disposition = "unsupported"
+				wrong.CoverageStatus, wrong.CrossBaseStatus = CoverageIncomplete, CrossBaseUnsupported
+			}
+			if err := ValidateRecipeCoverageSchema(wrong); err != nil {
+				t.Fatalf("fixture must reach input-aware recomputation: %v", err)
+			}
+			if err := ValidateRecipeCoverage(wrong, in); err == nil {
+				t.Fatal("same validator accepted an omitted or invented reclassification exclusion")
+			}
+		})
+	}
+}
+
+func TestRGAS3ExcludedSurplusOperationsStayRecordLevel(t *testing.T) {
+	obs := rgaS3Observe(t, rgaS3ModifyPatch, rgaS3Image{pre: "old\n", post: "new\n"})
+	for _, surplus := range []RecipeOperation{
+		{Type: "write-file", Path: "extra.txt", Content: "new\n"},
+		{Type: "replace-in-file", Path: "extra.txt", Search: "old", Replace: "new"},
+		{Type: "append-file", Path: "extra.txt", Content: "new\n"},
+	} {
+		t.Run(surplus.Type, func(t *testing.T) {
+			ops := []RecipeOperation{rgaS3Write("a.txt", "old\n", "new\n", false), surplus}
+			in := rgaS3Inputs(t, obs, ops...)
+			c := rgaS3Build(t, in)
+			if c.CoverageStatus != CoverageIncomplete || c.CrossBaseStatus != CrossBaseUnsupported ||
+				!slices.Equal(c.Reasons, []string{"operation-surplus", "simulation-mismatch"}) ||
+				len(c.Effects[0].ReasonCodes) != 0 || c.Effects[0].Disposition != "represented" {
+				t.Fatalf("surplus exclusion invented an effect placement: %+v", c)
+			}
+			result, err := SimulateRecipeCoverage(obs, ApplyRecipe{Feature: "s3", Operations: ops})
+			if err != nil || result.AllAlreadyPresent || result.ExactPostimage || len(result.UnreclassifiableOperations) != 0 {
+				t.Fatalf("unassigned operation acquired effect-local proof: %+v %v", result, err)
+			}
+			wrong := rgaS3Clone(c)
+			wrong.Effects[0].ReasonCodes = []string{"operation-not-reclassifiable"}
+			wrong.Effects[0].Disposition = "unsupported"
+			if err := ValidateRecipeCoverage(wrong, in); err == nil {
+				t.Fatal("surplus operation's exclusion was accepted on an unrelated effect")
+			}
+		})
+	}
+}
+
+func TestRGAS3GatedWriteCannotAuthorizeAnExcludedSibling(t *testing.T) {
+	for _, tc := range []struct {
+		op   RecipeOperation
+		post string
+	}{
+		{RecipeOperation{Type: "write-file", Path: "z.txt", Content: "new\n"}, "new\n"},
+		{RecipeOperation{Type: "replace-in-file", Path: "z.txt", Search: "old", Replace: "new"}, "new\n"},
+		{RecipeOperation{Type: "append-file", Path: "z.txt", Content: "new\n"}, "old\nnew\n"},
+	} {
+		t.Run(tc.op.Type, func(t *testing.T) {
+			patch := rgaS3ModifyPatch + strings.ReplaceAll(rgaS3ModifyPatch, "a.txt", "z.txt")
+			obs := rgaS3Observe(t, patch, rgaS3Image{pre: "old\n", post: "new\n"}, rgaS3Image{pre: "old\n", post: tc.post})
+			in := rgaS3Inputs(t, obs, rgaS3Write("a.txt", "old\n", "new\n", false), tc.op)
+			c := rgaS3Build(t, in)
+			if c.CoverageStatus != CoverageIncomplete || c.CrossBaseStatus != CrossBaseUnsupported || len(c.Reasons) != 0 ||
+				len(c.Effects[0].ReasonCodes) != 0 || c.Effects[0].Disposition != "represented" ||
+				!slices.Equal(c.Effects[1].ReasonCodes, []string{"operation-not-reclassifiable"}) ||
+				c.Effects[1].Disposition != "unsupported" {
+				t.Fatalf("one gated write authorized an excluded sibling: %+v", c)
+			}
+			wrong := rgaS3Clone(c)
+			wrong.Effects[1].ReasonCodes, wrong.Effects[1].Disposition = []string{}, "represented"
+			wrong.CoverageStatus, wrong.CrossBaseStatus = CoverageComplete, CrossBaseConsumerDerivationRequired
+			if err := ValidateRecipeCoverage(wrong, in); err == nil {
+				t.Fatal("input-aware validation accepted a mixed-domain completeness claim")
 			}
 		})
 	}
@@ -143,7 +289,7 @@ func TestRGAS3PreservedOperationsReclassification(t *testing.T) {
 		{"replace-first-only", "old old\n", "new old\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "old", Replace: "new"}, true, false},
 		{"replace-does-not-replace-all", "old old\n", "new new\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "old", Replace: "new"}, false, false},
 		{"replace-empty-search", "old\n", "newold\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "", Replace: "new"}, true, false},
-		{"replace-exact-postimage-exception", "old\n", "new\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "old", Replace: "new"}, true, true},
+		{"replace-exact-postimage-still-excluded", "old\n", "new\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "old", Replace: "new"}, true, false},
 		{"replace-missing-search", "old\n", "new\n", RecipeOperation{Type: "replace-in-file", Path: "a.txt", Search: "absent", Replace: "new"}, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -161,19 +307,15 @@ func TestRGAS3PreservedOperationsReclassification(t *testing.T) {
 			if !tc.reclass && !slices.Equal(result.UnreclassifiableOperations, []int{1}) {
 				t.Fatal("unreclassifiable operation missing")
 			}
-			if tc.reclass {
-				// The explicit exception is implemented, but the accepted
-				// contract does not assign this complete shape a cross-base
-				// branch. No invented scope or reason may hide that conflict.
-				_, err := BuildRecipeCoverage(RecipeCoverageInput{Observation: obs, Recipe: CoverageArtifact{Present: true, Bytes: raw}})
-				if err == nil || !strings.Contains(err.Error(), "D3 cross-base branch") {
-					t.Fatalf("undefined cross-base scope invented: %v", err)
-				}
-			} else {
-				c := rgaS3Build(t, RecipeCoverageInput{Observation: obs, Recipe: CoverageArtifact{Present: true, Bytes: raw}})
-				if c.CoverageStatus != CoverageIncomplete || !slices.Equal(c.Effects[0].ReasonCodes, []string{"operation-not-reclassifiable"}) {
-					t.Fatalf("preserved op misclassified: %+v", c)
-				}
+			c := rgaS3Build(t, RecipeCoverageInput{Observation: obs, Recipe: CoverageArtifact{Present: true, Bytes: raw}})
+			wantReasons := []string{}
+			if !tc.exact {
+				wantReasons = []string{"simulation-mismatch"}
+			}
+			if c.CoverageStatus != CoverageIncomplete || c.CrossBaseStatus != CrossBaseUnsupported ||
+				!slices.Equal(c.Effects[0].ReasonCodes, []string{"operation-not-reclassifiable"}) ||
+				!slices.Equal(c.Reasons, wantReasons) {
+				t.Fatalf("preserved op misclassified: %+v", c)
 			}
 			after, err := EncodeRecipe(recipe)
 			if err != nil || !bytes.Equal(before, after) || !bytes.Equal(raw, before) {
