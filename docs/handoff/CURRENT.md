@@ -2,14 +2,14 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S2 validation (2026-09-08)**: corrected state `c3b4451` passes steps 1-5,
-including all targeted compatibility fixtures, owning-package regressions,
-vet and build. Every invocation had its own qualifying 60-second window.
-The exact 22-shard suite is running; independent confirmation of `fce284e`
-and `c3b4451` is APPROVED with no remaining static finding. S2 is not yet
-accepted and S3 remains unauthorized.
+**S2 approved for wave close (2026-09-08)**: independent review and validation
+steps 1-6 all pass, including the exact 22-shard suite. Every Go invocation
+had a fresh qualifying 60-second resource window. The canonical field now
+records review approval, not a claim that step 7 has run. Push this reviewed
+checkpoint, then run the final mechanical gate with the recorded WAVE_BASE.
+Final acceptance is pending that gate; S3 remains undispatched.
 The boundary fix passed on retry, exposing the same S2 artifact delta in
 compat-verify and compat-reconcile. The test adapter now covers exactly
 the four source-derived recorded fixtures (record, land, verify, reconcile),
@@ -2094,7 +2094,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S2 — preimage synthesis, pure derivation, convergent
   provenance.
-- **Status**: In progress — resource-gated validation restarted at user request
+- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
 - **Assigned**: 2026-09-07
 - **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
 - **Release target**: `v0.17.0`
@@ -2195,8 +2195,9 @@ reconcile as the remaining recorded-feature compatibility fixtures; their
 expected S2 artifact delta and existing V10 metadata are now explicit.
 The four-fixture correction at `c3b4451` passes steps 1-5, including the
 previously failing compatibility suite. Final test-correction review is
-APPROVED; the exact 22-shard suite is running. Wave-close and acceptance
-remain pending.
+APPROVED; the exact 22-shard suite has passed all 22 processes. No code
+changed between full-suite dispatch `610532f` and review record `ebaf2a1`.
+S2 is approved for durable close; push and step 7 remain before acceptance.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2790,6 +2791,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Step 6 **PASS**: exact `scripts/wave-close-test-shards.sh`, all 22
+  invocations, each after a fresh 60-second gate at 87% free memory,
+  load1 <=3.70 and no Go tools. Main CLI 591.999s, workflow 87.324s;
+  all other packages and all 21 isolated CLI shards pass.
+- Code is unchanged from full-suite dispatch `610532f` through `ebaf2a1`.
+  Final mechanical gate with the explicit S2 WAVE_BASE is next.
 
 - Current retry at `c3b4451`: steps 1-2 **PASS**, including all S0/S1/S2,
   prepare compatibility/PIB-212 and ADR-index families. Fresh gates at 87%
@@ -8467,18 +8475,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Once resources qualify, restart the prescribed sequence from step 1.
-   Include the prepare golden/PIB-212 and S7 ADR-index families in step 2.
-2. Complete all 22 exact shards and the wave-close gate with the recorded
-   WAVE_BASE and a fresh resource window for every top-level Go invocation.
-3. Update, commit and push terminal S2 tracking only after runtime acceptance.
-   Leave S3 undispatched; this task authorizes S2 only.
+1. Commit/push the review-approved close checkpoint so the durability gate
+   can compare HEAD with origin/main.
+2. Run `make wave-close-check WAVE_BASE=0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+   with a fresh resource window for every top-level Go invocation.
+3. Record the gate result, archive the completed S2 handoff, and push terminal
+   tracking. Leave S3 undispatched; this task authorizes S2 only.
 
 ## Blockers
 
-- No current resource or code blocker is known: steps 1-5 and final static
-  review pass. Full 22-shard success and step 7
-  are still required; a prior pass never waives a fresh resource window.
+- No current resource or code blocker is known: steps 1-6 and final static
+  review pass. Step 7 and durable close are still required; a prior pass
+  never waives a fresh resource window.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 

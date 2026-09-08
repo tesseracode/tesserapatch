@@ -1549,7 +1549,7 @@ active.
 S1 is ✅ APPROVED. The strict normalized grammar, PI-3–PI-7 migrations,
 PI-12 projection, immutable P1–P7 observations and editor error propagation
 pass targeted/owning suites, vet/build and the exact 22-shard full suite.
-S2 is 🚧 IN PROGRESS, restarted 2026-09-07 from verified clean WAVE_BASE
+S2 is ✅ REVIEW APPROVED, restarted 2026-09-07 from verified clean WAVE_BASE
 `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15` after a corrupted session with no
 surviving artifacts. Scope: pure observation-based derivation, exact
 preimages, deterministic encoding, unsupported effects, D16 origin proof
@@ -1608,6 +1608,11 @@ remain pending. S2 is still 🚧 IN PROGRESS.
 Final static confirmations of `fce284e` and `c3b4451` are APPROVED with no
 remaining finding. The exact full suite continues; wave close and acceptance
 are pending.
+S2 steps 1-6 now **PASS**, including all 22 exact shards after individual
+resource gates. Review is APPROVED with no residual finding. Reviewed
+implementation/checkpoint range: `0c41be9..ebaf2a1`; code last changed at
+`c3b4451`. Durable close and the explicit-WAVE_BASE mechanical gate are next;
+final acceptance and S3 dispatch are not yet claimed.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

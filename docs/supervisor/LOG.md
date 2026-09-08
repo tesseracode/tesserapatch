@@ -1,3 +1,23 @@
+## Implementation Decision — GH #15 S2 approved for durable close — 2026-09-08
+
+**Agent**: Copilot implementation agent
+**Decision**: REVIEW APPROVED — final mechanical gate pending
+**WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+**Reviewed range**: `0c41be9..ebaf2a1`
+
+All independent findings are closed. Steps 1-6 pass, including the exact
+22-shard script: main CLI 591.999s, workflow 87.324s, every other package and
+all 21 isolated CLI shards. Each invocation had a fresh 60-second window at
+87% free memory, load1 <=3.70 and zero pre-existing Go tools. No code changed
+between dispatch `610532f` and review record `ebaf2a1`.
+
+Protected surfaces remain unchanged: historical prepare goldens, allowlist,
+assets, SPEC, CHANGELOG, recipe execution and verify consumer code. Exactly
+13 untracked research files remain untouched; no allowlist growth or release
+tag is needed. Flip the canonical field in place to APPROVED, checkpoint/push,
+then run the required explicit-WAVE_BASE gate. Final acceptance is conditional
+on that gate; S3 remains undispatched.
+
 ## Review — GH #15 S2 final test corrections approved — 2026-09-08
 
 **Reviewer**: `s2-final-correction-review`
