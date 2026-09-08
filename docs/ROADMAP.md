@@ -1579,6 +1579,11 @@ narrow S2 delta checks and the reviewed index pin are being added.
 The correction derives expected record/land deltas independently from frozen
 fixtures and retains whole-transcript comparison plus mutation controls.
 No production change was needed; validation is restarting.
+S2 is 🚧 BLOCKED on the resource gate: the restart after test-only
+correction `2b12a5a` timed out after 600 seconds at 76% free memory
+(required >=80%), load1 2.01 and no Go tools. No restarted Go command ran.
+Full-suite success, wave close and final acceptance remain pending; S3 stays
+unauthorized.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

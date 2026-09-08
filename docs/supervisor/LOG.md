@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S2 resource-blocked pause — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: BLOCKED on validation resources; canonical cluster remains IN PROGRESS
+
+Test-only compatibility correction `2b12a5a` is committed. Restarting the
+prescribed sequence stopped before step 1: the gate exited 75 after 600
+seconds without a continuous qualifying minute. Last sample was 76% free
+memory (required >=80%), load1 2.01 and no active Go tools. No Go validation
+command ran for this correction; the first-failure stop was respected.
+
+Persist the blocker and restart instructions before pausing. Remove only the
+three owned, ignored validation wrapper files; leave all 13 allowlisted
+research files untouched. Static review of the test-only correction is still
+pending. Full-suite success, step 7, final acceptance and push remain pending;
+do not start S3.
+
 ## Implementation Transition — GH #15 S2 compatibility correction authored — 2026-09-07
 
 **Agent**: Copilot implementation agent
