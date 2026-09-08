@@ -1597,6 +1597,10 @@ The recovered-resource retry passed step 1 and stopped at step 2 on a
 golden-adapter delimiter collision with `--- /dev/null`. A test-only fix now
 uses snapshot byte lengths with independent placement and negative-size
 fixtures; production and historical goldens are unchanged. Validation restarts.
+That boundary fix passes; the next comparison exposes the two other
+recorded-feature snapshots (verify/reconcile). The test-only delta now
+covers the exact four recorded fixtures, including existing V10 metadata.
+No S5 consumer code is changed; validation is restarting from step 1.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

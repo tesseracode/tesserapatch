@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S2 recorded-fixture closure — 2026-09-08
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — step 2 stopped, completing test-only expectations
+
+The boundary correction passes its focused tests and record/land comparisons.
+The next run exposed the two remaining callers of `setupRecordedFeature`:
+compat-verify and compat-reconcile also snapshot the newly recorded recipe,
+generation hash and provenance. V10 already emits member-baseline/hash-bound
+metadata for these inputs; no verify/reconcile production change is needed.
+
+Source inspection closes the affected fixture set at exactly four: direct
+record plus setupRecordedFeature's land, verify and reconcile callers.
+Extend only those expected deltas, resolve provenance base from frozen
+status.json, and add both metadata mutations for verify. Retain exact
+comparison of every other byte and every historical golden file unchanged.
+Both resource gates passed at 86% free; steps 3-7 remained stopped.
+
 ## Implementation Transition — GH #15 S2 resource-recovery retry stopped — 2026-09-07
 
 **Agent**: Copilot implementation agent

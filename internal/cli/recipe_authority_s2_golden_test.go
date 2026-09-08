@@ -15,7 +15,9 @@ import (
 // D5/D6's intended delta from their old bytes, never from current CLI output
 // or the production recipe encoder. Every other transcript byte still compares.
 func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
-	if name != "compat-record.txt" && name != "compat-land.txt" {
+	switch name {
+	case "compat-record.txt", "compat-land.txt", "compat-verify.txt", "compat-reconcile.txt":
+	default:
 		return frozen, nil
 	}
 	old := string(frozen)
@@ -69,15 +71,19 @@ func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
 	if generationID(oldHash) != g.ID {
 		return nil, fmt.Errorf("frozen generation ID does not match ADR-024")
 	}
-	base := g.Base
-	if name == "compat-land.txt" {
-		const prefix = "    Tpatch-Base-Commit: "
-		_, suffix, found := strings.Cut(old, prefix)
-		if !found {
-			return nil, fmt.Errorf("land golden lacks its resolved base")
-		}
-		base, _, _ = strings.Cut(suffix, "\n")
+	statusBody, err := rgaS2GoldenSection(old, "status.json")
+	if err != nil {
+		return nil, err
 	}
+	var status struct {
+		Apply struct {
+			BaseCommit string `json:"base_commit"`
+		} `json:"apply"`
+	}
+	if err := json.Unmarshal([]byte(statusBody), &status); err != nil {
+		return nil, fmt.Errorf("decode frozen status: %w", err)
+	}
+	base := status.Apply.BaseCommit
 	if len(base) != 40 || strings.Trim(base, "0123456789abcdef") != "" {
 		return nil, fmt.Errorf("golden provenance base is not a resolved commit")
 	}
@@ -90,6 +96,13 @@ func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
 		{fmt.Sprintf("apply-recipe.json (%d bytes)", len(recipe)), fmt.Sprintf("apply-recipe.json (%d bytes)", len(updatedRecipe))},
 		{g.ID, generationID(newHash)},
 	}
+	if name == "compat-verify.txt" {
+		// Existing V10 already reports these fields when a recipe carries
+		// preimages and matching provenance; S2 now supplies those inputs.
+		const legacyV10 = "      \"id\": \"write_file_preimage_fresh\",\n      \"severity\": \"block\",\n      \"passed\": true,\n      \"mode\": \"provenance-anchor\""
+		boundV10 := legacyV10 + fmt.Sprintf(",\n      \"member_baselines\": {\n        \"pib-golden\": %q\n      },\n      \"provenance_hash_bound\": true", base)
+		replacements = append(replacements, [2]string{legacyV10, boundV10})
+	}
 	for _, replacement := range replacements {
 		if strings.Count(out, replacement[0]) != 1 {
 			return nil, fmt.Errorf("S2 golden replacement is missing or ambiguous: %q", replacement[0])
@@ -97,6 +110,9 @@ func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
 		out = strings.Replace(out, replacement[0], replacement[1], 1)
 	}
 	hashes := 1
+	if name == "compat-verify.txt" {
+		hashes = 2 // generation binding plus the existing verify report field
+	}
 	if name == "compat-land.txt" {
 		hashes = 2 // generation binding plus the commit trailer
 		const staged = "   M .tpatch/features/pib-golden/artifacts/post-apply.patch\n"
@@ -147,7 +163,7 @@ func rgaS2GoldenSection(transcript, relative string) (string, error) {
 }
 
 func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
-	for _, name := range []string{"compat-record.txt", "compat-land.txt"} {
+	for _, name := range []string{"compat-record.txt", "compat-land.txt", "compat-verify.txt", "compat-reconcile.txt"} {
 		t.Run(name, func(t *testing.T) {
 			frozen, err := os.ReadFile(filepath.Join(preparePIBGoldenDir, name))
 			if err != nil {
@@ -176,6 +192,17 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 			for _, wrong := range []string{string(frozen), string(expected) + "\n", ""} {
 				if preparePIBGoldenDelta(name, wrong) == nil {
 					t.Fatal("same comparator accepted a legacy, expanded, or missing capture")
+				}
+			}
+			if name == "compat-verify.txt" {
+				for _, mutation := range []struct{ old, new string }{
+					{`"provenance_hash_bound": true`, `"provenance_hash_bound": false`},
+					{`"member_baselines": {`, `"wrong_baselines": {`},
+				} {
+					wrong := strings.Replace(string(expected), mutation.old, mutation.new, 1)
+					if wrong == string(expected) || preparePIBGoldenDelta(name, wrong) == nil {
+						t.Fatalf("same comparator accepted V10 drift %q", mutation.old)
+					}
 				}
 			}
 			invalidFrozen := strings.Replace(string(frozen), `"replace": ""`, `"replace": "not the baseline"`, 1)

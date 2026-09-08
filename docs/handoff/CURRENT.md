@@ -11,6 +11,11 @@ golden-fixture boundary defect: `--- /dev/null` was mistaken for a snapshot
 record boundary. The test-only correction uses declared snapshot byte lengths
 and independent placement/negative-size fixtures. Restart from step 1 after
 checkpointing; S2 is not yet accepted and S3 remains unauthorized.
+The boundary fix passed on retry, exposing the same S2 artifact delta in
+compat-verify and compat-reconcile. The test adapter now covers exactly
+the four source-derived recorded fixtures (record, land, verify, reconcile),
+including already-existing V10 metadata activated by truthful provenance.
+No verify/reconcile production integration was added.
 
 GH #15 S2 is restarted from the verified clean `0c41be9` baseline on
 2026-09-07. Only pure derivation, preimage synthesis, deterministic encoding,
@@ -2186,7 +2191,10 @@ negative fixture. Independent static confirmation is **APPROVED** at
 `a2096d6`; all reported static findings are closed. Resources recovered,
 but the runtime retry found an additional golden-frame boundary bug. It is
 corrected without changing production or historical goldens; the new
-byte-length/placement fixtures await revalidation from step 1.
+byte-length/placement fixtures pass. The next retry identified verify and
+reconcile as the remaining recorded-feature compatibility fixtures; their
+expected S2 artifact delta and existing V10 metadata are now explicit.
+The four-fixture correction awaits revalidation from step 1.
 Wave-close and final acceptance remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
@@ -2830,6 +2838,10 @@ remains blocked until that release is implemented, soaked and shipped.
   in prepare golden/PIB-212 families due to the snapshot/patch delimiter
   collision. Both gates passed at 86% free (load1 2.60 and 2.34). All
   selected gitutil/patchobs/workflow tests pass. No step 3-7 command ran.
+- Retry at `fce284e`: step 1 and all focused S0/S1/S2/record/land expectations
+  **PASS**; step 2 stops on compat-verify/reconcile's recorded artifacts.
+  The source-derived four-fixture delta is now complete, with verify's
+  existing member-baseline/hash-bound output guarded. Production unchanged.
 
 ### Prior slices (historical)
 
