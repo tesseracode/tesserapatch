@@ -4,13 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
-**S2 validation resumed (2026-09-07)**: the user released resources and asked
-to retry. Initial snapshot is 86% free memory, load1 2.13 and no active Go
-tools. The gates passed and step 1 passed, but step 2 found a remaining
-golden-fixture boundary defect: `--- /dev/null` was mistaken for a snapshot
-record boundary. The test-only correction uses declared snapshot byte lengths
-and independent placement/negative-size fixtures. Restart from step 1 after
-checkpointing; S2 is not yet accepted and S3 remains unauthorized.
+**S2 validation (2026-09-08)**: corrected state `c3b4451` passes steps 1-5,
+including all targeted compatibility fixtures, owning-package regressions,
+vet and build. Every invocation had its own qualifying 60-second window.
+The exact 22-shard suite is starting; independent confirmation of the last
+test-only correction is pending. S2 is not accepted and S3 remains unauthorized.
 The boundary fix passed on retry, exposing the same S2 artifact delta in
 compat-verify and compat-reconcile. The test adapter now covers exactly
 the four source-derived recorded fixtures (record, land, verify, reconcile),
@@ -2194,8 +2192,9 @@ corrected without changing production or historical goldens; the new
 byte-length/placement fixtures pass. The next retry identified verify and
 reconcile as the remaining recorded-feature compatibility fixtures; their
 expected S2 artifact delta and existing V10 metadata are now explicit.
-The four-fixture correction awaits revalidation from step 1.
-Wave-close and final acceptance remain pending.
+The four-fixture correction at `c3b4451` passes steps 1-5, including the
+previously failing compatibility suite. The exact 22-shard suite is starting;
+final test-correction review, wave-close and acceptance remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2789,6 +2788,14 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Current retry at `c3b4451`: steps 1-2 **PASS**, including all S0/S1/S2,
+  prepare compatibility/PIB-212 and ADR-index families. Fresh gates at 87%
+  free/load1 3.10 and 2.45; CLI selector 15.622s.
+- Steps 3-5 **PASS**: full gitutil 6.561s, patchobs 1.390s, store 2.582s,
+  workflow 85.086s; affected CLI regressions 88.808s; vet/build clean.
+  Every invocation had a fresh 60-second gate at 87% free, load1 <=2.49.
+- Exact 22-shard step 6 is starting; step 7 has not run.
 
 - S2 attempt 1: step 1 `gofmt -l .` **PASS**, gated at 84% free/load1 2.54.
 - Step 2 **FAIL** after a fresh 60s window at 84% free/load1 2.22: parser
@@ -8464,11 +8471,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- The prior resource blocker is recovering: initial retry snapshot is 86%
-  free/load1 2.13/no Go tools. Require the full continuous minute before each
-  invocation; a snapshot alone never authorizes validation.
-- S2's current test-only golden/index correction and length follow-up have no completed Go
-  validation; full 22-shard success and step 7 are still required.
+- No current resource or code blocker is known: steps 1-5 pass under the
+  required gate. Full 22-shard success, final correction review and step 7
+  are still required; a prior pass never waives a fresh resource window.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 

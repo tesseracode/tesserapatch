@@ -1601,6 +1601,10 @@ That boundary fix passes; the next comparison exposes the two other
 recorded-feature snapshots (verify/reconcile). The test-only delta now
 covers the exact four recorded fixtures, including existing V10 metadata.
 No S5 consumer code is changed; validation is restarting from step 1.
+Corrected state `c3b4451` passes steps 1-5, including every recorded-feature
+compatibility fixture. Fresh per-command gates passed at 87% free memory.
+The exact 22-shard suite is starting; final correction review and wave close
+remain pending. S2 is still 🚧 IN PROGRESS.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

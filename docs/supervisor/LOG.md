@@ -1,3 +1,19 @@
+## Implementation Transition — GH #15 S2 recovered full-suite run — 2026-09-08
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — exact full-suite validation
+
+At `c3b4451`, steps 1-5 all pass, including every S0/S1/S2 family, the full
+prepare compatibility/PIB-212 and ADR-index targets, owning core packages,
+affected CLI regressions, vet and build. Every invocation had a fresh
+60-second resource window at 87% free memory with load1 <=5 and no Go tools.
+The four-fixture expected delta now passes against actual current CLI bytes;
+historical goldens and consumer production code remain unchanged.
+
+Checkpoint the results and start the exact 22-shard script with per-command
+gating and first-failure stop. Independent confirmation of the last test-only
+correction is pending. No acceptance, push or S3 dispatch is claimed.
+
 ## Implementation Transition — GH #15 S2 recorded-fixture closure — 2026-09-08
 
 **Agent**: Copilot implementation agent
