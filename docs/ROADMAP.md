@@ -1564,63 +1564,23 @@ Historical goldens, assets, consumer execution/verify code and all 13
 allowlisted research files remain unchanged. The execution/revision history
 is preserved in CURRENT, HISTORY and LOG. No release/tag is shipped here;
 S4-S6 are undispatched and GH #13 implementation remains blocked on v0.17.0.
-S3 is ✅ REVIEW APPROVED (dispatched 2026-09-08) from freshly fetched WAVE_BASE
-`27ee8bc45664f16a083b1a831e7ca04a7cb1c527`. S2's terminal CI 34208708824
-passed Linux/macOS/Windows and both observer jobs. Scope is ADR-036 D3's
-strict coverage schema, canonical encoding/hashes, exact reason/observation
-invariants, pure operation assignment/simulation/reclassification, ten-predicate
-completeness and PRD/ADR parity guards. No publication API, producer wiring,
-consumer behavior, public assets or GH #13 implementation is authorized.
-The coordinator owns parity tests/tracking; one implementer owns the disjoint
-pure-core/codec files. Full resource-gated validation and independent review
-are required before S3 acceptance.
-Dispatch `394ae78` is pushed and the bounded implementation worker is active.
-The disjoint parity unit is authored with canonical block pins, 66 complete
-contextual-reference bindings and mutation fixtures; no S3 Go validation has
-run yet.
-The S3 draft was delivered with a contract-adjudication blocker: D5 both
-permits an exact-postimage replacement exception and categorically excludes
-replacement recipes from completeness; D3 has no complete cross-base branch
-for replacement-only or ungated-creation recipes. No contract was changed and
-no Go validation has run. Resolve that policy explicitly before S3 acceptance.
-The operator resolved this conservatively: complete v1 coverage admits only
-preimage-bearing write-file operations. S3 is 🚧 IN PROGRESS under ADR-039;
-the canonical wire schema and ten-predicate block are unchanged. The requested
-non-blocking planning task is [GH #24](https://github.com/tesseracode/tesserapatch/issues/24)
-for an addendum/new ADR/PRD covering broader operation support. No S4/S5
-integration or broader-domain implementation is authorized.
-Policy/guard checkpoint `ab98ddf` records ADR-039 and the GH #24 task.
-Independent policy-fold review and the disjoint conservative-core revision
-are active; Go validation has not started.
-Independent policy-fold review of `ab98ddf` is APPROVED with no significant
-issue. The conservative-core revision and implementation validation remain
-in progress; S3 is not accepted.
-The conservative revision is delivered: all excluded legacy/replacement/
-append cases are incomplete, with unchanged wire/API and execution behavior.
-Coordinator validation and independent implementation review are starting;
-no S3 acceptance is claimed.
-S3 checkpoint `9a63697` passes steps 1-5 with individual resource gates.
-Independent whole-S3 review is active; its verdict precedes the full
-22-shard and wave-close phases.
-Independent whole-S3 review of `27ee8bc..9a63697` is APPROVED with no
-significant issue. The exact resource-gated 22-shard suite is starting;
-S3 acceptance still requires that result and the final wave-close gate.
-S3 is 🚧 RESOURCE-BLOCKED: the main all-package invocation of step 6 passed
-(CLI 540.959s, workflow 100.705s), but the next gate timed out after 600
-seconds at 60% free memory before shard 2. No Go test failed; the remaining
-21 shards and step 7 are unrun. No S3 acceptance or S4 dispatch.
-The user requested another retry after resource recovery (2026-09-08):
-initial snapshot 87% free/load1 2.21/no Go tools, clean `b84d526`, code
-unchanged from approved `9a63697`. S3 is 🚧 IN PROGRESS again; restart the
-prescribed gated sequence and rerun the exact shard script from its beginning.
-The recovered retry passes steps 1-5 at 88% free-memory gates. Independent
-review remains approved and code unchanged; the exact 22-shard suite is
-starting afresh. S3 acceptance still awaits steps 6-7.
-The exact recovered 22-shard run now passes completely: main CLI 511.164s,
-workflow 90.643s, all other packages and all 21 isolated CLI shards. Each
-invocation had a fresh resource window. Reviewed/checkpoint range:
-`27ee8bc..aac357b`; code last changed at approved `9a63697`. Push and the
-explicit-WAVE_BASE mechanical gate remain before final S3 acceptance.
+S3 is ✅ ACCEPTED (2026-09-08). Validated/pushed range:
+`27ee8bc45664f16a083b1a831e7ca04a7cb1c527..657a3db84cc4d1dd749657d16496caa2d65f8184`;
+the following terminal tracking commit changes documentation only.
+The exact strict coverage schema/codec/hashes, reason/observation invariants,
+pure assignment/simulation/reclassification, all-ten-predicate completeness
+and document/domain guards are implemented. Operator-approved ADR-039 limits
+complete v1 coverage to preimage-bearing write-file operations; preserved
+legacy/replacement/append recipes retain their bytes and execution behavior.
+Broader support is a separate non-blocking planning task,
+[GH #24](https://github.com/tesseracode/tesserapatch/issues/24).
+Both independent reviews and all seven validation stages pass. The complete
+22-shard retry and the final mechanical gate's own fresh 22-shard run pass;
+the explicit-WAVE_BASE gate reports **8/8 PASS**, no warnings. Every top-level
+Go command used the required fresh resource window. No publication API,
+producer/consumer wiring, public assets, dependency or release/tag change was
+made. Historical goldens, the allowlist and all 13 research files are
+unchanged. S4-S6 remain undispatched; GH #13 still waits for shipped v0.17.0.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

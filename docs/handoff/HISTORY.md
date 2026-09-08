@@ -9316,3 +9316,95 @@ The 13 research files and allowlist are untouched.
 
 No S2 blocker remains. S3 requires a separate dispatch and a newly recorded
 WAVE_BASE; GH #13 implementation remains blocked on shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-08 — GH #15 S3 — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `implement-recipe-generation-authority-s3`
+- **Milestone**: GH #15 / ADR-036
+- **Description**: Strict coverage schema, pure simulation and exact completeness.
+- **Status**: Complete — ACCEPTED
+- **Assigned / completed**: 2026-09-08
+- **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+- **Gate-validated/pushed tip**: `657a3db84cc4d1dd749657d16496caa2d65f8184`
+- **Boundary**: S3 only; no publication/consumer integration, release or S4 dispatch.
+
+## Session Summary
+
+Confirmed clean/pushed S2 and terminal CI 34208708824 green on all three
+platforms and both observer jobs before dispatch. One worker implemented
+the pure core/codec and focused tests; the coordinator independently authored
+document/domain guards and owned serial validation/tracking. File ownership
+was disjoint throughout.
+
+S3 adds strict required-field, non-null-array, duplicate/unknown/null/trailing
+JSON validation, canonical encoding and exact raw/effect hashes; exhaustive
+reason sets and disposition rules; honest observation/kind/presence relations;
+pure operation assignment, exact preimage/postimage simulation and no-write
+reclassification; and input-aware validation of all ten completeness rules.
+Schema consistency alone is not simulation or replay authority.
+
+The accepted rev-7 text exposed a replacement-domain contradiction and
+missing cross-base branches. The operator explicitly selected conservative
+v1: only preimage-bearing write-file operations can qualify for complete
+coverage. ADR-039 records that decision and qualifies the primary documents
+without changing their canonical schema or ten-predicate blocks. Assigned
+legacy ungated writes, replacements (including exact ones) and appends are
+incomplete with the existing operation-domain reason; bytes and execution
+semantics remain untouched. GH #24 was created as the requested non-blocking
+planning task for a future addendum/ADR/PRD covering broader support.
+
+## Review and Guard Record
+
+- Policy/guard fold `ab98ddf`: independently APPROVED.
+- Whole S3 `27ee8bc..9a63697`: independently APPROVED; no significant findings.
+- Document guards pin the canonical schema/predicate blocks and all 66
+  contextual numeric references (22 ADR, 44 PRD), with same-validator
+  mutations for divergent blocks, wrong targets, omitted/extra references
+  and a weakened operation-domain addendum.
+- S0's blanket coverage-absence guard deliberately advances to a narrow
+  pure-core/schema boundary; no-publication/no-consumer evidence remains.
+- Focused codec/simulation tests cover exact reason sets, malformed/duplicate
+  fields, flags/kinds/modes, omitted/surplus/duplicate operations, excluded
+  operation classes, precondition failures and preserved bytes.
+
+## Files Changed
+
+`internal/workflow/recipe_coverage{,_types,_codec,_simulation}.go`,
+S3 codec/core/simulation/parity tests, scoped S0 boundary/parser inventory
+updates, the pure patchobs classification export, ADR-039 and primary
+contract/index pointers, the directly coupled ADR-index pin, and tracking.
+S1/S2 behavior, producer/consumer execution, dependencies, public assets,
+historical golden bytes and the allowlist remain unchanged.
+
+## Test Results
+
+All seven prescribed stages PASS:
+1. Gofmt produces no unformatted path.
+2. Targeted S0-S3 and coupled compatibility/index families pass.
+3. Owning core packages and affected CLI regression families pass.
+4. Serial vet passes.
+5. Serial CLI build passes.
+6. Exact 22-shard retry passes all invocations: main CLI 511.164s, workflow
+   90.643s, every other package and all 21 isolated CLI shards.
+7. Explicit-WAVE_BASE wave-close gate: **8/8 PASS**, no warnings, including
+   another complete fresh 22-shard run.
+
+Every top-level Go invocation required 60 continuous seconds at >=80% free
+memory, load1 <=5 and no active Go tools. The earlier attempt stopped before
+shard 2 when memory fell to 60%; no Go test failed and no threshold was
+waived. After the user released resources, the full sequence restarted and
+both complete shard runs succeeded under fresh gates.
+
+## Current State, Blockers and Next Steps
+
+S3 is ACCEPTED and validated code is pushed. Terminal documentation changes
+no code/fixture/validation command after the successful gate. Every S3 commit
+carries the Copilot trailer. The three owned ignored wrappers are removed;
+all 13 research files and the allowlist are untouched.
+
+No S3 blocker remains. S4 needs a separate assignment and fresh WAVE_BASE.
+GH #24 remains future planning only; GH #13 waits for shipped GH #15/v0.17.0.

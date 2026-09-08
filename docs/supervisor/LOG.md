@@ -1,3 +1,26 @@
+## Implementation Decision — GH #15 S3 accepted — 2026-09-08
+
+**Decision**: ACCEPTED
+**WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+**Gate-validated/pushed tip**: `657a3db84cc4d1dd749657d16496caa2d65f8184`
+
+All seven stages pass. The final
+`make wave-close-check WAVE_BASE=27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+reports **8/8 PASS**, no warnings, including its own fresh 22-shard run.
+HEAD matched origin/main, all 13 S3 commits then present carried the trailer,
+the canonical field was unique/terminal, and gofmt/vet/build passed. Every
+top-level Go invocation had a fresh qualifying resource window.
+Policy-fold and whole-implementation reviews are independently APPROVED.
+
+### Action Taken
+
+Mark S3 ACCEPTED in place, archive the completion handoff, remove only the
+three owned ignored gate wrappers, and commit/push terminal documentation.
+No code, fixture, asset or validation command changes after the successful
+gate. The conservative ADR-039 domain is implemented; GH #24 remains separate
+non-blocking broader-domain planning. Preserve the 13 research files and
+unchanged allowlist. No release/tag or S4 dispatch.
+
 ## Implementation Decision — GH #15 S3 approved for durable close — 2026-09-08
 
 **Decision**: REVIEW APPROVED — final mechanical gate pending

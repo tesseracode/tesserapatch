@@ -2,14 +2,17 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S3 approved for wave close (2026-09-08)**: independent policy/implementation
-reviews and validation steps 1-6 all pass, including the complete 22-shard
-retry. Code remains identical to reviewed `9a63697` through `aac357b`.
-Every top-level Go invocation had a fresh qualifying resource window.
-The canonical field records review approval; final acceptance still requires
-push and the explicit-WAVE_BASE mechanical gate. No S4 dispatch.
+**S3 ACCEPTED (2026-09-08)**: both independent reviews and all seven
+validation stages pass. The explicit-WAVE_BASE mechanical gate reports
+**8/8 PASS**, no warnings, at pushed
+`657a3db84cc4d1dd749657d16496caa2d65f8184`, including its own fresh
+22-shard run. Every top-level Go invocation had the required resource
+window. The completion archive is in HISTORY; final tracking is
+documentation-only. GH #24 remains future planning; S4 is undispatched.
+
+### S3 execution record (historical)
 
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
 from freshly fetched WAVE_BASE
@@ -2218,7 +2221,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
+- **Status**: Complete — S3 ACCEPTED; all seven validation stages pass
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2226,6 +2229,16 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+S3 is complete and its validated code is pushed. The final mechanical gate
+passed all eight checks at `657a3db`, including another full 22-shard run.
+The strict schema/pure simulation core, conservative ADR-039 policy and
+document/domain guards are independently approved. The requested broader-
+domain planning task is GH #24; it does not block S3. Terminal tracking is
+archived in HISTORY, and the three owned ignored gate wrappers are removed.
+No publication/consumer integration, release/tag or S4 dispatch was started.
+
+### S3 implementation and validation history
 
 The recovered-resource retry passes steps 1-5: targeted/coupled guards,
 owning packages, CLI regressions, vet and build, each after its own minute
@@ -2379,19 +2392,18 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0-S2 are accepted and durably pushed. S3 is dispatched from `27ee8bc` for
-the strict schema and pure simulation/completeness core. S1 observations,
-S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
-not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
-The S3 draft and parity unit are authored but not Go-validated. The core
-worker has delivered the operator's conservative revision and is idle.
-ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
-domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
-Independent implementation review is APPROVED with no significant issue.
-The prior step 6 run was resource-blocked, but the recovered retry passed
-every one of the 22 invocations. No code changed after reviewed `9a63697`.
-S3 is approved for durable close; push and step 7 remain before acceptance.
-No producer/consumer integration was added.
+S0-S3 are accepted. S3 supplies the exact strict coverage schema/codec/hash
+helpers, input-aware validation, pure operation assignment/simulation/
+reclassification, exact reason/observation invariants and all-ten-predicate
+completeness under ADR-039's conservative domain. Only preimage-bearing
+write-file operations can qualify for complete v1 coverage; other recipe
+bytes and existing execution behavior remain preserved.
+
+Both independent reviews and all seven validation stages pass. The final
+mechanical gate is **8/8 PASS** at pushed `657a3db`; terminal tracking changes
+documentation only. No coverage publication, producer/consumer integration
+or replay authorization was added. S4-S6 and GH #13 implementation remain
+outside this task. GH #24 tracks the separate broader-domain planning gap.
 
 ## Prerequisite Status
 
@@ -2464,8 +2476,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Policy fold: `docs/adrs/ADR-039-coverage-complete-operation-domain.md`,
   header pointers in ADR-036/its PRD, `docs/adrs/README.md`, the coordinator
   parity file and directly coupled ADR-index guard pin.
-- Ignored gate wrappers in `bin/s3-validation/` were removed at the prior
-  pause and are recreated for this retry; remove owned files when it ends.
+- The three owned ignored gate wrappers in `bin/s3-validation/` are removed
+  at completion. The 13 allowlisted research files remain unchanged.
+- `docs/handoff/HISTORY.md` receives the S3 completion archive.
 
 ### Completed S2 file record
 
@@ -3000,6 +3013,16 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- **Final result: all seven validation stages PASS.**
+- Step 7:
+  `make wave-close-check WAVE_BASE=27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+  reports **8/8 PASS**, no warnings, at pushed `657a3db`. It reran gofmt,
+  vet, build and all 22 exact uncached shards under fresh resource gates.
+  Its trailer walk covered all 13 S3 commits then present; terminal tracking
+  carries the same trailer and changes no code, fixture or validation command.
+
+### S3 validation execution record
 
 - Step 6 recovered retry **PASS**: exact script, all 22 invocations.
   Main CLI 511.164s, workflow 90.643s, all other packages and all 21 isolated
@@ -8741,43 +8764,33 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Independent whole-S3 review is APPROVED with no findings to revise.
-2. Commit/push the review-approved close checkpoint, then run
-   `make wave-close-check WAVE_BASE=27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
-   with fresh per-command resource windows.
-3. Record the final gate result, archive S3, and push terminal tracking.
-   GH #24 remains non-blocking future planning; do not start S4.
+1. No further S3 implementation, review or validation remains.
+2. Leave S4 undispatched until a separate assignment with a freshly recorded
+   WAVE_BASE. GH #24 remains a separate non-blocking planning task.
 
 ## Blockers
 
-- No current resource or code blocker is known. Steps 1-6 and independent
-  review pass; step 7 and durable close remain outstanding.
-- The D3/D5 policy blocker is resolved by the operator's conservative choice.
-  Contract-fold review is APPROVED; implementation revision and Go validation
-  have advanced to coordinator validation/review.
+- None for S3; implementation, independent review and validation are complete.
+- The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
 
-- Latest S3 code is `9a63697`; tracking/full-suite dispatch is `7ec3618`.
-  Code is independently approved and steps 1-5 pass. The first step 6
-  invocation also passes, but the next resource gate refused to start shard
-  2. Local implementation commits remain unpushed pending full acceptance;
-  only the original docs-only dispatch `394ae78` was pushed.
-- S3's ignored gate wrappers were removed on pause. Recreate the same
+- S3 is accepted through gate-validated, pushed `657a3db`; code last changed
+  at reviewed `9a63697`. Both exact 22-shard runs and all seven stages pass.
+  Terminal tracking is documentation-only, with the required trailer.
+- S3's ignored gate wrappers were removed at completion. Future waves use the same
   per-command protocol for the exact script without modifying its CI-pinned
   contents; inherited child markers must avoid gating nested test tools
   against their own already-gated parent process.
 - Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.
-- Core worker ID is `560d7825-549b-476b-bba8-3d00567aeff0`; its completion
-  was retrieved and its conservative-domain revision is now active.
-  Policy-fold reviewer is `14658582-64a8-48bb-aab5-304dbf42ba2b`.
-  The worker must not run Go validation or
-  stage/commit; the coordinator owns that serial sequence.
+- Core worker `560d7825-549b-476b-bba8-3d00567aeff0` completed its revision.
+  Policy reviewer `14658582-64a8-48bb-aab5-304dbf42ba2b` and implementation
+  reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` both approved.
 - Record schema/semantic validation and replay authority are different:
   S3 must not treat `complete`, contextual hints or cross-base status as
   permission to apply/reconcile. S4/S5 will consume the pure result later.
