@@ -2141,6 +2141,11 @@ normalized effect `new.txt`. Exclusion targets now use execution-equivalent
 lexical resolution; canonical, `./` and `sub/../` negative fixtures plus
 no-dependency replacement controls are added. Steps 4-7 have not run;
 the production correction requires restarting validation from step 1.
+The parent-path correction is committed at `6cc3633`. Steps 1-5 now pass
+after fresh gates for every invocation. The exact 22-shard script is next,
+with per-invocation resource gating and first-failure stop enforced by ignored
+session wrappers. Independent correction review is dispatched; no S2
+acceptance or S3 authorization is claimed.
 Formatting caught and corrected two misplaced test-function insertions
 before validation began.
 The implementation must bound observation-body residency, derive exclusively
@@ -2151,9 +2156,9 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2 retry passed steps 1-3, but independent
-review requested the parent-path normalization correction. That correction
-is checkpointing before another run from step 1. Final approval is pending.
+S0 and S1 are approved and pushed. S2 at `6cc3633` passes validation steps
+1-5. Full 22-shard validation and independent correction review are active;
+wave-close and final approval remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2760,6 +2765,12 @@ remains blocked until that release is implemented, soaked and shipped.
 - Independent S2 review: **NEEDS REVISION**, one equivalent-parent-path
   exclusion defect. Correction and sensitivity controls are authored;
   steps 4-7 have not run.
+- Correction `6cc3633`: steps 1-2 **PASS** after separate gates at 84% free.
+- Corrected step 3 **PASS**: gitutil 6.362s, patchobs 1.352s, store 2.670s,
+  workflow 83.784s; affected CLI families 87.219s. Each invocation gated.
+- Steps 4 and 5: serial `go vet -p=1 ./...` and `go build -p=1 ./cmd/tpatch`
+  **PASS**, after fresh 60s windows at 84% free/load1 3.12 and 3.34.
+- Step 6 exact 22-shard script is starting; step 7 wave-close remains pending.
 
 ### Prior slices (historical)
 

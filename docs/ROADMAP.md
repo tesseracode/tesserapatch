@@ -1569,6 +1569,8 @@ operation count); corrections are authored before restarting validation.
 Retry `37ef612` passed steps 1-3. Independent S2 review found one parent-path
 alias bypass in regeneration; execution-equivalent path normalization and
 negative/control fixtures are authored. Validation restarts before acceptance.
+Correction `6cc3633` passes gated validation steps 1-5. The exact 22-shard
+suite and independent correction review are active; wave-close is pending.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
