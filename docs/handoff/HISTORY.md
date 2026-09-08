@@ -9228,3 +9228,91 @@ None.
 **Collision check**:
 - Did not touch Stream A file `docs/prds/PRD-active-feature-session.md`.
 - No production code, assets, CHANGELOG, or Stream A ADR follow-ups touched.
+
+---
+
+# 2026-09-08 — GH #15 S2 — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `implement-recipe-generation-authority-s2`
+- **Milestone**: GH #15 / ADR-036
+- **Description**: Preimage synthesis, pure derivation, convergent provenance.
+- **Status**: Complete — ACCEPTED
+- **Assigned**: 2026-09-07
+- **Completed**: 2026-09-08
+- **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+- **Gate-validated/pushed tip**: `cc0f7eb3d70d2d7becc63114d1cf98688d3cff17`
+- **Release boundary**: S2 only; no release/tag or S3 dispatch.
+
+## Session Summary
+
+Restarted after the prior S2 session was corrupted and left no surviving
+artifacts. Verified HEAD/origin at WAVE_BASE, zero tracked changes/stashes,
+one main worktree, no operation markers/index lock and 13 expected allowlisted
+research files (nine collapsed status entries).
+
+Implemented pure derivation from S1 observations, canonical deterministic
+encoding, exact creation/existing-file preimages, unsupported-effect
+exclusions, D16 full-derived-byte origin proof and D6 convergent provenance.
+P1/P2 consume their pre-write observations. Partial derivations are withheld;
+manual/provider mismatches are preserved without invented provenance unless
+the operator explicitly requests a complete regeneration under PRD 6.3.
+Matching provenance bytes/time survive noop; missing/stale provenance repairs.
+
+ADR-038 caps distinct retained image bodies at 32 MiB per observation,
+including intermediate worktree/Git reads. Git output streams, repeated blobs
+remain deduplicated, recorder ownership is isolated, and over-budget sides
+remain honestly unavailable with diagnostics. Exact preimages remain resident
+for the observation's lifetime so future S3 simulation need not reread files.
+
+## Review Scoreboard and Pattern Catches
+
+- Core review: observed/header-mode corroboration finding corrected.
+- Complete-slice review: equivalent parent-path exclusion bypass corrected.
+- Golden-delta review: normalized 185-byte provenance sizing corrected.
+- Runtime compatibility: patch-header/snapshot-boundary collision corrected
+  with declared byte lengths; affected fixture set closed at record, land,
+  verify and reconcile. Expected deltas derive from frozen bytes, not current
+  output or production encoders; historical golden files remain untouched.
+- Final boundary/four-fixture reviews: APPROVED, no residual findings.
+- Every added guard has negative mutation/input fixtures. The S0 production
+  coverage-absence guard remains intact; no S3 schema/simulation, S4 coverage
+  publication, S5 consumer integration or S6 assets were implemented.
+
+## Files Changed
+
+Main surfaces: `internal/workflow/recipe_derivation.go`, `recipe_autogen.go`,
+P1/P2 CLI observation consumers, `internal/patchobs/{patchobs,gitread,retention}.go`,
+focused S2 workflow/CLI/retention/golden tests, deliberately advanced S0/S1
+source/behavior fixtures, the prepare compatibility comparator and ADR-index
+pin, ADR-038 and tracking documents. Dependencies, assets, SPEC, CHANGELOG,
+recipe execution/verify consumers and historical golden files are unchanged.
+
+## Test Results
+
+All seven prescribed stages PASS:
+1. `gofmt -l .` prints nothing.
+2. Targeted S0/S1/S2, compatibility/PIB-212 and ADR-index families pass.
+3. Owning core packages and affected CLI regression families pass.
+4. Serial `go vet ./...` passes.
+5. Serial `go build ./cmd/tpatch` passes.
+6. Exact `scripts/wave-close-test-shards.sh`: all 22 invocations pass.
+   Main CLI 591.999s, workflow 87.324s; all 21 isolated CLI shards pass.
+7. Explicit-WAVE_BASE mechanical gate: **8/8 PASS**, no warnings, including
+   a second complete fresh 22-shard run.
+
+Every top-level Go invocation required 60 continuous seconds at >=80% free
+memory, load1 <=5 and no active Go tools. The earlier 76% resource pause
+stopped before running Go; validation restarted only after resource recovery.
+Recovered full-suite gates ran at 87% free. No resource threshold was waived.
+
+## Current State, Blockers and Next Steps
+
+S2 is ACCEPTED and its validated code is pushed. The terminal tracking record
+is documentation-only; no code follows the successful gate. All wave commits
+carry the Copilot trailer. The three owned ignored gate wrappers are removed.
+The 13 research files and allowlist are untouched.
+
+No S2 blocker remains. S3 requires a separate dispatch and a newly recorded
+WAVE_BASE; GH #13 implementation remains blocked on shipped GH #15/v0.17.0.

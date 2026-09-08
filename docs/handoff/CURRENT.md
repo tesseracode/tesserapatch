@@ -2,14 +2,14 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S2 approved for wave close (2026-09-08)**: independent review and validation
-steps 1-6 all pass, including the exact 22-shard suite. Every Go invocation
-had a fresh qualifying 60-second resource window. The canonical field now
-records review approval, not a claim that step 7 has run. Push this reviewed
-checkpoint, then run the final mechanical gate with the recorded WAVE_BASE.
-Final acceptance is pending that gate; S3 remains undispatched.
+**S2 ACCEPTED (2026-09-08)**: independent review and all seven validation
+stages pass. The explicit-WAVE_BASE mechanical gate reports **8/8 PASS**
+at pushed commit `cc0f7eb3d70d2d7becc63114d1cf98688d3cff17`, including
+its own fresh 22-shard run. Every top-level Go invocation had a fresh
+qualifying 60-second resource window. The completion archive is in HISTORY;
+the final tracking commit changes documentation only. S3 remains undispatched.
 The boundary fix passed on retry, exposing the same S2 artifact delta in
 compat-verify and compat-reconcile. The test adapter now covers exactly
 the four source-derived recorded fixtures (record, land, verify, reconcile),
@@ -2094,7 +2094,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S2 — preimage synthesis, pure derivation, convergent
   provenance.
-- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
+- **Status**: Complete — S2 ACCEPTED; all seven validation stages pass
 - **Assigned**: 2026-09-07
 - **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
 - **Release target**: `v0.17.0`
@@ -2102,6 +2102,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15
 
 ## Session Summary
+
+S2 is complete. The final mechanical gate passed all eight checks at
+`cc0f7eb`, already on origin/main. This includes the second complete
+22-shard pass, fresh vet/build/gofmt and the explicit S2 commit-range
+trailer/durability checks. All independent findings are closed. Terminal
+tracking is archived below in HISTORY, and the three owned, ignored
+validation wrappers are removed. No S3 work or release/tag was started.
+
+### S2 execution record
 
 Validation resumed from clean tracked HEAD `fb62e53`, with origin/main still
 at WAVE_BASE and the same 13 untracked research files untouched. All static
@@ -2176,32 +2185,17 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2 at `6cc3633` passed steps 1-5 and its
-independent production correction review is APPROVED. Step 6 stopped on
-prepare-era record/land golden expectations and the ADR-index pin. The
-test-only correction is committed at `2b12a5a`, preserving historical golden
-bytes and comparing a narrowly derived S2 expected delta. Its restarted
-validation never entered step 1: the mandatory resource window timed out
-after 600 seconds at 76% free memory. Independent test-correction review
-found one length bug: expected provenance measured a pre-normalized timestamp
-(193 bytes), but the snapshot owns the normalized 185-byte body. The follow-up
-constructs the normalized body before measuring and adds the exact 193-byte
-negative fixture. Independent static confirmation is **APPROVED** at
-`a2096d6`; all reported static findings are closed. Resources recovered,
-but the runtime retry found an additional golden-frame boundary bug. It is
-corrected without changing production or historical goldens; the new
-byte-length/placement fixtures pass. The next retry identified verify and
-reconcile as the remaining recorded-feature compatibility fixtures; their
-expected S2 artifact delta and existing V10 metadata are now explicit.
-The four-fixture correction at `c3b4451` passes steps 1-5, including the
-previously failing compatibility suite. Final test-correction review is
-APPROVED; the exact 22-shard suite has passed all 22 processes. No code
-changed between full-suite dispatch `610532f` and review record `ebaf2a1`.
-S2 is approved for durable close; push and step 7 remain before acceptance.
-Before every Go validation
-run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
-active go/compile/link/vet/test processes. Run the prescribed validation
-sequence serially and stop at its first failure.
+S0-S2 are accepted. S2 derives exact, deterministic preimage-bearing recipes
+from immutable observations, refuses partial derivations, proves origin by
+full canonical byte equality and converges truthful provenance. ADR-038
+bounds retained image bodies to 32 MiB per observation.
+
+All seven validation stages pass, including both exact 22-shard runs.
+The final mechanical gate is **8/8 PASS** at pushed `cc0f7eb`; the terminal
+tracking update changes no code, fixtures, assets or validation commands.
+Historical goldens remain frozen, the four recorded-feature expected deltas
+are exact and mutation-sensitive, and all independent findings are closed.
+S3-S6 and GH #13 consumer implementation remain outside this task.
 
 ## Prerequisite Status
 
@@ -2273,9 +2267,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Golden compatibility: `internal/cli/recipe_authority_s2_golden_test.go`,
   `internal/cli/prepare_pib_golden_test.go`,
   `internal/cli/prepare_s7_rev16_test.go`. Historical golden files are unchanged.
-- Session-only wrappers under ignored `bin/s2-validation/` were removed at
-  the prior pause and are recreated for this retry. Remove them when the
-  attempt ends; no extra untracked file appears beside the 13 research files.
+- The three session-only wrappers under ignored `bin/s2-validation/` are
+  removed at completion. The 13 allowlisted research files are unchanged.
+- Terminal tracking: `docs/handoff/HISTORY.md` receives the S2 completion archive.
 
 ### Prior slices (historical)
 
@@ -2791,6 +2785,17 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- **Final result: all seven validation stages PASS.**
+- Step 7:
+  `make wave-close-check WAVE_BASE=0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+  reports **8/8 PASS**, no warnings, at pushed `cc0f7eb`.
+  It reran gofmt, vet, build and all 22 exact uncached shards with fresh
+  per-command resource gates. Its trailer walk covered all 18 wave commits
+  then present; final documentation-only closure carries the same trailer.
+- No production/test/asset/validation-command change follows the gate.
+
+### S2 validation execution record
 
 - Step 6 **PASS**: exact `scripts/wave-close-test-shards.sh`, all 22
   invocations, each after a fresh 60-second gate at 87% free memory,
@@ -8475,29 +8480,23 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit/push the review-approved close checkpoint so the durability gate
-   can compare HEAD with origin/main.
-2. Run `make wave-close-check WAVE_BASE=0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
-   with a fresh resource window for every top-level Go invocation.
-3. Record the gate result, archive the completed S2 handoff, and push terminal
-   tracking. Leave S3 undispatched; this task authorizes S2 only.
+1. No further S2 implementation or validation remains.
+2. Leave S3 undispatched until a separate supervisor/user assignment.
+   A future dispatch must record its own freshly fetched WAVE_BASE.
 
 ## Blockers
 
-- No current resource or code blocker is known: steps 1-6 and final static
-  review pass. Step 7 and durable close are still required; a prior pass
-  never waives a fresh resource window.
+- None for S2; validation and independent review are complete.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
 
-- S2 restart commits are local and intentionally unpushed pending complete
-  validation. Core code last changed at `6cc3633`; `2b12a5a` is the latest
-  initial compatibility-test correction; `a2096d6` fixes its provenance
-  snapshot byte count and has static approval. All S2 commits have the
-  required trailer; no review finding remains open, but runtime validation
-  has not completed.
+- S2 is accepted through gate-validated, pushed `cc0f7eb`; the terminal
+  tracking commit is documentation-only. Core production last changed at
+  `6cc3633`; final compatibility tests at `c3b4451`. All static findings are
+  closed and all seven validation stages pass. All S2 commits carry the
+  required trailer. The completion archive is in HISTORY.
 - Resource gating used macOS `memory_pressure`'s system-wide free percentage,
   `sysctl -n vm.loadavg`'s load1, and `ps -axo pid=,comm=` to exclude active
   go/compile/link/vet/test or `*.test` binaries. Sample every 2 seconds,

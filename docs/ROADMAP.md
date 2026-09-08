@@ -1549,70 +1549,21 @@ active.
 S1 is ✅ APPROVED. The strict normalized grammar, PI-3–PI-7 migrations,
 PI-12 projection, immutable P1–P7 observations and editor error propagation
 pass targeted/owning suites, vet/build and the exact 22-shard full suite.
-S2 is ✅ REVIEW APPROVED, restarted 2026-09-07 from verified clean WAVE_BASE
-`0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15` after a corrupted session with no
-surviving artifacts. Scope: pure observation-based derivation, exact
-preimages, deterministic encoding, unsupported effects, D16 origin proof
-and D6 convergent provenance. S3-S6 await S2 validation and independent review.
-S2 analysis is complete and implementation is active: the pure derivation/
-provenance core and focused tests are authored; bounded observation retention
-is being implemented on a non-overlapping patchobs surface. No S2 Go
-validation or acceptance has occurred.
-Early core static review requested observed/header-mode corroboration; the
-correction and its negative fixture are authored, awaiting validation.
-The complete S2 implementation is entering gated validation. Retention now
-uses ADR-038's shared 32 MiB image budget and streaming Git reader; no
-coverage schema or consumer integration has been added.
-S2 checkpoint is `6bf1cc1`. First gated validation stopped at step 2 on two
-stale S0/S1 fixture expectations (parser-site registry and partial-delete
-operation count); corrections are authored before restarting validation.
-Retry `37ef612` passed steps 1-3. Independent S2 review found one parent-path
-alias bypass in regeneration; execution-equivalent path normalization and
-negative/control fixtures are authored. Validation restarts before acceptance.
-Correction `6cc3633` passes gated validation steps 1-5. The exact 22-shard
-suite and independent correction review are active; wave-close is pending.
-Independent correction review is APPROVED with no residual finding; the
-full 22-shard suite continues and S2 is not yet accepted.
-Step 6 stopped at its first invocation on prepare-era record/land golden
-expectations and the ADR-index pin. Historical fixtures remain frozen;
-narrow S2 delta checks and the reviewed index pin are being added.
-The correction derives expected record/land deltas independently from frozen
-fixtures and retains whole-transcript comparison plus mutation controls.
-No production change was needed; validation is restarting.
-S2 was blocked on the resource gate: the restart after test-only
-correction `2b12a5a` timed out after 600 seconds at 76% free memory
-(required >=80%), load1 2.01 and no Go tools. No restarted Go command ran.
-Full-suite success, wave close and final acceptance remain pending; S3 stays
-unauthorized.
-Static review of the test-only correction found a pre-/post-normalization
-provenance-size mismatch (193 versus 185). The follow-up now measures the
-normalized body and adds the exact negative fixture. Resource blocking
-persists at 76% free; resumed validation and acceptance are still pending.
-Static confirmation of `a2096d6` is APPROVED; all reported static findings
-are closed. S2 is 🚧 IN PROGRESS again after the user's 2026-09-07 resource
-release: initial snapshot 86% free/load1 2.13/no Go tools. Validation restarts
-from step 1; full 22-shard success, wave close and durable terminal tracking
-are still required. S3 is undispatched.
-The recovered-resource retry passed step 1 and stopped at step 2 on a
-golden-adapter delimiter collision with `--- /dev/null`. A test-only fix now
-uses snapshot byte lengths with independent placement and negative-size
-fixtures; production and historical goldens are unchanged. Validation restarts.
-That boundary fix passes; the next comparison exposes the two other
-recorded-feature snapshots (verify/reconcile). The test-only delta now
-covers the exact four recorded fixtures, including existing V10 metadata.
-No S5 consumer code is changed; validation is restarting from step 1.
-Corrected state `c3b4451` passes steps 1-5, including every recorded-feature
-compatibility fixture. Fresh per-command gates passed at 87% free memory.
-The exact 22-shard suite is starting; final correction review and wave close
-remain pending. S2 is still 🚧 IN PROGRESS.
-Final static confirmations of `fce284e` and `c3b4451` are APPROVED with no
-remaining finding. The exact full suite continues; wave close and acceptance
-are pending.
-S2 steps 1-6 now **PASS**, including all 22 exact shards after individual
-resource gates. Review is APPROVED with no residual finding. Reviewed
-implementation/checkpoint range: `0c41be9..ebaf2a1`; code last changed at
-`c3b4451`. Durable close and the explicit-WAVE_BASE mechanical gate are next;
-final acceptance and S3 dispatch are not yet claimed.
+S2 is ✅ ACCEPTED (2026-09-08). Validated/pushed range:
+`0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15..cc0f7eb3d70d2d7becc63114d1cf98688d3cff17`;
+the following terminal tracking commit changes documentation only.
+Pure observation-based derivation, exact preimages, canonical encoding,
+unsupported-effect classification, D16 origin proof and D6 convergent
+provenance are implemented. ADR-038 bounds image retention to 32 MiB while
+preserving S1 batching and immutable ownership.
+Independent review is APPROVED with no residual finding. All seven validation
+stages pass, including the exact 22-shard suite and the mechanical gate's
+own fresh 22-shard run. The explicit-WAVE_BASE gate reports **8/8 PASS**,
+no warnings; every top-level Go invocation used a fresh resource window.
+Historical goldens, assets, consumer execution/verify code and all 13
+allowlisted research files remain unchanged. The execution/revision history
+is preserved in CURRENT, HISTORY and LOG. No release/tag is shipped here;
+S3-S6 are undispatched and GH #13 implementation remains blocked on v0.17.0.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

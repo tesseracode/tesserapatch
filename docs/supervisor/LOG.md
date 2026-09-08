@@ -1,3 +1,26 @@
+## Implementation Decision — GH #15 S2 accepted — 2026-09-08
+
+**Agent**: Copilot implementation agent
+**Decision**: ACCEPTED
+**WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+**Gate-validated/pushed tip**: `cc0f7eb3d70d2d7becc63114d1cf98688d3cff17`
+
+All seven requested validation stages pass. The final
+`make wave-close-check WAVE_BASE=0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+reports **8/8 PASS**, no warnings: clean tracked tree, 13 allowlisted files,
+HEAD equal to origin/main, correct trailers on all 18 wave commits, one
+terminal canonical field, gofmt, vet/build, and its own fresh 22-shard run.
+Every top-level Go command passed the required continuous resource gate.
+All independent findings are closed.
+
+### Action Taken
+
+Mark S2 ACCEPTED in place, archive the completed handoff in HISTORY, remove
+only the three owned ignored validation wrappers, and commit/push this
+documentation-only terminal record. Confirm no code/fixture/asset/validation
+command changed after the successful gate. Historical goldens, allowlist and
+all unrelated research remain untouched. No release/tag or S3 dispatch.
+
 ## Implementation Decision — GH #15 S2 approved for durable close — 2026-09-08
 
 **Agent**: Copilot implementation agent
