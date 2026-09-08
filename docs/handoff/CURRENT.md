@@ -2158,8 +2158,11 @@ integration or shipped assets belong to this slice.
 ## Current State
 
 S0 and S1 are approved and pushed. S2 at `6cc3633` passes validation steps
-1-5, and the independent correction review is APPROVED. Full 22-shard
-validation is running; wave-close and final acceptance remain pending.
+1-5, and the independent correction review is APPROVED. Step 6 stopped at
+its first invocation: prepare-era record/land goldens need an explicit S2
+expected delta, and the ADR-index pin needs the ADR-038 entry. Historical
+goldens stay untouched; test-only compatibility corrections are in progress.
+Wave-close and final acceptance remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2774,6 +2777,18 @@ remains blocked until that release is implemented, soaked and shipped.
 - Step 6 exact 22-shard script is starting; step 7 wave-close remains pending.
 - Independent correction review of `6cc3633`: **APPROVED**, no significant
   issue or scope expansion; conditional on the remaining full validation.
+- Step 6 first invocation **FAIL** (CLI 547.378s): `TestPreparePIBPreChangeGoldens`
+  and PIB-212 sensitivity reject S2's intended record/land preimage, recipe
+  hash/generation ID and provenance additions; the ADR-index region pin
+  rejects the newly documented retention decision. Other packages in the
+  first invocation pass. No later shard or step 7 ran.
+- Test-only correction: historical golden files remain byte-identical.
+  `recipe_authority_s2_golden_test.go` derives the expected two-fixture delta
+  from those frozen bytes using independent SHA-256/ADR-024 identity logic;
+  runtime captures still compare byte-for-byte, with wrong-preimage,
+  timestamp/hash/provenance, unrelated-field, legacy and missing-capture
+  sensitivities. ADR-038 is independently reviewed/accepted and the exact
+  Index-region pin is updated. Validation will restart from step 1.
 
 ### Prior slices (historical)
 

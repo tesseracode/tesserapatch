@@ -1484,8 +1484,8 @@ func recordPreparePIBGoldens(t *testing.T, captured map[string]string) {
 }
 
 // preparePIBGoldenDelta is the shipped byte-parity comparator. It returns nil
-// exactly when `got` — bytes produced by the current binary — is byte-identical
-// to the recorded pre-change fixture, and an error naming the drift otherwise.
+// exactly when `got` is byte-identical to the recorded fixture plus the
+// narrowly specified S2 record/land delta, and reports any other drift.
 //
 // comparePreparePIBGolden is the fatal wrapper TestPreparePIBPreChangeGoldens
 // drives. The §18.53 golden sensitivities call this same function, so the row
@@ -1498,6 +1498,10 @@ func preparePIBGoldenDelta(name, got string) error {
 	want, err := os.ReadFile(filepath.Join(preparePIBGoldenDir, name))
 	if err != nil {
 		return fmt.Errorf("read golden %s: %w", name, err)
+	}
+	want, err = rgaS2ExpectedProducerGolden(name, want)
+	if err != nil {
+		return err
 	}
 	if !bytes.Equal(want, []byte(got)) {
 		return fmt.Errorf("%s drifted from baseline %s\n--- golden ---\n%s\n--- current ---\n%s",

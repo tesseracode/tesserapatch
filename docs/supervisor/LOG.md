@@ -1,3 +1,35 @@
+## Implementation Transition — GH #15 S2 compatibility correction authored — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — restarting gated validation
+
+The prepare golden comparator now applies only an independently derived
+record/land S2 delta to immutable historical fixture bytes. Its expected
+recipe and generation hashes come from stdlib SHA-256 and ADR-024's stated
+NUL-separated identity, not current producer code or captured output.
+Every other transcript byte remains exact; same-comparator mutations cover
+preimage, provenance/hash/time, unrelated fields, legacy and missing output.
+The ADR Index block pin is updated for independently reviewed ADR-038.
+No historical golden or production file changed in this correction.
+
+## Implementation Transition — GH #15 S2 full-suite compatibility findings — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — step 6 stopped on first failing invocation
+
+The first full-script invocation failed in CLI (547.378s); the other packages
+in that invocation passed and no later shard ran. The failures are the
+prepare-era record/land compatibility comparator, which still expects no
+preimage/provenance, and the frozen ADR-index region hash after adding ADR-038.
+The record/land delta is limited to explicit empty preimage, its recipe hash
+and derived generation ID, truthful provenance, and staging that sidecar.
+
+Keep the historical golden files untouched. Add a narrow, independently
+derived S2 expected delta for those two fixtures with same-comparator mutation
+tests; do not re-record current output or weaken comparison of other bytes.
+Update the ADR-index pin for the explicitly reviewed ADR-038 entry. Restart
+the validation sequence after these test-only compatibility corrections.
+
 ## Review — GH #15 S2 correction approved — 2026-09-07
 
 **Reviewer**: `s2-final-correction-review`

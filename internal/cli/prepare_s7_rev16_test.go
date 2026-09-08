@@ -991,12 +991,12 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			},
 		},
 		{
-			// Readiness: the ADR index row is the third frozen document. Only
-			// its `## Index` block may move, and only for ADR-035's own row.
+			// Readiness: only the explicitly pinned Index block may move.
+			// S2 adds the independently reviewed ADR-038 retention decision.
 			label: "ADR index",
 			base:  input.baseIndex, current: input.index,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "f819ff15a604aba180ccf749109e094bd72a29b248d5a8338274e86bb5eba575"},
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "39582cd80ef969a9645784f7564ee33a41dfcb63fb1012eb70289072aa621963"},
 			},
 		},
 	}

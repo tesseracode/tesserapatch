@@ -1,6 +1,6 @@
 # ADR-038: Bounded in-memory observation image retention
 
-**Status**: Proposed — implemented for GH #15 S2, pending review
+**Status**: Accepted — S2 independent review
 **Date**: 2026-09-07
 **Scope**: Internal `patchobs` capture and recorder ownership only
 **Related**: ADR-036 D2, D5, D16; GH #15 S1/S2
@@ -123,5 +123,6 @@ oversized file, late worktree mutation, and recorder alias isolation.
 Each resource boundary has a positive fixture and a rejecting fixture;
 the streaming fixture measures both read-request size and allocation.
 
-No Go validation was run by the implementer. The coordinating agent owns
-the serial validation sequence and its required memory/load idle gate.
+The retention implementer ran no Go validation. The coordinating agent's
+resource-gated targeted and full patchobs package suites pass. Whole-wave
+validation is tracked in `docs/handoff/CURRENT.md`.

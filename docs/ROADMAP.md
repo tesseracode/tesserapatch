@@ -1573,6 +1573,12 @@ Correction `6cc3633` passes gated validation steps 1-5. The exact 22-shard
 suite and independent correction review are active; wave-close is pending.
 Independent correction review is APPROVED with no residual finding; the
 full 22-shard suite continues and S2 is not yet accepted.
+Step 6 stopped at its first invocation on prepare-era record/land golden
+expectations and the ADR-index pin. Historical fixtures remain frozen;
+narrow S2 delta checks and the reviewed index pin are being added.
+The correction derives expected record/land deltas independently from frozen
+fixtures and retains whole-transcript comparison plus mutation controls.
+No production change was needed; validation is restarting.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
