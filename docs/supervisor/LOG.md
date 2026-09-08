@@ -1,3 +1,31 @@
+## Implementation Transition — GH #15 S3 contract blocker — 2026-09-08
+
+**Coordinator**: Copilot
+**Worker**: `560d7825-549b-476b-bba8-3d00567aeff0`
+**State**: BLOCKED on contract adjudication
+
+The worker delivered the scoped strict types/codec/hashes, builder,
+assignment/simulation/reclassification and focused tests. No producer
+publication or consumer wiring was added. Its scoped formatting/whitespace
+checks passed; neither worker nor coordinator has run Go validation.
+
+### Canonical Conflict
+
+ADR-036 D5 permits exact-postimage replacement reclassification, then says
+any recipe containing replacement/append operations is incomplete in v1.
+D3 supplies no cross-base value for an otherwise-complete replacement-only
+recipe or an ungated creation: its complete branches describe existing-file
+whole writes or exclusively explicit-empty-gated creations. The draft
+surfaces an adjudication error rather than fabricating a reason or scope.
+
+### Action Taken
+
+Confirm both conflicts against the accepted text, preserve the complete
+draft by explicit-path checkpoint, and request an explicit v1 policy
+decision. Do not silently revise the accepted contract or weaken its iff
+predicate. Resource snapshot is 87% free/load1 3.29; resources are not the
+blocker. S3 is not accepted; S4 remains out of scope.
+
 ## Implementation Transition — GH #15 S3 parity unit authored — 2026-09-08
 
 **Coordinator**: Copilot

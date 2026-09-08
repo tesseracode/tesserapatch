@@ -16,7 +16,24 @@ The coordinator's disjoint parity-test file is authored and formatted:
 schema/predicate byte parity is pinned to Accepted rev-7, and all 66 numeric
 reference contexts (22 ADR, 44 PRD, including plural/range/historical
 references) are bound to their accepted targets with negative fixtures.
-Go validation has not run; the worker is still implementing the pure core.
+The worker has delivered the pure core, codec, simulation and focused tests.
+Go validation has not run. S3 is blocked on the D3/D5 adjudication described
+below; the draft returns explicit errors for the undefined complete shapes
+rather than inventing wire reasons or replay authority.
+
+### S3 contract adjudication blocker
+
+- ADR-036 D5 permits `replace-in-file` reclassification when the postimage is
+  provably exact, then categorically says recipes containing replacement or
+  append operations cannot be coverage-complete in v1.
+- D3's deterministic cross-base table has no branch for an otherwise-complete
+  replacement-only recipe, or an otherwise-complete creation whose write-file
+  operation omits the explicit empty preimage gate. Its complete branches
+  cover a whole-file write over an existing file or exclusively gated creations.
+- The accepted ten predicates and closed reason list cannot be silently
+  amended to make these cases fit. Obtain a policy decision, update/review
+  paired contract wording if authorized, then finish the implementation.
+  No accepted document has been changed and no Go validation has run.
 
 ### S3 dispatch scope
 
@@ -2173,7 +2190,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: In progress — dispatched after S2 acceptance and green CI
+- **Status**: Blocked — D3/D5 complete-domain and cross-base adjudication required
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2181,6 +2198,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+The implementation worker delivered its enumerated core/codec/simulation
+files and mutation tests, plus the scoped classification export and S0
+boundary/inventory migrations. No producer/publication/consumer code was
+wired. The coordinator independently confirmed the D3/D5 contract conflict
+from the canonical text and is checkpointing the draft before requesting
+adjudication. Formatting is complete; Go validation remains unrun.
 
 S3 readiness is confirmed at `27ee8bc`: HEAD equals freshly fetched
 origin/main, tracked state is clean, no stashes/operation markers exist,
@@ -2287,10 +2311,10 @@ S0-S2 are accepted and durably pushed. S3 is dispatched from `27ee8bc` for
 the strict schema and pure simulation/completeness core. S1 observations,
 S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
 not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
-S3 implementation is active; focused validation and independent review are pending.
-The core implementation worker is active; the coordinator's parity unit is
-authored but not Go-validated. No same-file parallel edits or producer/
-consumer integration are underway.
+The S3 draft and parity unit are authored but not Go-validated. The core
+worker is idle after delivery. D3/D5 adjudication is required before
+completion; no same-file parallel edits or producer/consumer integration
+are underway.
 
 ## Prerequisite Status
 
@@ -2352,7 +2376,14 @@ remains blocked until that release is implemented, soaked and shipped.
 - S3 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
 - Coordinator parity unit: `internal/workflow/recipe_authority_s3_parity_test.go`.
-  Worker-owned core files are still in progress.
+  It is checkpointed at `f5bbd1b`.
+- Delivered core: `internal/workflow/recipe_coverage_types.go`,
+  `recipe_coverage.go`, `recipe_coverage_codec.go`,
+  `recipe_coverage_simulation.go`, `recipe_authority_s3_test.go`,
+  `recipe_authority_s3_codec_test.go`, `recipe_authority_s3_simulation_test.go`.
+- Scoped migrations: `internal/patchobs/patchobs.go`,
+  `internal/workflow/recipe_authority_s0_source_guards_test.go`,
+  `internal/gitutil/recipe_authority_s0_pi12_test.go`.
 
 ### Completed S2 file record
 
@@ -2893,6 +2924,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Parity unit: formatted; all 22 ADR and 44 PRD contextual reference anchors
   independently checked against accepted source. Schema and ten-predicate
   blocks are byte-identical. These are source calculations, not a Go test pass.
+- Delivered worker code is formatted and its scoped whitespace check passes.
+  No Go validation/staging/commit was performed by the worker. The coordinator
+  has not started Go validation while the contract decision remains open.
 
 ### Completed S2 validation
 
@@ -8590,15 +8624,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Implement S3's pure core/codec and independently authored parity guards.
-2. Run the resource-gated serial sequence and independent review.
+1. Adjudicate D3/D5's complete-operation domain and missing cross-base branches.
+   Do not silently modify the accepted schema, predicates or reason semantics.
+2. Finish the draft against the adjudicated contract, then run the
+   resource-gated serial sequence and independent review.
 3. Close S3 durably with WAVE_BASE
    `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
 
 ## Blockers
 
-- None blocking S3 dispatch. Any conflict in the accepted contract must be
-  surfaced rather than silently resolved by changing schema or reason codes.
+- S3 contract conflict: D5's exact-replacement exception contradicts its
+  categorical v1 exclusion, and D3 leaves complete replacement-only/ungated-
+  creation shapes without a cross-base branch. Explicit adjudication required.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
@@ -8607,9 +8644,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.
-- Core worker ID is `560d7825-549b-476b-bba8-3d00567aeff0`. Retrieve its
-  completion before touching its owned files. It must not run Go validation
-  or stage/commit; the coordinator owns that serial sequence.
+- Core worker ID is `560d7825-549b-476b-bba8-3d00567aeff0`; its completion
+  has been retrieved and it is idle. It must not run Go validation or
+  stage/commit; the coordinator owns that serial sequence.
 - Record schema/semantic validation and replay authority are different:
   S3 must not treat `complete`, contextual hints or cross-base status as
   permission to apply/reconcile. S4/S5 will consume the pure result later.

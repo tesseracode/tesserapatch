@@ -814,6 +814,15 @@ func resolveContentKind(effect gitutil.PatchEffect, body SideBytes, preExtant, p
 	return gitutil.ContentKindText
 }
 
+// ClassifyEffectObservation reuses capture's D3 kind rules without reading a
+// tree or mutating the observation. The caller validates presence, modes and
+// body hashes before using this projection as a binding.
+func ClassifyEffectObservation(effect gitutil.PatchEffect, body SideBytes) (gitutil.ContentKind, gitutil.ObjectKind) {
+	pre, post := effect.ExtantSides()
+	effect.ObjectKind = resolveObjectKind(effect, post)
+	return resolveContentKind(effect, body, pre, post), effect.ObjectKind
+}
+
 // SnapshotArtifact observes one bound artifact's exact bytes at the
 // RESOLVED path the producer opened. An unreadable path is recorded as
 // unobserved, never as proven absence.

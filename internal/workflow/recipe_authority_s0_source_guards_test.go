@@ -347,11 +347,10 @@ func TestRGAS0BoundArtifactWriteScannerIsSensitive(t *testing.T) {
 	}
 }
 
-// ── no coverage artifact exists yet (PRD §8 S0 pre-change contract) ──────
+// ── S3 permits a pure schema/core, not publication or consumers ─────────
 
 // rgaS0CoverageTokens are the symbols and filenames GH #15 will introduce.
-// S0 asserts NONE of them exists in production today, so S1-S5 cannot
-// claim to be "preserving" a surface that was never shipped.
+// Outside the four designated S3 pure-core files these remain forbidden.
 var rgaS0CoverageTokens = []string{
 	"recipe-coverage.json",
 	"RecipeCoverage",
@@ -373,14 +372,139 @@ func rgaS0ScanForbiddenTokens(src string, tokens []string) []string {
 	return hits
 }
 
-// TestRGAS0NoProductionCoverageSurfaceYet freezes the pre-change artifact
-// contract: there is no production `recipe-coverage.json` type, writer or
-// reader, and no coverage-producer symbol. Test fixtures may mention the
-// name freely — the scan is deliberately scoped to non-test production Go.
+func rgaS0CoveragePhaseSource(rel, src string) error {
+	switch rel {
+	case "internal/workflow/recipe_coverage_types.go",
+		"internal/workflow/recipe_coverage_codec.go",
+		"internal/workflow/recipe_coverage.go",
+		"internal/workflow/recipe_coverage_simulation.go":
+	default:
+		if hits := rgaS0ScanForbiddenTokens(src, rgaS0CoverageTokens); len(hits) > 0 {
+			return fmt.Errorf("coverage surface outside S3 pure-core allowlist: %v", hits)
+		}
+		return nil
+	}
+	file, err := rgaS0Parse(rel, src)
+	if err != nil {
+		return err
+	}
+	for _, imp := range file.Imports {
+		if imp.Name != nil {
+			return fmt.Errorf("coverage core has an unreviewed import alias")
+		}
+		switch imp.Path.Value {
+		case `"bytes"`, `"encoding/json"`, `"fmt"`, `"reflect"`, `"slices"`, `"sort"`,
+			`"strconv"`, `"strings"`, `"unicode/utf8"`, `"path/filepath"`,
+			`"github.com/tesseracode/tesserapatch/internal/gitutil"`,
+			`"github.com/tesseracode/tesserapatch/internal/patchobs"`,
+			`"github.com/tesseracode/tesserapatch/internal/store"`:
+		default:
+			return fmt.Errorf("coverage core imports live state or an unreviewed helper: %s", imp.Path.Value)
+		}
+	}
+	for _, token := range []string{
+		"PublishCoverage", "CoverageProducer", "recipe-coverage.json",
+		"ExecuteRecipe(", "executeOperation(", "LoadRecipe(", "DryRunRecipe(",
+		"ReadFeatureFile(", "WriteArtifact(", "WriteFeatureFile(", "filepath.Abs(",
+		"filepath.Glob(", "filepath.Walk", "filepath.EvalSymlinks(",
+	} {
+		if strings.Contains(src, token) {
+			return fmt.Errorf("coverage core acquired a publication/consumer/live-state surface: %s", token)
+		}
+	}
+	var callErr error
+	ast.Inspect(file, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			if fn, ok := call.Fun.(*ast.Ident); ok {
+				switch fn.Name {
+				case "ExecuteRecipe", "executeOperation", "DryRunRecipe", "dryRunOperation",
+					"LoadRecipe", "writeRecipe", "AutogenRecipeForRecord", "convergeRecipeProvenance",
+					"RunImplement", "GenerateWithRetry":
+					callErr = fmt.Errorf("coverage core calls a publication/consumer helper: %s", fn.Name)
+				}
+			}
+		}
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if pkg.Name == "store" {
+			switch sel.Sel.Name {
+			case "SHA256HexString", "CanonNode", "CanonKindObject", "CanonKindArray",
+				"CanonKindString", "CanonKindBool", "CanonKindUint":
+			default:
+				callErr = fmt.Errorf("coverage core uses an unreviewed store helper: %s", sel.Sel.Name)
+			}
+		}
+		if pkg.Name == "patchobs" {
+			switch sel.Sel.Name {
+			case "Observation", "EffectObservation", "ProducerID", "ProducerEdit",
+				"ReferenceKind", "ReferenceKindCommit", "ReferenceKindIndexSnapshot", "ReferenceKindUnavailable",
+				"CaptureMode", "CaptureModeNoCapture", "KnownProducer", "KnownCaptureMode",
+				"PreimageSetDigest", "ClassifyEffectObservation":
+			default:
+				callErr = fmt.Errorf("coverage core uses an unreviewed observation helper: %s", sel.Sel.Name)
+			}
+		}
+		if pkg.Name == "gitutil" {
+			switch sel.Sel.Name {
+			case "PatchEffect", "ChangeKind", "ContentKind", "ObjectKind", "NormalizePatchEffects", "ObjectKindForMode",
+				"ChangeKindAdd", "ChangeKindModify", "ChangeKindDelete", "ChangeKindRename", "ChangeKindCopy",
+				"ContentKindText", "ContentKindBinary", "ContentKindNone", "ContentKindUnknown",
+				"ObjectKindRegular", "ObjectKindExecutable", "ObjectKindSymlink", "ObjectKindGitlink", "ObjectKindUnknown",
+				"ModeRegular", "ModeExecutable", "ModeSymlink", "ModeGitlink":
+			default:
+				callErr = fmt.Errorf("coverage core uses an unreviewed Git helper: %s", sel.Sel.Name)
+			}
+		}
+		if pkg.Name == "filepath" {
+			switch sel.Sel.Name {
+			case "IsAbs", "Rel", "Join", "ToSlash", "Separator":
+			default:
+				callErr = fmt.Errorf("coverage core uses an unreviewed path helper: %s", sel.Sel.Name)
+			}
+		}
+		return true
+	})
+	return callErr
+}
+
+// The original absence guard advances only for the designated pure S3 core.
+// Existing producer fixtures continue to assert that no artifact is written.
 func TestRGAS0NoProductionCoverageSurfaceYet(t *testing.T) {
 	for _, rel := range rgaS0ProductionGoFiles(t) {
-		if hits := rgaS0ScanForbiddenTokens(rgaS0ReadRepoFile(t, rel), rgaS0CoverageTokens); len(hits) > 0 {
-			t.Errorf("%s already references the unshipped coverage surface %v; S0 must record its absence", rel, hits)
+		if err := rgaS0CoveragePhaseSource(rel, rgaS0ReadRepoFile(t, rel)); err != nil {
+			t.Errorf("%s: %v", rel, err)
+		}
+	}
+}
+
+func TestRGAS0CoveragePhaseBoundaryIsSensitive(t *testing.T) {
+	rel := "internal/workflow/recipe_coverage.go"
+	src := rgaS0ReadRepoFile(t, rel)
+	if err := rgaS0CoveragePhaseSource(rel, src); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range []struct{ path, source string }{
+		{"internal/workflow/record.go", src},
+		{rel, strings.Replace(src, `"bytes"`, `"bytes"`+"\n\"os\"", 1)},
+		{rel, src + "\nfunc plantedPublisher() { store.New(\"root\") }\n"},
+		{rel, src + "\nfunc plantedRead() { patchobs.Observe(patchobs.Input{}) }\n"},
+		{rel, src + "\nfunc plantedSnapshot() { patchobs.SnapshotArtifact(\"bound\") }\n"},
+		{rel, src + "\nfunc plantedGit() { gitutil.Run(\"root\", \"status\") }\n"},
+		{rel, src + "\nfunc plantedExecution() { ExecuteRecipe(nil, ApplyRecipe{}) }\n"},
+		{rel, src + "\nfunc plantedExistingWriter() { writeRecipe (nil, \"s3\", ApplyRecipe{}) }\n"},
+		{rel, src + "\nconst plantedArtifact = \"recipe-coverage.json\"\n"},
+		{rel, src + "\nfunc plantedCWD() { filepath.Abs(\".\") }\n"},
+		{rel, src + "\nfunc plantedSpacedCWD() { filepath . Abs (\".\") }\n"},
+	} {
+		if (mutation.path == rel && mutation.source == src) ||
+			rgaS0CoveragePhaseSource(mutation.path, mutation.source) == nil {
+			t.Fatalf("same phase validator accepted planted mutation in %s", mutation.path)
 		}
 	}
 }

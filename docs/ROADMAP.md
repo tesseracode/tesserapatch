@@ -1578,6 +1578,11 @@ Dispatch `394ae78` is pushed and the bounded implementation worker is active.
 The disjoint parity unit is authored with canonical block pins, 66 complete
 contextual-reference bindings and mutation fixtures; no S3 Go validation has
 run yet.
+The S3 draft is delivered but 🚧 BLOCKED on contract adjudication: D5 both
+permits an exact-postimage replacement exception and categorically excludes
+replacement recipes from completeness; D3 has no complete cross-base branch
+for replacement-only or ungated-creation recipes. No contract was changed and
+no Go validation has run. Resolve that policy explicitly before S3 acceptance.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
