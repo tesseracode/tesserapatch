@@ -1554,6 +1554,10 @@ S2 is 🚧 IN PROGRESS, restarted 2026-09-07 from verified clean WAVE_BASE
 surviving artifacts. Scope: pure observation-based derivation, exact
 preimages, deterministic encoding, unsupported effects, D16 origin proof
 and D6 convergent provenance. S3-S6 await S2 validation and independent review.
+S2 analysis is complete and implementation is active: the pure derivation/
+provenance core and focused tests are authored; bounded observation retention
+is being implemented on a non-overlapping patchobs surface. No S2 Go
+validation or acceptance has occurred.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

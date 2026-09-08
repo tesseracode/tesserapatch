@@ -2099,7 +2099,27 @@ markers or index lock. There are 13 expected allowlisted research files
 (nine collapsed status entries); none will be edited, staged or removed.
 The S1 PI-13 parser-inventory finding is closed by the baseline commit.
 
-This first checkpoint retargets CURRENT, ROADMAP and LOG to S2 before code.
+The first checkpoint (`c9674c8`) retargeted CURRENT, ROADMAP and LOG to S2
+before code. Contract/source analysis is finished and implementation is active.
+Pure derivation now consumes the S1 observation, validates its patch/effect/body
+bindings, emits canonical sorted whole-file writes with explicit preimages,
+and withholds every partial recipe. P1/P2 pass their actual pre-write
+observation into autogen. D16 uses private derived bytes and total raw equality;
+D6 repairs missing/stale provenance on noop and preserves matching bytes/time.
+Explicit regeneration remains the accepted PRD 6.3 opt-in replacement, never
+historical authorship attribution; incomplete replacement is withheld.
+
+Focused S2 tests are authored for pure/range derivation, exact bytes, near-match
+and trust-by-label rejection, provenance crash/recovery, all unsupported axes,
+unavailable sides and parent-created exclusions. S0's adjacent unsafe legacy
+evidence is preserved in a test-only fixture adapter; the S0 derivation guard
+is deliberately advanced to S2's pure/equality contract with mutation twins.
+The no-production-coverage guard is unchanged.
+
+The separate `s2-observation-retention` implementer owns only `internal/patchobs`
+and a possible internal retention ADR, with no Go validation or staging.
+It is implementing a bounded capture budget including intermediate reads;
+the main agent owns workflow/CLI/tests and all serial validation.
 The implementation must bound observation-body residency, derive exclusively
 from immutable observations, preserve non-identical manual/provider recipe
 bytes and provenance, and give every new guard a failing mutation fixture.
@@ -2108,8 +2128,8 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2 contract/source analysis is in progress;
-no S2 production code or Go validation has run. Before every Go validation
+S0 and S1 are approved and pushed. S2 implementation is in progress;
+new code is not yet Go-validated or independently reviewed. Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
 sequence serially and stop at its first failure.
@@ -2173,6 +2193,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S2 current checkpoint: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`.
+- S2 implementation worktree: `internal/workflow/recipe_derivation.go`,
+  `recipe_autogen.go`, `recipe_authority_s2_test.go`, the affected S0/S1
+  workflow tests; `internal/cli/cobra.go`, `feature_patch.go` and the
+  affected S0/S1 CLI tests. The retention agent owns the patchobs file set.
 
 ### Prior slices (historical)
 

@@ -1,3 +1,18 @@
+## Implementation Transition — GH #15 S2 analysis to implementation — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — implementation; not validated or reviewed
+
+Dispatch checkpoint is `c9674c8`. S2's pure derivation and provenance core
+is authored with focused tests; P1/P2 retain and consume their pre-write
+observations. Full-byte D16 proof replaces file-set drift as origin authority;
+partial recipes are withheld and D6 convergence covers noop recovery.
+The independent retention implementer owns only patchobs and a possible
+internal ADR; there is no same-file parallel implementation. S0's legacy
+adjacent hazard remains test-only evidence; its derivation source guard is
+advanced deliberately, while the production-coverage absence guard remains
+unchanged. All Go validation is still pending the serial resource gate.
+
 ## Implementation Transition — GH #15 S2 clean restart — 2026-09-07
 
 **Agent**: Copilot implementation agent, under the user's explicit S2 dispatch
