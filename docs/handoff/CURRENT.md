@@ -6,10 +6,11 @@
 
 **S2 validation resumed (2026-09-07)**: the user released resources and asked
 to retry. Initial snapshot is 86% free memory, load1 2.13 and no active Go
-tools. Restart the full prescribed sequence from step 1, including the
-statically approved test corrections through `a2096d6`. Every invocation
-still requires its own continuous 60-second gate. S2 is not yet accepted;
-S3 remains unauthorized.
+tools. The gates passed and step 1 passed, but step 2 found a remaining
+golden-fixture boundary defect: `--- /dev/null` was mistaken for a snapshot
+record boundary. The test-only correction uses declared snapshot byte lengths
+and independent placement/negative-size fixtures. Restart from step 1 after
+checkpointing; S2 is not yet accepted and S3 remains unauthorized.
 
 GH #15 S2 is restarted from the verified clean `0c41be9` baseline on
 2026-09-07. Only pure derivation, preimage synthesis, deterministic encoding,
@@ -2182,9 +2183,11 @@ found one length bug: expected provenance measured a pre-normalized timestamp
 (193 bytes), but the snapshot owns the normalized 185-byte body. The follow-up
 constructs the normalized body before measuring and adds the exact 193-byte
 negative fixture. Independent static confirmation is **APPROVED** at
-`a2096d6`; all reported static findings are closed. Resources have recovered
-to an initial 86% free snapshot and validation is restarting from step 1.
-Wave-close and final acceptance remain pending actual runtime results.
+`a2096d6`; all reported static findings are closed. Resources recovered,
+but the runtime retry found an additional golden-frame boundary bug. It is
+corrected without changing production or historical goldens; the new
+byte-length/placement fixtures await revalidation from step 1.
+Wave-close and final acceptance remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2823,6 +2826,10 @@ remains blocked until that release is implemented, soaked and shipped.
 - Static confirmation of `a2096d6`: **APPROVED**, sole test-correction finding
   closed. The reviewer confirmed exact 185-byte output and both wrong-length
   fixtures without running Go validation. Full runtime acceptance is pending.
+- Resource-recovery retry at `d0aff97`: step 1 **PASS**; step 2 **FAIL** only
+  in prepare golden/PIB-212 families due to the snapshot/patch delimiter
+  collision. Both gates passed at 86% free (load1 2.60 and 2.34). All
+  selected gitutil/patchobs/workflow tests pass. No step 3-7 command ran.
 
 ### Prior slices (historical)
 

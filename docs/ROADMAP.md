@@ -1593,6 +1593,10 @@ are closed. S2 is 🚧 IN PROGRESS again after the user's 2026-09-07 resource
 release: initial snapshot 86% free/load1 2.13/no Go tools. Validation restarts
 from step 1; full 22-shard success, wave close and durable terminal tracking
 are still required. S3 is undispatched.
+The recovered-resource retry passed step 1 and stopped at step 2 on a
+golden-adapter delimiter collision with `--- /dev/null`. A test-only fix now
+uses snapshot byte lengths with independent placement and negative-size
+fixtures; production and historical goldens are unchanged. Validation restarts.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

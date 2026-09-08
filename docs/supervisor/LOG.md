@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S2 resource-recovery retry stopped — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — test-fixture boundary correction
+
+Both fresh resource gates passed at 86% free memory. Step 1 passed; step 2
+stopped in the prepare compatibility families: the expected-delta adapter
+mistook the patch's `--- /dev/null` header for a snapshot-record boundary and
+inserted provenance inside the patch. The other selected S0/S1/S2 packages
+passed. Steps 3-7 did not run.
+
+Read frozen snapshot sections by their declared byte lengths, not a delimiter
+that patch bodies also contain. Insert provenance after the full canonical
+patch. Add an independent placement assertion and same-parser negative size
+fixtures (154, 156, negative and malformed). Historical golden files and
+production remain unchanged. Checkpoint, review and restart from step 1.
+
 ## Implementation Transition — GH #15 S2 validation resumed — 2026-09-07
 
 **Agent**: Copilot implementation agent

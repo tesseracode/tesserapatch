@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -113,11 +114,14 @@ func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
 		return nil, fmt.Errorf("S2 golden canonical patch section changed")
 	}
 	start := strings.Index(out, patchHeader) + len(patchHeader)
-	next := strings.Index(out[start:], "\n--- ")
-	if next < 0 {
-		return nil, fmt.Errorf("S2 golden canonical patch section is unterminated")
+	patchBody, err := rgaS2GoldenSection(old, "artifacts/post-apply.patch")
+	if err != nil {
+		return nil, err
 	}
-	at := start + next + 1
+	if !strings.HasPrefix(out[start:], patchBody) {
+		return nil, fmt.Errorf("S2 golden canonical patch body changed")
+	}
+	at := start + len(patchBody)
 	return []byte(out[:at] + provenance + out[at:]), nil
 }
 
@@ -127,15 +131,19 @@ func rgaS2GoldenSection(transcript, relative string) (string, error) {
 		return "", fmt.Errorf("missing or ambiguous frozen section %s", relative)
 	}
 	_, tail, _ := strings.Cut(transcript, prefix)
-	_, body, found := strings.Cut(tail, " ---\n")
+	header, body, found := strings.Cut(tail, " ---\n")
 	if !found {
 		return "", fmt.Errorf("malformed frozen section %s", relative)
 	}
-	end := strings.Index(body, "\n--- ")
-	if end < 0 {
-		return "", fmt.Errorf("unterminated frozen section %s", relative)
+	sizeText, found := strings.CutSuffix(header, " bytes)")
+	size, err := strconv.Atoi(sizeText)
+	if !found || err != nil || size < 0 || size > len(body) {
+		return "", fmt.Errorf("invalid frozen section size for %s", relative)
 	}
-	return body[:end+1], nil
+	if len(body) != size && !strings.HasPrefix(body[size:], "--- .tpatch/") {
+		return "", fmt.Errorf("frozen section size does not end at a record boundary: %s", relative)
+	}
+	return body[:size], nil
 }
 
 func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
@@ -148,6 +156,9 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 			expected, err := rgaS2ExpectedProducerGolden(name, frozen)
 			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
 				t.Fatalf("independent S2 delta refused: %v", err)
+			}
+			if !strings.Contains(string(expected), "+recorded change\n--- .tpatch/features/pib-golden/artifacts/recipe-provenance.json") {
+				t.Fatal("provenance was inserted inside the canonical patch instead of after its complete body")
 			}
 			for _, mutation := range []struct{ old, new string }{
 				{`"preimage_hash": ""`, `"preimage_hash": "sha256:wrong"`},
@@ -170,6 +181,12 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 			invalidFrozen := strings.Replace(string(frozen), `"replace": ""`, `"replace": "not the baseline"`, 1)
 			if _, err := rgaS2ExpectedProducerGolden(name, []byte(invalidFrozen)); err == nil {
 				t.Fatal("delta adapter silently accepted a changed baseline shape")
+			}
+			for _, wrongSize := range []string{"154", "156", "-1", "huge"} {
+				bad := strings.Replace(string(frozen), "post-apply.patch (155 bytes)", "post-apply.patch ("+wrongSize+" bytes)", 1)
+				if _, err := rgaS2GoldenSection(bad, "artifacts/post-apply.patch"); err == nil {
+					t.Fatalf("section parser accepted incorrect body size %s", wrongSize)
+				}
 			}
 		})
 	}
