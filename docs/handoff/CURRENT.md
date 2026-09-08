@@ -7,8 +7,9 @@
 **S2 validation (2026-09-08)**: corrected state `c3b4451` passes steps 1-5,
 including all targeted compatibility fixtures, owning-package regressions,
 vet and build. Every invocation had its own qualifying 60-second window.
-The exact 22-shard suite is starting; independent confirmation of the last
-test-only correction is pending. S2 is not accepted and S3 remains unauthorized.
+The exact 22-shard suite is running; independent confirmation of `fce284e`
+and `c3b4451` is APPROVED with no remaining static finding. S2 is not yet
+accepted and S3 remains unauthorized.
 The boundary fix passed on retry, exposing the same S2 artifact delta in
 compat-verify and compat-reconcile. The test adapter now covers exactly
 the four source-derived recorded fixtures (record, land, verify, reconcile),
@@ -2193,8 +2194,9 @@ byte-length/placement fixtures pass. The next retry identified verify and
 reconcile as the remaining recorded-feature compatibility fixtures; their
 expected S2 artifact delta and existing V10 metadata are now explicit.
 The four-fixture correction at `c3b4451` passes steps 1-5, including the
-previously failing compatibility suite. The exact 22-shard suite is starting;
-final test-correction review, wave-close and acceptance remain pending.
+previously failing compatibility suite. Final test-correction review is
+APPROVED; the exact 22-shard suite is running. Wave-close and acceptance
+remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2796,6 +2798,9 @@ remains blocked until that release is implemented, soaked and shipped.
   workflow 85.086s; affected CLI regressions 88.808s; vet/build clean.
   Every invocation had a fresh 60-second gate at 87% free, load1 <=2.49.
 - Exact 22-shard step 6 is starting; step 7 has not run.
+- Independent static confirmation of `fce284e` and `c3b4451`: **APPROVED**.
+  No significant issue, no production/golden edits, exact comparison and
+  all new mutation controls confirmed. Full runtime acceptance is pending.
 
 - S2 attempt 1: step 1 `gofmt -l .` **PASS**, gated at 84% free/load1 2.54.
 - Step 2 **FAIL** after a fresh 60s window at 84% free/load1 2.22: parser
@@ -8471,8 +8476,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- No current resource or code blocker is known: steps 1-5 pass under the
-  required gate. Full 22-shard success, final correction review and step 7
+- No current resource or code blocker is known: steps 1-5 and final static
+  review pass. Full 22-shard success and step 7
   are still required; a prior pass never waives a fresh resource window.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
