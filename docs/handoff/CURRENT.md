@@ -24,7 +24,8 @@ requested non-blocking planning task for broader support. The worker is
 revising ordinary legacy/replacement cases to truthful incomplete records.
 The policy/parity/index fold is checkpointed at `ab98ddf`. Its independent
 reviewer is `14658582-64a8-48bb-aab5-304dbf42ba2b`
-(`s3-domain-adjudication-review`). The core worker remains responsible for
+(`s3-domain-adjudication-review`), whose verdict is **APPROVED** with no
+significant issue. The core worker remains responsible for
 the disjoint implementation revision. Ignored per-command gate wrappers are
 prepared in `bin/s3-validation/`; no Go validation has started.
 
@@ -2335,8 +2336,9 @@ not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
 The S3 draft and parity unit are authored but not Go-validated. The core
 worker is revising the delivered draft under the operator's conservative
 decision. ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future
-broader-domain planning. Contract-fold review and all Go validation remain
-pending; no producer/consumer integration is underway.
+broader-domain planning. Contract-fold review is APPROVED; the conservative
+core revision and all Go validation remain pending. No producer/consumer
+integration is underway.
 
 ## Prerequisite Status
 
@@ -2953,7 +2955,9 @@ remains blocked until that release is implemented, soaked and shipped.
   blocks are byte-identical. These are source calculations, not a Go test pass.
 - Delivered worker code is formatted and its scoped whitespace check passes.
   No Go validation/staging/commit was performed by the worker. The coordinator
-  has not started Go validation while the contract decision remains open.
+  did not start Go validation while the contract decision remained open.
+- Independent policy-fold review of `ab98ddf`: **APPROVED**, no significant
+  issue. This does not claim a Go validation pass or implementation acceptance.
 
 ### Completed S2 validation
 
@@ -8651,8 +8655,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Finish the conservative v1 revision and independently review ADR-039's
-   narrow policy fold; GH #24 is future planning, not part of this implementation.
+1. Finish the conservative v1 revision; ADR-039's narrow policy fold is
+   independently APPROVED. GH #24 is future planning, not this implementation.
 2. Finish the draft against the adjudicated contract, then run the
    resource-gated serial sequence and independent review.
 3. Close S3 durably with WAVE_BASE
@@ -8661,7 +8665,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Blockers
 
 - The D3/D5 policy blocker is resolved by the operator's conservative choice.
-  Implementation revision, contract-fold review and Go validation are pending.
+  Contract-fold review is APPROVED; implementation revision and Go validation
+  are pending.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.

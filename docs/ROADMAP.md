@@ -1592,6 +1592,9 @@ integration or broader-domain implementation is authorized.
 Policy/guard checkpoint `ab98ddf` records ADR-039 and the GH #24 task.
 Independent policy-fold review and the disjoint conservative-core revision
 are active; Go validation has not started.
+Independent policy-fold review of `ab98ddf` is APPROVED with no significant
+issue. The conservative-core revision and implementation validation remain
+in progress; S3 is not accepted.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
