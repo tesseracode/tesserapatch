@@ -15,6 +15,14 @@ rev-7 — **normative where the two documents overlap**
 **Blocks**: GH #13 safe phase-2 operation replay
 **Target release**: v0.17.0, separate from GH #13's v0.18.0
 
+**S3 v1 operation-domain addendum**:
+[ADR-039](../adrs/ADR-039-coverage-complete-operation-domain.md) narrows
+admissible complete coverage to preimage-bearing `write-file` operations.
+Replacement/append and ungated write-file recipes remain preserved but
+coverage-incomplete, including the previously described exact-replacement
+exception. The canonical schema and ten-predicate block remain unchanged.
+GH #24 owns planning for broader operation support.
+
 ## 0. Revision history
 
 | Rev | Date | Change |

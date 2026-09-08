@@ -22,6 +22,14 @@ atomicity, path safety and ADR-029 D7's supersession severity are preserved
 unchanged.
 **Blocks**: GH #13 operation-replay candidate planning and implementation
 
+**S3 v1 operation-domain addendum**:
+[ADR-039](./ADR-039-coverage-complete-operation-domain.md) records the
+operator-selected conservative domain: only preimage-bearing `write-file`
+operations can contribute to complete coverage. It supersedes D5's
+exact-replacement completeness exception and qualifies admissible
+reclassification without changing this document's wire schema or canonical
+ten-predicate block. Broader operation support is deferred to GH #24.
+
 ## Revision history
 
 | Rev | Date | Change |

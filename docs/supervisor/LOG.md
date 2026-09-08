@@ -1,3 +1,23 @@
+## Operator Adjudication — GH #15 S3 conservative v1 — 2026-09-08
+
+**Decision**: "Conservative v1 (recommended): complete only for
+preimage-bearing write-file operations"
+**State**: IN PROGRESS — implementation revision
+**Follow-up**: [GH #24](https://github.com/tesseracode/tesserapatch/issues/24)
+
+The operator selected the conservative domain and asked for a task to plan
+an addendum or new ADR/PRD for the remaining gap. Created GH #24 as a
+non-blocking planning-only task. ADR-039 records the current narrow decision:
+assigned append/replacement and ungated writes are not admissible v1
+reclassification proofs; preserved bytes and existing execution semantics
+remain unchanged. Complete records therefore fit the existing cross-base
+branches without new schema fields, enums or reasons.
+
+Both accepted documents gain an explicit addendum pointer while their
+canonical schema and ten-predicate blocks remain unchanged. The worker owns
+the pure-core revision; the coordinator owns the policy/parity/index fold.
+Independent review and the full resource-gated sequence remain required.
+
 ## Implementation Transition — GH #15 S3 contract blocker — 2026-09-08
 
 **Coordinator**: Copilot

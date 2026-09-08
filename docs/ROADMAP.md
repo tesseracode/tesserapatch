@@ -1578,11 +1578,17 @@ Dispatch `394ae78` is pushed and the bounded implementation worker is active.
 The disjoint parity unit is authored with canonical block pins, 66 complete
 contextual-reference bindings and mutation fixtures; no S3 Go validation has
 run yet.
-The S3 draft is delivered but 🚧 BLOCKED on contract adjudication: D5 both
+The S3 draft was delivered with a contract-adjudication blocker: D5 both
 permits an exact-postimage replacement exception and categorically excludes
 replacement recipes from completeness; D3 has no complete cross-base branch
 for replacement-only or ungated-creation recipes. No contract was changed and
 no Go validation has run. Resolve that policy explicitly before S3 acceptance.
+The operator resolved this conservatively: complete v1 coverage admits only
+preimage-bearing write-file operations. S3 is 🚧 IN PROGRESS under ADR-039;
+the canonical wire schema and ten-predicate block are unchanged. The requested
+non-blocking planning task is [GH #24](https://github.com/tesseracode/tesserapatch/issues/24)
+for an addendum/new ADR/PRD covering broader operation support. No S4/S5
+integration or broader-domain implementation is authorized.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

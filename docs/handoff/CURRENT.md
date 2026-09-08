@@ -17,11 +17,13 @@ schema/predicate byte parity is pinned to Accepted rev-7, and all 66 numeric
 reference contexts (22 ADR, 44 PRD, including plural/range/historical
 references) are bound to their accepted targets with negative fixtures.
 The worker has delivered the pure core, codec, simulation and focused tests.
-Go validation has not run. S3 is blocked on the D3/D5 adjudication described
-below; the draft returns explicit errors for the undefined complete shapes
-rather than inventing wire reasons or replay authority.
+Go validation has not run. The operator resolved the D3/D5 conflict:
+conservative v1 completeness admits only preimage-bearing write-file
+operations. ADR-039 records the narrow current decision; GH #24 is the
+requested non-blocking planning task for broader support. The worker is
+revising ordinary legacy/replacement cases to truthful incomplete records.
 
-### S3 contract adjudication blocker
+### S3 contract adjudication (resolved)
 
 - ADR-036 D5 permits `replace-in-file` reclassification when the postimage is
   provably exact, then categorically says recipes containing replacement or
@@ -30,16 +32,20 @@ rather than inventing wire reasons or replay authority.
   replacement-only recipe, or an otherwise-complete creation whose write-file
   operation omits the explicit empty preimage gate. Its complete branches
   cover a whole-file write over an existing file or exclusively gated creations.
-- The accepted ten predicates and closed reason list cannot be silently
-  amended to make these cases fit. Obtain a policy decision, update/review
-  paired contract wording if authorized, then finish the implementation.
-  No accepted document has been changed and no Go validation has run.
+- The operator chose conservative v1: only preimage-bearing write-file
+  operations are admissible for complete coverage. ADR-039 qualifies the
+  existing no-write reclassification requirement; all other applicable
+  predicates/reasons remain. The original schema and predicate blocks stay
+  unchanged, and both documents now point to the explicit addendum.
+- GH #24 tracks the requested addendum/new ADR/PRD for the broader remaining
+  gap. It does not block conservative S3 or authorize production widening.
 
 ### S3 dispatch scope
 
 **Authority**: Accepted rev-7 ADR-036 D3 (canonical), D4-D5 and relevant
 binding rules, plus PRD-recipe-generation-authority S3 and acceptance
-sections 9.4-9.5. ADR-038's 32 MiB observation-image budget remains in force.
+sections 9.4-9.5, as narrowly qualified by operator-approved ADR-039.
+ADR-038's 32 MiB observation-image budget remains in force.
 
 **Deliverables**:
 - Exact strict coverage types, decoder, canonical encoder and hash helpers.
@@ -82,7 +88,10 @@ the accepted contract to accommodate an implementation; surface conflicts.
   Additional paths require an explicit coordinator scope update.
 - Coordinator: tracking documents and the disjoint
   `internal/workflow/recipe_authority_s3_parity_test.go` (`rgaS3Doc*` /
-  `TestRGAS3Doc*` names). No same-file parallel implementation.
+  `TestRGAS3Doc*` names). The authorized policy fold additionally owns
+  ADR-039, its ADR/PRD/index pointers and the directly coupled
+  `internal/cli/prepare_s7_rev16_test.go` Index-region pin.
+  No same-file parallel implementation.
 - The implementation agent does not stage, commit, push or run Go validation.
   The coordinator owns the serial resource gate, validation and review cycle.
 
@@ -2190,7 +2199,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: Blocked — D3/D5 complete-domain and cross-base adjudication required
+- **Status**: In progress — conservative v1 policy selected; implementation revision active
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2198,6 +2207,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+The operator selected conservative v1 and requested a future planning task.
+Created GH #24, "Plan an ADR/PRD for broader recipe-coverage completeness".
+ADR-039 records the current narrow policy and both accepted contract
+documents point to it without changing their canonical schema/predicate
+blocks. The worker is updating the pure core and tests; the coordinator owns
+the policy/parity/index fold. No consumer or publication widening is authorized.
 
 The implementation worker delivered its enumerated core/codec/simulation
 files and mutation tests, plus the scoped classification export and S0
@@ -2312,9 +2328,10 @@ the strict schema and pure simulation/completeness core. S1 observations,
 S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
 not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
 The S3 draft and parity unit are authored but not Go-validated. The core
-worker is idle after delivery. D3/D5 adjudication is required before
-completion; no same-file parallel edits or producer/consumer integration
-are underway.
+worker is revising the delivered draft under the operator's conservative
+decision. ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future
+broader-domain planning. Contract-fold review and all Go validation remain
+pending; no producer/consumer integration is underway.
 
 ## Prerequisite Status
 
@@ -2384,6 +2401,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Scoped migrations: `internal/patchobs/patchobs.go`,
   `internal/workflow/recipe_authority_s0_source_guards_test.go`,
   `internal/gitutil/recipe_authority_s0_pi12_test.go`.
+- Policy fold: `docs/adrs/ADR-039-coverage-complete-operation-domain.md`,
+  header pointers in ADR-036/its PRD, `docs/adrs/README.md`, the coordinator
+  parity file and directly coupled ADR-index guard pin.
 
 ### Completed S2 file record
 
@@ -8624,8 +8644,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Adjudicate D3/D5's complete-operation domain and missing cross-base branches.
-   Do not silently modify the accepted schema, predicates or reason semantics.
+1. Finish the conservative v1 revision and independently review ADR-039's
+   narrow policy fold; GH #24 is future planning, not part of this implementation.
 2. Finish the draft against the adjudicated contract, then run the
    resource-gated serial sequence and independent review.
 3. Close S3 durably with WAVE_BASE
@@ -8633,9 +8653,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- S3 contract conflict: D5's exact-replacement exception contradicts its
-  categorical v1 exclusion, and D3 leaves complete replacement-only/ungated-
-  creation shapes without a cross-base branch. Explicit adjudication required.
+- The D3/D5 policy blocker is resolved by the operator's conservative choice.
+  Implementation revision, contract-fold review and Go validation are pending.
+- GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 

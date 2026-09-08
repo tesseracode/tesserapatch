@@ -289,6 +289,73 @@ func TestRGAS3DocAllPredicateReferences(t *testing.T) {
 	}
 }
 
+func rgaS3DocDomainPointer(doc string) (string, error) {
+	const marker = "**S3 v1 operation-domain addendum**:\n"
+	start := strings.Index(doc, marker)
+	if start < 0 || strings.Count(doc, marker) != 1 {
+		return "", fmt.Errorf("v1 operation-domain addendum pointer missing or ambiguous")
+	}
+	end := strings.Index(doc[start:], "\n\n")
+	if end < 0 {
+		return "", fmt.Errorf("v1 operation-domain pointer is unterminated")
+	}
+	return doc[start : start+end+1], nil
+}
+
+func rgaS3DocValidateDomain(adr, prd, addendum string) error {
+	for _, input := range []struct{ text, want string }{
+		{adr, "6b67ff68d82eb6eedff50eea4dfebc503ca7a39e204836f0796e810c9a3caa0f"},
+		{prd, "d1879e18c6cd1324b9d69b0f1c8009ac4038d68c392a0fe49a14989cf4f56b35"},
+	} {
+		pointer, err := rgaS3DocDomainPointer(input.text)
+		if err != nil {
+			return err
+		}
+		if rgaS3DocHash(pointer) != input.want {
+			return fmt.Errorf("primary contract's v1 domain qualification changed")
+		}
+	}
+	decision, err := rgaS3DocSection(addendum, "## Decision")
+	if err != nil {
+		return err
+	}
+	if rgaS3DocHash(decision) != "c66196d72018b34c9e96c83319ae749c21d66cf7f1d7edcf455a02566e32dd68" {
+		return fmt.Errorf("operator-selected v1 operation domain changed")
+	}
+	return nil
+}
+
+func TestRGAS3DocConservativeDomainAndSensitivities(t *testing.T) {
+	adr, prd := rgaS0ReadRepoFile(t, rgaS3DocADR), rgaS0ReadRepoFile(t, rgaS3DocPRD)
+	addendum := rgaS0ReadRepoFile(t, "docs/adrs/ADR-039-coverage-complete-operation-domain.md")
+	if err := rgaS3DocValidateDomain(adr, prd, addendum); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range []struct{ old, replacement string }{
+		{` AND preimage_hash is present and non-null`, ""},
+		{`type == "write-file"`, `type in ["write-file", "replace-in-file"]`},
+		{"including\nan exact-postimage case", "except for\nan exact-postimage case"},
+	} {
+		if !strings.Contains(addendum, mutation.old) {
+			t.Fatalf("domain mutation anchor missing: %q", mutation.old)
+		}
+		wrong := strings.Replace(addendum, mutation.old, mutation.replacement, 1)
+		if err := rgaS3DocValidateDomain(adr, prd, wrong); err == nil {
+			t.Fatalf("same domain validator accepted widening %q", mutation.old)
+		}
+	}
+	pointer, err := rgaS3DocDomainPointer(adr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rgaS3DocValidateDomain(strings.Replace(adr, pointer, "", 1), prd, addendum); err == nil {
+		t.Fatal("domain qualifier disappeared from the primary ADR without refusal")
+	}
+	if err := rgaS3DocValidateDomain(adr, strings.Replace(prd, "narrows", "broadens", 1), addendum); err == nil {
+		t.Fatal("primary PRD contradicted the domain without refusal")
+	}
+}
+
 func TestRGAS3DocReferenceScannerSensitivity(t *testing.T) {
 	const prefix, suffix = "Reclassification requires ", " and no execution."
 	expected := []rgaS3DocReference{{"10", rgaS3DocHash(prefix + "predicate <ref>" + suffix)}}
