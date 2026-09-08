@@ -1588,6 +1588,9 @@ Static review of the test-only correction found a pre-/post-normalization
 provenance-size mismatch (193 versus 185). The follow-up now measures the
 normalized body and adds the exact negative fixture. Resource blocking
 persists at 76% free; resumed validation and acceptance are still pending.
+Static confirmation of `a2096d6` is APPROVED; all reported static findings
+are closed. S2 remains resource-blocked pending resumed validation, full
+22-shard success, wave close and durable terminal tracking. S3 is undispatched.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

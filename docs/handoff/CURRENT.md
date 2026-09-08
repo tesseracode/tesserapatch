@@ -2173,8 +2173,9 @@ after 600 seconds at 76% free memory. Independent test-correction review
 found one length bug: expected provenance measured a pre-normalized timestamp
 (193 bytes), but the snapshot owns the normalized 185-byte body. The follow-up
 constructs the normalized body before measuring and adds the exact 193-byte
-negative fixture. Static confirmation and all resumed Go validation remain
-pending. Wave-close and final acceptance remain blocked.
+negative fixture. Independent static confirmation is **APPROVED** at
+`a2096d6`; all reported static findings are closed. Resumed Go validation,
+wave-close and final acceptance remain blocked by resources.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2810,6 +2811,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Static compatibility review: **NEEDS REVISION** on normalized provenance
   length. Follow-up fixes the 193-versus-185 mismatch and adds its negative
   fixture; no Go validation has run (latest resource snapshot still 76% free).
+- Static confirmation of `a2096d6`: **APPROVED**, sole test-correction finding
+  closed. The reviewer confirmed exact 185-byte output and both wrong-length
+  fixtures without running Go validation. Full runtime acceptance is pending.
 
 ### Prior slices (historical)
 
@@ -8423,12 +8427,12 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Retrieve static confirmation of the normalized-provenance-length follow-up
-   from agent `0cbb4dd6-8fff-4f9b-abcb-174678606b2a` and record it.
-2. Once resources qualify, restart the prescribed sequence from step 1.
+1. Once resources qualify, restart the prescribed sequence from step 1.
    Include the prepare golden/PIB-212 and S7 ADR-index families in step 2.
-3. Complete all 22 exact shards and the wave-close gate with the recorded
-   WAVE_BASE, update/commit/push terminal tracking, and only then consider S3.
+2. Complete all 22 exact shards and the wave-close gate with the recorded
+   WAVE_BASE and a fresh resource window for every top-level Go invocation.
+3. Update, commit and push terminal S2 tracking only after runtime acceptance.
+   Leave S3 undispatched; this task authorizes S2 only.
 
 ## Blockers
 
@@ -8443,8 +8447,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - S2 restart commits are local and intentionally unpushed pending complete
   validation. Core code last changed at `6cc3633`; `2b12a5a` is the latest
-  initial compatibility-test correction; the latest follow-up fixes its
-  provenance snapshot byte count. All S2 commits have the required trailer.
+  initial compatibility-test correction; `a2096d6` fixes its provenance
+  snapshot byte count and has static approval. All S2 commits have the
+  required trailer; no review finding remains open, but runtime validation
+  has not completed.
 - Resource gating used macOS `memory_pressure`'s system-wide free percentage,
   `sysctl -n vm.loadavg`'s load1, and `ps -axo pid=,comm=` to exclude active
   go/compile/link/vet/test or `*.test` binaries. Sample every 2 seconds,
