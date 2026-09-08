@@ -1571,6 +1571,8 @@ alias bypass in regeneration; execution-equivalent path normalization and
 negative/control fixtures are authored. Validation restarts before acceptance.
 Correction `6cc3633` passes gated validation steps 1-5. The exact 22-shard
 suite and independent correction review are active; wave-close is pending.
+Independent correction review is APPROVED with no residual finding; the
+full 22-shard suite continues and S2 is not yet accepted.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

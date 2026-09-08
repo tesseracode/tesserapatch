@@ -2144,8 +2144,9 @@ the production correction requires restarting validation from step 1.
 The parent-path correction is committed at `6cc3633`. Steps 1-5 now pass
 after fresh gates for every invocation. The exact 22-shard script is next,
 with per-invocation resource gating and first-failure stop enforced by ignored
-session wrappers. Independent correction review is dispatched; no S2
-acceptance or S3 authorization is claimed.
+session wrappers. Independent correction review is **APPROVED** for
+`6cc3633`, with no significant issue or scope expansion. It is conditional
+on remaining full validation; no S2 acceptance or S3 authorization is claimed.
 Formatting caught and corrected two misplaced test-function insertions
 before validation began.
 The implementation must bound observation-body residency, derive exclusively
@@ -2157,8 +2158,8 @@ integration or shipped assets belong to this slice.
 ## Current State
 
 S0 and S1 are approved and pushed. S2 at `6cc3633` passes validation steps
-1-5. Full 22-shard validation and independent correction review are active;
-wave-close and final approval remain pending.
+1-5, and the independent correction review is APPROVED. Full 22-shard
+validation is running; wave-close and final acceptance remain pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2771,6 +2772,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Steps 4 and 5: serial `go vet -p=1 ./...` and `go build -p=1 ./cmd/tpatch`
   **PASS**, after fresh 60s windows at 84% free/load1 3.12 and 3.34.
 - Step 6 exact 22-shard script is starting; step 7 wave-close remains pending.
+- Independent correction review of `6cc3633`: **APPROVED**, no significant
+  issue or scope expansion; conditional on the remaining full validation.
 
 ### Prior slices (historical)
 
