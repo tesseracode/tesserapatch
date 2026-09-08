@@ -1563,7 +1563,17 @@ no warnings; every top-level Go invocation used a fresh resource window.
 Historical goldens, assets, consumer execution/verify code and all 13
 allowlisted research files remain unchanged. The execution/revision history
 is preserved in CURRENT, HISTORY and LOG. No release/tag is shipped here;
-S3-S6 are undispatched and GH #13 implementation remains blocked on v0.17.0.
+S4-S6 are undispatched and GH #13 implementation remains blocked on v0.17.0.
+S3 is 🚧 IN PROGRESS (dispatched 2026-09-08) from freshly fetched WAVE_BASE
+`27ee8bc45664f16a083b1a831e7ca04a7cb1c527`. S2's terminal CI 34208708824
+passed Linux/macOS/Windows and both observer jobs. Scope is ADR-036 D3's
+strict coverage schema, canonical encoding/hashes, exact reason/observation
+invariants, pure operation assignment/simulation/reclassification, ten-predicate
+completeness and PRD/ADR parity guards. No publication API, producer wiring,
+consumer behavior, public assets or GH #13 implementation is authorized.
+The coordinator owns parity tests/tracking; one implementer owns the disjoint
+pure-core/codec files. Full resource-gated validation and independent review
+are required before S3 acceptance.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

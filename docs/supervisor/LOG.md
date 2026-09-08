@@ -1,3 +1,41 @@
+## Supervisor Dispatch — GH #15 S3 — 2026-09-08
+
+**Authorization**: user requested S3 dispatch after S2 close
+**Task ID**: `implement-recipe-generation-authority-s3`
+**State**: IN PROGRESS
+**WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+
+### Readiness
+
+Fresh fetch confirms HEAD equals origin/main at WAVE_BASE, clean tracked
+state, one main worktree, no stashes/operation markers, and the same 13
+allowlisted research files. S2 review and all seven validation stages are
+accepted and archived. Terminal CI
+https://github.com/tesseracode/tesserapatch/actions/runs/34208708824 passed
+all three platform jobs and both observer jobs, with no failed steps.
+No further S2 check blocks dispatch.
+
+### Scope and Ownership
+
+Implement Accepted ADR-036/PRD rev-7 S3 only: strict coverage wire types and
+codec, exact reason/flag/kind invariants, raw-byte and effect hashes, pure
+assignment/simulation/reclassification, all ten completeness predicates and
+document parity/cross-reference guards. No S4 publication or producer wiring,
+S5 consumers, S6 assets/public docs, dependency or release work.
+
+`s3-coverage-implementation` owns the exact core/test paths enumerated in
+CURRENT. The coordinator owns the disjoint S3 parity-test file and tracking.
+No same-file parallel implementation; no staging or Go validation by the
+implementation agent. The coordinator runs the unchanged resource-gated serial
+validation sequence and independent review. Explicit staging and the Copilot
+trailer remain mandatory. Advance S0's obsolete blanket absence guard only
+to the narrower S3 schema/pure-core boundary, retaining no-publication evidence.
+
+### Action Taken
+
+Retarget the canonical field in place, record the fresh base, checkpoint the
+dispatch before production edits, and start the bounded S3 implementation.
+
 ## Implementation Decision — GH #15 S2 accepted — 2026-09-08
 
 **Agent**: Copilot implementation agent

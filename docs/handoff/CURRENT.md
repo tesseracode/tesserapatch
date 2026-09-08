@@ -2,7 +2,80 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
+from freshly fetched WAVE_BASE
+`27ee8bc45664f16a083b1a831e7ca04a7cb1c527`. S2 is durably accepted and its
+latest CI run, 34208708824, passed all three platform jobs and both observer
+jobs. The tracked tree was clean, with one main worktree, no stashes or
+operation markers, and the same 13 allowlisted research files.
+
+### S3 dispatch scope
+
+**Authority**: Accepted rev-7 ADR-036 D3 (canonical), D4-D5 and relevant
+binding rules, plus PRD-recipe-generation-authority S3 and acceptance
+sections 9.4-9.5. ADR-038's 32 MiB observation-image budget remains in force.
+
+**Deliverables**:
+- Exact strict coverage types, decoder, canonical encoder and hash helpers.
+  Every field is required; arrays are non-null; unknown, duplicate, null and
+  trailing JSON members/values are refused. Operation indexes are one-based.
+- Exact closed vocabularies, field/reason allocation, sorted complete reason
+  sets, and bidirectional disposition/completeness validation. An
+  `operation-missing` reason is the singleton for an otherwise representable
+  unassigned effect, never an extra label on unsupported/unavailable effects.
+- Honest observed/present/hash/mode rules and total extant-side kind
+  classification, including unknown and unavailable-side distinctions.
+- Missing/semantically-empty/unparseable patch and absent/unreadable/
+  undecodable recipe cases, with truthful presence and exact raw-byte hashes.
+- Pure operation assignment, exact preimage-to-postimage simulation over the
+  supported 100644 domain, and no-write already-present reclassification.
+  Recompute all ten completeness predicates, never use file sets as proof.
+- Deterministic contextual/cross-base status with no replay authorization.
+  Preserve all supplied recipe and observation bytes; no live tree reads,
+  process execution, timestamps, source-body persistence or parent-body reuse.
+- Canonical PRD/ADR schema and ten-predicate parity guards, covering every
+  `predicate N` cross-reference and same-validator wrong-input fixtures.
+
+**Explicitly excluded**: S4 publication API and producer wiring, S5
+apply/verify/doctor/reconcile behavior, S6 public docs/assets, GH #13
+consumer authority, dependency changes and release/tag work. Do not edit
+the accepted contract to accommodate an implementation; surface conflicts.
+
+**Ownership / sequential discipline**:
+- Implementation agent `s3-coverage-implementation`: new
+  `internal/workflow/recipe_coverage_types.go`, `recipe_coverage.go`,
+  `recipe_coverage_codec.go`, `recipe_coverage_simulation.go`,
+  `recipe_authority_s3_test.go`, `recipe_authority_s3_codec_test.go`,
+  `recipe_authority_s3_simulation_test.go`.
+- That agent may make tightly coupled reuse/guard changes only in
+  `internal/workflow/recipe_derivation.go`,
+  `internal/patchobs/patchobs.go`,
+  `internal/workflow/recipe_authority_s0_source_guards_test.go`,
+  `internal/workflow/recipe_authority_s2_test.go`, and
+  `internal/gitutil/recipe_authority_s0_pi12_test.go`. Preserve S1/S2 behavior.
+  Additional paths require an explicit coordinator scope update.
+- Coordinator: tracking documents and the disjoint
+  `internal/workflow/recipe_authority_s3_parity_test.go` (`rgaS3Doc*` /
+  `TestRGAS3Doc*` names). No same-file parallel implementation.
+- The implementation agent does not stage, commit, push or run Go validation.
+  The coordinator owns the serial resource gate, validation and review cycle.
+
+**S0 guard transition**: S3 intentionally introduces the coverage schema,
+so the old blanket production-coverage-absence premise must advance to an
+explicit S3-only schema/pure-core allowlist and no-publication/no-consumer
+boundary. Do not disable it wholesale. Keep all existing producer fixtures
+that assert no coverage artifact is written, and add biting mutation twins.
+
+**Validation**: retain the required 60 continuous seconds at >=80% free
+memory, load1 <=5 and no active go/compile/link/vet/test process before every
+top-level Go validation. Run serially, stopping at the first failure:
+gofmt, targeted S0-S3/related guard families, affected packages, vet, build,
+the exact 22-shard script, and the wave-close gate with the S3 WAVE_BASE.
+Every commit uses explicit file staging and the required Copilot trailer.
+
+### S2 accepted prerequisite (historical)
 
 **S2 ACCEPTED (2026-09-08)**: independent review and all seven validation
 stages pass. The explicit-WAVE_BASE mechanical gate reports **8/8 PASS**
@@ -2089,19 +2162,32 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s2`
+- **Task ID**: `implement-recipe-generation-authority-s3`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: S2 — preimage synthesis, pure derivation, convergent
-  provenance.
-- **Status**: Complete — S2 ACCEPTED; all seven validation stages pass
-- **Assigned**: 2026-09-07
-- **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+- **Description**: S3 — strict coverage schema, pure simulation and exact completeness
+- **Status**: In progress — dispatched after S2 acceptance and green CI
+- **Assigned**: 2026-09-08
+- **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
 
-WAVE_BASE = 0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15
+WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+S3 readiness is confirmed at `27ee8bc`: HEAD equals freshly fetched
+origin/main, tracked state is clean, no stashes/operation markers exist,
+there is one main worktree, and all 13 research files remain untouched.
+CI https://github.com/tesseracode/tesserapatch/actions/runs/34208708824
+is green on Linux/macOS/Windows and both observer jobs, with no failed steps.
+No additional S2 validation or review is required before dispatch.
+
+The current task is S3 only, with the explicit scope and non-overlapping
+ownership above. The implementation agent owns the pure core/codec and
+focused tests; the coordinator owns independent document-parity guards,
+tracking and all Go validation. No S3 code has been validated yet.
+
+### Completed S2 session (historical)
 
 S2 is complete. The final mechanical gate passed all eight checks at
 `cc0f7eb`, already on origin/main. This includes the second complete
@@ -2185,17 +2271,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0-S2 are accepted. S2 derives exact, deterministic preimage-bearing recipes
-from immutable observations, refuses partial derivations, proves origin by
-full canonical byte equality and converges truthful provenance. ADR-038
-bounds retained image bodies to 32 MiB per observation.
-
-All seven validation stages pass, including both exact 22-shard runs.
-The final mechanical gate is **8/8 PASS** at pushed `cc0f7eb`; the terminal
-tracking update changes no code, fixtures, assets or validation commands.
-Historical goldens remain frozen, the four recorded-feature expected deltas
-are exact and mutation-sensitive, and all independent findings are closed.
-S3-S6 and GH #13 consumer implementation remain outside this task.
+S0-S2 are accepted and durably pushed. S3 is dispatched from `27ee8bc` for
+the strict schema and pure simulation/completeness core. S1 observations,
+S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
+not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
+S3 implementation, focused validation and independent review are pending.
 
 ## Prerequisite Status
 
@@ -2253,6 +2333,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- S3 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
+
+### Completed S2 file record
 
 - S2 current checkpoint: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`.
@@ -2785,6 +2870,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S3: no Go validation run yet. Dispatch prerequisites pass; S2 terminal CI
+  34208708824 is green on all required jobs with no failed steps.
+
+### Completed S2 validation
 
 - **Final result: all seven validation stages PASS.**
 - Step 7:
@@ -8480,18 +8570,26 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. No further S2 implementation or validation remains.
-2. Leave S3 undispatched until a separate supervisor/user assignment.
-   A future dispatch must record its own freshly fetched WAVE_BASE.
+1. Implement S3's pure core/codec and independently authored parity guards.
+2. Run the resource-gated serial sequence and independent review.
+3. Close S3 durably with WAVE_BASE
+   `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
 
 ## Blockers
 
-- None for S2; validation and independent review are complete.
+- None blocking S3 dispatch. Any conflict in the accepted contract must be
+  surfaced rather than silently resolved by changing schema or reason codes.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
 
+- Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
+  S2's `0c41be9` and not the last release tag. The S2 completion archive is
+  already in HISTORY; do not duplicate or erase it when retargeting S3.
+- Record schema/semantic validation and replay authority are different:
+  S3 must not treat `complete`, contextual hints or cross-base status as
+  permission to apply/reconcile. S4/S5 will consume the pure result later.
 - S2 is accepted through gate-validated, pushed `cc0f7eb`; the terminal
   tracking commit is documentation-only. Core production last changed at
   `6cc3633`; final compatibility tests at `c3b4451`. All static findings are
