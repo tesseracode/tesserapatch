@@ -10,6 +10,13 @@ from freshly fetched WAVE_BASE
 latest CI run, 34208708824, passed all three platform jobs and both observer
 jobs. The tracked tree was clean, with one main worktree, no stashes or
 operation markers, and the same 13 allowlisted research files.
+Dispatch is committed and pushed at `394ae78`. The implementation worker is
+`560d7825-549b-476b-bba8-3d00567aeff0` (`s3-coverage-implementation`).
+The coordinator's disjoint parity-test file is authored and formatted:
+schema/predicate byte parity is pinned to Accepted rev-7, and all 66 numeric
+reference contexts (22 ADR, 44 PRD, including plural/range/historical
+references) are bound to their accepted targets with negative fixtures.
+Go validation has not run; the worker is still implementing the pure core.
 
 ### S3 dispatch scope
 
@@ -2186,6 +2193,11 @@ The current task is S3 only, with the explicit scope and non-overlapping
 ownership above. The implementation agent owns the pure core/codec and
 focused tests; the coordinator owns independent document-parity guards,
 tracking and all Go validation. No S3 code has been validated yet.
+The coordinator has authored the parity guards and mechanically checked every
+copied contextual anchor against the unchanged accepted documents. They do
+not merely range-check predicate numbers: target and surrounding context are
+bound together, and joint drift of both canonical blocks is rejected.
+All runtime guard fixtures remain pending the coordinated Go validation.
 
 ### Completed S2 session (historical)
 
@@ -2275,7 +2287,10 @@ S0-S2 are accepted and durably pushed. S3 is dispatched from `27ee8bc` for
 the strict schema and pure simulation/completeness core. S1 observations,
 S2 exact-byte derivation/provenance and ADR-038 retention are prerequisites,
 not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
-S3 implementation, focused validation and independent review are pending.
+S3 implementation is active; focused validation and independent review are pending.
+The core implementation worker is active; the coordinator's parity unit is
+authored but not Go-validated. No same-file parallel edits or producer/
+consumer integration are underway.
 
 ## Prerequisite Status
 
@@ -2336,6 +2351,8 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S3 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
+- Coordinator parity unit: `internal/workflow/recipe_authority_s3_parity_test.go`.
+  Worker-owned core files are still in progress.
 
 ### Completed S2 file record
 
@@ -2873,6 +2890,9 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S3: no Go validation run yet. Dispatch prerequisites pass; S2 terminal CI
   34208708824 is green on all required jobs with no failed steps.
+- Parity unit: formatted; all 22 ADR and 44 PRD contextual reference anchors
+  independently checked against accepted source. Schema and ten-predicate
+  blocks are byte-identical. These are source calculations, not a Go test pass.
 
 ### Completed S2 validation
 
@@ -8587,6 +8607,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.
+- Core worker ID is `560d7825-549b-476b-bba8-3d00567aeff0`. Retrieve its
+  completion before touching its owned files. It must not run Go validation
+  or stage/commit; the coordinator owns that serial sequence.
 - Record schema/semantic validation and replay authority are different:
   S3 must not treat `complete`, contextual hints or cross-base status as
   permission to apply/reconcile. S4/S5 will consume the pure result later.

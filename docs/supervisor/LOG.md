@@ -1,3 +1,18 @@
+## Implementation Transition — GH #15 S3 parity unit authored — 2026-09-08
+
+**Coordinator**: Copilot
+**Core worker**: `560d7825-549b-476b-bba8-3d00567aeff0`
+**State**: IN PROGRESS
+
+Dispatch `394ae78` is pushed. The worker owns only its enumerated pure-core/
+codec paths and no Go validation/staging. The coordinator authored the
+disjoint `recipe_authority_s3_parity_test.go`: exact schema/ten-predicate
+parity plus accepted anchors, all 66 numeric reference contexts (22 ADR,
+44 PRD), historical/plural/range cases, and same-validator wrong-input
+fixtures. Every copied reference anchor was mechanically cross-checked
+against the accepted documents. Go validation remains pending; this is an
+authoring checkpoint, not a passing-test or S3-acceptance claim.
+
 ## Supervisor Dispatch — GH #15 S3 — 2026-09-08
 
 **Authorization**: user requested S3 dispatch after S2 close
