@@ -2,17 +2,14 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S3 validation retry (2026-09-08)**: the user released resources and requested
-another attempt. HEAD is clean at `b84d526`, with no code changes since
-reviewed `9a63697`; the same 13 research files remain untouched. Initial
-snapshot: 87% free memory, load1 2.21, no Go tools. Restart the prescribed
-sequence with a fresh qualifying minute before each invocation. The previous
-step 6 resource refusal is historical; S3 acceptance and S4 remain pending.
-The retry has passed steps 1-5 with separate qualifying windows at 88% free
-memory. The exact 22-shard script is restarting from its first invocation;
-no prior partial run is counted toward completion.
+**S3 approved for wave close (2026-09-08)**: independent policy/implementation
+reviews and validation steps 1-6 all pass, including the complete 22-shard
+retry. Code remains identical to reviewed `9a63697` through `aac357b`.
+Every top-level Go invocation had a fresh qualifying resource window.
+The canonical field records review approval; final acceptance still requires
+push and the explicit-WAVE_BASE mechanical gate. No S4 dispatch.
 
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
 from freshly fetched WAVE_BASE
@@ -42,8 +39,8 @@ cases return incomplete records instead of adjudication errors. Ignored
 per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
 whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` reviewed
 checkpoint `9a63697` and returned **APPROVED**, with no significant issue.
-The exact 22-shard suite is restarting from its first invocation after the
-earlier resource refusal; step 7 and acceptance remain pending.
+The exact 22-shard retry passed all 22 invocations; step 7 and acceptance
+remain pending.
 
 ### S3 contract adjudication (resolved)
 
@@ -2221,7 +2218,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: In progress — resource-recovery validation retry requested by user
+- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2391,9 +2388,9 @@ worker has delivered the operator's conservative revision and is idle.
 ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
 domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
 Independent implementation review is APPROVED with no significant issue.
-The prior step 6 run passed its main package invocation but was resource-
-blocked before shard 2. Resources have recovered and the prescribed sequence
-is restarting. Full validation, wave close and acceptance remain pending.
+The prior step 6 run was resource-blocked, but the recovered retry passed
+every one of the 22 invocations. No code changed after reviewed `9a63697`.
+S3 is approved for durable close; push and step 7 remain before acceptance.
 No producer/consumer integration was added.
 
 ## Prerequisite Status
@@ -3003,6 +3000,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Step 6 recovered retry **PASS**: exact script, all 22 invocations.
+  Main CLI 511.164s, workflow 90.643s, all other packages and all 21 isolated
+  CLI shards pass. Each command had a fresh 60-second window at 87-88% free
+  memory, load1 <=3.68 and no active Go tools.
+- Code unchanged from reviewed `9a63697` through `aac357b`. Step 7 is next.
 
 - Recovered retry: steps 1-2 **PASS**; gates at 88% free/load1 2.06 and 1.73.
   Targeted CLI/compatibility/index suite 15.839s; all other selected packages pass.
@@ -8739,19 +8742,16 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Next Steps
 
 1. Independent whole-S3 review is APPROVED with no findings to revise.
-2. Once resources recover, rerun the prescribed sequence with a fresh
-   qualifying minute before every top-level Go command. The interrupted
-   exact shard script must be rerun from its beginning and exit successfully.
-   GH #24 is future planning, not this implementation.
-3. Close S3 durably with WAVE_BASE
-   `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
+2. Commit/push the review-approved close checkpoint, then run
+   `make wave-close-check WAVE_BASE=27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+   with fresh per-command resource windows.
+3. Record the final gate result, archive S3, and push terminal tracking.
+   GH #24 remains non-blocking future planning; do not start S4.
 
 ## Blockers
 
-- The prior resource blocker has recovered to an initial 87% snapshot.
-  Require the full continuous 60-second window before each command; do not
-  relax or bypass the original threshold.
-- Full 22-shard success, step 7 and durable close remain outstanding.
+- No current resource or code blocker is known. Steps 1-6 and independent
+  review pass; step 7 and durable close remain outstanding.
 - The D3/D5 policy blocker is resolved by the operator's conservative choice.
   Contract-fold review is APPROVED; implementation revision and Go validation
   have advanced to coordinator validation/review.

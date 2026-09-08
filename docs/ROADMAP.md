@@ -1564,7 +1564,7 @@ Historical goldens, assets, consumer execution/verify code and all 13
 allowlisted research files remain unchanged. The execution/revision history
 is preserved in CURRENT, HISTORY and LOG. No release/tag is shipped here;
 S4-S6 are undispatched and GH #13 implementation remains blocked on v0.17.0.
-S3 is 🚧 IN PROGRESS (dispatched 2026-09-08) from freshly fetched WAVE_BASE
+S3 is ✅ REVIEW APPROVED (dispatched 2026-09-08) from freshly fetched WAVE_BASE
 `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`. S2's terminal CI 34208708824
 passed Linux/macOS/Windows and both observer jobs. Scope is ADR-036 D3's
 strict coverage schema, canonical encoding/hashes, exact reason/observation
@@ -1616,6 +1616,11 @@ prescribed gated sequence and rerun the exact shard script from its beginning.
 The recovered retry passes steps 1-5 at 88% free-memory gates. Independent
 review remains approved and code unchanged; the exact 22-shard suite is
 starting afresh. S3 acceptance still awaits steps 6-7.
+The exact recovered 22-shard run now passes completely: main CLI 511.164s,
+workflow 90.643s, all other packages and all 21 isolated CLI shards. Each
+invocation had a fresh resource window. Reviewed/checkpoint range:
+`27ee8bc..aac357b`; code last changed at approved `9a63697`. Push and the
+explicit-WAVE_BASE mechanical gate remain before final S3 acceptance.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

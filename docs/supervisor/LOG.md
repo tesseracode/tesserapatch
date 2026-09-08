@@ -1,3 +1,22 @@
+## Implementation Decision — GH #15 S3 approved for durable close — 2026-09-08
+
+**Decision**: REVIEW APPROVED — final mechanical gate pending
+**WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+**Reviewed/checkpoint range**: `27ee8bc..aac357b`
+
+Both independent reviews are approved. Steps 1-6 pass, including the exact
+22-shard retry: main CLI 511.164s, workflow 90.643s, all other packages and
+all 21 isolated CLI shards. Every command had a fresh continuous 60-second
+window at 87-88% free memory, load1 <=3.68 and no active Go tools.
+Code is unchanged since reviewed `9a63697`.
+
+Producer/consumer wiring, historical goldens, assets, SPEC, CHANGELOG,
+dependencies and the allowlist remain unchanged from the S3 base; the same
+13 research files are untouched. Flip the canonical field to APPROVED in
+place, checkpoint/push, then run the explicit-WAVE_BASE final gate.
+Acceptance remains conditional on that result. GH #24 is future planning;
+no release/tag or S4 dispatch.
+
 ## Implementation Transition — GH #15 S3 recovered full-suite retry — 2026-09-08
 
 **State**: IN PROGRESS
