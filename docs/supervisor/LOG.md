@@ -1,3 +1,19 @@
+## Implementation Transition — GH #15 S2 validation attempt 1 stopped — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — fixture corrections, no acceptance
+
+Checkpoint `6bf1cc1` passed gated step 1 (gofmt). Step 2 failed after its
+own 60-second idle window: the source-derived parser registry needed S2's
+intentional normalizer sites (`observeWithImageBudget` and `DeriveRecipe`);
+one S1 successful-print fixture still expected a partial recipe despite its
+delete effect. Patchobs/workflow targeted suites passed. Steps 3-7 stopped.
+
+Register the exact new sites without loosening the inventory, and make the
+successful print fixture use two supported effects. S0's delete-withholding
+fixture remains the negative control. Checkpoint corrections and restart
+the serial sequence from step 1.
+
 ## Implementation Transition — GH #15 S2 implementation to validation — 2026-09-07
 
 **Agent**: Copilot implementation agent

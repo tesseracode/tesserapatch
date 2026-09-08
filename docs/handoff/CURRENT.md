@@ -2128,9 +2128,14 @@ sides remain explicitly unavailable with human diagnostics. Bodies stay
 resident through the observation's lifetime for derivation/future simulation;
 no release-and-reread API is added. Recorder copies are isolated and preserve
 deduplication. `ParentCreatedPaths` is copied at both input/recorder boundaries.
-The complete S2 worktree is entering gated serial validation. No Go tests,
-vet or build have run; formatting caught and corrected two misplaced
-test-function insertions before validation began.
+The complete S2 implementation is checkpointed at `6bf1cc1`. The first
+resource-gated targeted run stopped at step 2: the parser callsite registry
+needed the intentional `observeWithImageBudget` rename and `DeriveRecipe`
+call, and one S1 CLI count fixture still expected a partial delete recipe.
+Both fixtures are corrected without relaxing their guards. Patchobs and
+workflow targeted suites passed in that run; steps 3-7 did not run.
+Formatting caught and corrected two misplaced test-function insertions
+before validation began.
 The implementation must bound observation-body residency, derive exclusively
 from immutable observations, preserve non-identical manual/provider recipe
 bytes and provenance, and give every new guard a failing mutation fixture.
@@ -2139,8 +2144,9 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2 implementation is checkpoint-ready;
-gated validation is starting and final independent review remains pending.
+S0 and S1 are approved and pushed. S2's first validation attempt stopped at
+step 2; fixture corrections are checkpointing before restarting from step 1.
+Final independent review remains pending.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2733,8 +2739,12 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
-- S2: baseline checks pass; implementation formatting complete; Go validation
-  sequence starting at step 1. Each Go run needs its own 60-second idle window.
+- S2 attempt 1: step 1 `gofmt -l .` **PASS**, gated at 84% free/load1 2.54.
+- Step 2 **FAIL** after a fresh 60s window at 84% free/load1 2.22: parser
+  registry did not yet register S2's two deliberate callsite changes, and
+  one S1 CLI fixture still expected a partial delete recipe. Patchobs
+  (1.399s) and workflow (2.234s) selected tests pass. Sequence stopped;
+  steps 3-7 not attempted. Both fixture expectations are corrected.
 
 ### Prior slices (historical)
 

@@ -588,7 +588,8 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict": 1,
 			"internal/workflow/patch_effect_adapters.go|patchEffectViews":  1,
 			"internal/workflow/hunk_overlap.go|parsePatchHunks":            1,
-			"internal/patchobs/patchobs.go|Observe":                        1,
+			"internal/patchobs/patchobs.go|observeWithImageBudget":         1,
+			"internal/workflow/recipe_derivation.go|DeriveRecipe":          1,
 		},
 		// The unexported shared parse. S1 added it for ONE reason: the
 		// authority refuses a repeated destination path, and PI-12's
@@ -606,7 +607,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 	wantTotals := map[string]int{
 		"FilesInPatchStrict":         6,
 		"PathsAffectedByPatchStrict": 4,
-		"NormalizePatchEffects":      4,
+		"NormalizePatchEffects":      5,
 		"normalizePatchEffects":      2,
 		"FilesInPatch":               0,
 		"PathsAffectedByPatch":       0,

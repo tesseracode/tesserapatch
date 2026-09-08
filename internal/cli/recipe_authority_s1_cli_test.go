@@ -143,11 +143,9 @@ func TestS1RecordPrintsTheDerivedOperationCount(t *testing.T) {
 		tmp := modesFixture(t, "s1-op-count")
 		rgaS0CommitAll(t, tmp)
 		modesWriteFile(t, tmp, "src/kept.txt", "kept\n")
-		// README.md is committed by the fixture; deleting it adds a file
-		// record the recipe schema cannot express.
-		if err := os.Remove(filepath.Join(tmp, "README.md")); err != nil {
-			t.Fatal(err)
-		}
+		// S2 withholds the entire recipe for a delete, so the successful
+		// print arm now uses one creation and one supported modification.
+		modesWriteFile(t, tmp, "README.md", "modified readme\n")
 
 		stdout, stderr, code := runRecord(t, "record", "--path", tmp, "s1-op-count", "--lenient")
 		if code != 0 {
@@ -155,13 +153,13 @@ func TestS1RecordPrintsTheDerivedOperationCount(t *testing.T) {
 		}
 		patch := readRecordedPatch(t, tmp, "s1-op-count")
 		if got := countPatchFiles(patch); got != 2 {
-			t.Fatalf("captured patch file count = %d, want 2 (one create + one delete)", got)
+			t.Fatalf("captured patch file count = %d, want 2 (one create + one modify)", got)
 		}
 		recipe := rgaS0ReadRecipe(t, tmp, "s1-op-count")
-		if len(recipe.Operations) != 1 {
-			t.Fatalf("derived recipe operations = %d, want 1: %+v", len(recipe.Operations), recipe.Operations)
+		if len(recipe.Operations) != 2 {
+			t.Fatalf("derived recipe operations = %d, want 2: %+v", len(recipe.Operations), recipe.Operations)
 		}
-		wantLine := "  Recipe generated: artifacts/apply-recipe.json (1 ops)\n"
+		wantLine := "  Recipe generated: artifacts/apply-recipe.json (2 ops)\n"
 		if !strings.Contains(stdout, wantLine) {
 			t.Fatalf("stdout missing %q — the printed number must be the DERIVED operation count:\n%s\npatch:\n%s",
 				wantLine, stdout, patch)
