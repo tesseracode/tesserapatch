@@ -6,8 +6,9 @@
 
 **S2 blocker (2026-09-07)**: validation is paused after a 600-second resource
 wait ended at 76% free memory (required >=80%), load1 2.01 and no active Go
-tools. Test-only compatibility correction `2b12a5a` is committed but has not
-run its restarted validation. S2 is not accepted and S3 is not authorized.
+tools. Test-only compatibility correction `2b12a5a` and its normalized-
+provenance-length follow-up have not run restarted validation. S2 is not
+accepted and S3 is not authorized.
 
 GH #15 S2 is restarted from the verified clean `0c41be9` baseline on
 2026-09-07. Only pure derivation, preimage synthesis, deterministic encoding,
@@ -2169,7 +2170,11 @@ test-only correction is committed at `2b12a5a`, preserving historical golden
 bytes and comparing a narrowly derived S2 expected delta. Its restarted
 validation never entered step 1: the mandatory resource window timed out
 after 600 seconds at 76% free memory. Independent test-correction review
-is pending. Wave-close and final acceptance remain blocked.
+found one length bug: expected provenance measured a pre-normalized timestamp
+(193 bytes), but the snapshot owns the normalized 185-byte body. The follow-up
+constructs the normalized body before measuring and adds the exact 193-byte
+negative fixture. Static confirmation and all resumed Go validation remain
+pending. Wave-close and final acceptance remain blocked.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2802,6 +2807,9 @@ remains blocked until that release is implemented, soaked and shipped.
   wait without the required 60 continuous eligible seconds. Final sample:
   76% free memory, load1 2.01, zero active Go toolchain/test processes. No
   Go validation command ran after this correction. Step 7 remains unrun.
+- Static compatibility review: **NEEDS REVISION** on normalized provenance
+  length. Follow-up fixes the 193-versus-185 mismatch and adds its negative
+  fixture; no Go validation has run (latest resource snapshot still 76% free).
 
 ### Prior slices (historical)
 
@@ -8415,8 +8423,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Retrieve the pending test-only compatibility review (agent
-   `0cbb4dd6-8fff-4f9b-abcb-174678606b2a`, follow-up on `2b12a5a`) and record it.
+1. Retrieve static confirmation of the normalized-provenance-length follow-up
+   from agent `0cbb4dd6-8fff-4f9b-abcb-174678606b2a` and record it.
 2. Once resources qualify, restart the prescribed sequence from step 1.
    Include the prepare golden/PIB-212 and S7 ADR-index families in step 2.
 3. Complete all 22 exact shards and the wave-close gate with the recorded
@@ -8426,7 +8434,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - S2 validation: no 60-second >=80%-free-memory window within 600 seconds;
   last observed free memory 76%. Do not bypass or relax the resource gate.
-- S2's current test-only golden/index correction has no completed Go
+- S2's current test-only golden/index correction and length follow-up have no completed Go
   validation; full 22-shard success and step 7 are still required.
 - GH #15 implementation has no planning blocker.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
@@ -8435,7 +8443,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - S2 restart commits are local and intentionally unpushed pending complete
   validation. Core code last changed at `6cc3633`; `2b12a5a` is the latest
-  compatibility-test correction. All S2 commits have the required trailer.
+  initial compatibility-test correction; the latest follow-up fixes its
+  provenance snapshot byte count. All S2 commits have the required trailer.
 - Resource gating used macOS `memory_pressure`'s system-wide free percentage,
   `sysctl -n vm.loadavg`'s load1, and `ps -axo pid=,comm=` to exclude active
   go/compile/link/vet/test or `*.test` binaries. Sample every 2 seconds,

@@ -1584,6 +1584,10 @@ correction `2b12a5a` timed out after 600 seconds at 76% free memory
 (required >=80%), load1 2.01 and no Go tools. No restarted Go command ran.
 Full-suite success, wave close and final acceptance remain pending; S3 stays
 unauthorized.
+Static review of the test-only correction found a pre-/post-normalization
+provenance-size mismatch (193 versus 185). The follow-up now measures the
+normalized body and adds the exact negative fixture. Resource blocking
+persists at 76% free; resumed validation and acceptance are still pending.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

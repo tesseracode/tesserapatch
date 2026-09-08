@@ -1,3 +1,24 @@
+## Review — GH #15 S2 golden compatibility correction — 2026-09-07
+
+**Reviewer**: `s2-final-correction-review`
+**Scope**: test-only correction `2b12a5a`, read-only; no Go validation
+
+### Verdict: NEEDS REVISION
+
+One MEDIUM: the independently constructed provenance body was measured before
+timestamp normalization (193 bytes), but the snapshot serializer measures its
+normalized body (185 bytes). Both runtime comparisons would still fail, and
+the existing 185-byte mutation could not modify the erroneous expected output.
+
+### Action Taken
+
+Construct the independent normalized body first and use that same value for
+both length and contents. Keep the 185-byte mutation and add the exact
+193-byte regression as a second wrong-input fixture. No production code or
+historical golden changes. Resource snapshot remains 76% free/load1 2.70;
+no Go validation was attempted. Checkpoint the correction and request static
+confirmation; the resource-blocked full validation and wave close remain.
+
 ## Implementation Transition — GH #15 S2 resource-blocked pause — 2026-09-07
 
 **Agent**: Copilot implementation agent

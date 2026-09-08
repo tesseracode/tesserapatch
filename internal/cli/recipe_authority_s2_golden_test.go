@@ -80,9 +80,9 @@ func rgaS2ExpectedProducerGolden(name string, frozen []byte) ([]byte, error) {
 	if len(base) != 40 || strings.Trim(base, "0123456789abcdef") != "" {
 		return nil, fmt.Errorf("golden provenance base is not a resolved commit")
 	}
-	rawProvenance := fmt.Sprintf("{\n  \"base_commit\": %q,\n  \"generated_at\": \"2001-01-02T03:04:05Z\",\n  \"recipe_sha256\": %q\n}\n", base, newHash)
+	provenanceBody := fmt.Sprintf("{\n  \"base_commit\": %q,\n  \"generated_at\": \"<wall-clock>\",\n  \"recipe_sha256\": %q\n}\n", base, newHash)
 	provenance := fmt.Sprintf("--- .tpatch/features/pib-golden/artifacts/recipe-provenance.json (%d bytes) ---\n%s",
-		len(rawProvenance), strings.Replace(rawProvenance, "2001-01-02T03:04:05Z", "<wall-clock>", 1))
+		len(provenanceBody), provenanceBody)
 	out := old
 	replacements := [][2]string{
 		{recipe, updatedRecipe},
@@ -155,6 +155,7 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 				{`"recipe_sha256": "559078db6a81e4530a844e37fbfb0ef4023acc9ab032a95c1fd243de7568c62f"`, `"recipe_sha256": "wrong"`},
 				{`"kind": "record"`, `"kind": "unrelated"`},
 				{"artifacts/recipe-provenance.json (185 bytes)", "artifacts/recipe-provenance.json (0 bytes)"},
+				{"artifacts/recipe-provenance.json (185 bytes)", "artifacts/recipe-provenance.json (193 bytes)"},
 			} {
 				wrong := strings.Replace(string(expected), mutation.old, mutation.new, 1)
 				if wrong == string(expected) || preparePIBGoldenDelta(name, wrong) == nil {
