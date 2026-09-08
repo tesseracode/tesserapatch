@@ -1,3 +1,19 @@
+## Implementation Transition — GH #15 S3 steps 1-5 pass — 2026-09-08
+
+**Checkpoint**: `9a63697`
+**Whole-S3 reviewer**: `c566eb33-80c5-4bdc-b9c1-d4931f23e89f`
+**State**: IN PROGRESS — awaiting implementation review before full shards
+
+Gofmt, targeted S0-S3/coupled compatibility/index guards, owning core packages,
+affected CLI regressions, vet and build all pass. Every command had a fresh
+60-second window at 86-87% free memory, load1 <=5 and no active Go tools.
+Workflow owning suite: 88.254s; CLI regressions: 91.723s.
+
+Independent whole-S3 review is read-only and runs no Go commands. Await its
+verdict before starting the expensive exact 22-shard phase so a substantive
+finding can be corrected without invalidating an hour-long run. Steps 6-7
+and final acceptance remain pending. No S4 dispatch.
+
 ## Implementation Transition — GH #15 S3 conservative revision delivered — 2026-09-08
 
 **Worker**: `s3-coverage-implementation`

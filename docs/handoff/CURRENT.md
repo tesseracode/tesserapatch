@@ -17,7 +17,7 @@ schema/predicate byte parity is pinned to Accepted rev-7, and all 66 numeric
 reference contexts (22 ADR, 44 PRD, including plural/range/historical
 references) are bound to their accepted targets with negative fixtures.
 The worker has delivered the pure core, codec, simulation and focused tests.
-Go validation has not run. The operator resolved the D3/D5 conflict:
+Validation steps 1-5 now pass. The operator resolved the D3/D5 conflict:
 conservative v1 completeness admits only preimage-bearing write-file
 operations. ADR-039 records the narrow current decision; GH #24 is the
 requested non-blocking planning task for broader support. The worker is
@@ -29,8 +29,10 @@ significant issue. The core worker remains responsible for
 the disjoint implementation revision, which is now delivered. Only gated
 write-file operations contribute v1 reclassification proof; ordinary excluded
 cases return incomplete records instead of adjudication errors. Ignored
-per-command gate wrappers are prepared in `bin/s3-validation/`; the coordinator
-is entering serial validation and independent implementation review.
+per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
+whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` is reviewing
+checkpoint `9a63697`. Await that verdict before the expensive full-shard
+phase; steps 6-7 and acceptance remain pending.
 
 ### S3 contract adjudication (resolved)
 
@@ -2217,6 +2219,13 @@ WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
 
+S3 checkpoint `9a63697` passes validation steps 1-5: gofmt, targeted S0-S3
+and coupled compatibility/index guards, full owning core packages, affected
+CLI regressions, vet and build. Every invocation had its own 60-second
+resource window at 86-87% free memory and load1 <=5. Independent whole-S3
+implementation review is running; its verdict precedes full 22-shard
+validation. No step 6/7 or S3 acceptance is claimed.
+
 The conservative revision is delivered in four worker-owned files:
 `recipe_coverage.go`, `recipe_coverage_simulation.go`, and the S3 codec/
 simulation tests. Public APIs/wire fields are unchanged. Ungated writes,
@@ -2348,9 +2357,9 @@ not surfaces to regress. S4-S6 and GH #13 implementation remain frozen.
 The S3 draft and parity unit are authored but not Go-validated. The core
 worker has delivered the operator's conservative revision and is idle.
 ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
-domain planning. Contract-fold review is APPROVED. The coordinator is
-starting Go validation and independent implementation review; no producer/
-consumer integration was added.
+domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
+Independent implementation review is active; full-shard validation and
+wave close remain pending. No producer/consumer integration was added.
 
 ## Prerequisite Status
 
@@ -2959,6 +2968,15 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Current checkpoint `9a63697`: steps 1-2 **PASS**, after separate 60-second
+  gates at 86% free/load1 2.80 and 2.90. All S0-S3, compatibility/PIB-212
+  and ADR-index targets pass; CLI selector 18.194s.
+- Steps 3-5 **PASS**: gitutil 6.820s, patchobs 1.450s, store 2.555s,
+  workflow 88.254s; CLI regressions 91.723s; vet/build clean. Each command
+  gated independently at 86-87% free, load1 <=3.68.
+- Step 6 exact full shards and step 7 remain unrun. Independent whole-S3
+  review is pending before that phase.
 
 - S3: no Go validation run yet. Dispatch prerequisites pass; S2 terminal CI
   34208708824 is green on all required jobs with no failed steps.
@@ -8669,10 +8687,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Checkpoint the delivered conservative revision; ADR-039's narrow policy
-   fold is independently APPROVED.
-2. Run the resource-gated serial sequence and independent implementation
-   review. GH #24 is future planning, not this implementation.
+1. Retrieve independent whole-S3 review from
+   `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` and address any findings.
+2. Complete the resource-gated validation sequence (steps 1-5 currently pass).
+   GH #24 is future planning, not this implementation.
 3. Close S3 durably with WAVE_BASE
    `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
 

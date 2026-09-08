@@ -1599,6 +1599,9 @@ The conservative revision is delivered: all excluded legacy/replacement/
 append cases are incomplete, with unchanged wire/API and execution behavior.
 Coordinator validation and independent implementation review are starting;
 no S3 acceptance is claimed.
+S3 checkpoint `9a63697` passes steps 1-5 with individual resource gates.
+Independent whole-S3 review is active; its verdict precedes the full
+22-shard and wave-close phases.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
