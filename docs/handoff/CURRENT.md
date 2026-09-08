@@ -2,7 +2,12 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
+
+GH #15 S2 is restarted from the verified clean `0c41be9` baseline on
+2026-09-07. Only pure derivation, preimage synthesis, deterministic encoding,
+unsupported-effect classification, D16 origin proof and D6 provenance
+convergence are authorized. S3-S6 remain frozen.
 
 GH #15 recipe-generation authority planning is **APPROVED**, Accepted at
 PRD/ADR rev-7 and pushed at `e76e0f7`. GH #13 consumer planning is now
@@ -2072,14 +2077,42 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s1`
+- **Task ID**: `implement-recipe-generation-authority-s2`
+- **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Implement ADR-036 strict normalized effects, migrate the
-  complete parser inventory and capture immutable producer observations.
-- **Status**: **Complete — S1 APPROVED**
-- **Assigned**: 2026-09-02
-- **WAVE_BASE**: `77b3e9b0c00c3261b3c1a5d7ccc17f09cf1bebb3`
+- **Description**: S2 — preimage synthesis, pure derivation, convergent
+  provenance.
+- **Status**: In progress — restarted from 0c41be9 after a corrupted session
+- **Assigned**: 2026-09-07
+- **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
 - **Release target**: `v0.17.0`
+
+WAVE_BASE = 0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15
+
+## Session Summary
+
+The prior S2 session was corrupted and produced no surviving artifacts.
+The fresh-start baseline was verified clean before this tracking transition:
+HEAD and origin/main both equal the WAVE_BASE above, zero tracked changes,
+zero stashes, exactly one worktree on main, and no merge/rebase/cherry-pick
+markers or index lock. There are 13 expected allowlisted research files
+(nine collapsed status entries); none will be edited, staged or removed.
+The S1 PI-13 parser-inventory finding is closed by the baseline commit.
+
+This first checkpoint retargets CURRENT, ROADMAP and LOG to S2 before code.
+The implementation must bound observation-body residency, derive exclusively
+from immutable observations, preserve non-identical manual/provider recipe
+bytes and provenance, and give every new guard a failing mutation fixture.
+No coverage schema, simulation, producer coverage publication, consumer
+integration or shipped assets belong to this slice.
+
+## Current State
+
+S0 and S1 are approved and pushed. S2 contract/source analysis is in progress;
+no S2 production code or Go validation has run. Before every Go validation
+run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
+active go/compile/link/vet/test processes. Run the prescribed validation
+sequence serially and stop at its first failure.
 
 ## Prerequisite Status
 
@@ -2137,6 +2170,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- S2 current checkpoint: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`.
+
+### Prior slices (historical)
 
 - `internal/gitutil/patch_effects.go`
 - `internal/patchobs/patchobs.go`
@@ -2650,6 +2688,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S2: baseline checks pass; Go validation not started.
+
+### Prior slices (historical)
 
 - GH #15 S1 S0/S1 selector across gitutil/patchobs/store/workflow/cli:
   **PASS**.
@@ -8261,9 +8303,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Push the PI-13 post-review correction.
-2. Dispatch S2 pure derivation, preimage synthesis and provenance convergence.
-3. Keep S3-S6 sequential and GH #13 implementation blocked until v0.17.0.
+1. Implement S2 from the accepted contract and S1 observation API.
+2. Run the resource-gated validation sequence, then independent S2 review.
+3. Close S2 tracking durably before any S3 dispatch. Keep S3-S6 sequential
+   and GH #13 implementation blocked until v0.17.0.
 
 ## Blockers
 

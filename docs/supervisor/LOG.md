@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S2 clean restart — 2026-09-07
+
+**Agent**: Copilot implementation agent, under the user's explicit S2 dispatch
+**State**: IN PROGRESS — contract/source analysis
+**WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
+
+The prior S2 session was corrupted and left no surviving artifacts. Fresh
+baseline checks pass: HEAD equals origin/main at WAVE_BASE, no tracked
+changes or stashes, one main worktree, no operation markers/index lock, and
+13 allowlisted research files left untouched. The nine-entry count was a
+collapsed-directory count of that same set, not drift.
+
+Retarget CURRENT and ROADMAP before any production edit and checkpoint this
+transition. Implement S2 only under Accepted ADR-036/PRD rev-7, including
+bounded observation-body residency and mutation bite-proofs. S3-S6 remain
+frozen; resource-gated serial validation and independent review precede close.
+
 ## Review — GH #15 implementation S1 external — 2026-09-07
 
 **Reviewer**: external S1 reviewer
