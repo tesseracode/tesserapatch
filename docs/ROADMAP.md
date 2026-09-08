@@ -1579,7 +1579,7 @@ narrow S2 delta checks and the reviewed index pin are being added.
 The correction derives expected record/land deltas independently from frozen
 fixtures and retains whole-transcript comparison plus mutation controls.
 No production change was needed; validation is restarting.
-S2 is 🚧 BLOCKED on the resource gate: the restart after test-only
+S2 was blocked on the resource gate: the restart after test-only
 correction `2b12a5a` timed out after 600 seconds at 76% free memory
 (required >=80%), load1 2.01 and no Go tools. No restarted Go command ran.
 Full-suite success, wave close and final acceptance remain pending; S3 stays
@@ -1589,8 +1589,10 @@ provenance-size mismatch (193 versus 185). The follow-up now measures the
 normalized body and adds the exact negative fixture. Resource blocking
 persists at 76% free; resumed validation and acceptance are still pending.
 Static confirmation of `a2096d6` is APPROVED; all reported static findings
-are closed. S2 remains resource-blocked pending resumed validation, full
-22-shard success, wave close and durable terminal tracking. S3 is undispatched.
+are closed. S2 is 🚧 IN PROGRESS again after the user's 2026-09-07 resource
+release: initial snapshot 86% free/load1 2.13/no Go tools. Validation restarts
+from step 1; full 22-shard success, wave close and durable terminal tracking
+are still required. S3 is undispatched.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

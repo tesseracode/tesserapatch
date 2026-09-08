@@ -1,3 +1,17 @@
+## Implementation Transition — GH #15 S2 validation resumed — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — retry at the user's request
+
+Tracked HEAD is clean at `fb62e53`; origin/main remains the recorded WAVE_BASE.
+All 13 allowlisted research files remain untouched. Initial resource snapshot
+is 86% free memory, load1 2.13 and no active Go tools. Recreate ignored session
+gating wrappers and restart the prescribed sequence at step 1, including the
+statically approved golden-length correction `a2096d6`. Each Go invocation
+still needs a fresh continuous 60-second qualifying window; stop at the first
+failure. Full acceptance, push and S3 remain unauthorized until validation
+and wave close finish.
+
 ## Review — GH #15 S2 golden correction confirmed — 2026-09-07
 
 **Reviewer**: `s2-final-correction-review`

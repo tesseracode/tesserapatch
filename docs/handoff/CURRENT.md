@@ -4,11 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
-**S2 blocker (2026-09-07)**: validation is paused after a 600-second resource
-wait ended at 76% free memory (required >=80%), load1 2.01 and no active Go
-tools. Test-only compatibility correction `2b12a5a` and its normalized-
-provenance-length follow-up have not run restarted validation. S2 is not
-accepted and S3 is not authorized.
+**S2 validation resumed (2026-09-07)**: the user released resources and asked
+to retry. Initial snapshot is 86% free memory, load1 2.13 and no active Go
+tools. Restart the full prescribed sequence from step 1, including the
+statically approved test corrections through `a2096d6`. Every invocation
+still requires its own continuous 60-second gate. S2 is not yet accepted;
+S3 remains unauthorized.
 
 GH #15 S2 is restarted from the verified clean `0c41be9` baseline on
 2026-09-07. Only pure derivation, preimage synthesis, deterministic encoding,
@@ -2088,7 +2089,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S2 — preimage synthesis, pure derivation, convergent
   provenance.
-- **Status**: Blocked — resource gate below 80% free memory; S2 validation incomplete
+- **Status**: In progress — resource-gated validation restarted at user request
 - **Assigned**: 2026-09-07
 - **WAVE_BASE**: `0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15`
 - **Release target**: `v0.17.0`
@@ -2096,6 +2097,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 0c41be97f3340eb7ef0694e2ad9f62a4ac3fbb15
 
 ## Session Summary
+
+Validation resumed from clean tracked HEAD `fb62e53`, with origin/main still
+at WAVE_BASE and the same 13 untracked research files untouched. All static
+findings are closed. The earlier 76%-free-memory pause is historical; a new
+86% snapshot allows the gate to start measuring a qualifying minute.
+Ignored session wrappers are recreated for per-command gating and will be
+removed when this validation attempt ends.
 
 The prior S2 session was corrupted and produced no surviving artifacts.
 The fresh-start baseline was verified clean before this tracking transition:
@@ -2174,8 +2182,9 @@ found one length bug: expected provenance measured a pre-normalized timestamp
 (193 bytes), but the snapshot owns the normalized 185-byte body. The follow-up
 constructs the normalized body before measuring and adds the exact 193-byte
 negative fixture. Independent static confirmation is **APPROVED** at
-`a2096d6`; all reported static findings are closed. Resumed Go validation,
-wave-close and final acceptance remain blocked by resources.
+`a2096d6`; all reported static findings are closed. Resources have recovered
+to an initial 86% free snapshot and validation is restarting from step 1.
+Wave-close and final acceptance remain pending actual runtime results.
 Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
@@ -2251,9 +2260,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Golden compatibility: `internal/cli/recipe_authority_s2_golden_test.go`,
   `internal/cli/prepare_pib_golden_test.go`,
   `internal/cli/prepare_s7_rev16_test.go`. Historical golden files are unchanged.
-- Session-only wrappers under `bin/s2-validation/` are removed on this
-  resource-blocked pause; no extra untracked file is left beside the 13
-  allowlisted research files.
+- Session-only wrappers under ignored `bin/s2-validation/` were removed at
+  the prior pause and are recreated for this retry. Remove them when the
+  attempt ends; no extra untracked file appears beside the 13 research files.
 
 ### Prior slices (historical)
 
@@ -8436,8 +8445,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- S2 validation: no 60-second >=80%-free-memory window within 600 seconds;
-  last observed free memory 76%. Do not bypass or relax the resource gate.
+- The prior resource blocker is recovering: initial retry snapshot is 86%
+  free/load1 2.13/no Go tools. Require the full continuous minute before each
+  invocation; a snapshot alone never authorizes validation.
 - S2's current test-only golden/index correction and length follow-up have no completed Go
   validation; full 22-shard success and step 7 are still required.
 - GH #15 implementation has no planning blocker.
