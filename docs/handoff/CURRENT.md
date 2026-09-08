@@ -10,6 +10,9 @@ reviewed `9a63697`; the same 13 research files remain untouched. Initial
 snapshot: 87% free memory, load1 2.21, no Go tools. Restart the prescribed
 sequence with a fresh qualifying minute before each invocation. The previous
 step 6 resource refusal is historical; S3 acceptance and S4 remain pending.
+The retry has passed steps 1-5 with separate qualifying windows at 88% free
+memory. The exact 22-shard script is restarting from its first invocation;
+no prior partial run is counted toward completion.
 
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
 from freshly fetched WAVE_BASE
@@ -39,7 +42,7 @@ cases return incomplete records instead of adjudication errors. Ignored
 per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
 whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` reviewed
 checkpoint `9a63697` and returned **APPROVED**, with no significant issue.
-The exact 22-shard suite will be rerun from its first invocation after the
+The exact 22-shard suite is restarting from its first invocation after the
 earlier resource refusal; step 7 and acceptance remain pending.
 
 ### S3 contract adjudication (resolved)
@@ -2227,6 +2230,12 @@ WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
 
+The recovered-resource retry passes steps 1-5: targeted/coupled guards,
+owning packages, CLI regressions, vet and build, each after its own minute
+at 88% free memory with load1 <=5 and no active Go tools. Workflow took
+84.440s and CLI regressions 85.715s. Independent review remains approved
+and code is unchanged; the full 22-shard script is starting afresh.
+
 The user requested a new retry after releasing resources. Git fetch confirms
 local `b84d526` with origin still at docs-only dispatch `394ae78`; tracked
 state is clean and code is identical to reviewed `9a63697`. Initial resource
@@ -2994,6 +3003,14 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Recovered retry: steps 1-2 **PASS**; gates at 88% free/load1 2.06 and 1.73.
+  Targeted CLI/compatibility/index suite 15.839s; all other selected packages pass.
+- Steps 3-5 **PASS**; gitutil 6.385s, patchobs 1.355s, store 2.669s,
+  workflow 84.440s, CLI regressions 85.715s, vet/build clean. Each command
+  gated separately at 88% free and load1 <=2.71.
+- The exact 22-shard step 6 is starting from its first invocation; step 7
+  remains pending.
 
 - Step 6 **PARTIAL / RESOURCE-BLOCKED**, exit 75: its first all-package
   invocation passes (CLI 540.959s, workflow 100.705s; all other packages pass).

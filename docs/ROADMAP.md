@@ -1613,6 +1613,9 @@ The user requested another retry after resource recovery (2026-09-08):
 initial snapshot 87% free/load1 2.21/no Go tools, clean `b84d526`, code
 unchanged from approved `9a63697`. S3 is 🚧 IN PROGRESS again; restart the
 prescribed gated sequence and rerun the exact shard script from its beginning.
+The recovered retry passes steps 1-5 at 88% free-memory gates. Independent
+review remains approved and code unchanged; the exact 22-shard suite is
+starting afresh. S3 acceptance still awaits steps 6-7.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

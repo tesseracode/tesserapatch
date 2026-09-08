@@ -1,3 +1,17 @@
+## Implementation Transition — GH #15 S3 recovered full-suite retry — 2026-09-08
+
+**State**: IN PROGRESS
+**Reviewed code**: `9a63697`, unchanged
+
+The new resource-gated sequence passes steps 1-5, including all targeted
+S0-S3/coupled guards, full owning packages, affected CLI regressions, vet
+and build. Every command had a fresh 60-second window at 88% free memory,
+load1 <=5 and no Go tools. Workflow 84.440s; CLI regressions 85.715s.
+
+Start the exact 22-shard script from its first invocation. The earlier
+resource-interrupted run is not counted as completion. Stop at the first
+failure; final wave-close validation and S3 acceptance remain pending.
+
 ## Implementation Transition — GH #15 S3 resource-recovery retry — 2026-09-08
 
 **Authorization**: user requested another attempt after releasing resources
