@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S2 implementation to validation — 2026-09-07
+
+**Agent**: Copilot implementation agent
+**State**: IN PROGRESS — gated serial validation
+
+The retention implementer delivered its five owned files with no tests,
+staging or commits. ADR-038 records a shared 32 MiB image budget, streaming
+cat-file output, lifetime retention for future simulation, and isolated
+deduplicated recorder copies. `ParentCreatedPaths` is copied at capture and
+recorder boundaries. The main agent has integrated the core, observation
+consumers, focused tests and deliberate S0/S1 fixture advances.
+
+Formatting is complete; two misplaced test-function insertions were caught
+and corrected while formatting. No Go test/vet/build has run. Checkpoint the
+complete implementation, then run the user's exact sequence with a fresh
+60-second resource window before every top-level Go invocation. Stop at the
+first failure. Final independent review and wave close remain pending.
+
 ## Review — GH #15 S2 core early static review — 2026-09-07
 
 **Reviewer**: `s2-core-static-review`

@@ -1560,6 +1560,9 @@ is being implemented on a non-overlapping patchobs surface. No S2 Go
 validation or acceptance has occurred.
 Early core static review requested observed/header-mode corroboration; the
 correction and its negative fixture are authored, awaiting validation.
+The complete S2 implementation is entering gated validation. Retention now
+uses ADR-038's shared 32 MiB image budget and streaming Git reader; no
+coverage schema or consumer integration has been added.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

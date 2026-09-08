@@ -119,7 +119,9 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	// producer captured nothing, so there is nothing to describe.
 	//
 	// The preflight error returns before either outcome (PI-3).
-	if _, obsErr := observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,
+	var recipeObservation patchobs.Observation
+	var obsErr error
+	if recipeObservation, obsErr = observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,
 		string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
 		return obsErr
 	}
@@ -154,8 +156,8 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 		return err
 	}
 
-	if autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, true, false); agErr != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "warning: recipe autogen failed: %v\n", agErr)
+	if autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, true, false); agErr != nil {
+		return fmt.Errorf("recipe autogen failed: %w", agErr)
 	} else {
 		for _, sp := range autogenOutcome.SkippedPaths {
 			fmt.Fprintf(cmd.ErrOrStderr(), "  recipe autogen skipped: %s\n", sp)

@@ -1826,7 +1826,9 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// numbered snapshot, the recipe autogen and the generation
 			// append run (PI-3), so a capture whose effects nobody can
 			// derive leaves the feature directory byte-identical.
-			if _, obsErr := observePatchProducer(patchobs.ProducerRecord, s, slug, patch,
+			var recipeObservation patchobs.Observation
+			var obsErr error
+			if recipeObservation, obsErr = observePatchProducer(patchobs.ProducerRecord, s, slug, patch,
 				captureMode, fromRef, toRef, pathspecs, activeClaimIDs); obsErr != nil {
 				return obsErr
 			}
@@ -1937,11 +1939,11 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
 			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
 			autogen := !noAutogen
-			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, slug, patch, autogen, regen)
+			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, autogen, regen)
 			skippedPaths := autogenOutcome.SkippedPaths
 			reason := autogenOutcome.DriftReason
 			if agErr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "warning: recipe autogen failed: %v\n", agErr)
+				return fmt.Errorf("recipe autogen failed: %w", agErr)
 			} else {
 				out := cmd.OutOrStdout()
 				w := cmd.ErrOrStderr()

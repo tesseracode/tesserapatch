@@ -3,11 +3,13 @@ package workflow
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -18,6 +20,15 @@ import (
 func setupAutogenStore(t *testing.T, slug string, files map[string]string) *store.Store {
 	t.Helper()
 	tmp := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q"}, {"-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "--allow-empty", "-qm", "base"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = tmp
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
 	if err := os.MkdirAll(filepath.Join(tmp, ".tpatch", "features", slug, "artifacts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -32,6 +43,22 @@ func setupAutogenStore(t *testing.T, slug string, files map[string]string) *stor
 	}
 	s := &store.Store{Root: tmp}
 	return s
+}
+
+func captureRecipeForTest(root, slug, patch string) patchobs.Observation {
+	return patchobs.Observe(patchobs.Input{
+		Producer: patchobs.ProducerRecord, RepoRoot: root, Slug: slug,
+		Patch: patch, PatchPresent: true, PreimageRef: "HEAD",
+		Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
+	})
+}
+
+func recipeFromWorktreeForTest(root, slug, patch string) (ApplyRecipe, []string, error) {
+	return RecipeFromPatch(captureRecipeForTest(root, slug, patch))
+}
+
+func autogenForTest(s *store.Store, slug, patch string, autogen, regenerate bool) (AutogenOutcome, error) {
+	return AutogenRecipeForRecord(s, captureRecipeForTest(s.Root, slug, patch), autogen, regenerate)
 }
 
 func newFilePatch(paths ...string) string {
@@ -98,7 +125,7 @@ func TestRecipeFromPatch_NewAndModifiedFiles(t *testing.T) {
 	})
 	patch := newFilePatch("a.txt", "sub/b.go")
 
-	recipe, skipped, err := RecipeFromPatch(s.Root, slug, patch)
+	recipe, skipped, err := recipeFromWorktreeForTest(s.Root, slug, patch)
 	if err != nil {
 		t.Fatalf("RecipeFromPatch: %v", err)
 	}
@@ -127,14 +154,14 @@ func TestRecipeFromPatch_DeletedFileSkipped(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"keeper.txt": "k\n"})
 	patch := newFilePatch("keeper.txt") + deletePatch("gone.md")
 
-	recipe, skipped, err := RecipeFromPatch(s.Root, slug, patch)
+	recipe, skipped, err := recipeFromWorktreeForTest(s.Root, slug, patch)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if len(recipe.Operations) != 1 || recipe.Operations[0].Path != "keeper.txt" {
-		t.Errorf("expected one keeper op, got %+v", recipe.Operations)
+	if len(recipe.Operations) != 0 {
+		t.Errorf("partial recipe must be withheld, got %+v", recipe.Operations)
 	}
-	if len(skipped) != 1 || !strings.Contains(skipped[0], "gone.md") || !strings.Contains(skipped[0], "deleted") {
+	if len(skipped) != 1 || !strings.Contains(skipped[0], "gone.md") || !strings.Contains(skipped[0], "effect-delete-unsupported") {
 		t.Errorf("expected skipped deletion, got %v", skipped)
 	}
 }
@@ -144,7 +171,7 @@ func TestAutogenRecipeForRecord_GeneratesWhenMissing(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n"})
 	patch := newFilePatch("a.txt")
 
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := autogenForTest(s, slug, patch, true, false)
 	action, skipped := outcome.Action, outcome.SkippedPaths
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -173,7 +200,7 @@ func TestAutogenRecipeForRecord_SkipsWhenAutogenOff(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n"})
 	patch := newFilePatch("a.txt")
 
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, false, false)
+	outcome, err := autogenForTest(s, slug, patch, false, false)
 	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -199,13 +226,13 @@ func TestAutogenRecipeForRecord_NoopWhenRecipeMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := autogenForTest(s, slug, patch, true, false)
 	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if action != AutogenNoop {
-		t.Fatalf("action=%s want noop", action)
+	if action != AutogenStale {
+		t.Fatalf("action=%s want preserved/stale without origin proof", action)
 	}
 	got, _ := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
 	if !strings.Contains(got, "replace-in-file") {
@@ -224,7 +251,7 @@ func TestAutogenRecipeForRecord_StaleWhenRecipeDrifts(t *testing.T) {
 	s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n")
 	patch := newFilePatch("a.txt", "b.txt")
 
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := autogenForTest(s, slug, patch, true, false)
 	action, reason := outcome.Action, outcome.DriftReason
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -232,8 +259,8 @@ func TestAutogenRecipeForRecord_StaleWhenRecipeDrifts(t *testing.T) {
 	if action != AutogenStale {
 		t.Fatalf("action=%s want stale", action)
 	}
-	if !strings.Contains(reason, "b.txt") {
-		t.Errorf("reason should mention drifting file: %q", reason)
+	if !strings.Contains(reason, "recipe bytes differ") {
+		t.Errorf("reason should report total-byte drift: %q", reason)
 	}
 	// Sidecar must be written and the recipe must NOT be overwritten.
 	got, _ := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
@@ -261,7 +288,7 @@ func TestAutogenRecipeForRecord_RegenerateOverwrites(t *testing.T) {
 	s.WriteArtifact(slug, "recipe-stale.json", `{"stale": true}`+"\n")
 
 	patch := newFilePatch("a.txt", "b.txt")
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, true)
+	outcome, err := autogenForTest(s, slug, patch, true, true)
 	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -282,14 +309,14 @@ func TestAutogenRecipeForRecord_ClearsStaleWhenAligned(t *testing.T) {
 	slug := "feat-clear"
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n"})
 	pre := ApplyRecipe{Feature: slug, Operations: []RecipeOperation{
-		{Type: "write-file", Path: "a.txt", Content: "A\n"},
+		{Type: "write-file", Path: "a.txt", Content: "A\n", PreimageHash: new(string)},
 	}}
 	data, _ := json.MarshalIndent(pre, "", "  ")
 	s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n")
 	s.WriteArtifact(slug, "recipe-stale.json", `{"stale": true}`+"\n")
 
 	patch := newFilePatch("a.txt")
-	outcome, err := AutogenRecipeForRecord(s, slug, patch, true, false)
+	outcome, err := autogenForTest(s, slug, patch, true, false)
 	action := outcome.Action
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -309,7 +336,7 @@ func TestAutogenRecipeOpsValidateAgainstSchema(t *testing.T) {
 	s := setupAutogenStore(t, slug, map[string]string{"a.txt": "A\n", "b.txt": "B\n"})
 	patch := newFilePatch("a.txt", "b.txt")
 
-	recipe, _, err := RecipeFromPatch(s.Root, slug, patch)
+	recipe, _, err := recipeFromWorktreeForTest(s.Root, slug, patch)
 	if err != nil {
 		t.Fatal(err)
 	}

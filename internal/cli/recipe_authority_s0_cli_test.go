@@ -29,6 +29,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
@@ -158,18 +159,15 @@ func TestRGAS0RecordRecipeGeneratedLine(t *testing.T) {
 		if code != 0 {
 			t.Fatalf("record failed: %s", stderr)
 		}
-		const wantLine = "  Recipe generated: artifacts/apply-recipe.json (1 ops)\n"
-		if !strings.Contains(stdout, wantLine) {
-			t.Fatalf("stdout missing %q:\nstdout:\n%s\npatch:\n%s",
-				wantLine, stdout, readRecordedPatch(t, tmp, "s0-gen-del"))
+		if strings.Contains(stdout, "Recipe generated:") {
+			t.Fatalf("S2 must withhold a partial recipe:\n%s", stdout)
 		}
-		const wantSkip = "  recipe autogen skipped: README.md (deleted — recipe schema has no delete-file op)\n"
+		const wantSkip = "  recipe autogen skipped: README.md (effect-delete-unsupported)\n"
 		if !strings.Contains(stderr, wantSkip) {
 			t.Fatalf("stderr missing the frozen skip line %q:\n%s", wantSkip, stderr)
 		}
-		recipe := rgaS0ReadRecipe(t, tmp, "s0-gen-del")
-		if len(recipe.Operations) != 1 || recipe.Operations[0].Path != "src/one.txt" {
-			t.Fatalf("derived recipe = %+v, want one op on src/one.txt", recipe.Operations)
+		if _, err := os.Stat(filepath.Join(tmp, ".tpatch/features/s0-gen-del/artifacts/apply-recipe.json")); !os.IsNotExist(err) {
+			t.Fatalf("partial recipe was published: %v", err)
 		}
 		// The captured patch really did carry two file records, so the
 		// `- len(skippedPaths)` term is genuinely load-bearing here.
@@ -232,6 +230,7 @@ func rgaS0CommitAll(t *testing.T, dir string) {
 // derivation column is the deliberate S1 behaviour.
 func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 	root := t.TempDir()
+	gitInitTestRepo(t, root)
 
 	cases := []struct {
 		name        string
@@ -305,13 +304,19 @@ func TestRGAS0RecipeGeneratedCountIsAFileCount(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "other.txt"), []byte("c\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	rgaS0CommitAll(t, root)
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := countPatchFiles(tc.patch); got != tc.wantCounted {
 				t.Fatalf("countPatchFiles = %d, want %d", got, tc.wantCounted)
 			}
-			recipe, skipped, err := workflow.RecipeFromPatch(root, "s0", tc.patch)
+			obs := patchobs.Observe(patchobs.Input{
+				Producer: patchobs.ProducerRecord, RepoRoot: root, Slug: "s0",
+				Patch: tc.patch, PatchPresent: true, PreimageRef: "HEAD",
+				Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
+			})
+			recipe, skipped, err := workflow.RecipeFromPatch(obs)
 			if tc.wantRefused {
 				if err == nil {
 					t.Fatalf("the strict grammar must refuse this shape; got %d op(s)", len(recipe.Operations))

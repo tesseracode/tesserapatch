@@ -2,15 +2,15 @@ package workflow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
+	"slices"
 	"time"
 
-	"github.com/tesseracode/tesserapatch/internal/gitutil"
-	"github.com/tesseracode/tesserapatch/internal/safety"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -31,60 +31,14 @@ type RecipeStaleness struct {
 	DetectedAt string `json:"detected_at"`
 }
 
-// RecipeFromPatch derives a minimal ApplyRecipe from a captured unified
-// diff by emitting a `write-file` op for each non-deleted file using
-// the post-image content read from the working tree at repoRoot.
-//
-// The touched-file set comes from the strict normalized effect grammar
-// through `patchEffectViews` (PI-1). A patch the grammar refuses returns
-// its error rather than a silently short operation list: a derivation
-// that cannot read the patch has nothing to derive. That includes a patch
-// naming one destination path twice — the authority refuses it, so this
-// derivation no longer keeps a first-seen `seen` map that would have
-// dropped the second record's effect without telling anybody.
-//
-// Deleted files are returned in the `skipped` slice with a reason
-// message: the current recipe schema has no delete-file op (a known
-// gap surfaced to the user as a warning, not silently extended).
-//
-// The recipe is intended for replay/inspection — `artifacts/post-apply.patch`
-// remains the reconcile source of truth.
-func RecipeFromPatch(repoRoot, slug, patch string) (ApplyRecipe, []string, error) {
-	files, err := patchEffectViews(patch)
+// RecipeFromPatch returns only a complete recipe from an immutable capture.
+// Unsupported effects are reported without returning a lossy partial recipe.
+func RecipeFromPatch(obs patchobs.Observation) (ApplyRecipe, []string, error) {
+	derived, err := DeriveRecipe(obs)
 	if err != nil {
 		return ApplyRecipe{}, nil, err
 	}
-	// Determinism: alphabetical by path so two captures of the same
-	// patch produce byte-identical recipes.
-	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
-
-	recipe := ApplyRecipe{Feature: slug}
-	var skipped []string
-	for _, fc := range files {
-		if fc.Path == "" {
-			continue
-		}
-		if fc.ChangeKind == gitutil.ChangeKindDelete {
-			skipped = append(skipped, fmt.Sprintf("%s (deleted — recipe schema has no delete-file op)", fc.Path))
-			continue
-		}
-		target := filepath.Join(repoRoot, fc.Path)
-		if err := safety.EnsureSafeRepoPath(repoRoot, target); err != nil {
-			skipped = append(skipped, fmt.Sprintf("%s (path safety: %v)", fc.Path, err))
-			continue
-		}
-		data, err := os.ReadFile(target)
-		if err != nil {
-			skipped = append(skipped, fmt.Sprintf("%s (read: %v)", fc.Path, err))
-			continue
-		}
-		recipe.Operations = append(recipe.Operations, RecipeOperation{
-			Type:    "write-file",
-			Path:    fc.Path,
-			Content: string(data),
-		})
-	}
-	return recipe, skipped, nil
+	return derived.recipe, derived.skippedPaths(), nil
 }
 
 // AutogenAction enumerates the outcomes of AutogenRecipeForRecord.
@@ -107,77 +61,88 @@ const (
 // (PRD §6.1.3, PI-10). The producer that derived the recipe is the only
 // caller holding a real operation count, so it reports it here.
 type AutogenOutcome struct {
-	Action       AutogenAction
-	SkippedPaths []string
-	DriftReason  string
-	Operations   int
+	Action            AutogenAction
+	SkippedPaths      []string
+	DriftReason       string
+	Operations        int
+	OriginProved      bool
+	ProvenanceWritten bool
 }
 
-// AutogenRecipeForRecord materialises or stale-marks apply-recipe.json
-// after `tpatch record` captures a patch.
-//
-// Behaviour matrix:
-//
-//	no recipe + autogen=true  → write derived recipe → AutogenGenerated
-//	no recipe + autogen=false → leave alone          → AutogenSkipped
-//	recipe exists, no drift   → clear stale sidecar   → AutogenNoop
-//	recipe exists, drifted, regenerate=true  → overwrite recipe → AutogenRegenerated
-//	recipe exists, drifted, regenerate=false → write recipe-stale.json sidecar → AutogenStale
-//
-// Drift is currently file-set based: if the existing recipe references
-// a file the patch does not, or vice-versa, the recipe is stale. The
-// sidecar approach is deliberate — a richer provider-generated recipe
-// (with replace-in-file ops, search/replace context, created_by edges)
-// is preserved; the sidecar tells the operator to regenerate when they
-// are ready, without silent data loss.
-func AutogenRecipeForRecord(s *store.Store, slug, patch string, autogen, regenerate bool) (AutogenOutcome, error) {
-	derived, skipped, err := RecipeFromPatch(s.Root, slug, patch)
-	if err != nil {
-		return AutogenOutcome{SkippedPaths: skipped}, err
+// AutogenRecipeForRecord consumes the producer's pre-write observation.
+// Exact canonical equality, not the action or file set, licenses provenance.
+// Explicit regeneration may replace a recipe only with a complete derivation.
+func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, regenerate bool) (AutogenOutcome, error) {
+	if s.Root != obs.RepoRoot {
+		return AutogenOutcome{}, fmt.Errorf("recipe observation belongs to a different repository")
 	}
-	outcome := AutogenOutcome{SkippedPaths: skipped, Operations: len(derived.Operations)}
-
+	slug := obs.Slug
 	existing, recipeErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
-	haveExisting := recipeErr == nil && strings.TrimSpace(existing) != ""
-
-	if !haveExisting {
-		if !autogen {
+	if recipeErr != nil && !errors.Is(recipeErr, fs.ErrNotExist) {
+		return AutogenOutcome{}, fmt.Errorf("read existing recipe: %w", recipeErr)
+	}
+	haveExisting := recipeErr == nil
+	// This only narrows derivation. A declared parent is never a substitute
+	// for a missing captured preimage, even during explicit regeneration.
+	var prior ApplyRecipe
+	if haveExisting && json.Unmarshal([]byte(existing), &prior) == nil {
+		obs.ParentCreatedPaths = slices.Clone(obs.ParentCreatedPaths)
+		for _, op := range prior.Operations {
+			if op.CreatedBy != "" {
+				obs.ParentCreatedPaths = append(obs.ParentCreatedPaths, op.Path)
+			}
+		}
+	}
+	derived, err := DeriveRecipe(obs)
+	if err != nil {
+		return AutogenOutcome{}, err
+	}
+	outcome := AutogenOutcome{SkippedPaths: derived.skippedPaths(), Operations: len(derived.recipe.Operations)}
+	switch {
+	case len(derived.canonical) == 0:
+		outcome.DriftReason = "captured effects cannot produce a complete recipe; existing recipe preserved"
+		if haveExisting {
+			return markRecipeStale(s, slug, outcome)
+		}
+		outcome.Action = AutogenSkipped
+		return outcome, nil
+	case !haveExisting:
+		if !autogen && !regenerate {
 			outcome.Action = AutogenSkipped
 			return outcome, nil
 		}
-		if err := writeRecipe(s, slug, derived); err != nil {
+		if err := writeRecipe(s, slug, derived.recipe); err != nil {
 			return outcome, err
 		}
+		existing = string(derived.canonical)
 		outcome.Action = AutogenGenerated
-		return outcome, nil
-	}
-
-	var existingRecipe ApplyRecipe
-	if jerr := json.Unmarshal([]byte(existing), &existingRecipe); jerr != nil {
-		return resolveStale(s, slug, derived, "existing apply-recipe.json is unparseable JSON", regenerate, outcome)
-	}
-	drift, reason := compareRecipeFileSets(existingRecipe, derived)
-	if !drift {
-		_ = clearStaleMarker(s, slug)
+	case derived.ProvesOrigin([]byte(existing)):
 		outcome.Action = AutogenNoop
-		return outcome, nil
+	case regenerate:
+		if err := writeRecipe(s, slug, derived.recipe); err != nil {
+			return outcome, err
+		}
+		existing = string(derived.canonical)
+		outcome.Action = AutogenRegenerated
+	default:
+		outcome.DriftReason = "recipe bytes differ from the complete captured derivation; preserved without origin proof (GH #19 owns historical/manual adoption)"
+		return markRecipeStale(s, slug, outcome)
 	}
-	return resolveStale(s, slug, derived, reason, regenerate, outcome)
+	outcome.OriginProved = derived.ProvesOrigin([]byte(existing))
+	outcome.ProvenanceWritten, err = convergeRecipeProvenance(s, slug, derived, []byte(existing))
+	if err != nil {
+		return outcome, err
+	}
+	if err := clearStaleMarker(s, slug); err != nil {
+		return outcome, err
+	}
+	return outcome, nil
 }
 
-func resolveStale(s *store.Store, slug string, derived ApplyRecipe, reason string, regenerate bool, outcome AutogenOutcome) (AutogenOutcome, error) {
-	outcome.DriftReason = reason
-	if regenerate {
-		if err := writeRecipe(s, slug, derived); err != nil {
-			return outcome, err
-		}
-		_ = clearStaleMarker(s, slug)
-		outcome.Action = AutogenRegenerated
-		return outcome, nil
-	}
+func markRecipeStale(s *store.Store, slug string, outcome AutogenOutcome) (AutogenOutcome, error) {
 	sb := RecipeStaleness{
 		Stale:      true,
-		Reason:     reason,
+		Reason:     outcome.DriftReason,
 		DetectedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	data, _ := json.MarshalIndent(sb, "", "  ")
@@ -189,61 +154,58 @@ func resolveStale(s *store.Store, slug string, derived ApplyRecipe, reason strin
 }
 
 func writeRecipe(s *store.Store, slug string, recipe ApplyRecipe) error {
-	data, _ := json.MarshalIndent(recipe, "", "  ")
-	return s.WriteArtifact(slug, "apply-recipe.json", string(data)+"\n")
+	data, err := EncodeRecipe(recipe)
+	if err != nil {
+		return err
+	}
+	return s.WriteArtifact(slug, "apply-recipe.json", string(data))
 }
 
-// compareRecipeFileSets reports drift between two recipes by
-// comparing the set of file paths each touches. ensure-directory ops
-// are excluded because they describe directories, not files. Returns
-// (false, "") when the two recipes target the same file set.
-func compareRecipeFileSets(existing, derived ApplyRecipe) (bool, string) {
-	e := recipePathSet(existing)
-	d := recipePathSet(derived)
-	var missing []string
-	for p := range d {
-		if !e[p] {
-			missing = append(missing, p)
+func convergeRecipeProvenance(s *store.Store, slug string, derived RecipeDerivation, existing []byte) (bool, error) {
+	if !derived.ProvesOrigin(existing) || !fullRecipeBaseCommit(derived.baseCommit) {
+		return false, nil
+	}
+	hasPreimage := false
+	for _, op := range derived.recipe.Operations {
+		if op.PreimageHash != nil {
+			hasPreimage = true
+			break
 		}
 	}
-	var extra []string
-	for p := range e {
-		if !d[p] {
-			extra = append(extra, p)
+	if !hasPreimage {
+		return false, nil
+	}
+	hash := store.SHA256HexString(string(existing))
+	raw, err := s.ReadFeatureFile(slug, "artifacts/recipe-provenance.json")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return false, fmt.Errorf("read recipe provenance: %w", err)
+	}
+	var prior RecipeProvenance
+	if err == nil && json.Unmarshal([]byte(raw), &prior) == nil &&
+		prior.BaseCommit == derived.baseCommit && prior.RecipeSHA256 != nil && *prior.RecipeSHA256 == hash {
+		if _, timeErr := time.Parse(time.RFC3339, prior.GeneratedAt); timeErr == nil {
+			return false, nil
 		}
 	}
-	if len(missing) == 0 && len(extra) == 0 {
-		return false, ""
+	prov := RecipeProvenance{
+		BaseCommit: derived.baseCommit, GeneratedAt: time.Now().UTC().Format(time.RFC3339), RecipeSHA256: &hash,
 	}
-	sort.Strings(missing)
-	sort.Strings(extra)
-	var parts []string
-	if len(missing) > 0 {
-		parts = append(parts, "patch touches files absent from recipe: "+strings.Join(missing, ", "))
+	data, err := json.MarshalIndent(prov, "", "  ")
+	if err != nil {
+		return false, err
 	}
-	if len(extra) > 0 {
-		parts = append(parts, "recipe references files absent from patch: "+strings.Join(extra, ", "))
+	if err := s.WriteArtifact(slug, "recipe-provenance.json", string(data)+"\n"); err != nil {
+		return false, fmt.Errorf("write recipe provenance: %w", err)
 	}
-	return true, strings.Join(parts, "; ")
-}
-
-func recipePathSet(r ApplyRecipe) map[string]bool {
-	m := map[string]bool{}
-	for _, op := range r.Operations {
-		if op.Type == "ensure-directory" {
-			continue
-		}
-		m[op.Path] = true
-	}
-	return m
+	return true, nil
 }
 
 func clearStaleMarker(s *store.Store, slug string) error {
 	// Path layout is fixed by the store: .tpatch/features/<slug>/artifacts/.
 	// Same convention used by recipe-provenance.json reads in cobra.go.
 	stalePath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "recipe-stale.json")
-	if _, err := os.Stat(stalePath); err != nil {
-		return nil
+	if err := os.Remove(stalePath); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("remove stale recipe marker: %w", err)
 	}
-	return os.Remove(stalePath)
+	return nil
 }

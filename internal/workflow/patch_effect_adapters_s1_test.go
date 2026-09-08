@@ -153,7 +153,7 @@ func TestS1AdaptersPropagateTheStrictError(t *testing.T) {
 	} else if hunks != nil {
 		t.Fatalf("a refusal must not return partial hunk attribution: %+v", hunks)
 	}
-	if recipe, skipped, err := RecipeFromPatch(t.TempDir(), "demo", s1UnreadablePatch); err == nil {
+	if recipe, skipped, err := recipeFromWorktreeForTest(t.TempDir(), "demo", s1UnreadablePatch); err == nil {
 		t.Fatalf("RecipeFromPatch accepted an unreadable patch: %+v / %v", recipe.Operations, skipped)
 	}
 	if paths, err := featurePathsFromPatch(s1UnreadablePatch); err == nil {

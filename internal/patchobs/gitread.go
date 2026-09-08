@@ -32,8 +32,10 @@ package patchobs
 //     names.
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sort"
@@ -179,24 +181,45 @@ func readIndexEntries(repoRoot string, paths []string) treeSnapshot {
 	return snapshot
 }
 
+type blobObservation struct {
+	bytes      []byte
+	diagnostic string
+}
+
 // readBlobs reads every requested blob body in ONE process, whichever
 // reference asked for it. Object ids are repository-global, so batching
 // across references is exact rather than an approximation.
 //
-// A missing object yields no map entry; the caller records that side as
-// unobserved rather than inventing empty bytes for it.
-func readBlobs(repoRoot string, objectIDs []string) map[string][]byte {
+// A missing object yields no map entry. An over-budget body yields an
+// explicit refusal. Both leave the side unobserved, never truncated.
+func readBlobs(repoRoot string, objectIDs []string, budget *imageBudget) map[string]blobObservation {
 	unique := sortedUnique(objectIDs)
-	out := make(map[string][]byte, len(unique))
+	out := make(map[string]blobObservation, len(unique))
 	if len(unique) == 0 {
 		return out
 	}
-	stdin := []byte(strings.Join(unique, "\n") + "\n")
-	raw, err := runGit(repoRoot, stdin, "cat-file", "--batch")
-	if err != nil && len(raw) == 0 {
+	cmd := exec.Command("git", "cat-file", "--batch")
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=1")
+	cmd.Stdin = strings.NewReader(strings.Join(unique, "\n") + "\n")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
 		return out
 	}
-	parseCatFileBatch(raw, out)
+	countGitProcess()
+	if err := cmd.Start(); err != nil {
+		stdout.Close()
+		return out
+	}
+	// Never collect raw batch stdout. The only body arrays allocated by
+	// the streaming parser are the ones retained within this budget.
+	if err := parseCatFileBatch(stdout, out, budget); err != nil {
+		// A malformed stream cannot be resynchronized reliably. Stop the
+		// child rather than leaving it blocked on an unread stdout pipe.
+		_ = cmd.Process.Kill()
+	}
+	stdout.Close()
+	_ = cmd.Wait()
 	return out
 }
 
@@ -247,37 +270,71 @@ func parseLsFilesStageZ(raw []byte, into map[string]treeEntryRecord) error {
 //	<oid> <type> <size>\n<body>\n      for an existing object
 //	<input> missing\n                  for one that is not there
 //
-// Only `blob` bodies are recorded. A tree or a commit object has no file
-// content, so a side backed by one is left unobserved rather than
-// described with the object's serialized bytes.
-func parseCatFileBatch(raw []byte, into map[string][]byte) {
-	for len(raw) > 0 {
-		nl := bytes.IndexByte(raw, '\n')
-		if nl < 0 {
-			return
+// Only `blob` bodies are recorded. Oversized and non-blob bodies are
+// drained with fixed scratch space, allowing later small blobs through.
+// The header reader is also bounded, including on malformed input.
+func parseCatFileBatch(stream io.Reader, into map[string]blobObservation, budget *imageBudget) error {
+	reader := bufio.NewReaderSize(stream, 4096)
+	var scratch [32 << 10]byte
+	for {
+		header, err := reader.ReadSlice('\n')
+		if err == io.EOF && len(header) == 0 {
+			return nil
 		}
-		header := string(raw[:nl])
-		raw = raw[nl+1:]
-		fields := strings.Fields(header)
-		if len(fields) < 3 {
-			// `<input> missing` (or a shape this reader does not
-			// understand): no body follows, so nothing is recorded.
+		if err != nil {
+			return fmt.Errorf("unreadable cat-file header: %w", err)
+		}
+		fields := strings.Fields(string(header))
+		if len(fields) == 2 && fields[1] == "missing" {
 			continue
 		}
-		size, err := strconv.Atoi(fields[2])
-		if err != nil || size < 0 || size > len(raw) {
-			return
+		if len(fields) != 3 {
+			return fmt.Errorf("unreadable cat-file header")
 		}
-		if fields[1] == "blob" {
-			body := make([]byte, size)
-			copy(body, raw[:size])
-			into[fields[0]] = body
+		size, err := strconv.ParseInt(fields[2], 10, 64)
+		if err != nil || size < 0 {
+			return fmt.Errorf("invalid cat-file body size")
 		}
-		raw = raw[size:]
-		if len(raw) > 0 && raw[0] == '\n' {
-			raw = raw[1:]
+		diagnostic := budget.refusal(size)
+		_, duplicate := into[fields[0]]
+		retain := fields[1] == "blob" && diagnostic == "" && !duplicate
+		var body []byte
+		if retain {
+			body, err = readImage(reader, size, budget)
+		} else {
+			if fields[1] == "blob" && !duplicate && diagnostic != "" {
+				into[fields[0]] = blobObservation{diagnostic: diagnostic}
+			}
+			err = discardImage(reader, size, scratch[:])
+		}
+		if err != nil {
+			return fmt.Errorf("unreadable cat-file body: %w", err)
+		}
+		delimiter, err := reader.ReadByte()
+		if err != nil || delimiter != '\n' {
+			if retain {
+				budget.used -= size
+			}
+			return fmt.Errorf("missing cat-file body delimiter")
+		}
+		if retain {
+			into[fields[0]] = blobObservation{bytes: body}
 		}
 	}
+}
+
+func discardImage(reader io.Reader, size int64, scratch []byte) error {
+	for size > 0 {
+		n := int64(len(scratch))
+		if size < n {
+			n = size
+		}
+		if _, err := io.ReadFull(reader, scratch[:int(n)]); err != nil {
+			return err
+		}
+		size -= n
+	}
+	return nil
 }
 
 func splitNUL(raw []byte) []string {

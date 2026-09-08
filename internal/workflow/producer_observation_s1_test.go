@@ -700,7 +700,7 @@ func TestS1AdaptersRefuseDuplicateDestinations(t *testing.T) {
 	}
 
 	t.Run("recipe-derivation-refuses", func(t *testing.T) {
-		recipe, skipped, err := RecipeFromPatch(root, "demo", duplicate)
+		recipe, skipped, err := recipeFromWorktreeForTest(root, "demo", duplicate)
 		if err == nil {
 			t.Fatalf("the derivation must refuse a repeated destination, got %+v", recipe.Operations)
 		}
@@ -734,12 +734,12 @@ func TestS1AdaptersRefuseDuplicateDestinations(t *testing.T) {
 	// Wrong-input sensitivity: the refusal is about duplicates, not about
 	// multi-record patches.
 	t.Run("two-distinct-destinations-are-accepted", func(t *testing.T) {
-		recipe, _, err := RecipeFromPatch(root, "demo", distinct)
+		recipe, skipped, err := recipeFromWorktreeForTest(root, "demo", distinct)
 		if err != nil {
 			t.Fatalf("two distinct destinations must be accepted: %v", err)
 		}
-		if len(recipe.Operations) != 2 {
-			t.Fatalf("operations = %+v, want one per destination", recipe.Operations)
+		if len(recipe.Operations) != 0 || len(skipped) == 0 {
+			t.Fatalf("S2 must withhold recipes without a durable reference: %+v / %v", recipe.Operations, skipped)
 		}
 		if paths, err := parsePatchNoveltyPaths(distinct); err != nil || len(paths) != 2 {
 			t.Fatalf("novelty paths = %+v (err=%v), want two", paths, err)

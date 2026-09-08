@@ -19,8 +19,13 @@ package workflow
 // Everything here is git-free and OS-independent: the fixtures are plain
 // bytes, and the assertions run against `RecipeFromPatch`,
 // `evaluateRecipeOperations` and `ExecuteRecipe` directly.
+//
+// S2 moves the legacy generator into this test-only fixture adapter. The
+// historical no-preimage/cross-base evidence stays frozen; production now
+// derives from an immutable observation and is tested separately.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +79,25 @@ func rgaS0StructuralOperation() RecipeOperation {
 		Search:  "\t}\n\treturn run(args)",
 		Replace: "\t\t\"--feature-x\",\n\t\t\"--feature-y\",\n\t}\n\treturn run(args)",
 	}
+}
+
+// rgaS0LegacyRecipeFromPatch reproduces the single-file generator measured
+// by the promoted case study, not the current producer.
+func rgaS0LegacyRecipeFromPatch(root, slug, patch string) (ApplyRecipe, []string, error) {
+	effects, err := patchEffectViews(patch)
+	if err != nil {
+		return ApplyRecipe{}, nil, err
+	}
+	if len(effects) != 1 || effects[0].Path != "command.go" {
+		return ApplyRecipe{}, nil, fmt.Errorf("not the frozen adjacent-conflict fixture")
+	}
+	body, err := os.ReadFile(filepath.Join(root, "command.go"))
+	if err != nil {
+		return ApplyRecipe{}, nil, err
+	}
+	return ApplyRecipe{Feature: slug, Operations: []RecipeOperation{
+		{Type: "write-file", Path: "command.go", Content: string(body)},
+	}}, nil, nil
 }
 
 // TestRGAS0AdjacentFixtureMatchesCaseStudyShape guards the promoted bytes
@@ -143,7 +167,7 @@ func TestRGAS0AdjacentAutogenEmitsWholeFileWriteWithoutPreimage(t *testing.T) {
 	patch := rgaS0Fixture(t, "feature.post-apply.patch")
 	s := rgaS0Store(t, feature)
 
-	recipe, skipped, err := RecipeFromPatch(s.Root, rgaS0AdjacentSlug, patch)
+	recipe, skipped, err := rgaS0LegacyRecipeFromPatch(s.Root, rgaS0AdjacentSlug, patch)
 	if err != nil {
 		t.Fatalf("RecipeFromPatch: %v", err)
 	}
@@ -176,7 +200,7 @@ func TestRGAS0AdjacentAutogenEmitsWholeFileWriteWithoutPreimage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.Root, "command.go"), []byte("package command\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	mutated, _, err := RecipeFromPatch(s.Root, rgaS0AdjacentSlug, patch)
+	mutated, _, err := rgaS0LegacyRecipeFromPatch(s.Root, rgaS0AdjacentSlug, patch)
 	if err != nil {
 		t.Fatalf("RecipeFromPatch after worktree mutation: %v", err)
 	}
@@ -198,7 +222,7 @@ func TestRGAS0AdjacentWholeFileWriteRestoresDeletedUpstreamArguments(t *testing.
 
 	// Derive the recipe against the feature tree, exactly as `record` does.
 	derivation := rgaS0Store(t, feature)
-	recipe, _, err := RecipeFromPatch(derivation.Root, rgaS0AdjacentSlug, patch)
+	recipe, _, err := rgaS0LegacyRecipeFromPatch(derivation.Root, rgaS0AdjacentSlug, patch)
 	if err != nil {
 		t.Fatalf("RecipeFromPatch: %v", err)
 	}
@@ -236,7 +260,7 @@ func TestRGAS0AdjacentPhase2InspectionCounts(t *testing.T) {
 	patch := rgaS0Fixture(t, "feature.post-apply.patch")
 
 	derivation := rgaS0Store(t, feature)
-	generated, _, err := RecipeFromPatch(derivation.Root, rgaS0AdjacentSlug, patch)
+	generated, _, err := rgaS0LegacyRecipeFromPatch(derivation.Root, rgaS0AdjacentSlug, patch)
 	if err != nil {
 		t.Fatalf("RecipeFromPatch: %v", err)
 	}

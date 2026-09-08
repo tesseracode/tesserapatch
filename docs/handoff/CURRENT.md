@@ -2121,10 +2121,16 @@ with the patch header still executable. The validator now compares observed
 modes with parsed headers, and a same-validator mode-forgery fixture is added.
 The correction is not yet runtime-validated; this is not S2 acceptance.
 
-The separate `s2-observation-retention` implementer owns only `internal/patchobs`
-and a possible internal retention ADR, with no Go validation or staging.
-It is implementing a bounded capture budget including intermediate reads;
-the main agent owns workflow/CLI/tests and all serial validation.
+The separate `s2-observation-retention` implementation is complete. ADR-038
+proposes a shared 32 MiB budget for distinct pre/postimage bodies, enforced
+before allocation across worktree and streaming Git readers. Over-budget
+sides remain explicitly unavailable with human diagnostics. Bodies stay
+resident through the observation's lifetime for derivation/future simulation;
+no release-and-reread API is added. Recorder copies are isolated and preserve
+deduplication. `ParentCreatedPaths` is copied at both input/recorder boundaries.
+The complete S2 worktree is entering gated serial validation. No Go tests,
+vet or build have run; formatting caught and corrected two misplaced
+test-function insertions before validation began.
 The implementation must bound observation-body residency, derive exclusively
 from immutable observations, preserve non-identical manual/provider recipe
 bytes and provenance, and give every new guard a failing mutation fixture.
@@ -2133,8 +2139,9 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0 and S1 are approved and pushed. S2 implementation is in progress;
-new code is not yet Go-validated or independently reviewed. Before every Go validation
+S0 and S1 are approved and pushed. S2 implementation is checkpoint-ready;
+gated validation is starting and final independent review remains pending.
+Before every Go validation
 run, require 60 continuous seconds at >=80% free memory, load1 <=5 and zero
 active go/compile/link/vet/test processes. Run the prescribed validation
 sequence serially and stop at its first failure.
@@ -2202,6 +2209,14 @@ remains blocked until that release is implemented, soaked and shipped.
   `recipe_autogen.go`, `recipe_authority_s2_test.go`, the affected S0/S1
   workflow tests; `internal/cli/cobra.go`, `feature_patch.go` and the
   affected S0/S1 CLI tests. The retention agent owns the patchobs file set.
+- Retention: `internal/patchobs/{patchobs,gitread,retention}.go`,
+  `internal/patchobs/retention_s2_test.go`,
+  `docs/adrs/ADR-038-observation-image-retention.md`, `docs/adrs/README.md`.
+- Producer mutation fixture: `internal/cli/recipe_authority_s2_cli_test.go`.
+- Ignored, session-only validation wrappers live in `bin/s2-validation/`
+  and must be removed when validation ends. They gate each top-level Go
+  invocation inside the exact shard script, without deadlocking nested Go
+  commands launched by an already gated test.
 
 ### Prior slices (historical)
 
@@ -2718,7 +2733,8 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
-- S2: baseline checks pass; Go validation not started.
+- S2: baseline checks pass; implementation formatting complete; Go validation
+  sequence starting at step 1. Each Go run needs its own 60-second idle window.
 
 ### Prior slices (historical)
 
@@ -8363,9 +8379,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 - S1 closed both S0 review notes: `openInEditor` call sites are scanned across
   the whole `internal/cli` package, and P6 reachability is bound to
   `RunImplement`'s actual validator expression.
-- S2 must decide how long exact pre/postimage bodies remain resident; S1
-  batches Git processes but retains all bodies in memory for future pure
-  derivation.
+- S2 retention decision is ADR-038: at most 32 MiB of distinct image bodies
+  per observation, retained for that observation's lifetime. The cap is
+  enforced during capture; patch/artifact payloads and total-process memory
+  are explicitly outside this image-only budget.
 - S6 must document the intentional `tpatch edit` behavior change: editor
   process failures now propagate as non-zero exits.
 

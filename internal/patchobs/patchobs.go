@@ -24,8 +24,9 @@
 //     availability reason instead.
 //
 // Nothing here writes to disk and nothing here changes public output.
-// Source bodies stay in memory. The Recorder seam is the single hand-off
-// point a later slice replaces with the shared publication step; until
+// Source bodies stay in memory within a per-observation budget (ADR-038).
+// The Recorder seam is the single hand-off point a later slice replaces
+// with the shared publication step; until
 // then the default recorder discards, so wiring a producer is observable
 // only through the seam.
 //
@@ -217,7 +218,9 @@ const (
 )
 
 // SideBytes holds the exact bytes of one observed side. Bodies stay in
-// memory and are never persisted.
+// memory and are never persisted. They remain available for derivation
+// and simulation until the observation is discarded. Callers must treat
+// them as immutable; repeated Git objects may share a backing array.
 type SideBytes struct {
 	Preimage  []byte
 	Postimage []byte
@@ -231,11 +234,10 @@ type EffectObservation struct {
 	Effect      gitutil.PatchEffect
 	Bytes       SideBytes
 	ReasonCodes []string
-	// Contradictions carries the human-readable detail behind a
-	// `*-header-mode-contradiction` reason: which side, which observed
-	// mode, which header mode. It is diagnostic text, never authority,
-	// and it is empty for every effect whose sides agree with — or are
-	// simply not corroborated by — its headers.
+	// Contradictions carries human-readable details for header-mode
+	// contradictions and bounded-capture refusals. It is diagnostic
+	// text, never authority; retention refusals use the existing
+	// preimage-unavailable/postimage-unavailable reason codes.
 	Contradictions []string
 }
 
@@ -258,6 +260,12 @@ type Observation struct {
 	Slug      string
 	Capture   CaptureDescriptor
 	Reference ReferenceDescriptor
+
+	// ParentCreatedPaths is the sorted, pre-captured exclusion set of
+	// paths whose required preimage depends on parent-created bytes.
+	// It makes no ownership or history claim and never authorizes reuse
+	// of a parent's body.
+	ParentCreatedPaths []string
 
 	// PatchPresent is true exactly when a canonical patch existed and was
 	// readable. An absent patch and an unreadable one collapse here
@@ -335,6 +343,12 @@ type Input struct {
 
 	Capture CaptureDescriptor
 
+	// ParentCreatedPaths is supplied during producer discovery, before
+	// capture. It names targets whose required preimage depends on
+	// parent-created bytes; it is an exclusion input, not an ownership
+	// or history claim. Observe copies it without reading parent bodies.
+	ParentCreatedPaths []string
+
 	// PreimageRef is the ref the preimage is reconstructed from: HEAD for
 	// the working-tree modes, the resolved lower commit for a range, the
 	// accepted upstream commit for reconcile. Empty means the producer
@@ -351,13 +365,20 @@ type Input struct {
 // producer that fabricates a side is worse than one that admits it did
 // not look.
 func Observe(in Input) Observation {
+	return observeWithImageBudget(in, imageRetentionLimit)
+}
+
+// The internal limit parameter permits small boundary fixtures without a
+// mutable process-global override or a new producer configuration surface.
+func observeWithImageBudget(in Input, limit int64) Observation {
 	obs := Observation{
-		Producer:     in.Producer,
-		RepoRoot:     in.RepoRoot,
-		Slug:         in.Slug,
-		Capture:      in.Capture.normalized(),
-		PatchPresent: in.PatchPresent,
-		Effects:      []EffectObservation{},
+		Producer:           in.Producer,
+		RepoRoot:           in.RepoRoot,
+		Slug:               in.Slug,
+		Capture:            in.Capture.normalized(),
+		PatchPresent:       in.PatchPresent,
+		Effects:            []EffectObservation{},
+		ParentCreatedPaths: sortedCopy(in.ParentCreatedPaths),
 	}
 
 	if in.PatchPresent {
@@ -381,7 +402,7 @@ func Observe(in Input) Observation {
 		case len(effects) == 0:
 			obs.Reasons = append(obs.Reasons, ReasonPatchEmpty)
 		default:
-			obs.Effects = observeEffects(in, obs.Reference, effects)
+			obs.Effects = observeEffects(in, obs.Reference, effects, &imageBudget{limit: limit})
 		}
 	}
 
@@ -430,7 +451,7 @@ type sidePlan struct {
 // every blob body of every reference, and one `ls-files --stage` only if
 // a worktree postimage turns out to be a gitlink directory. Nothing in
 // that budget scales with the number of effects.
-func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEffect) []EffectObservation {
+func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEffect, budget *imageBudget) []EffectObservation {
 	preCommit := ""
 	if ref.Kind == ReferenceKindCommit {
 		preCommit = ref.Commit
@@ -482,8 +503,8 @@ func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEf
 
 	preTree := readTreeEntries(in.RepoRoot, preCommit, preTreePaths)
 	postTree := readTreeEntries(in.RepoRoot, postCommit, postTreePaths)
-	worktree := readWorktreeSides(in.RepoRoot, worktreePaths)
-	blobs := readBlobs(in.RepoRoot, neededBlobIDs(preTree, postTree))
+	worktree := readWorktreeSides(in.RepoRoot, worktreePaths, budget)
+	blobs := readBlobs(in.RepoRoot, neededBlobIDs(preTree, postTree), budget)
 
 	out := make([]EffectObservation, 0, len(effects))
 	for i, effect := range effects {
@@ -491,6 +512,10 @@ func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEf
 		preExtant, postExtant := effect.ExtantSides()
 
 		pre := sideFromPlan(prePlans[i], preTree, worktree, blobs)
+		if pre.diagnostic != "" {
+			entry.Contradictions = append(entry.Contradictions,
+				fmt.Sprintf("preimage of %q: %s", prePlans[i].path, pre.diagnostic))
+		}
 		pre, preContradiction := reconcileHeaderMode(pre, effect.HeaderOldMode)
 		if preContradiction {
 			entry.ReasonCodes = append(entry.ReasonCodes, ReasonPreimageModeContradiction)
@@ -501,6 +526,10 @@ func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEf
 		pre = demoteImpossibleAbsence(pre, preExtant)
 
 		post := sideFromPlan(postPlans[i], postTree, worktree, blobs)
+		if post.diagnostic != "" {
+			entry.Contradictions = append(entry.Contradictions,
+				fmt.Sprintf("postimage of %q: %s", postPlans[i].path, post.diagnostic))
+		}
 		post, postContradiction := reconcileHeaderMode(post, effect.HeaderNewMode)
 		if postContradiction {
 			entry.ReasonCodes = append(entry.ReasonCodes, ReasonPostimageModeContradiction)
@@ -539,7 +568,7 @@ func observeEffects(in Input, ref ReferenceDescriptor, effects []gitutil.PatchEf
 
 // sideFromPlan folds one planned side onto the batched read that answers
 // it.
-func sideFromPlan(plan sidePlan, tree treeSnapshot, worktree map[string]sideObservation, blobs map[string][]byte) sideObservation {
+func sideFromPlan(plan sidePlan, tree treeSnapshot, worktree map[string]sideObservation, blobs map[string]blobObservation) sideObservation {
 	switch plan.source {
 	case sourceTree:
 		return sideFromTree(tree, blobs, plan.path)
@@ -556,7 +585,7 @@ func sideFromPlan(plan sidePlan, tree treeSnapshot, worktree map[string]sideObse
 // have answered is unobserved. A batch that DID run and does not carry
 // the path proves absence: the producer looked in that tree and the path
 // was not there.
-func sideFromTree(tree treeSnapshot, blobs map[string][]byte, path string) sideObservation {
+func sideFromTree(tree treeSnapshot, blobs map[string]blobObservation, path string) sideObservation {
 	entry, found, read := tree.lookup(path)
 	if !read {
 		return unobserved()
@@ -567,10 +596,14 @@ func sideFromTree(tree treeSnapshot, blobs map[string][]byte, path string) sideO
 	if entry.mode == gitutil.ModeGitlink {
 		return gitlinkSide(entry)
 	}
-	body, ok := blobs[entry.objectSHA]
+	blob, ok := blobs[entry.objectSHA]
 	if !ok {
 		return unobserved()
 	}
+	if blob.diagnostic != "" {
+		return sideObservation{diagnostic: blob.diagnostic}
+	}
+	body := blob.bytes
 	return sideObservation{observed: true, present: true, mode: entry.mode, sha256: sha256Hex(body), bytes: body}
 }
 
@@ -605,11 +638,11 @@ func neededBlobIDs(snapshots ...treeSnapshot) []string {
 // working tree is a filesystem, so no Git process is needed for it — and
 // then resolves, in ONE batched index read, the one shape the filesystem
 // cannot answer: a directory the index records as a gitlink.
-func readWorktreeSides(repoRoot string, paths []string) map[string]sideObservation {
+func readWorktreeSides(repoRoot string, paths []string, budget *imageBudget) map[string]sideObservation {
 	out := make(map[string]sideObservation, len(paths))
 	var gitlinkCandidates []string
 	for _, path := range sortedUnique(paths) {
-		side, isDirectory := observeWorktreePath(repoRoot, path)
+		side, isDirectory := observeWorktreePath(repoRoot, path, budget)
 		if isDirectory {
 			gitlinkCandidates = append(gitlinkCandidates, path)
 			continue
@@ -636,7 +669,7 @@ func readWorktreeSides(repoRoot string, paths []string) map[string]sideObservati
 // observeWorktreePath reads one path from the working tree. The second
 // result reports "this is a directory", which is the one case the
 // filesystem cannot decide alone: the index holds the submodule commit.
-func observeWorktreePath(repoRoot, path string) (side sideObservation, isDirectory bool) {
+func observeWorktreePath(repoRoot, path string, budget *imageBudget) (side sideObservation, isDirectory bool) {
 	abs := filepath.Join(repoRoot, filepath.FromSlash(path))
 	info, err := os.Lstat(abs)
 	if err != nil {
@@ -647,20 +680,38 @@ func observeWorktreePath(repoRoot, path string) (side sideObservation, isDirecto
 	}
 	switch {
 	case info.Mode()&fs.ModeSymlink != 0:
+		if diagnostic := budget.refusal(info.Size()); diagnostic != "" {
+			return sideObservation{diagnostic: diagnostic}, false
+		}
 		target, rerr := os.Readlink(abs)
 		if rerr != nil {
 			return unobserved(), false
 		}
-		body := []byte(target)
+		body, rerr := readImage(strings.NewReader(target), int64(len(target)), budget)
+		if rerr != nil {
+			return sideObservation{diagnostic: rerr.Error()}, false
+		}
 		return sideObservation{observed: true, present: true, mode: gitutil.ModeSymlink, sha256: sha256Hex(body), bytes: body}, false
 	case info.IsDir():
 		return unobserved(), true
 	case !info.Mode().IsRegular():
 		return unobserved(), false
 	}
-	body, rerr := os.ReadFile(abs)
+	if diagnostic := budget.refusal(info.Size()); diagnostic != "" {
+		return sideObservation{diagnostic: diagnostic}, false
+	}
+	file, rerr := os.Open(abs)
 	if rerr != nil {
 		return unobserved(), false
+	}
+	defer file.Close()
+	info, rerr = file.Stat()
+	if rerr != nil || !info.Mode().IsRegular() {
+		return unobserved(), false
+	}
+	body, rerr := readWorktreeImage(file, info.Size(), budget)
+	if rerr != nil {
+		return sideObservation{diagnostic: rerr.Error()}, false
 	}
 	mode := worktreeGitMode(info.Mode())
 	return sideObservation{observed: true, present: true, mode: mode, sha256: sha256Hex(body), bytes: body}, false
@@ -678,11 +729,12 @@ func worktreeGitMode(mode fs.FileMode) string {
 // sideObservation is the internal per-side result before it is folded
 // onto the effect.
 type sideObservation struct {
-	observed bool
-	present  bool
-	mode     string
-	sha256   string
-	bytes    []byte
+	observed   bool
+	present    bool
+	mode       string
+	sha256     string
+	bytes      []byte
+	diagnostic string
 }
 
 // unobserved is the honest record of "nobody established this": no hash,
@@ -889,12 +941,15 @@ func SetRecorder(r Recorder) func() {
 	}
 }
 
-// Emit hands one observation to the installed recorder.
+// Emit hands an independently owned observation to the installed recorder.
 func Emit(obs Observation) {
 	recorderMu.Lock()
 	current := recorder
 	recorderMu.Unlock()
-	current.Record(obs)
+	if _, discard := current.(discardRecorder); discard {
+		return
+	}
+	current.Record(cloneObservation(obs))
 }
 
 // ObserveAndEmit is the one-call form producers use immediately before

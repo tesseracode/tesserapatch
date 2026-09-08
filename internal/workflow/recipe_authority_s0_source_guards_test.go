@@ -407,94 +407,34 @@ func TestRGAS0CoverageTokenScannerIsSensitive(t *testing.T) {
 
 // ── autogeneration derivation contract (PRD §2.8, §6.3) ──────────────────
 
-// rgaS0CheckAutogenDerivation asserts the two load-bearing facts S2
-// changes: drift is decided by FILE-SET comparison, and the postimage is
-// read from the LIVE worktree under the repo root.
+// S2 deliberately replaces the two frozen targets: both entry points must
+// delegate to pure derivation, and file-set origin decisions must disappear.
 func rgaS0CheckAutogenDerivation(src string) error {
 	file, err := rgaS0Parse("recipe_autogen.go", src)
 	if err != nil {
 		return err
 	}
 
-	autogen := rgaS0FuncBody(file, "AutogenRecipeForRecord")
-	if autogen == nil {
-		return fmt.Errorf("AutogenRecipeForRecord not found")
-	}
-	callsFileSetCompare := false
-	ast.Inspect(autogen.Body, func(n ast.Node) bool {
-		if call, ok := n.(*ast.CallExpr); ok && rgaS0CallName(call) == "compareRecipeFileSets" {
-			callsFileSetCompare = true
+	for _, name := range []string{"RecipeFromPatch", "AutogenRecipeForRecord"} {
+		fn := rgaS0FuncBody(file, name)
+		if fn == nil {
+			return fmt.Errorf("%s missing", name)
 		}
-		return true
-	})
-	if !callsFileSetCompare {
-		return fmt.Errorf("AutogenRecipeForRecord no longer decides drift with compareRecipeFileSets")
-	}
-
-	compare := rgaS0FuncBody(file, "compareRecipeFileSets")
-	if compare == nil {
-		return fmt.Errorf("compareRecipeFileSets not found")
-	}
-	pathSetCalls := 0
-	ast.Inspect(compare.Body, func(n ast.Node) bool {
-		if call, ok := n.(*ast.CallExpr); ok && rgaS0CallName(call) == "recipePathSet" {
-			pathSetCalls++
-		}
-		return true
-	})
-	if pathSetCalls != 2 {
-		return fmt.Errorf("compareRecipeFileSets calls recipePathSet %d time(s), want 2 (existing vs derived path sets)", pathSetCalls)
-	}
-
-	pathSet := rgaS0FuncBody(file, "recipePathSet")
-	if pathSet == nil {
-		return fmt.Errorf("recipePathSet not found")
-	}
-	keysOnPathOnly := false
-	ast.Inspect(pathSet.Body, func(n ast.Node) bool {
-		assign, ok := n.(*ast.AssignStmt)
-		if !ok || len(assign.Lhs) != 1 {
-			return true
-		}
-		index, ok := assign.Lhs[0].(*ast.IndexExpr)
-		if !ok {
-			return true
-		}
-		sel, ok := index.Index.(*ast.SelectorExpr)
-		if ok && sel.Sel.Name == "Path" {
-			keysOnPathOnly = true
-		}
-		return true
-	})
-	if !keysOnPathOnly {
-		return fmt.Errorf("recipePathSet no longer keys purely on op.Path; drift is no longer file-set based")
-	}
-
-	derive := rgaS0FuncBody(file, "RecipeFromPatch")
-	if derive == nil {
-		return fmt.Errorf("RecipeFromPatch not found")
-	}
-	readsWorktree := false
-	joinsRepoRoot := false
-	ast.Inspect(derive.Body, func(n ast.Node) bool {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		switch rgaS0CallName(call) {
-		case "os.ReadFile":
-			readsWorktree = true
-		case "filepath.Join":
-			if len(call.Args) > 0 {
-				if ident, ok := call.Args[0].(*ast.Ident); ok && ident.Name == "repoRoot" {
-					joinsRepoRoot = true
+		derives, forbidden := false, false
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			if call, ok := n.(*ast.CallExpr); ok {
+				switch rgaS0CallName(call) {
+				case "DeriveRecipe":
+					derives = true
+				case "compareRecipeFileSets", "recipePathSet", "os.ReadFile", "patchobs.Observe":
+					forbidden = true
 				}
 			}
+			return true
+		})
+		if !derives || forbidden {
+			return fmt.Errorf("%s must derive from its supplied observation, never file sets or live bodies", name)
 		}
-		return true
-	})
-	if !readsWorktree || !joinsRepoRoot {
-		return fmt.Errorf("RecipeFromPatch no longer reads the live worktree via os.ReadFile under repoRoot (readFile=%v joinRepoRoot=%v)", readsWorktree, joinsRepoRoot)
 	}
 	return nil
 }
@@ -511,19 +451,19 @@ func TestRGAS0AutogenDerivationSourceContract(t *testing.T) {
 		src := rgaS0ReadRepoFile(t, "internal/workflow/recipe_autogen.go")
 		for _, tc := range []struct{ name, old, new string }{
 			{
-				name: "drift-stops-being-file-set-based",
-				old:  "drift, reason := compareRecipeFileSets(existingRecipe, derived)",
-				new:  "drift, reason := compareRecipeBytes(existingRecipe, derived)",
+				name: "origin-by-file-set-equality",
+				old:  "derived, err := DeriveRecipe(obs)",
+				new:  "derived, err := compareRecipeFileSets(obs)",
 			},
 			{
-				name: "postimage-stops-coming-from-the-worktree",
-				old:  "data, err := os.ReadFile(target)",
-				new:  "data, err := postimageFromObservation(fc.Path)",
+				name: "postimage-reread-after-capture",
+				old:  "derived, err := DeriveRecipe(obs)",
+				new:  "derived, err := os.ReadFile(obs.RepoRoot)",
 			},
 			{
-				name: "path-set-stops-keying-on-path",
-				old:  "m[op.Path] = true",
-				new:  "m[op.Path+op.Content] = true",
+				name: "recapture-after-first-write",
+				old:  "derived, err := DeriveRecipe(obs)",
+				new:  "obs = patchobs.Observe(obs)\n derived, err := DeriveRecipe(obs)",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {

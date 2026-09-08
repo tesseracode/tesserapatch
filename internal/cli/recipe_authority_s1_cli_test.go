@@ -187,23 +187,26 @@ func TestS1RecordPrintsTheDerivedOperationCount(t *testing.T) {
 		patch := "diff --git a/bin.dat b/bin.dat\nindex 1..2 100644\nGIT binary patch\n" +
 			"diff --git a/not-a-record.txt b/not-a-record.txt\n\n"
 
-		outcome, err := workflow.AutogenRecipeForRecord(s, feature.Slug, patch, true, false)
+		obs := patchobs.Observe(patchobs.Input{
+			Producer: patchobs.ProducerRecord, RepoRoot: tmp, Slug: feature.Slug,
+			Patch: patch, PatchPresent: true, PreimageRef: "HEAD",
+			Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
+		})
+		outcome, err := workflow.AutogenRecipeForRecord(s, obs, true, false)
 		if err != nil {
 			t.Fatalf("AutogenRecipeForRecord: %v", err)
 		}
-		if outcome.Action != workflow.AutogenGenerated {
-			t.Fatalf("action = %q, want generated", outcome.Action)
+		if outcome.Action != workflow.AutogenSkipped {
+			t.Fatalf("action = %q, want skipped for an unsupported binary effect", outcome.Action)
 		}
-		if outcome.Operations != 1 {
-			t.Fatalf("derived operation count = %d, want 1", outcome.Operations)
+		if outcome.Operations != 0 {
+			t.Fatalf("derived operation count = %d, want 0 (no partial recipe)", outcome.Operations)
 		}
 		if got := countPatchFiles(patch); got != 2 {
 			t.Fatalf("countPatchFiles = %d, want 2 — the row needs the counter to over-count", got)
 		}
-		preMigration := countPatchFiles(patch) - len(outcome.SkippedPaths)
-		if preMigration == outcome.Operations {
-			t.Fatalf("this row needs a patch where the pre-migration expression (%d) differs from the derived operation count (%d)",
-				preMigration, outcome.Operations)
+		if countPatchFiles(patch) == outcome.Operations {
+			t.Fatal("binary file counter must not agree with the withheld operation count")
 		}
 	})
 }
@@ -805,7 +808,7 @@ func TestS1CLIProducersRefuseBeforeTheirFirstBoundWrite(t *testing.T) {
 
 	t.Run("sensitivity", func(t *testing.T) {
 		src := rgaS0CLISource(t, "internal/cli/feature_patch.go")
-		anchor := "\tif _, obsErr := observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,\n" +
+		anchor := "\tif recipeObservation, obsErr = observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,\n" +
 			"\t\tstring(captureModeWorkingTreeAll), \"\", \"\", nil, nil); obsErr != nil {\n" +
 			"\t\treturn obsErr\n\t}\n"
 		if !strings.Contains(src, anchor) {
