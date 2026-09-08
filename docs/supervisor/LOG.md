@@ -1,3 +1,22 @@
+## Review — GH #15 S2 core early static review — 2026-09-07
+
+**Reviewer**: `s2-core-static-review`
+**Scope**: workflow derivation/provenance and P1/P2 consumption only;
+retention implementer still owns patchobs. No Go commands were run.
+
+### Verdict: NEEDS REVISION
+
+One HIGH: a forged observed `100644` mode beside an executable patch header
+could bypass capability exclusions after recomputing the observation digest.
+The core compared captured headers with parsed headers but not observed modes
+with those headers. This is metadata validation, not S3 simulation.
+
+### Action Taken
+
+Added direct observed/header-mode corroboration before deriving an operation,
+with an executable-add mode-forgery fixture using the same validator.
+Runtime validation and final independent review remain pending.
+
 ## Implementation Transition — GH #15 S2 analysis to implementation — 2026-09-07
 
 **Agent**: Copilot implementation agent

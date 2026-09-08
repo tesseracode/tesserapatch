@@ -2115,6 +2115,11 @@ unavailable sides and parent-created exclusions. S0's adjacent unsafe legacy
 evidence is preserved in a test-only fixture adapter; the S0 derivation guard
 is deliberately advanced to S2's pure/equality contract with mutation twins.
 The no-production-coverage guard is unchanged.
+Early independent core review found one mode-corroboration blocker: mutating
+an executable observation's mode to regular could bypass exclusions even
+with the patch header still executable. The validator now compares observed
+modes with parsed headers, and a same-validator mode-forgery fixture is added.
+The correction is not yet runtime-validated; this is not S2 acceptance.
 
 The separate `s2-observation-retention` implementer owns only `internal/patchobs`
 and a possible internal retention ADR, with no Go validation or staging.

@@ -1558,6 +1558,8 @@ S2 analysis is complete and implementation is active: the pure derivation/
 provenance core and focused tests are authored; bounded observation retention
 is being implemented on a non-overlapping patchobs surface. No S2 Go
 validation or acceptance has occurred.
+Early core static review requested observed/header-mode corroboration; the
+correction and its negative fixture are authored, awaiting validation.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
