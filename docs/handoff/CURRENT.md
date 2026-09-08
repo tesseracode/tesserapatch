@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S3 validation blocker (2026-09-08)**: step 6's main all-package invocation
+passed, but the resource gate stopped before the second shard after 600
+seconds without a qualifying minute. Final sample: 60% free memory
+(required >=80%), load1 4.03, no active Go tools. This is a resource refusal,
+not a failing Go test. The remaining 21 shards and step 7 have not run.
+S3 is not accepted; no S4 dispatch is authorized.
+
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
 from freshly fetched WAVE_BASE
 `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`. S2 is durably accepted and its
@@ -32,7 +39,8 @@ cases return incomplete records instead of adjudication errors. Ignored
 per-command gate wrappers are prepared in `bin/s3-validation/`. Independent
 whole-S3 reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` reviewed
 checkpoint `9a63697` and returned **APPROVED**, with no significant issue.
-The exact 22-shard suite is starting; step 7 and acceptance remain pending.
+The exact 22-shard suite is resource-blocked after its first invocation;
+step 7 and acceptance remain pending.
 
 ### S3 contract adjudication (resolved)
 
@@ -2210,7 +2218,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: In progress — conservative revision delivered; validation and implementation review
+- **Status**: Blocked — resource gate stopped step 6 before shard 2
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
 - **Release target**: `v0.17.0`
@@ -2218,6 +2226,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+The first step 6 invocation passed every package, including CLI 540.959s and
+workflow 100.705s. The next invocation never started: its required resource
+window timed out after 600 seconds at 60% free memory/load1 4.03/no Go tools.
+The script exited 75 and the first-failure stop prevented every later shard.
+Independent review and steps 1-5 remain passed, but step 6 is incomplete and
+step 7 is unrun. The owned gate scripts and stop sentinel are removed on this
+pause; all 13 research files remain untouched.
 
 S3 checkpoint `9a63697` passes validation steps 1-5: gofmt, targeted S0-S3
 and coupled compatibility/index guards, full owning core packages, affected
@@ -2359,8 +2375,9 @@ worker has delivered the operator's conservative revision and is idle.
 ADR-039 resolves the immediate D3/D5 ambiguity; GH #24 owns future broader-
 domain planning. Contract-fold review is APPROVED and steps 1-5 pass.
 Independent implementation review is APPROVED with no significant issue.
-The exact full-shard validation is starting; wave close and acceptance remain
-pending. No producer/consumer integration was added.
+Step 6 passed its main package invocation but is resource-blocked before
+shard 2. Remaining full validation, wave close and acceptance are pending.
+No producer/consumer integration was added.
 
 ## Prerequisite Status
 
@@ -2433,8 +2450,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Policy fold: `docs/adrs/ADR-039-coverage-complete-operation-domain.md`,
   header pointers in ADR-036/its PRD, `docs/adrs/README.md`, the coordinator
   parity file and directly coupled ADR-index guard pin.
-- Ignored temporary validation wrappers: `bin/s3-validation/`; remove only
-  these owned scripts when the validation attempt ends.
+- The three owned ignored wrappers and stop sentinel in `bin/s3-validation/`
+  are removed at this resource-blocked pause.
 
 ### Completed S2 file record
 
@@ -2969,6 +2986,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Step 6 **PARTIAL / RESOURCE-BLOCKED**, exit 75: its first all-package
+  invocation passes (CLI 540.959s, workflow 100.705s; all other packages pass).
+  The first gate passed at 81% free/load1 2.32. Before shard 2, the next gate
+  waited 600 seconds and ended at 60% free/load1 4.03/no Go tools. No second
+  or later shard ran; step 7 is unrun. Do not call the 22-shard suite passed.
 
 - Current checkpoint `9a63697`: steps 1-2 **PASS**, after separate 60-second
   gates at 86% free/load1 2.80 and 2.90. All S0-S3, compatibility/PIB-212
@@ -8691,13 +8714,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Next Steps
 
 1. Independent whole-S3 review is APPROVED with no findings to revise.
-2. Complete the resource-gated validation sequence (steps 1-5 currently pass).
+2. Once resources recover, rerun the prescribed sequence with a fresh
+   qualifying minute before every top-level Go command. The interrupted
+   exact shard script must be rerun from its beginning and exit successfully.
    GH #24 is future planning, not this implementation.
 3. Close S3 durably with WAVE_BASE
    `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`; do not start S4 under this task.
 
 ## Blockers
 
+- Resource gate: step 6 stopped before shard 2 after 600 seconds at 60%
+  free memory, below the required 80%. Do not relax or bypass the threshold.
+- Full 22-shard success, step 7 and durable close remain outstanding.
 - The D3/D5 policy blocker is resolved by the operator's conservative choice.
   Contract-fold review is APPROVED; implementation revision and Go validation
   have advanced to coordinator validation/review.
@@ -8707,6 +8735,15 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
+- Latest S3 code is `9a63697`; tracking/full-suite dispatch is `7ec3618`.
+  Code is independently approved and steps 1-5 pass. The first step 6
+  invocation also passes, but the next resource gate refused to start shard
+  2. Local implementation commits remain unpushed pending full acceptance;
+  only the original docs-only dispatch `394ae78` was pushed.
+- S3's ignored gate wrappers were removed on pause. Recreate the same
+  per-command protocol for the exact script without modifying its CI-pinned
+  contents; inherited child markers must avoid gating nested test tools
+  against their own already-gated parent process.
 - Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.

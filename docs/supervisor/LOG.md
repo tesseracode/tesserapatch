@@ -1,3 +1,23 @@
+## Implementation Transition — GH #15 S3 resource-blocked full suite — 2026-09-08
+
+**Checkpoint**: `7ec3618` (code `9a63697`)
+**State**: BLOCKED before step 6 shard 2
+
+The main all-package invocation passed: CLI 540.959s, workflow 100.705s,
+and every other package. Its gate passed at 81% free/load1 2.32. Before the
+second shard, the next gate found no continuous qualifying minute within
+600 seconds; final sample 60% free memory, load1 4.03, zero active Go tools.
+The exact script exited 75. This is a resource refusal, not a Go test failure.
+No later shard or step 7 ran; the full suite is not complete.
+
+### Action Taken
+
+Persist the exact stop point and restart protocol. Remove only the three
+owned ignored validation scripts and their stop sentinel. Preserve all 13
+research files and all implementation commits. Independent review and steps
+1-5 remain passed, but full validation/acceptance/push are pending. Resume
+only under the original resource threshold; no S4 dispatch.
+
 ## Review — GH #15 S3 implementation — 2026-09-08
 
 **Reviewer**: `s3-implementation-review`

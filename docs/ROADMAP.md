@@ -1605,6 +1605,10 @@ Independent whole-S3 review is active; its verdict precedes the full
 Independent whole-S3 review of `27ee8bc..9a63697` is APPROVED with no
 significant issue. The exact resource-gated 22-shard suite is starting;
 S3 acceptance still requires that result and the final wave-close gate.
+S3 is 🚧 RESOURCE-BLOCKED: the main all-package invocation of step 6 passed
+(CLI 540.959s, workflow 100.705s), but the next gate timed out after 600
+seconds at 60% free memory before shard 2. No Go test failed; the remaining
+21 shards and step 7 are unrun. No S3 acceptance or S4 dispatch.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
