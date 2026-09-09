@@ -1594,6 +1594,10 @@ semantics and registry/call-chain guards. Carry N1's rename, retain all 11
 N2 mutations while retargeting the phase boundary, and keep N3/#24 out of
 scope. One worker owns production/shared tests; the coordinator owns disjoint
 review-note guard tests and tracking. S5/S6 and domain widening remain excluded.
+Dispatch `70c5f9b` is pushed and the publication worker is active. The
+coordinator's independent N1/N2/N3 guard unit is authored, including all 11
+original mutations and copied-publisher/different-file controls. No S4 Go
+validation has run.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

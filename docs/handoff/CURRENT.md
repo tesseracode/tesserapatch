@@ -12,6 +12,12 @@ HEAD and origin/main match; S3 code remains the accepted `6ba932d` state,
 whose required CI jobs are green. No stashes, alternate worktrees,
 operation markers or tracked changes were present; 13 research files remain
 untouched.
+S4 dispatch is committed and pushed at `70c5f9b`; worker
+`c1f3cf18-a17c-4554-a805-2782498e7c9d` (`s4-coverage-publication`) is active.
+The coordinator's disjoint review-note tests are authored and formatted:
+AST-checked N1 naming, the exact 11 independently preserved N2 mutations,
+publisher-source rejection at other file paths, and N3 admissibility controls.
+No S4 Go validation has run.
 
 ### S4 scope and external-review obligations
 
@@ -2338,6 +2344,13 @@ WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
 
+The bounded publication worker is active after pushed dispatch `70c5f9b`.
+The coordinator independently authored
+`recipe_authority_s4_review_notes_test.go`, preserving all external N1-N3
+requirements with positive controls and same-validator negative fixtures.
+The worker owns the publication/producer implementation and primary guard
+retargeting; no files overlap. Go validation waits for the delivered code.
+
 S4 readiness is complete. External S3 approval and N1-N3 are recorded; the
 reviewer's valid documentation-only `bba1803` commit was preserved and
 pushed unchanged together with receipt `2b441c5`. That freshly fetched,
@@ -2521,6 +2534,8 @@ from `2b441c5` for publication/event wiring only, preserving the S3 pure core
 and ADR-039 operation domain. All seven producers and all 11 existing
 phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
 implementation are excluded. Implementation, validation and review are pending.
+The implementation worker is active; independent review-note guard tests
+are authored but not Go-validated.
 
 ## Prerequisite Status
 
@@ -2581,6 +2596,7 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S4 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized code/test paths are enumerated above.
+- Coordinator: `internal/workflow/recipe_authority_s4_review_notes_test.go`.
 
 ### Completed S3 file record
 
@@ -3140,6 +3156,8 @@ remains blocked until that release is implemented, soaked and shipped.
   required jobs; external review independently reports full reproduction.
   The reviewer-only `[3/8]` durability mismatch is resolved by preserving
   and publishing the documentation commit before taking the S4 base.
+- Independent carryover guard unit is formatted and awaiting coordinated Go
+  validation; no passing-test claim is made.
 
 ### Completed S3 validation
 
@@ -8913,6 +8931,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Active S4 WAVE_BASE is `2b441c5aa374eeb7c7f651e87c9759b573332a2b`,
   after the preserved reviewer commit and external-review receipt were
   pushed. Do not reuse S3's `27ee8bc` or a release-tag range.
+- S4 worker ID: `c1f3cf18-a17c-4554-a805-2782498e7c9d`. Retrieve its result
+  before touching its owned files; it runs no Go validation and does no
+  staging/commits. Coordinator review-note test names use `rgaS4Review*` /
+  `TestRGAS4Review*` and remain outside the worker's scope.
 - N1/N2/N3 are explicit S4 requirements, not open S3 findings. The original
   11 pure-core mutations remain applicable even though publication gains
   its own strictly scoped file/call-chain permissions.

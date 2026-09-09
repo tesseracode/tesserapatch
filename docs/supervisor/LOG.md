@@ -1,3 +1,18 @@
+## Implementation Transition — GH #15 S4 review-note guard unit — 2026-09-08
+
+**Dispatch**: `70c5f9b`, pushed
+**Worker**: `c1f3cf18-a17c-4554-a805-2782498e7c9d`
+**State**: IN PROGRESS
+
+The publication worker owns all enumerated shared production/test files.
+The coordinator authored the disjoint
+`recipe_authority_s4_review_notes_test.go`: real declaration-name checks
+with negative fixtures, all 11 original pure-core mutations independently
+preserved, same publisher source rejected at other paths (including a
+producer file), and unchanged conservative-domain positive/negative controls.
+The unit is formatted but no Go validation has run. Checkpoint only its
+explicit path and tracking; do not stage worker-owned work in progress.
+
 ## Supervisor Dispatch — GH #15 S4 — 2026-09-08
 
 **Authorization**: operator requested S4 implementation with external S3 notes
