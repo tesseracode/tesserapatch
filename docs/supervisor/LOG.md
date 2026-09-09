@@ -1,3 +1,22 @@
+## Review — GH #15 S4 cycle/store compatibility corrections — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Scope**: `0dd96e1` + `c7b6aa4`
+
+### Verdict: APPROVED
+
+The exact P6 diagnostic delta, atomic store-method allowance, negative
+controls and current-source pin are approved. Historical golden files and
+baseline hash/history remain unchanged; the follow-up removes only the
+unused import and refreshes its exact current pin. No significant issues.
+All earlier mapping/output/policy findings remain closed.
+
+### Action Taken
+
+Steps 1-5 pass. Start the exact 22-shard script again from its first
+invocation under fresh per-command resource gates. The reviewer ran no Go
+commands; whole-S4 acceptance still requires full validation and wave close.
+
 ## Implementation Transition — GH #15 S4 cycle/store correction validated — 2026-09-09
 
 **Checkpoint**: `c7b6aa4`

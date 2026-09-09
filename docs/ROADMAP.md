@@ -1670,6 +1670,9 @@ restarts from step 1.
 Corrected cycle/store expectations at `c7b6aa4` pass steps 1-5, including
 source-provenance pins and new sensitivities. Independent correction review
 is pending before the exact full-suite rerun.
+Cycle/store corrections `0dd96e1` + `c7b6aa4` are independently APPROVED.
+All findings are closed and steps 1-5 pass; the full exact 22-shard script
+is restarting before final wave close.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

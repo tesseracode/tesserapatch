@@ -17,6 +17,9 @@ current-source pin records its narrowly changed comparison call.
 Correction `c7b6aa4` now passes steps 1-5, including the cycle, store
 inventory and historical/current-source provenance targets. Independent
 test-correction review remains pending before rerunning the full script.
+That correction review is now **APPROVED** for `0dd96e1` + `c7b6aa4`.
+All review findings are closed. The exact 22-shard script is restarting from
+its first invocation; step 7 and S4 acceptance remain pending.
 
 **S4 full-validation phase (2026-09-09)**: independent review has closed all
 findings, including the final import/alias mapping correction at `9a3c1a6`.
@@ -3307,6 +3310,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Independent cycle/store correction review (`0dd96e1` + `c7b6aa4`):
+  **APPROVED**, no significant issue. All prior findings remain closed.
+- Steps 1-5 pass; the exact step 6 script is restarting in full, not resuming
+  after the failed invocation. Step 7 remains unrun.
 
 - Cycle/store correction `c7b6aa4`: steps 1-2 **PASS**, including routing,
   prepare cycle/store guards and source-provenance pins. Gates at 89% free/
