@@ -1,3 +1,40 @@
+## Implementation Transition — GH #15 S4 alias guard correction authored — 2026-09-09
+
+**State**: IN PROGRESS — test-only correction
+
+The mapping guard now scans whole files for unmodeled function-value
+references to writer-reaching helpers and artifact methods. It refuses them
+rather than pretending the eventual indirect call has a known producer.
+Package aliases/initializers cannot hide outside the function inventory.
+Parenthesized direct calls still resolve through the normal ownership graph.
+
+Added registered P3, unregistered local alias, package alias and artifact
+method-value negatives, plus parenthesized-direct-call and ordinary-text
+positive controls. Existing import-alias/direct-call controls and all 11
+N2 mutations are retained. No production behavior changed. Checkpoint,
+restart gated validation, and request independent correction confirmation.
+
+## Review — GH #15 S4 correction review — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Checkpoints**: `395f58a`, with fixture-only `ee024dc`
+
+### Verdict: NEEDS REVISION
+
+Common producer output is closed; the fixture corrections retain their exact
+assertions. One MEDIUM mapping finding remains: function-value aliases of
+the immediate autogen helper evade incoming-call discovery and ownership,
+even though import aliases are covered. Both a registered P3 caller and an
+unregistered caller can hide the writer with a local function variable.
+
+### Action Taken
+
+Add explicit fail-closed handling for unmodeled function-value references to
+writer-reaching helpers, with same-validator registered/unregistered alias
+fixtures. Preserve direct-call/import-alias controls and all 11 N2 mutations.
+This is a test-guard correction, not a production behavior change. Steps 6-7
+remain unrun; rerun the gated sequence and request correction confirmation.
+
 ## Implementation Transition — GH #15 S4 steps 1-5 pass — 2026-09-09
 
 **Checkpoint**: `ee024dc`

@@ -84,6 +84,8 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 	}
 	functions := map[string]function{}
 	sites := map[string][]string{}
+	files := map[string]*ast.File{}
+	fileImports := map[string]map[string]string{}
 	for path, src := range sources {
 		file, err := rgaS0Parse(path, src)
 		if err != nil {
@@ -103,6 +105,7 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 				imports[name] = filepath.Base(path)
 			}
 		}
+		files[path], fileImports[path] = file, imports
 		bound, _, err := rgaS0ScanWriteArtifact(path, src)
 		if err != nil {
 			return err
@@ -119,25 +122,46 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 			}
 		}
 	}
+	unparen := func(expr ast.Expr) ast.Expr {
+		for {
+			p, ok := expr.(*ast.ParenExpr)
+			if !ok {
+				return expr
+			}
+			expr = p.X
+		}
+	}
+	resolve := func(pkg string, imports map[string]string, expr ast.Expr) string {
+		name := rgaS0CallName(&ast.CallExpr{Fun: unparen(expr)})
+		if name == "" {
+			return ""
+		}
+		if strings.HasPrefix(name, "s.") {
+			return "store." + strings.TrimPrefix(name, "s.")
+		}
+		if !strings.Contains(name, ".") {
+			local := pkg + "." + name
+			if _, found := functions[local]; !found && imports["."] != "" {
+				return imports["."] + "." + name
+			}
+			return local
+		}
+		if qualifier, member, found := strings.Cut(name, "."); found && imports[qualifier] != "" {
+			return imports[qualifier] + "." + member
+		}
+		return name
+	}
 	calls := map[string][]edge{}
 	incoming := map[string][]string{}
+	directCallees := map[ast.Expr]bool{}
 	for key, fn := range functions {
 		ast.Inspect(fn.body, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
 				return true
 			}
-			name := rgaS0CallName(call)
-			if strings.HasPrefix(name, "s.") {
-				name = "store." + strings.TrimPrefix(name, "s.")
-			} else if !strings.Contains(name, ".") {
-				name = fn.pkg + "." + name
-				if _, local := functions[name]; !local && fn.imports["."] != "" {
-					name = fn.imports["."] + "." + rgaS0CallName(call)
-				}
-			} else if qualifier, member, found := strings.Cut(name, "."); found && fn.imports[qualifier] != "" {
-				name = fn.imports[qualifier] + "." + member
-			}
+			name := resolve(fn.pkg, fn.imports, call.Fun)
+			directCallees[unparen(call.Fun)] = true
 			calls[key] = append(calls[key], edge{name, call})
 			incoming[name] = append(incoming[name], key)
 			return true
@@ -255,6 +279,73 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 	for key := range writeReachable {
 		if !coveredFunctions[key] {
 			return fmt.Errorf("unmapped incoming caller reaches a bound writer: %s", key)
+		}
+	}
+	// The graph models direct calls, not escaping function values. Reject
+	// unmodeled writer references instead of pretending their eventual call
+	// inherits an already registered owner. Scan whole files so package-level
+	// aliases and initializers cannot hide outside the function inventory.
+	for path, file := range files {
+		nonValues := map[*ast.Ident]bool{}
+		ast.Inspect(file, func(n ast.Node) bool {
+			switch node := n.(type) {
+			case *ast.FuncDecl:
+				nonValues[node.Name] = true
+			case *ast.Field:
+				for _, name := range node.Names {
+					nonValues[name] = true
+				}
+			case *ast.ValueSpec:
+				for _, name := range node.Names {
+					nonValues[name] = true
+				}
+			case *ast.TypeSpec:
+				nonValues[node.Name] = true
+			case *ast.ImportSpec:
+				nonValues[node.Name] = true
+			case *ast.SelectorExpr:
+				nonValues[node.Sel] = true
+				if name, ok := node.X.(*ast.Ident); ok {
+					nonValues[name] = true
+				}
+			case *ast.KeyValueExpr:
+				if name, ok := node.Key.(*ast.Ident); ok {
+					nonValues[name] = true
+				}
+			case *ast.LabeledStmt:
+				nonValues[node.Label] = true
+			case *ast.BranchStmt:
+				nonValues[node.Label] = true
+			}
+			return true
+		})
+		var referenceErr error
+		ast.Inspect(file, func(n ast.Node) bool {
+			var expr ast.Expr
+			artifactMethod := false
+			switch node := n.(type) {
+			case *ast.Ident:
+				if nonValues[node] || (node.Obj != nil && node.Obj.Kind != ast.Fun) {
+					return true
+				}
+				expr = node
+			case *ast.SelectorExpr:
+				expr = node
+				artifactMethod = node.Sel.Name == "WriteArtifact" || node.Sel.Name == "WriteArtifactAtomic"
+			default:
+				return true
+			}
+			if directCallees[expr] {
+				return true
+			}
+			target := resolve(file.Name.Name, fileImports[path], expr)
+			if writeReachable[target] || artifactMethod {
+				referenceErr = fmt.Errorf("unmapped function-value reference to bound writer %s in %s", target, path)
+			}
+			return true
+		})
+		if referenceErr != nil {
+			return referenceErr
 		}
 	}
 	for _, bound := range sites {
@@ -394,6 +485,62 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 		defer delete(sources, path)
 		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
 			t.Fatal("an import alias hid an unregistered incoming compatibility caller")
+		}
+	})
+	t.Run("p3-function-value-compatibility-autogen", func(t *testing.T) {
+		path := "internal/workflow/refresh.go"
+		before := sources[path]
+		const anchor = "publication := ObserveCoveragePublication(s, obs)"
+		sources[path] = strings.Replace(before, anchor,
+			"autogen := AutogenRecipeForRecord\n\t_, _ = autogen(s, obs, true, false)\n\t"+anchor, 1)
+		defer func() { sources[path] = before }()
+		if sources[path] == before || rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("P3 hid an immediate bound writer behind a function-value alias")
+		}
+	})
+	t.Run("unregistered-function-value-compatibility-autogen", func(t *testing.T) {
+		path := "internal/cli/s4_unregistered_function_value.go"
+		sources[path] = "package cli\nimport (\nwf \"github.com/tesseracode/tesserapatch/internal/workflow\"\n\"github.com/tesseracode/tesserapatch/internal/store\"\n\"github.com/tesseracode/tesserapatch/internal/patchobs\"\n)\nfunc unregisteredFunctionValue(s *store.Store, obs patchobs.Observation) { autogen := wf.AutogenRecipeForRecord; _, _ = autogen(s, obs, true, false) }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("an unregistered function-value alias hid the shared writer")
+		}
+	})
+	t.Run("package-level-function-value-alias", func(t *testing.T) {
+		path := "internal/cli/s4_unregistered_package_alias.go"
+		sources[path] = "package cli\nimport (\nwf \"github.com/tesseracode/tesserapatch/internal/workflow\"\n\"github.com/tesseracode/tesserapatch/internal/store\"\n\"github.com/tesseracode/tesserapatch/internal/patchobs\"\n)\nvar hiddenAutogen = wf.AutogenRecipeForRecord\nfunc unregisteredPackageAlias(s *store.Store, obs patchobs.Observation) { _, _ = hiddenAutogen(s, obs, true, false) }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("a package-level alias escaped the incoming writer inventory")
+		}
+	})
+	t.Run("artifact-method-value-alias", func(t *testing.T) {
+		path := "internal/cli/s4_unregistered_method_value.go"
+		sources[path] = "package cli\nimport \"github.com/tesseracode/tesserapatch/internal/store\"\nfunc unregisteredMethodValue(s *store.Store) { write := s.WriteArtifactAtomic; _ = write(\"slug\", \"apply-recipe.json\", \"{}\") }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("an artifact method-value hid a bound write")
+		}
+	})
+	t.Run("parenthesized-direct-call-keeps-owner", func(t *testing.T) {
+		path := "internal/cli/cobra.go"
+		before := sources[path]
+		sources[path] = strings.Replace(before, "workflow.AutogenRecipeForRecord(s,",
+			"(workflow.AutogenRecipeForRecord)(s,", 1)
+		defer func() { sources[path] = before }()
+		if sources[path] == before {
+			t.Fatal("parenthesized direct-call control did not change its input")
+		}
+		if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
+			t.Fatalf("parenthesized direct call lost its registered owner: %v", err)
+		}
+	})
+	t.Run("function-name-text-is-not-a-reference", func(t *testing.T) {
+		path := "internal/cli/s4_writer_name_text.go"
+		sources[path] = "package cli\nfunc writerNameText() string { return \"AutogenRecipeForRecord\" }\n"
+		defer delete(sources, path)
+		if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
+			t.Fatalf("ordinary text was treated as a writer reference: %v", err)
 		}
 	})
 	t.Run("five-only-registry", func(t *testing.T) {

@@ -8,7 +8,14 @@
 passes steps 1-5, including all targeted S0-S4/coupled guards, owning
 packages, CLI regressions, vet and build. Every command had a fresh
 qualifying window at 89% free memory. Independent mapping/output correction
-review is pending before the expensive full 22-shard phase. S4 is not accepted.
+review closed output and approved the exact fixture corrections, but found
+one remaining function-value alias bypass in the mapping guard. The
+coordinator is fixing that guard with registered/unregistered negative
+fixtures before restarting validation. The fix is authored: whole-file
+reference scanning refuses unmodeled function values of writer-reaching
+helpers and artifact writers, while parenthesized direct calls remain mapped.
+Registered/unregistered/package aliases, method values and literal-text
+controls are added. S4 is not accepted.
 
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
@@ -3263,6 +3270,16 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Mapping alias correction is authored/formatted, with no production change.
+  Whole-file scans include package initializers/aliases; direct calls retain
+  their ownership graph. New same-validator negative and positive controls
+  await the restarted gated sequence.
+
+- Correction review at `395f58a`/`ee024dc`: **NEEDS REVISION**, one remaining
+  function-value alias mapping bypass. Output finding and fixture concerns
+  are closed. Previous steps 1-5 pass but do not exercise the missing case;
+  steps 6-7 remain unrun.
 
 - Current retry `ee024dc`: steps 1-2 **PASS** after gates at 89% free/load1
   2.48 and 2.79; workflow selector 6.454s, CLI selector 27.075s.
@@ -9075,8 +9092,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- Mapping/output review revisions pass validation steps 1-5; independent
-  correction confirmation and steps 6-7 remain before closure.
+- Output is independently approved. The mapping guard still needs the
+  function-value alias correction, its negative fixtures and confirmation.
+  Steps 6-7 remain outstanding.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
   ADR-040 is independently APPROVED; implementation evidence remains required.
   This is not GH #24.

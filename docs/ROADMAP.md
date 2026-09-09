@@ -1634,6 +1634,14 @@ input/precondition corrections are authored without changing production.
 Corrected checkpoint `ee024dc` now passes steps 1-5 under individual 89%
 free-memory gates. Independent correction review is pending before the full
 22-shard and wave-close phases; S4 is not yet accepted.
+Correction review closes common output and accepts fixture corrections, but
+one mapping-guard function-value alias bypass remains. A test-only
+fail-closed correction and registered/unregistered mutation fixtures are next;
+full validation and S4 acceptance remain pending.
+The alias correction is authored as a fail-closed whole-file reference
+check, not an assumed alias owner. Registered/unregistered/package aliases
+and artifact method values have negative controls; direct-call and literal
+text controls remain positive. Revalidation and confirmation are next.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
