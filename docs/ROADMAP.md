@@ -1631,6 +1631,9 @@ policy-fold review are in progress. GH #24 remains excluded.
 Revision `395f58a` passes the repaired golden/legacy/policy/carryover families;
 targeted validation stopped on two remaining fixture assertions. Their exact
 input/precondition corrections are authored without changing production.
+Corrected checkpoint `ee024dc` now passes steps 1-5 under individual 89%
+free-memory gates. Independent correction review is pending before the full
+22-shard and wave-close phases; S4 is not yet accepted.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

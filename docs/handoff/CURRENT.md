@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**Current S4 validation (2026-09-09)**: corrected checkpoint `ee024dc`
+passes steps 1-5, including all targeted S0-S4/coupled guards, owning
+packages, CLI regressions, vet and build. Every command had a fresh
+qualifying window at 89% free memory. Independent mapping/output correction
+review is pending before the expensive full 22-shard phase. S4 is not accepted.
+
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
 coverage status/reasons line; and D15's P2 writing-event "always pair" rule
@@ -2637,7 +2643,8 @@ the scoped corrections are in progress. Review-note guard tests pass.
 Independent review then found mapping/output defects and the distinct P2
 writing-event reason conflict. The operator resolved the third in favor of
 unchanged D3 semantic reasons; ADR-040 records it. Mapping/output corrections are delivered and policy-fold review is APPROVED.
-Full revalidation and independent implementation-correction review remain pending.
+Steps 1-5 now pass at `ee024dc`. Independent implementation-correction review,
+the full 22-shard suite and wave-close gate remain pending.
 
 ## Prerequisite Status
 
@@ -3256,6 +3263,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Current retry `ee024dc`: steps 1-2 **PASS** after gates at 89% free/load1
+  2.48 and 2.79; workflow selector 6.454s, CLI selector 27.075s.
+- Steps 3-5 **PASS**: gitutil 6.585s, patchobs 1.425s, store 2.613s,
+  workflow 91.120s; expanded CLI regressions 105.342s; vet/build clean.
+  Each command had a separate gate at 89% free/load1 <=3.12.
+- Independent correction review remains pending; steps 6-7 have not run.
 
 - Retry `395f58a`: step 1 **PASS**; step 2 **FAIL** on two fixture assertions
   after gates at 89% free/load1 3.21 and 2.21. Golden, legacy, policy and
@@ -9061,8 +9075,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- Mapping/output review revisions are delivered; Go revalidation and
-  independent confirmation are required before closing those findings.
+- Mapping/output review revisions pass validation steps 1-5; independent
+  correction confirmation and steps 6-7 remain before closure.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
   ADR-040 is independently APPROVED; implementation evidence remains required.
   This is not GH #24.

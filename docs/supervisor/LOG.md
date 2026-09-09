@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S4 steps 1-5 pass — 2026-09-09
+
+**Checkpoint**: `ee024dc`
+**Reviewer**: `334f5d27-1085-4722-b23c-82652d39b04a`
+**State**: IN PROGRESS — awaiting correction review before full shards
+
+All targeted S0-S4/coupled guards and compatibility fixtures pass, as do
+owning packages, expanded CLI regressions, vet and build. Every invocation
+had its own 60-second window at 89% free memory, load1 <=5 and no active Go
+tools. Workflow owning suite 91.120s; CLI regressions 105.342s.
+The two last fixture corrections preserve strict byte/precondition checks
+without modifying production.
+
+Await independent confirmation of the mapping/output corrections before the
+expensive full 22-shard run. ADR-040 policy review is already approved.
+Steps 6-7 and S4 acceptance remain pending.
+
 ## Implementation Transition — GH #15 S4 revision-1 validation stopped — 2026-09-09
 
 **Checkpoint**: `395f58a`
