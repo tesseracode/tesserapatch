@@ -1598,6 +1598,15 @@ Dispatch `70c5f9b` is pushed and the publication worker is active. The
 coordinator's independent N1/N2/N3 guard unit is authored, including all 11
 original mutations and copied-publisher/different-file controls. No S4 Go
 validation has run.
+The working draft is delivered with 32 focused test families. P3's outer
+AcceptShadow propagation is a necessary authorized scope extension, and
+P2's non-writing checkpoint/D16 interpretation is under independent
+confirmation. No Go validation or S4 acceptance has occurred.
+The coordinator scoped P2's extra D16 check to the patch-writing events
+explicitly named by D15; category-(c) coverage-only checkpoints retain the
+existing S3 semantic validator and create no provenance/origin claim.
+Manual and auto P3 error-carrier closures are authorized. These corrections
+remain subject to independent S4 review; no domain/schema widening is proposed.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

@@ -18,6 +18,17 @@ The coordinator's disjoint review-note tests are authored and formatted:
 AST-checked N1 naming, the exact 11 independently preserved N2 mutations,
 publisher-source rejection at other file paths, and N3 admissibility controls.
 No S4 Go validation has run.
+The worker delivered a formatted working draft with 32 focused test
+families, not a validated completion. Two integration items remain:
+P3's outer `AcceptShadow` caller still swallows publication failures, and
+the draft applies P2's D16 rule to a coverage-only checkpoint whose recipe
+is semantically complete but non-canonical. The coordinator is closing the
+caller scope and correcting an over-broad D16 check: D15's detailed rule
+says "the patch it just wrote" and its corollary says "when the patch did
+change". That extra P2 check applies to patch-writing events, not the
+coverage-only category-(c) checkpoint. The checkpoint uses the unchanged
+S3 completeness predicates, writes coverage only, and makes no origin or
+provenance claim. Independent S4 review must confirm this interpretation.
 
 ### S4 scope and external-review obligations
 
@@ -76,6 +87,13 @@ production surfaces sequentially:
 - `internal/workflow/recipe_autogen.go`, `implement.go`, `refresh.go`;
   `internal/cli/cobra.go`, `feature_patch.go`, `phase2.go`, `c1.go`,
   `producer_observation.go`; and tightly coupled `internal/store/manual.go`.
+- Authorized caller-closure extension: `internal/workflow/accept.go`,
+  limited to surfacing owed P3 coverage-publication errors while preserving
+  unrelated best-effort diagnostics and shadow recovery.
+- Its auto-accept caller in `internal/workflow/reconcile.go` is also
+  authorized only for propagating that typed publication failure through
+  `RunReconcile`/CLI, rather than turning it into notes plus exit zero.
+  This is P3 producer error plumbing, not S5 replay/consumer behavior.
 - Existing S0/S1 producer and phase-boundary tests:
   `internal/workflow/recipe_authority_s0_source_guards_test.go`,
   `recipe_authority_s0_producers_test.go`, `producer_observation_s1_test.go`;
@@ -2344,6 +2362,14 @@ WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
 
+S4 draft delivered: shared publisher, generic atomic adapter, producer wiring,
+pre-write recipe/provenance snapshots, P7 reconstruction/final-observation
+checks, error/order guards and 32 focused test families. The worker did no
+Go validation or staging. It correctly left `accept.go` untouched until
+authorized; the coordinator now authorizes that tightly coupled P3 caller
+fix. The P2 checkpoint/D16 question is being independently checked against
+the existing contract rather than assigned invented incomplete reasons.
+
 The bounded publication worker is active after pushed dispatch `70c5f9b`.
 The coordinator independently authored
 `recipe_authority_s4_review_notes_test.go`, preserving all external N1-N3
@@ -2533,9 +2559,9 @@ S0-S3 are accepted, externally reviewed and durably pushed. S4 is dispatched
 from `2b441c5` for publication/event wiring only, preserving the S3 pure core
 and ADR-039 operation domain. All seven producers and all 11 existing
 phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
-implementation are excluded. Implementation, validation and review are pending.
-The implementation worker is active; independent review-note guard tests
-are authored but not Go-validated.
+implementation are excluded. The draft is delivered but remains unvalidated;
+P3 caller error propagation and P2 checkpoint-rule confirmation precede the
+validation/review phase. Independent review-note guard tests are authored.
 
 ## Prerequisite Status
 
@@ -2597,6 +2623,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - S4 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized code/test paths are enumerated above.
 - Coordinator: `internal/workflow/recipe_authority_s4_review_notes_test.go`.
+- Worker draft touches the declared publication/producer surfaces and adds
+  the declared atomic/runtime/guard test files. `accept.go` is now explicitly
+  added for the necessary P3 outer-caller error propagation.
 
 ### Completed S3 file record
 
@@ -3158,6 +3187,9 @@ remains blocked until that release is implemented, soaked and shipped.
   and publishing the documentation commit before taking the S4 base.
 - Independent carryover guard unit is formatted and awaiting coordinated Go
   validation; no passing-test claim is made.
+- Worker reports 32 S4 test families, formatted and whitespace-clean.
+  No Go validation has run. The AcceptShadow propagation regression is
+  intentionally expected to fail until its now-authorized caller fix lands.
 
 ### Completed S3 validation
 
@@ -8911,16 +8943,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Implement the single publisher and seven-producer event obligations,
-   including N1/N2 guard migration and independent carryover evidence.
+1. Correct P3's outer caller and resolve the precise scope of P2's
+   checkpoint/D16 condition. Preserve N1/N2 evidence and N3's domain boundary.
 2. Run the required resource-gated sequence and independent review.
 3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
    Do not start S5 or GH #24 implementation.
 
 ## Blockers
 
-- None blocking S4 dispatch. Surface any genuine publication-contract
-  contradiction rather than inventing reasons, scope or authority.
+- Draft P3 publication failures are still swallowed by `AcceptShadow`;
+  the narrowly scoped caller fix is now authorized.
+- Confirm P2's coverage-only checkpoint rule against D3/D15; do not invent
+  a reason or mutate recipe/provenance to force an incomplete result.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.

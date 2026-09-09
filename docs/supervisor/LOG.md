@@ -1,3 +1,52 @@
+## Implementation Scope Clarification — GH #15 S4 P2 checkpoint — 2026-09-09
+
+**State**: IN PROGRESS — code correction, subject to independent S4 review
+
+The draft applies P2's extra D16 check to every P2 event. The detailed D15
+policy qualifies it with "the patch it just wrote", and its following
+corollary explicitly begins "when the patch did change". Category-(c)
+checkpoints write no patch and must alter coverage only. Their coverage is
+therefore judged by the unchanged S3 ten-predicate validator, with no
+provenance repair or origin claim. A formatting-only mismatch cannot create
+an otherwise inapplicable incomplete reason.
+
+Correct the condition to patch-writing P2 events, keeping their D16 check.
+Add a real compact/non-canonical on-disk gated recipe checkpoint proving
+complete semantic coverage, exact recipe/provenance/state preservation and
+no borrowed rewrite reasons. Retain the wrong writing-event control. This
+does not widen ADR-039, change schema/reasons or consume GH #24; it applies
+the detailed existing branch qualification. Independent S4 review must
+confirm it before acceptance.
+
+Also authorize `internal/workflow/reconcile.go` only for the P3 auto-accept
+publication-error carrier: the current auto path turns AcceptShadow errors
+into notes and can let CLI return zero. Close both manual and auto caller
+chains without adding persisted/public schema or replay behavior.
+
+## Implementation Transition — GH #15 S4 draft and integration closure — 2026-09-09
+
+**Worker**: `c1f3cf18-a17c-4554-a805-2782498e7c9d`
+**State**: IN PROGRESS — unvalidated working draft
+
+The worker delivered the shared publisher, generic atomic adapter, producer
+wiring and 32 focused test families, preserving N1 and all 11 original N2
+mutations. It ran formatting/whitespace checks only; no Go validation or
+staging. Protected review-note tests, conservative S3 core, documents and
+research files were not changed.
+
+### Integration Closure
+
+Authorize `internal/workflow/accept.go` specifically to stop converting owed
+P3 publication failures into best-effort warnings. This is a necessary
+producer-caller closure, not S5 consumer behavior. Preserve unrelated warning
+behavior and recovery state; the existing S4 regression exercises this chain.
+
+The draft also refuses a P2 coverage-only checkpoint when all semantic
+predicates pass but raw D16 equality does not. Confirm whether D15's explicit
+patch-writing qualifications already exclude that checkpoint from D16's
+additional condition. Do not invent reasons, widen ADR-039 or edit the
+contract silently. Independent scope confirmation precedes that change.
+
 ## Implementation Transition — GH #15 S4 review-note guard unit — 2026-09-08
 
 **Dispatch**: `70c5f9b`, pushed
