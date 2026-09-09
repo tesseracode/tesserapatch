@@ -1,3 +1,15 @@
+## Implementation Transition — GH #15 S4 alias correction validated — 2026-09-09
+
+**Checkpoint**: `6287d5e`
+**State**: IN PROGRESS — correction review pending
+
+Steps 1-5 pass with all new function/method/package-alias negatives and
+direct-call/text positives. Every command had a fresh 60-second window at
+89% free memory, load1 <=5 and no active Go tools. Full workflow 91.565s;
+CLI regression families 106.199s; vet/build clean.
+No production behavior changed in this correction. Await independent
+confirmation before the expensive full 22-shard and wave-close stages.
+
 ## Implementation Transition — GH #15 S4 alias guard correction authored — 2026-09-09
 
 **State**: IN PROGRESS — test-only correction

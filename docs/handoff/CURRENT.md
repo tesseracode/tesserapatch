@@ -16,6 +16,8 @@ reference scanning refuses unmodeled function values of writer-reaching
 helpers and artifact writers, while parenthesized direct calls remain mapped.
 Registered/unregistered/package aliases, method values and literal-text
 controls are added. S4 is not accepted.
+Checkpoint `6287d5e` now passes steps 1-5 with the added alias controls.
+Independent correction confirmation remains pending before full shards.
 
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
@@ -3270,6 +3272,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Alias correction `6287d5e`: steps 1-2 **PASS**, fresh gates at 89% free/
+  load1 2.69 and 2.62; workflow selector 6.989s, CLI selector 27.507s.
+- Steps 3-5 **PASS**: gitutil 6.572s, patchobs 1.399s, store 2.683s,
+  workflow 91.565s; CLI regressions 106.199s; vet/build clean. All commands
+  independently gated at 89% free, load1 <=3.15.
+- Independent alias-correction review remains pending; steps 6-7 unrun.
 
 - Mapping alias correction is authored/formatted, with no production change.
   Whole-file scans include package initializers/aliases; direct calls retain

@@ -1642,6 +1642,9 @@ The alias correction is authored as a fail-closed whole-file reference
 check, not an assumed alias owner. Registered/unregistered/package aliases
 and artifact method values have negative controls; direct-call and literal
 text controls remain positive. Revalidation and confirmation are next.
+Alias correction `6287d5e` passes steps 1-5, including every new negative
+and positive control. Independent confirmation is pending before full
+22-shard validation and wave close.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
