@@ -2,7 +2,102 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**S4 DISPATCHED (2026-09-08)**: shared coverage publication and the
+seven-producer obligation only. Fresh WAVE_BASE:
+`2b441c5aa374eeb7c7f651e87c9759b573332a2b`, fetched after publishing the
+external S3 review receipt and preserving reviewer-owned `bba1803` unchanged.
+HEAD and origin/main match; S3 code remains the accepted `6ba932d` state,
+whose required CI jobs are green. No stashes, alternate worktrees,
+operation markers or tracked changes were present; 13 research files remain
+untouched.
+
+### S4 scope and external-review obligations
+
+**Authority**: Accepted ADR-036 D2/D6/D10/D15/D16 and PRD S4/producer and
+recovery matrix, qualified by ADR-039's conservative v1 domain. S1-S3 and
+ADR-038 retention are prerequisites, not surfaces to regress.
+
+- One shared `PublishCoverage` entry point with typed input, owned by
+  `internal/workflow/recipe_coverage_publish.go`. Reuse the S3 pure builder/
+  codec and existing atomic-write machinery; no producer encodes its own
+  coverage or implements private policy.
+- Wire all P1-P7 events, not merely command names: P1 every record outcome;
+  P2 successful writes and its non-empty same-patch checkpoint; P3 every
+  successful canonical patch write even without generation append; P4's patch
+  write separately from its P6 implement event; P5 actual patch writes only;
+  P6 both successful recipe-write arms and manual checkpoint; P7 actual
+  changed bytes on the resolved canonical artifact, including editor errors.
+- Keep all no-event paths inert. P2's empty capture, P4/P5 empty captures,
+  reapply branches, unchanged edits, unset EDITOR, unrelated artifacts and
+  root-level decoys do not invent an event. P2's category-(c) checkpoint
+  changes coverage only: no recipe/provenance/patch/generation/state writes.
+- Preserve pre-write immutable observations and actual written/checkpointed
+  bytes. Publish last after recipe/provenance/generation obligations; P6 also
+  finalizes after the state-mark attempt, before returning its result. Do not
+  turn the pre-write observation recorder into an early publication hook.
+- Surface publication failures for every producer. Preserve/chains primary
+  state/editor failures in the specified order; never log-and-succeed.
+  Propagate the remaining ignored cycle patch-write failure.
+- Preserve D6 noop provenance convergence, D16 raw canonical byte proof,
+  manual/provider bytes and incomplete-regeneration behavior. Apply the exact
+  conditional rewrite-reason pair; do not invent reasons to make a branch fit.
+- Add atomic-publication, ordering/recovery/failure fixtures and a seven-entry
+  producer registry plus separate AST-derived site-to-producer call-chain
+  mapping. The shared recipe writer maps by caller; seven producers is not
+  seven source write sites.
+
+**N1**: rename the real test declaration to
+`TestRGAS0CoveragePhaseBoundaryHolds` (no obsolete-name alias).
+**N2**: retarget `rgaS0CoveragePhaseSource` without weakening pure-core
+restrictions. Permit I/O only at the designated publisher/registered producer
+surfaces and retain all 11 original planted mutations: different file, os
+import, store.New, observation, artifact snapshot, Git call, execution,
+spaced existing writer, artifact constant, direct CWD and spaced-AST CWD.
+Add publisher/producer-specific negative cases. If any original fixture truly
+must change, stop and name the exact disposition in this handoff.
+**N3**: GH #24 is out of S4 scope. Do not widen ADR-039's domain, change the
+wire schema/closed vocabularies, or implement S5 consumers/S6 public assets.
+
+### S4 ownership and validation
+
+One implementation worker, `s4-coverage-publication`, owns all shared
+production surfaces sequentially:
+- New `internal/workflow/recipe_coverage_publish.go` and, if required, a
+  narrowly generic `internal/store/artifact_atomic.go` adapter over the
+  existing atomic writer (no store-owned coverage policy).
+- `internal/workflow/recipe_autogen.go`, `implement.go`, `refresh.go`;
+  `internal/cli/cobra.go`, `feature_patch.go`, `phase2.go`, `c1.go`,
+  `producer_observation.go`; and tightly coupled `internal/store/manual.go`.
+- Existing S0/S1 producer and phase-boundary tests:
+  `internal/workflow/recipe_authority_s0_source_guards_test.go`,
+  `recipe_authority_s0_producers_test.go`, `producer_observation_s1_test.go`;
+  `internal/cli/recipe_authority_s0_cli_test.go`,
+  `recipe_authority_s1_cli_test.go`; `internal/store/manual_test.go`.
+- New `internal/workflow/recipe_authority_s4_publish_test.go`,
+  `recipe_authority_s4_producer_test.go`,
+  `recipe_authority_s4_publication_guards_test.go`,
+  `internal/cli/recipe_authority_s4_cli_test.go`,
+  `recipe_authority_s4_event_test.go`.
+
+The coordinator owns tracking and the disjoint
+`internal/workflow/recipe_authority_s4_review_notes_test.go`
+(`rgaS4Review*` / `TestRGAS4Review*`), independently preserving N1/N2 evidence.
+No same-file parallel edits. Any additional path or contract ambiguity
+requires explicit coordinator scope/adjudication before changes.
+The worker does not stage, commit, push or run Go validation; the coordinator
+owns the serial sequence and independent review. Formatting owned files is
+allowed. No broad staging, amendments, dropped user files or release/tag.
+
+Before each top-level Go validation, require 60 continuous seconds at >=80%
+free memory, load1 <=5 and no active Go toolchain/test process. Stop at the
+first failure. Run gofmt, targeted S0-S4/coupled guards, affected packages,
+vet, build, the exact shard script via `sh`, then the mechanical gate with
+the S4 WAVE_BASE above. Long processes remain session-attached unless the
+operator explicitly requests persistence. Do not chmod tracked scripts.
+
+### S3 accepted prerequisite and external review (historical)
 
 **S3 ACCEPTED (2026-09-08)**: both independent reviews and all seven
 validation stages pass. The explicit-WAVE_BASE mechanical gate reports
@@ -2230,18 +2325,27 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s3`
+- **Task ID**: `implement-recipe-generation-authority-s4`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: S3 — strict coverage schema, pure simulation and exact completeness
-- **Status**: Complete — S3 ACCEPTED; all seven validation stages pass
+- **Description**: S4 — shared coverage publication and all seven governed producers
+- **Status**: In progress — dispatched with external S3 notes N1-N3
 - **Assigned**: 2026-09-08
-- **WAVE_BASE**: `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`
+- **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
 - **Release target**: `v0.17.0`
 
-WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
+WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
+
+S4 readiness is complete. External S3 approval and N1-N3 are recorded; the
+reviewer's valid documentation-only `bba1803` commit was preserved and
+pushed unchanged together with receipt `2b441c5`. That freshly fetched,
+fully pushed commit is the S4 base. No S3 implementation fix was needed.
+The bounded S4 task and disjoint ownership above are checkpointed before code.
+No S4 Go validation or acceptance is claimed.
+
+### Completed S3 execution (historical)
 
 Received the external S3 APPROVED verdict and registered N1-N3 for S4.
 Readiness inspection confirms only the reviewer's `docs/REVIEW-PLAYBOOK.md`
@@ -2412,18 +2516,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S0-S3 are accepted. S3 supplies the exact strict coverage schema/codec/hash
-helpers, input-aware validation, pure operation assignment/simulation/
-reclassification, exact reason/observation invariants and all-ten-predicate
-completeness under ADR-039's conservative domain. Only preimage-bearing
-write-file operations can qualify for complete v1 coverage; other recipe
-bytes and existing execution behavior remain preserved.
-
-Both independent reviews and all seven validation stages pass. The final
-mechanical gate is **8/8 PASS** at pushed `657a3db`; terminal tracking changes
-documentation only. No coverage publication, producer/consumer integration
-or replay authorization was added. S4-S6 and GH #13 implementation remain
-outside this task. GH #24 tracks the separate broader-domain planning gap.
+S0-S3 are accepted, externally reviewed and durably pushed. S4 is dispatched
+from `2b441c5` for publication/event wiring only, preserving the S3 pure core
+and ADR-039 operation domain. All seven producers and all 11 existing
+phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
+implementation are excluded. Implementation, validation and review are pending.
 
 ## Prerequisite Status
 
@@ -2481,6 +2578,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- S4 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`. Authorized code/test paths are enumerated above.
+
+### Completed S3 file record
 
 - S3 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
@@ -3033,6 +3135,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S4: no Go validation yet. S3 terminal CI 34291811355 is green on all
+  required jobs; external review independently reports full reproduction.
+  The reviewer-only `[3/8]` durability mismatch is resolved by preserving
+  and publishing the documentation commit before taking the S4 base.
+
+### Completed S3 validation
 
 - **Final result: all seven validation stages PASS.**
 - Step 7:
@@ -8784,15 +8893,16 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. No further S3 implementation, review or validation remains.
-2. Leave S4 undispatched until a separate assignment with a freshly recorded
-   WAVE_BASE. GH #24 remains a separate non-blocking planning task.
-3. The operator has now requested S4: publish the reviewer documentation/
-   external-review receipt, fetch the new base, and dispatch S4 with N1-N3.
+1. Implement the single publisher and seven-producer event obligations,
+   including N1/N2 guard migration and independent carryover evidence.
+2. Run the required resource-gated sequence and independent review.
+3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
+   Do not start S5 or GH #24 implementation.
 
 ## Blockers
 
-- None for S3; implementation, independent review and validation are complete.
+- None blocking S4 dispatch. Surface any genuine publication-contract
+  contradiction rather than inventing reasons, scope or authority.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.
@@ -8800,6 +8910,12 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
+- Active S4 WAVE_BASE is `2b441c5aa374eeb7c7f651e87c9759b573332a2b`,
+  after the preserved reviewer commit and external-review receipt were
+  pushed. Do not reuse S3's `27ee8bc` or a release-tag range.
+- N1/N2/N3 are explicit S4 requirements, not open S3 findings. The original
+  11 pure-core mutations remain applicable even though publication gains
+  its own strictly scoped file/call-chain permissions.
 - S3 is accepted through gate-validated, pushed `657a3db`; code last changed
   at reviewed `9a63697`. Both exact 22-shard runs and all seven stages pass.
   Terminal tracking is documentation-only, with the required trailer.

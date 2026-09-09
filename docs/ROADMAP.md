@@ -1586,6 +1586,14 @@ passed all required jobs. S4 carryover is N1's guard rename, N2's retargeting
 with all 11 sensitivity mutations retained, and N3's exclusion of GH #24.
 The reviewer-owned `bba1803` documentation commit is preserved and will be
 published with the review receipt before recording the fresh S4 base.
+Reviewer housekeeping and the external-review receipt are pushed unchanged
+through `2b441c5`. S4 is 🚧 IN PROGRESS (dispatched 2026-09-08) from fresh
+WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
+Scope: one shared publisher, all P1-P7 events, exact ordering/error/recovery
+semantics and registry/call-chain guards. Carry N1's rename, retain all 11
+N2 mutations while retargeting the phase boundary, and keep N3/#24 out of
+scope. One worker owns production/shared tests; the coordinator owns disjoint
+review-note guard tests and tracking. S5/S6 and domain widening remain excluded.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

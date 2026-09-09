@@ -1,3 +1,37 @@
+## Supervisor Dispatch — GH #15 S4 — 2026-09-08
+
+**Authorization**: operator requested S4 implementation with external S3 notes
+**Task ID**: `implement-recipe-generation-authority-s4`
+**State**: IN PROGRESS
+**WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+
+The reviewer-owned `bba1803` commit was preserved without edits/rewrite and
+pushed with external-review receipt `2b441c5`. Fresh fetch confirms HEAD
+equals origin/main at the S4 base. S3 code is unchanged from accepted close
+`6ba932d`, and terminal CI passed all required jobs. No action was required
+to repair S3 itself.
+
+### Scope and Carryover
+
+Implement ADR-036 D10/D15 and PRD S4 only: one typed shared publisher,
+all seven producer event obligations, coverage-last atomic single-file
+publication, conditional reasons, honest failures/recovery and registry/
+call-chain evidence. Preserve the S3 pure core and ADR-039's conservative
+operation domain. No S5/S6, GH #24 widening, dependency or release work.
+
+N1 renames the actual guard declaration. N2 retains all 11 original planted
+mutations while adding narrowly scoped publisher/producer permissions and
+new failure-mode fixtures. N3 keeps GH #24 planning-only. The full explicit
+file ownership is in CURRENT: one worker owns all shared implementation
+files; the coordinator owns disjoint review-note tests and tracking. No
+same-file parallel implementation or broad staging.
+
+### Action Taken
+
+Record the fresh base and bounded dispatch before code. The coordinator
+owns all Go validation under the existing serial 60-second resource gate,
+independent review, and explicit-path commits with the required trailer.
+
 ## Review — implement-recipe-generation-authority-s3 — 2026-09-08
 
 **Reviewer**: external (Copilot), supplied by the operator
