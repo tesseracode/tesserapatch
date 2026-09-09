@@ -14,6 +14,9 @@ single P6 diagnostic delta to frozen expected bytes, and the store inventory
 admits exactly `WriteArtifactAtomic` with a missing-adapter negative control.
 The routing source's historical hash/history remain fixed; a distinct exact
 current-source pin records its narrowly changed comparison call.
+Correction `c7b6aa4` now passes steps 1-5, including the cycle, store
+inventory and historical/current-source provenance targets. Independent
+test-correction review remains pending before rerunning the full script.
 
 **S4 full-validation phase (2026-09-09)**: independent review has closed all
 findings, including the final import/alias mapping correction at `9a3c1a6`.
@@ -3304,6 +3307,15 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Cycle/store correction `c7b6aa4`: steps 1-2 **PASS**, including routing,
+  prepare cycle/store guards and source-provenance pins. Gates at 89% free/
+  load1 2.05 and 2.69; workflow selector 7.247s, CLI selector 29.060s.
+- Steps 3-5 **PASS**: gitutil 6.524s, patchobs 1.532s, store 2.850s,
+  workflow 90.475s; CLI regressions 104.269s; vet/build clean. Each command
+  separately gated at 89% free/load1 <=2.72.
+- Correction review is pending; the exact step 6 script must rerun from
+  the beginning. Step 7 remains unrun.
 
 - Cycle/store correction retry: step 1 **PASS**, step 2 stopped on an unused
   routing-comparator `bytes` import. It is removed and the exact current-source

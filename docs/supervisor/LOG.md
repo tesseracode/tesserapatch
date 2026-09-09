@@ -1,3 +1,17 @@
+## Implementation Transition — GH #15 S4 cycle/store correction validated — 2026-09-09
+
+**Checkpoint**: `c7b6aa4`
+**State**: IN PROGRESS — correction review pending
+
+Steps 1-5 pass, including the previously failing cycle/store families and
+the unchanged historical/new exact-current source provenance pins. Workflow
+owning suite 90.475s, CLI regressions 104.269s; vet/build clean. Each command
+had a fresh minute at 89% free memory with load1 <=5 and no active Go tools.
+
+The correction is test-only. Await independent confirmation, then rerun the
+entire exact 22-shard script; the earlier failed invocation is not completion.
+Step 7 and final S4 acceptance remain pending.
+
 ## Implementation Transition — GH #15 S4 comparator import correction — 2026-09-09
 
 Step 1 passed; restarted step 2 stopped at the CLI compile error from the

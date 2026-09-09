@@ -1667,6 +1667,9 @@ Revalidation and independent correction review are next.
 The targeted retry caught an unused routing-comparator import; it is removed
 and its exact current-source pin refreshed. No production change; validation
 restarts from step 1.
+Corrected cycle/store expectations at `c7b6aa4` pass steps 1-5, including
+source-provenance pins and new sensitivities. Independent correction review
+is pending before the exact full-suite rerun.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
