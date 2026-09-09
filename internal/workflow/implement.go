@@ -3,8 +3,8 @@ package workflow
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -40,6 +40,10 @@ type RecipeProvenance struct {
 // LLM call failed validation). Defaults to os.Stderr; tests override it
 // to capture output.
 var WarnWriter io.Writer = os.Stderr
+
+// The normal generators both validate JSON. This nil-by-default seam lets
+// failure-injection tests exercise the retained defensive raw-write arm.
+var implementRecipeContentHook func(string) string
 
 // ApplyRecipe is the deterministic operation format for applying changes.
 type ApplyRecipe struct {
@@ -188,6 +192,10 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 	} else {
 		recipeContent = heuristicRecipe(slug)
 	}
+	if implementRecipeContentHook != nil {
+		recipeContent = implementRecipeContentHook(recipeContent)
+	}
+	provenanceBase, provenanceBaseErr := gitutil.HeadCommit(s.Root)
 
 	// Try to parse and re-serialize for clean formatting.
 	//
@@ -200,10 +208,13 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 	// taken before the parse would describe bytes the valid arm never
 	// writes.
 	var recipe ApplyRecipe
+	var observation patchobs.Observation
+	var publication CoveragePublicationInput
 	if err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe); err != nil {
 		// Save raw content if not valid JSON
-		ObserveImplementCheckpoint(s, slug, recipeContent)
-		if err := s.WriteArtifact(slug, "apply-recipe.json", recipeContent); err != nil {
+		observation = ObserveImplementCheckpoint(s, slug, recipeContent)
+		publication = ObserveCoveragePublication(s, observation)
+		if err := s.WriteArtifactAtomic(slug, "apply-recipe.json", recipeContent); err != nil {
 			return err
 		}
 	} else {
@@ -223,8 +234,9 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 		// indentation and whatever the inference step did or did not do
 		// to `recipe` are all inside the bytes both statements receive.
 		reserialized := string(data) + "\n"
-		ObserveImplementCheckpoint(s, slug, reserialized)
-		if err := s.WriteArtifact(slug, "apply-recipe.json", reserialized); err != nil {
+		observation = ObserveImplementCheckpoint(s, slug, reserialized)
+		publication = ObserveCoveragePublication(s, observation)
+		if err := s.WriteArtifactAtomic(slug, "apply-recipe.json", reserialized); err != nil {
 			return err
 		}
 	}
@@ -235,30 +247,29 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 	// Best-effort: if HEAD is unreadable (e.g. the caller is not
 	// inside a git repo), skip the sidecar — the guard is
 	// backward-compatible with its absence.
-	if commit, err := gitutil.HeadCommit(s.Root); err == nil && commit != "" {
-		// Re-read the recipe from disk so the hash matches exactly
-		// what future apply invocations will hash. Writing and then
-		// reading is deliberately serialised; we avoid hashing the
-		// in-memory buffer because trailing-newline normalisation in
-		// WriteArtifact would make the two diverge.
-		recipeBytes, rerr := s.ReadFeatureFile(slug, "artifacts/apply-recipe.json")
+	var provenanceErr error
+	if provenanceBaseErr == nil && provenanceBase != "" {
+		hash := observation.ArtifactAfter.SHA256
 		prov := RecipeProvenance{
-			BaseCommit:  commit,
-			GeneratedAt: time.Now().UTC().Format(time.RFC3339),
-		}
-		if rerr == nil {
-			sum := sha256.Sum256([]byte(recipeBytes))
-			hex := fmt.Sprintf("%x", sum[:])
-			prov.RecipeSHA256 = &hex
+			BaseCommit:   provenanceBase,
+			GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
+			RecipeSHA256: &hash,
 		}
 		data, _ := json.MarshalIndent(prov, "", "  ")
-		_ = s.WriteArtifact(slug, "recipe-provenance.json", string(data)+"\n")
+		if err := s.WriteArtifactAtomic(slug, "recipe-provenance.json", string(data)+"\n"); err != nil {
+			provenanceErr = fmt.Errorf("write recipe provenance: %w", err)
+		}
 	}
 
 	// State advances to "implementing" — the recipe is ready but the
 	// code has not been executed/applied yet. The `apply` command moves
 	// it the rest of the way through implementing → applied.
-	return s.MarkFeatureState(slug, store.StateImplementing, "implement", "Apply recipe generated")
+	stateErr := s.MarkFeatureState(slug, store.StateImplementing, "implement", "Apply recipe generated")
+	publication.Recipe = CoverageArtifact{
+		Present: true, Bytes: observation.ArtifactAfter.Bytes, Path: observation.ArtifactAfter.Path,
+	}
+	_, coverageErr := PublishCoverage(s, publication)
+	return errors.Join(stateErr, provenanceErr, coverageErr)
 }
 
 // ObserveImplementCheckpoint is P6's immutable observation (ADR-036 D2,

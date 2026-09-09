@@ -807,7 +807,7 @@ func TestS1CLIProducersRefuseBeforeTheirFirstBoundWrite(t *testing.T) {
 	t.Run("sensitivity", func(t *testing.T) {
 		src := rgaS0CLISource(t, "internal/cli/feature_patch.go")
 		anchor := "\tif recipeObservation, obsErr = observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,\n" +
-			"\t\tstring(captureModeWorkingTreeAll), \"\", \"\", nil, nil); obsErr != nil {\n" +
+			"\t\tstring(captureModeWorkingTreeAll), \"\", \"\", nil, nil, !classification.Append); obsErr != nil {\n" +
 			"\t\treturn obsErr\n\t}\n"
 		if !strings.Contains(src, anchor) {
 			t.Fatalf("P2 observation anchor no longer present:\n%q", anchor)
@@ -832,7 +832,7 @@ func TestS1CLIProducersRefuseBeforeTheirFirstBoundWrite(t *testing.T) {
 		}
 
 		t.Run("the-observation-moves-below-the-write", func(t *testing.T) {
-			write := "\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n" +
+			write := "\tif err := s.WriteArtifactAtomic(slug, \"post-apply.patch\", patch); err != nil {\n" +
 				"\t\treturn fmt.Errorf(\"write post-apply.patch: %w\", err)\n\t}\n"
 			if !strings.Contains(src, write) {
 				t.Fatalf("P2 write anchor no longer present:\n%q", write)
@@ -898,7 +898,7 @@ func s1CheckProducerRefusesFirst(fileName, src, fnName string) error {
 			return true
 		}
 		switch sel.Sel.Name {
-		case "WriteArtifact":
+		case "WriteArtifactAtomic":
 			// Only a BOUND artifact counts. A producer may legitimately
 			// write an unrelated artifact (a spec, a note) before it
 			// captures anything.

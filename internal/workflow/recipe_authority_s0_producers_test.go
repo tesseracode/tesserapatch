@@ -35,12 +35,11 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
-// rgaS0CoverageArtifactName is the artifact GH #15 will introduce. S0
-// asserts every producer currently leaves it absent.
+// Non-event and legacy fixtures retain their frozen absence assertions.
 var rgaS0CoverageArtifactName = "recipe-coverage.json"
 
 // rgaS0AssertNoCoverageArtifact fails when a producer left a coverage
-// record on disk. S0's whole premise is that none exists yet.
+// record on disk where no governed CLI event occurred.
 func rgaS0AssertNoCoverageArtifact(t *testing.T, root, slug string) {
 	t.Helper()
 	path := filepath.Join(root, ".tpatch", "features", slug, "artifacts", rgaS0CoverageArtifactName)
@@ -58,11 +57,16 @@ func rgaS0AssertNoCoverageArtifact(t *testing.T, root, slug string) {
 // asserted to own NONE: PRD §2.7 records it as P1 orchestration, and a
 // registry entry for it would double-count `record`'s own write.
 func TestRGAS0GovernedProducerRegistry(t *testing.T) {
-	type producer struct {
+	if err := rgaS4ValidateRegistry(rgaS4Registry, rgaS0ReadRepoFile(t, "internal/patchobs/patchobs.go")); err != nil {
+		t.Fatal(err)
+	}
+	// These are frozen groups of source write sites, not producer entries.
+	// The separate seven-entry registry includes P7 and excludes the helper.
+	type boundSiteGroup struct {
 		id    string
 		sites []string
 	}
-	registry := []producer{
+	siteGroups := []boundSiteGroup{
 		{id: "P1 record", sites: []string{"internal/cli/cobra.go|recordCmd|post-apply.patch"}},
 		{id: "P2 feature-patch-amend", sites: []string{"internal/cli/feature_patch.go|runFeaturePatchAmend|post-apply.patch"}},
 		{id: "P3 reconcile-accept", sites: []string{"internal/workflow/refresh.go|RefreshAfterAccept|post-apply.patch"}},
@@ -86,7 +90,7 @@ func TestRGAS0GovernedProducerRegistry(t *testing.T) {
 	}
 
 	claimed := map[string]bool{}
-	for _, p := range registry {
+	for _, p := range siteGroups {
 		for _, site := range p.sites {
 			if inventory[site] == 0 {
 				t.Errorf("%s: registered bound write site %q is gone from production", p.id, site)
@@ -118,9 +122,8 @@ func TestRGAS0GovernedProducerRegistry(t *testing.T) {
 // ── P2: the two zero-write skip branches ─────────────────────────────────
 
 // rgaS0CheckFeaturePatchSkipBranches asserts that both "skipped" branches
-// of `runFeaturePatchAmend` print their message and return `nil` WITHOUT
-// writing anything. §6.15 turns the second of them into a category-(c)
-// checkpoint that publishes coverage; today it publishes nothing.
+// of `runFeaturePatchAmend` preserve their messages. S4 advances only the
+// category-(c) branch: it must publish coverage without other writes.
 func rgaS0CheckFeaturePatchSkipBranches(src string) error {
 	file, err := rgaS0Parse("feature_patch.go", src)
 	if err != nil {
@@ -133,6 +136,7 @@ func rgaS0CheckFeaturePatchSkipBranches(src string) error {
 
 	var messages []string
 	writesInSkipBranch := 0
+	checkpointPublishes := false
 	ast.Inspect(fn.Body, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok || len(call.Args) < 2 {
@@ -177,7 +181,9 @@ func rgaS0CheckFeaturePatchSkipBranches(src string) error {
 				return true
 			}
 			switch rgaS0CallName(call) {
-			case "s.WriteArtifact", "s.WritePatch", "s.SaveFeatureStatus", "s.MarkFeatureState":
+			case "workflow.PublishCoverage":
+				checkpointPublishes = true
+			case "s.WriteArtifact", "s.WriteArtifactAtomic", "s.WritePatch", "s.SaveFeatureStatus", "s.MarkFeatureState":
 				writesInSkipBranch++
 			}
 			return true
@@ -187,12 +193,16 @@ func rgaS0CheckFeaturePatchSkipBranches(src string) error {
 	if writesInSkipBranch != 0 {
 		return fmt.Errorf("the same-patch skip branch now performs %d write(s); today it is the zero-side-effect path", writesInSkipBranch)
 	}
+	if !checkpointPublishes {
+		return fmt.Errorf("the P2 category-(c) checkpoint skipped shared publication")
+	}
 	return nil
 }
 
 // rgaS0CheckFeaturePatchWriteOrder asserts P2's shipped write ordering:
-// canonical patch → numbered patch → status → state → recipe autogen →
-// generation append. S4 inserts a publication step; this pins the "before".
+// canonical patch → armed finalizer → numbered patch → state → recipe
+// planning → finalization. The publisher owns recipe/provenance/generation
+// ordering; the deferred finalizer also covers later primary failures.
 func rgaS0CheckFeaturePatchWriteOrder(src string) error {
 	file, err := rgaS0Parse("feature_patch.go", src)
 	if err != nil {
@@ -203,11 +213,11 @@ func rgaS0CheckFeaturePatchWriteOrder(src string) error {
 		return fmt.Errorf("runFeaturePatchAmend not found")
 	}
 	watch := map[string]bool{
-		"s.WriteArtifact":                 true,
-		"s.WritePatch":                    true,
-		"s.MarkFeatureState":              true,
-		"AutogenRecipeForRecord":          true,
-		"AppendPatchGenerationForFeature": true,
+		"s.WriteArtifactAtomic":  true,
+		"s.WritePatch":           true,
+		"s.MarkFeatureState":     true,
+		"AutogenRecipeForRecord": true,
+		"finishCoverage":         true,
 	}
 	var order []string
 	ast.Inspect(fn.Body, func(n ast.Node) bool {
@@ -228,11 +238,12 @@ func rgaS0CheckFeaturePatchWriteOrder(src string) error {
 		return true
 	})
 	want := []string{
-		"s.WriteArtifact",
+		"s.WriteArtifactAtomic",
+		"finishCoverage",
 		"s.WritePatch",
 		"s.MarkFeatureState",
 		"AutogenRecipeForRecord",
-		"AppendPatchGenerationForFeature",
+		"finishCoverage",
 	}
 	if strings.Join(order, ">") != strings.Join(want, ">") {
 		return fmt.Errorf("P2 write order changed:\n got %v\nwant %v", order, want)
@@ -257,6 +268,12 @@ func TestRGAS0FeaturePatchProducerSourceContract(t *testing.T) {
 			new   string
 			check func(string) error
 		}{
+			{
+				name:  "checkpoint-skips-publication",
+				old:   "coverage, err := workflow.PublishCoverage(s, publication)",
+				new:   "coverage, err := skippedPublication(s, publication)",
+				check: rgaS0CheckFeaturePatchSkipBranches,
+			},
 			{
 				name:  "skip-branch-gains-a-write",
 				old:   "\t\t\tfmt.Fprintln(cmd.ErrOrStderr(), \"no patch byte change; fixup skipped\")",
@@ -335,7 +352,7 @@ func rgaS0CheckConditionalPatchWrite(name, relPath, src, fnName string) error {
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "WriteArtifact" {
+			if !ok || sel.Sel.Name != "WriteArtifactAtomic" {
 				return true
 			}
 			artifact, isLit := rgaS0StringLit(call.Args[1])
@@ -392,10 +409,8 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	t.Run("cycle-discards-its-write-error-today", func(t *testing.T) {
-		// PRD §2.7: `cycle` currently drops the WriteArtifact error, so
-		// it cannot tell a successful bound write from a failed one.
-		// S1/S4 propagate it; S0 records that it does not yet.
+	t.Run("cycle-now-propagates-its-write-error", func(t *testing.T) {
+		// S4 deliberately retires the frozen bare-expression bug.
 		file, err := rgaS0Parse("phase2.go", cycleSrc)
 		if err != nil {
 			t.Fatal(err)
@@ -415,7 +430,7 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "WriteArtifact" {
+			if !ok || sel.Sel.Name != "WriteArtifactAtomic" {
 				return true
 			}
 			if artifact, isLit := rgaS0StringLit(call.Args[1]); isLit && artifact == "post-apply.patch" {
@@ -423,8 +438,8 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 			}
 			return true
 		})
-		if !discarded {
-			t.Fatal("cycle's canonical patch write no longer appears as a bare expression statement; the S0 record of the discarded error is stale")
+		if discarded {
+			t.Fatal("cycle's canonical patch write must propagate its error")
 		}
 	})
 
@@ -435,7 +450,7 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 		// D2), and a mutation fixture that assumed adjacency would break
 		// on that insertion while proving nothing about the gate.
 		cycleGate := "\t\t\tif patch != \"\" {"
-		cycleAnchor := "\t\t\t\ts.WriteArtifact(slug, \"post-apply.patch\", patch)"
+		cycleAnchor := "\t\t\t\tif err := s.WriteArtifactAtomic(slug, \"post-apply.patch\", patch); err != nil {\n\t\t\t\t\treturn err\n\t\t\t\t}"
 		if !strings.Contains(cycleSrc, cycleGate) || !strings.Contains(cycleSrc, cycleAnchor) {
 			t.Fatalf("cycle mutation anchors no longer present:\n%q\n%q", cycleGate, cycleAnchor)
 		}
@@ -456,7 +471,7 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 		}
 
 		applyGate := "\t\tif patch != \"\" {"
-		applyAnchor := "\t\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n" +
+		applyAnchor := "\t\t\tif err := s.WriteArtifactAtomic(slug, \"post-apply.patch\", patch); err != nil {\n" +
 			"\t\t\t\treturn \"\", 0, err\n" +
 			"\t\t\t}"
 		if !strings.Contains(applySrc, applyGate) || !strings.Contains(applySrc, applyAnchor) {
@@ -464,7 +479,7 @@ func TestRGAS0CycleAndApplyDonePatchGates(t *testing.T) {
 		}
 		applyHoisted := strings.Replace(applySrc, "\n"+applyAnchor, "", 1)
 		applyHoisted = strings.Replace(applyHoisted, applyGate,
-			"\t\tif err := s.WriteArtifact(slug, \"post-apply.patch\", patch); err != nil {\n"+
+			"\t\tif err := s.WriteArtifactAtomic(slug, \"post-apply.patch\", patch); err != nil {\n"+
 				"\t\t\treturn \"\", 0, err\n"+
 				"\t\t}\n"+applyGate, 1)
 		if applyHoisted == applySrc {
@@ -541,7 +556,7 @@ func TestRGAS0RefreshAfterAcceptBaseline(t *testing.T) {
 	if recipeAfter != recipeBefore {
 		t.Fatalf("P3 must leave the recipe untouched (refresh.go:20-24):\n got %q\nwant %q", recipeAfter, recipeBefore)
 	}
-	rgaS0AssertNoCoverageArtifact(t, tmpDir, slug)
+	rgaS4ReadCoverage(t, s, slug)
 
 	manifest, err := store.LoadPatchGenerations(s, slug)
 	if err != nil {
@@ -575,7 +590,7 @@ func TestRGAS0RefreshAfterAcceptBaseline(t *testing.T) {
 	if got := rgaS0CountPatchSnapshots(t, tmpDir, slug); got != patchesBefore+1 {
 		t.Fatalf("numbered snapshot count = %d, want %d (the snapshot write is unconditional)", got, patchesBefore+1)
 	}
-	rgaS0AssertNoCoverageArtifact(t, tmpDir, slug)
+	rgaS4ReadCoverage(t, s, slug)
 }
 
 func rgaS0CountPatchSnapshots(t *testing.T, root, slug string) int {
@@ -693,11 +708,14 @@ func TestRGAS0ImplementProducerBaseline(t *testing.T) {
 			}
 			// The ordinary P6 run has no canonical patch yet — the exact
 			// situation §6.15 says must become explicit incomplete
-			// coverage. Today it is silent absence.
+			// coverage. S4 deliberately advances this former absence check.
 			if _, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch")); err == nil {
 				t.Error("fixture precondition: implement must not have produced a canonical patch")
 			}
-			rgaS0AssertNoCoverageArtifact(t, tmpDir, slug)
+			coverage := rgaS4ReadCoverage(t, s, slug)
+			if coverage.CoverageStatus != CoverageIncomplete || coverage.PatchPresent {
+				t.Fatalf("P6 without a patch must publish incomplete coverage: %+v", coverage)
+			}
 		})
 	}
 }
@@ -705,8 +723,8 @@ func TestRGAS0ImplementProducerBaseline(t *testing.T) {
 // TestRGAS0ImplementManualCheckpointBaseline freezes P6's category-(b)
 // event: `implement --manual` does NOT author the recipe. It validates
 // bytes an agent or human already wrote and advances state — a checkpoint,
-// not a bound write. §6.15 makes it publish coverage in S4; today it
-// publishes nothing and leaves the artifact byte-identical.
+// not a bound write. This fixture invokes the store primitive without the CLI
+// finalizer; S4's CLI fixture separately proves the governed publication.
 func TestRGAS0ImplementManualCheckpointBaseline(t *testing.T) {
 	newFixture := func(t *testing.T, recipeBody string) (*store.Store, string) {
 		t.Helper()

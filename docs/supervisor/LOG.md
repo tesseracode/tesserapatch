@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S4 draft ready for validation — 2026-09-09
+
+**Worker**: `s4-coverage-publication`
+**State**: IN PROGRESS — validation and independent review
+
+P3 error propagation now reaches both manual and auto accept callers through
+typed errors, retaining shadow/blocked recovery and unrelated legacy warning
+semantics without a new persisted/public result field. P2's extra D16 check
+is event-qualified; real compact-recipe refresh/fixup fixtures cover
+coverage-only mutation, absent/preserved provenance and no rewrite reasons,
+with a patch-writing negative control retained.
+
+The worker reports all owned files formatted, whitespace checks clean, N1
+renamed and the original 11 N2 mutations byte-identical to dispatch. It ran
+no Go validation or staging. Checkpoint the full draft, run the coordinator's
+gated sequence and commission independent whole-S4 review. Compatibility
+expectations may need a narrow publication delta; never re-record old goldens.
+
 ## Implementation Scope Clarification — GH #15 S4 P2 checkpoint — 2026-09-09
 
 **State**: IN PROGRESS — code correction, subject to independent S4 review

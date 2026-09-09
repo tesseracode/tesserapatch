@@ -8,16 +8,16 @@ package cli
 // call site: each one is invoked on the last line of a producer's
 // discovery window, immediately above the write it is about to bind.
 //
-// The observation itself is in-memory only. Nothing here writes a file or
-// changes public output; the Recorder seam in internal/patchobs is the
-// single hand-off point a later slice replaces with the shared
-// publication step.
+// The recorder is a pre-write diagnostic seam, not publication. Producers
+// retain its immutable input and publish separately after their owned writes.
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // observeCaptureMode maps a CLI capture-mode label onto the observation
@@ -29,7 +29,23 @@ func observeCaptureMode(label string) patchobs.CaptureMode {
 	if !patchobs.KnownCaptureMode(mode) {
 		return patchobs.CaptureModeNoCapture
 	}
+
 	return mode
+}
+
+// coverageFinalizer is armed only after a successful bound write. Explicit
+// completion precedes the success message; the deferred path preserves primary
+// errors when a later owned write fails. Each event publishes at most once.
+func coverageFinalizer(s *store.Store, in *workflow.CoveragePublicationInput) func(error) error {
+	finished := false
+	return func(primary error) error {
+		if finished {
+			return primary
+		}
+		finished = true
+		_, err := workflow.PublishCoverage(s, *in)
+		return errors.Join(primary, err)
+	}
 }
 
 // preimageRefForCaptureMode names the ref the preimage is reconstructed
@@ -94,14 +110,31 @@ func observePatchProducer(
 	s *store.Store,
 	slug, patch, captureModeLabel, fromRef, toRef string,
 	pathspecs, claimIDs []string,
+	checkpoint ...bool,
 ) (patchobs.Observation, error) {
 	mode := observeCaptureMode(captureModeLabel)
+	patchPresent := true
+	isCheckpoint := len(checkpoint) != 0 && checkpoint[0]
+	if isCheckpoint && producer != patchobs.ProducerFeaturePatch {
+		return patchobs.Observation{}, fmt.Errorf("%s: no contracted re-observation checkpoint", producer)
+	}
+	if isCheckpoint {
+		// P2 will write nothing. Bind the actual canonical artifact, not
+		// the capture's matching generation hash if that artifact was
+		// independently removed or edited.
+		var err error
+		patch, err = s.ReadFeatureFile(slug, "artifacts/post-apply.patch")
+		patchPresent = err == nil
+		if !patchPresent {
+			patch = ""
+		}
+	}
 	obs := patchobs.ObserveAndEmit(patchobs.Input{
 		Producer:     producer,
 		RepoRoot:     s.Root,
 		Slug:         slug,
 		Patch:        patch,
-		PatchPresent: true,
+		PatchPresent: patchPresent,
 		Capture: patchobs.CaptureDescriptor{
 			Mode:      mode,
 			Pathspecs: pathspecs,
@@ -110,7 +143,7 @@ func observePatchProducer(
 		PreimageRef:  preimageRefForCaptureMode(mode, fromRef),
 		PostimageRef: postimageRefForCaptureMode(mode, toRef),
 	})
-	if err := obs.PreflightError(); err != nil {
+	if err := obs.PreflightError(); err != nil && !isCheckpoint {
 		return obs, fmt.Errorf("%s: captured patch is unreadable, refusing to bind it: %w", producer, err)
 	}
 	return obs, nil

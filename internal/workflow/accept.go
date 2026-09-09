@@ -29,6 +29,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -104,10 +105,14 @@ func AcceptShadow(s *store.Store, slug string, files []string, upstreamCommit st
 
 	res := &AcceptResult{AcceptedFiles: append([]string{}, files...)}
 
-	// Step 3: refresh derived artifacts. NOT fatal — staleness here
-	// does not corrupt the working tree; users can rerun `tpatch record`.
+	// Step 3: pre-event refresh diagnostics remain best-effort. An owed
+	// publication failure is fatal: keep the shadow and state for recovery
+	// rather than reporting applied completion over missing/stale coverage.
 	if upstreamCommit != "" {
 		if rerr := RefreshAfterAccept(s, slug, upstreamCommit, originalPatch); rerr != nil {
+			if errors.Is(rerr, ErrCoveragePublication) {
+				return res, fmt.Errorf("accept: bound coverage publication failed; accepted files are on disk and the shadow is preserved for recovery: %w", rerr)
+			}
 			res.RefreshWarning = fmt.Sprintf("derived-artifact refresh failed: %v (accepted files are on disk; run `tpatch record` to refresh manually)", rerr)
 		}
 	} else {

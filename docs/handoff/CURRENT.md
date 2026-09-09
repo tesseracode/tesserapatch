@@ -18,12 +18,10 @@ The coordinator's disjoint review-note tests are authored and formatted:
 AST-checked N1 naming, the exact 11 independently preserved N2 mutations,
 publisher-source rejection at other file paths, and N3 admissibility controls.
 No S4 Go validation has run.
-The worker delivered a formatted working draft with 32 focused test
-families, not a validated completion. Two integration items remain:
-P3's outer `AcceptShadow` caller still swallows publication failures, and
-the draft applies P2's D16 rule to a coverage-only checkpoint whose recipe
-is semantically complete but non-canonical. The coordinator is closing the
-caller scope and correcting an over-broad D16 check: D15's detailed rule
+The worker delivered a formatted working draft and subsequent integration
+corrections; no validated completion is claimed.
+The P3 manual/auto error carriers and P2 checkpoint corrections are now
+delivered. The coordinator scoped the extra D16 check to D15's detailed rule:
 says "the patch it just wrote" and its corollary says "when the patch did
 change". That extra P2 check applies to patch-writing events, not the
 coverage-only category-(c) checkpoint. The checkpoint uses the unchanged
@@ -2353,7 +2351,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: In progress — dispatched with external S3 notes N1-N3
+- **Status**: In progress — S4 draft and caller/checkpoint corrections delivered; validation next
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
 - **Release target**: `v0.17.0`
@@ -2361,6 +2359,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
+
+The worker completed the P3 manual/auto caller closure with typed errors and
+no new persisted/public result field. Both CLI human/JSON failure paths have
+reachable offline fixtures. P2's extra D16 condition is now restricted to
+patch-writing events; actual compact on-disk recipe checkpoint fixtures
+prove coverage-only writes, no invented origin/provenance, no borrowed
+rewrite codes and byte identity of all other artifacts. N1 and the original
+11 N2 mutations are preserved. The coordinator is checkpointing the full
+draft before gated validation and independent review; no Go result yet.
 
 S4 draft delivered: shared publisher, generic atomic adapter, producer wiring,
 pre-write recipe/provenance snapshots, P7 reconstruction/final-observation
@@ -2559,9 +2566,10 @@ S0-S3 are accepted, externally reviewed and durably pushed. S4 is dispatched
 from `2b441c5` for publication/event wiring only, preserving the S3 pure core
 and ADR-039 operation domain. All seven producers and all 11 existing
 phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
-implementation are excluded. The draft is delivered but remains unvalidated;
-P3 caller error propagation and P2 checkpoint-rule confirmation precede the
-validation/review phase. Independent review-note guard tests are authored.
+implementation are excluded. The complete draft and P3/P2 corrections are
+delivered but unvalidated. Independent S4 review must confirm the detailed
+P2 event qualification as well as the full publication/error/event behavior.
+Coordinator validation is starting; review-note guard tests are authored.
 
 ## Prerequisite Status
 
@@ -3188,8 +3196,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - Independent carryover guard unit is formatted and awaiting coordinated Go
   validation; no passing-test claim is made.
 - Worker reports 32 S4 test families, formatted and whitespace-clean.
-  No Go validation has run. The AcceptShadow propagation regression is
-  intentionally expected to fail until its now-authorized caller fix lands.
+  Additional caller/checkpoint families are now authored. No Go validation
+  has run; the previously expected AcceptShadow failure is corrected in code.
 
 ### Completed S3 validation
 
@@ -8943,18 +8951,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Correct P3's outer caller and resolve the precise scope of P2's
-   checkpoint/D16 condition. Preserve N1/N2 evidence and N3's domain boundary.
-2. Run the required resource-gated sequence and independent review.
+1. Checkpoint the delivered full S4 draft and scoped P3/P2 corrections.
+2. Run the required resource-gated sequence and independent review, including
+   the exact P2 event qualification, all 11 N2 mutations and N3's boundary.
 3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
    Do not start S5 or GH #24 implementation.
 
 ## Blockers
 
-- Draft P3 publication failures are still swallowed by `AcceptShadow`;
-  the narrowly scoped caller fix is now authorized.
-- Confirm P2's coverage-only checkpoint rule against D3/D15; do not invent
-  a reason or mutate recipe/provenance to force an incomplete result.
+- No known unimplemented caller fix remains. P3/P2 corrections await Go
+  validation and independent review; do not claim S4 acceptance yet.
+- Publication will deliberately change compatibility snapshots; adapt
+  expectations narrowly without re-recording historical goldens.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.
 - GH #24 is a non-blocking follow-up for broader-domain planning only.
 - GH #15 implementation has no planning blocker.

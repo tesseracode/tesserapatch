@@ -216,7 +216,7 @@ func rgaS0ScanWriteArtifact(relPath, src string) (bound []rgaS0WriteSite, dynami
 				return true
 			}
 			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || sel.Sel.Name != "WriteArtifact" || len(call.Args) < 2 {
+			if !ok || (sel.Sel.Name != "WriteArtifact" && sel.Sel.Name != "WriteArtifactAtomic") || len(call.Args) < 2 {
 				return true
 			}
 			name, isLit := rgaS0StringLit(call.Args[1])
@@ -347,16 +347,21 @@ func TestRGAS0BoundArtifactWriteScannerIsSensitive(t *testing.T) {
 	}
 }
 
-// ── S3 permits a pure schema/core, not publication or consumers ─────────
+// ── S4 permits registered publication without weakening the S3 core ────
 
 // rgaS0CoverageTokens are the symbols and filenames GH #15 will introduce.
-// Outside the four designated S3 pure-core files these remain forbidden.
+// Outside the pure core and registered publication chains these stay forbidden.
 var rgaS0CoverageTokens = []string{
 	"recipe-coverage.json",
 	"RecipeCoverage",
 	"recipe_coverage",
 	"CoverageProducer",
 	"PublishCoverage",
+	"CoveragePublicationInput",
+	"ObserveCoveragePublication",
+	"ReconstructEditedCoverage",
+	"CoverageArtifact",
+	"ErrCoveragePublication",
 	"coverage_status",
 }
 
@@ -378,6 +383,12 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		"internal/workflow/recipe_coverage_codec.go",
 		"internal/workflow/recipe_coverage.go",
 		"internal/workflow/recipe_coverage_simulation.go":
+	case "internal/workflow/recipe_coverage_publish.go",
+		"internal/workflow/recipe_autogen.go", "internal/workflow/implement.go", "internal/workflow/refresh.go",
+		"internal/workflow/accept.go", "internal/workflow/reconcile.go",
+		"internal/cli/cobra.go", "internal/cli/feature_patch.go", "internal/cli/phase2.go",
+		"internal/cli/c1.go", "internal/cli/producer_observation.go":
+		return rgaS4PublicationSource(rel, src)
 	default:
 		if hits := rgaS0ScanForbiddenTokens(src, rgaS0CoverageTokens); len(hits) > 0 {
 			return fmt.Errorf("coverage surface outside S3 pure-core allowlist: %v", hits)
@@ -403,9 +414,9 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		}
 	}
 	for _, token := range []string{
-		"PublishCoverage", "CoverageProducer", "recipe-coverage.json",
+		"PublishCoverage", "ErrCoveragePublication", "CoverageProducer", "recipe-coverage.json",
 		"ExecuteRecipe(", "executeOperation(", "LoadRecipe(", "DryRunRecipe(",
-		"ReadFeatureFile(", "WriteArtifact(", "WriteFeatureFile(", "filepath.Abs(",
+		"ReadFeatureFile(", "WriteArtifact(", "WriteArtifactAtomic(", "WriteFeatureFile(", "filepath.Abs(",
 		"filepath.Glob(", "filepath.Walk", "filepath.EvalSymlinks(",
 	} {
 		if strings.Contains(src, token) {
@@ -419,7 +430,8 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 				switch fn.Name {
 				case "ExecuteRecipe", "executeOperation", "DryRunRecipe", "dryRunOperation",
 					"LoadRecipe", "writeRecipe", "AutogenRecipeForRecord", "convergeRecipeProvenance",
-					"RunImplement", "GenerateWithRetry":
+					"RunImplement", "GenerateWithRetry", "ObserveCoveragePublication", "PublishCoverage",
+					"publishRecordRecipePlan":
 					callErr = fmt.Errorf("coverage core calls a publication/consumer helper: %s", fn.Name)
 				}
 			}
@@ -427,6 +439,12 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		sel, ok := n.(*ast.SelectorExpr)
 		if !ok {
 			return true
+		}
+		switch sel.Sel.Name {
+		case "WriteArtifact", "WriteArtifactAtomic", "WriteFeatureFile", "ReadFeatureFile",
+			"ReadFile", "WriteFile", "ReadDir", "MkdirAll", "CreateTemp", "MarkFeatureState",
+			"SaveFeatureStatus", "SnapshotArtifact", "ObserveCoveragePublication", "PublishCoverage":
+			callErr = fmt.Errorf("coverage core acquired an I/O method: %s", sel.Sel.Name)
 		}
 		pkg, ok := sel.X.(*ast.Ident)
 		if !ok {
@@ -473,9 +491,9 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 	return callErr
 }
 
-// The original absence guard advances only for the designated pure S3 core.
-// Existing producer fixtures continue to assert that no artifact is written.
-func TestRGAS0NoProductionCoverageSurfaceYet(t *testing.T) {
+// The original absence guard now separates the four pure files from S4's
+// designated publisher and specifically registered producer call chains.
+func TestRGAS0CoveragePhaseBoundaryHolds(t *testing.T) {
 	for _, rel := range rgaS0ProductionGoFiles(t) {
 		if err := rgaS0CoveragePhaseSource(rel, rgaS0ReadRepoFile(t, rel)); err != nil {
 			t.Errorf("%s: %v", rel, err)
@@ -680,7 +698,7 @@ func rgaS0ImplementWriteArg(block *ast.BlockStmt) (string, error) {
 			return true
 		}
 		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "WriteArtifact" {
+		if !ok || sel.Sel.Name != "WriteArtifactAtomic" {
 			return true
 		}
 		name, isLit := rgaS0StringLit(call.Args[1])
@@ -708,12 +726,8 @@ func rgaS0BlockReturnsOnlyWriteError(block *ast.BlockStmt) bool {
 	returns := 0
 	writeReturns := 0
 	ast.Inspect(block, func(n ast.Node) bool {
-		if ret, ok := n.(*ast.ReturnStmt); ok {
-			if len(ret.Results) == 1 {
-				if ident, ok := ret.Results[0].(*ast.Ident); ok && ident.Name == "err" {
-					returns++
-				}
-			}
+		if _, ok := n.(*ast.ReturnStmt); ok {
+			returns++
 			return true
 		}
 		ifStmt, ok := n.(*ast.IfStmt)
@@ -731,7 +745,7 @@ func rgaS0BlockReturnsOnlyWriteError(block *ast.BlockStmt) bool {
 			}
 			sel, isSel := call.Fun.(*ast.SelectorExpr)
 			ret, isReturn := ifStmt.Body.List[0].(*ast.ReturnStmt)
-			if !isSel || sel.Sel.Name != "WriteArtifact" || !isReturn || len(ret.Results) != 1 {
+			if !isSel || sel.Sel.Name != "WriteArtifactAtomic" || !isReturn || len(ret.Results) != 1 {
 				continue
 			}
 			if ident, ok := ret.Results[0].(*ast.Ident); ok && ident.Name == "err" {
@@ -755,8 +769,8 @@ func TestRGAS0ImplementParseArmsSourceContract(t *testing.T) {
 		for _, tc := range []struct{ name, old, new string }{
 			{
 				name: "failure-arm-stops-writing-raw-bytes",
-				old:  `s.WriteArtifact(slug, "apply-recipe.json", recipeContent)`,
-				new:  `s.WriteArtifact(slug, "apply-recipe.json", "{}")`,
+				old:  `s.WriteArtifactAtomic(slug, "apply-recipe.json", recipeContent)`,
+				new:  `s.WriteArtifactAtomic(slug, "apply-recipe.json", "{}")`,
 			},
 			{
 				// S1 bound the valid arm's payload to one identifier so
@@ -765,13 +779,13 @@ func TestRGAS0ImplementParseArmsSourceContract(t *testing.T) {
 				// success arm still writes RESERIALIZED bytes, never the
 				// raw response — only the spelling of the anchor moved.
 				name: "success-arm-starts-writing-raw-bytes",
-				old:  `s.WriteArtifact(slug, "apply-recipe.json", reserialized)`,
-				new:  `s.WriteArtifact(slug, "apply-recipe.json", recipeContent)`,
+				old:  `s.WriteArtifactAtomic(slug, "apply-recipe.json", reserialized)`,
+				new:  `s.WriteArtifactAtomic(slug, "apply-recipe.json", recipeContent)`,
 			},
 			{
 				name: "failure-arm-starts-returning-parse-error",
-				old:  "if err := s.WriteArtifact(slug, \"apply-recipe.json\", recipeContent); err != nil {\n\t\t\treturn err\n\t\t}",
-				new:  "if err := s.WriteArtifact(slug, \"apply-recipe.json\", recipeContent); err != nil {\n\t\t\treturn err\n\t\t}\n\t\treturn err",
+				old:  "if err := s.WriteArtifactAtomic(slug, \"apply-recipe.json\", recipeContent); err != nil {\n\t\t\treturn err\n\t\t}",
+				new:  "if err := s.WriteArtifactAtomic(slug, \"apply-recipe.json\", recipeContent); err != nil {\n\t\t\treturn err\n\t\t}\n\t\treturn err",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {

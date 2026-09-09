@@ -211,6 +211,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	}
 
 	results := make([]ReconcileResult, 0, len(slugs))
+	var publicationErrors []error
 
 	// PRD-multi-slug-reconcile-canonical-safety §4.2 D2 / ADR-030 D1:
 	// cumulative delta derivation is default-OFF. Each feature's
@@ -253,6 +254,14 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 
 	for i, slug := range slugs {
 		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
+		if errors.Is(err, ErrCoveragePublication) {
+			publicationErrors = append(publicationErrors, fmt.Errorf("reconcile %q: %w", slug, err))
+			// Keep the existing blocked outcome and recovery shadow instead
+			// of replacing them with the generic per-feature error record.
+			if result != nil {
+				err = nil
+			}
+		}
 		if err != nil {
 			results = append(results, ReconcileResult{
 				Slug:           slug,
@@ -309,7 +318,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	// Update upstream.lock
 	updateUpstreamLock(s, upstreamRef, upstreamCommit)
 
-	return results, nil
+	return results, errors.Join(publicationErrors...)
 }
 
 func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, upstreamCommit string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) (*ReconcileResult, error) {
@@ -572,10 +581,10 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 					return result, nil
 				}
 			}
-			phase35 := tryPhase35(ctx, s, slug, upstreamCommit, prov, cfg, opts, preview.ConflictFiles, result)
+			phase35, phase35Err := tryPhase35(ctx, s, slug, upstreamCommit, prov, cfg, opts, preview.ConflictFiles, result)
 			saveReconcileArtifacts(s, slug, phase35)
 			updateFeatureState(s, slug, phase35)
-			return phase35, nil
+			return phase35, phase35Err
 		}
 		result.Outcome = store.ReconcileBlocked
 		result.Phase = "phase-4-forward-apply-conflicts"
@@ -1362,7 +1371,7 @@ func tryPhase35(
 	opts ReconcileOptions,
 	conflictFiles []string,
 	result *ReconcileResult,
-) *ReconcileResult {
+) (*ReconcileResult, error) {
 	result.Phase = "phase-3.5-provider-resolve"
 
 	// Refuse without a provider up-front — ADR-010 D9: no heuristic fallback.
@@ -1371,7 +1380,7 @@ func tryPhase35(
 		result.Notes = append(result.Notes,
 			"phase 3.5 requested (--resolve) but no provider is configured; configure a provider (`tpatch provider set ...`) or resolve manually")
 		result.Conflicts = append(result.Conflicts, conflictFiles...)
-		return result
+		return result, nil
 	}
 
 	headCommit, headErr := gitutil.HeadCommit(s.Root)
@@ -1379,7 +1388,7 @@ func tryPhase35(
 		result.Outcome = store.ReconcileBlockedRequiresHuman
 		result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5: cannot resolve HEAD: %v", headErr))
 		result.Conflicts = append(result.Conflicts, conflictFiles...)
-		return result
+		return result, nil
 	}
 	baseCommit, mbErr := gitutil.MergeBase(s.Root, headCommit, upstreamCommit)
 	if mbErr != nil || baseCommit == "" {
@@ -1387,7 +1396,7 @@ func tryPhase35(
 		result.Notes = append(result.Notes,
 			fmt.Sprintf("phase 3.5: cannot derive merge-base(HEAD, %s): %v", upstreamCommit, mbErr))
 		result.Conflicts = append(result.Conflicts, conflictFiles...)
-		return result
+		return result, nil
 	}
 
 	// Build inputs. A git-reported conflict file may be missing on
@@ -1434,7 +1443,7 @@ func tryPhase35(
 		result.Outcome = store.ReconcileBlockedRequiresHuman
 		result.Notes = append(result.Notes, fmt.Sprintf("phase 3.5 failed: %v", err))
 		result.Conflicts = append(result.Conflicts, conflictFiles...)
-		return result
+		return result, nil
 	}
 
 	// Thread resolver state onto the reconcile result.
@@ -1473,7 +1482,10 @@ func tryPhase35(
 			result.Notes = append(result.Notes,
 				fmt.Sprintf("phase 3.5 resolved %d file(s) but auto-apply failed mid-flight: %v; shadow preserved for manual review (`tpatch reconcile --accept %s` or `--reject %s`)",
 					len(result.ResolvedFiles), aerr, slug, slug))
-			return result
+			if errors.Is(aerr, ErrCoveragePublication) {
+				return result, aerr
+			}
+			return result, nil
 		}
 		result.Outcome = store.ReconcileReapplied
 		result.Notes = append(result.Notes,
@@ -1489,28 +1501,28 @@ func tryPhase35(
 		// via the ReconcileResult for logging; the on-disk status
 		// has been updated correctly by the helper.
 		result.ShadowPath = ""
-		return result
+		return result, nil
 	case ResolveVerdictShadowAwaiting:
 		result.Outcome = store.ReconcileShadowAwaiting
 		result.Notes = append(result.Notes,
 			fmt.Sprintf("phase 3.5 staged %d resolved file(s) in shadow worktree; review with `tpatch reconcile --accept %s`",
 				len(result.ResolvedFiles), slug))
-		return result
+		return result, nil
 	case ResolveVerdictBlockedTooManyConflicts:
 		result.Outcome = store.ReconcileBlockedTooManyConflicts
 		result.Notes = append(result.Notes,
 			fmt.Sprintf("phase 3.5 refused: %d conflict(s) exceeds cap (--max-conflicts)", len(conflictFiles)))
-		return result
+		return result, nil
 	case ResolveVerdictBlockedRequiresHuman:
 		result.Outcome = store.ReconcileBlockedRequiresHuman
 		result.Notes = append(result.Notes,
 			fmt.Sprintf("phase 3.5 blocked: %d file(s) failed validation or provider; see resolution-session.json",
 				len(result.FailedFiles)))
-		return result
+		return result, nil
 	default:
 		result.Outcome = store.ReconcileBlockedRequiresHuman
 		result.Notes = append(result.Notes,
 			fmt.Sprintf("phase 3.5 produced unknown verdict %q; blocking", rr.Verdict))
-		return result
+		return result, nil
 	}
 }

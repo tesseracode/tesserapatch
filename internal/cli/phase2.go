@@ -34,7 +34,7 @@ between phases and confirm before continuing. Use --skip-execute to stop
 before the apply execute step (useful for agent-driven workflows where the
 agent implements the code).`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (retErr error) {
 			slug := args[0]
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
@@ -88,9 +88,8 @@ agent implements the code).`,
 			if editor && interactive {
 				if err := openInEditor(out, filepath.Join(s.Root, ".tpatch", "features", slug, "spec.md")); err != nil {
 					// spec.md is not a bound artifact, so this is not a
-					// P7 event — but the error is still reported rather
-					// than discarded.
-					fmt.Fprintf(cmd.ErrOrStderr(), "  warning: editor failed: %v\n", err)
+					// P7 event — but its error still reaches the caller.
+					return fmt.Errorf("editor failed: %w", err)
 				}
 			}
 			if !confirm(interactive, reader, out, "Continue to explore phase?") {
@@ -168,15 +167,24 @@ agent implements the code).`,
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "  warning: capture failed: %v\n", patchErr)
 			}
+			var finishCoverage func(error) error
 			if patch != "" {
 				// P4: the observation is taken before the canonical
 				// patch write it binds (ADR-036 D2), and its preflight
 				// error returns before that write runs (PI-3).
-				if _, obsErr := observePatchProducer(patchobs.ProducerCycle, s, slug, patch,
+				var obs patchobs.Observation
+				var obsErr error
+				if obs, obsErr = observePatchProducer(patchobs.ProducerCycle, s, slug, patch,
 					string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
 					return obsErr
 				}
-				s.WriteArtifact(slug, "post-apply.patch", patch)
+				publication := workflow.ObserveCoveragePublication(s, obs)
+				if err := s.WriteArtifactAtomic(slug, "post-apply.patch", patch); err != nil {
+					return err
+				}
+				publication.Events.PatchRewritten = true
+				finishCoverage = coverageFinalizer(s, &publication)
+				defer func() { retErr = finishCoverage(retErr) }()
 				if name, _ := s.WritePatch(slug, "cycle", patch); name != "" {
 					fmt.Fprintf(out, "  Saved patch: patches/%s\n", name)
 				}
@@ -186,9 +194,16 @@ agent implements the code).`,
 			status.Apply.BaseCommit = commit
 			status.Apply.CompletedAt = now
 			status.Apply.HasPatch = patch != ""
-			s.SaveFeatureStatus(status)
+			if err := s.SaveFeatureStatus(status); err != nil {
+				return err
+			}
 			if err := s.MarkFeatureState(slug, store.StateApplied, "cycle", "Cycle complete"); err != nil {
 				return err
+			}
+			if finishCoverage != nil {
+				if err := finishCoverage(nil); err != nil {
+					return err
+				}
 			}
 			fmt.Fprintf(out, "Feature %s is now in state: applied\n", slug)
 			return nil

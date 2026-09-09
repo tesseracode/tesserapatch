@@ -26,6 +26,7 @@ package workflow
 //     post-apply.patch as the fallback, so staleness here is cosmetic.
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -44,7 +45,7 @@ import (
 // stale but should NOT roll back the working-tree changes — those are
 // already reflected in the new state. The safe recovery path is to
 // re-run `tpatch record` which uses the same plumbing.
-func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch string) error {
+func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch string) (retErr error) {
 	// GH #7 rev-2/rev-3: the ORIGINAL patch may carry stale
 	// nested-worktree gitlink entries recorded by a pre-fix tpatch, and
 	// Git C-quotes any of those whose path contains a space plus a
@@ -120,9 +121,15 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 	}
 
 	// post-apply.patch is the source of truth for future reconciles.
-	if err := s.WriteArtifact(slug, "post-apply.patch", newPatch); err != nil {
+	publication := ObserveCoveragePublication(s, obs)
+	if err := s.WriteArtifactAtomic(slug, "post-apply.patch", newPatch); err != nil {
 		return fmt.Errorf("refresh: write post-apply.patch: %w", err)
 	}
+	publication.Events.PatchRewritten = true
+	defer func() {
+		_, coverageErr := PublishCoverage(s, publication)
+		retErr = errors.Join(retErr, coverageErr)
+	}()
 
 	// Audit snapshot into patches/. The label "reconcile" matches the
 	// ADR-010 design doc so future tooling can filter by it.

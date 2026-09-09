@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // featureDirPath constructs the absolute path to a feature's directory
@@ -135,8 +137,12 @@ func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path strin
 	observed := bound != boundArtifactNone && editorStarted()
 
 	var before patchobs.ArtifactSnapshot
+	var companion patchobs.ArtifactSnapshot
+	var publication workflow.CoveragePublicationInput
 	if observed {
 		before = patchobs.SnapshotArtifact(path)
+		companion = patchobs.SnapshotArtifact(filepath.Join(featureDirPath(s, slug), "artifacts", "post-apply.patch"))
+		publication = workflow.ObserveCoveragePublication(s, patchobs.Observation{Slug: slug, PatchSHA256: companion.SHA256})
 	}
 	editErr := openInEditor(cmd.OutOrStdout(), path)
 	if !observed {
@@ -144,8 +150,26 @@ func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path strin
 	}
 	after := patchobs.SnapshotArtifact(path)
 
-	if obs, mutated := observeArtifactEdit(s, slug, bound, before, after); mutated {
-		patchobs.Emit(obs)
+	if obs, mutated := observeArtifactEdit(s, slug, bound, before, after, companion); mutated {
+		publication.Observation = obs
+		publication.Events.BoundArtifactEdited = true
+		if bound == boundArtifactRecipe {
+			publication.Recipe = workflow.CoverageArtifact{
+				Present: after.Observed && after.Present, Bytes: after.Bytes, Path: after.Path,
+			}
+			if !after.Observed {
+				publication.Recipe.ReadError = fmt.Errorf("editor result is not readable: %s", after.Path)
+			}
+		}
+		var observationErr error
+		if !before.Observed || !after.Observed {
+			observationErr = fmt.Errorf("cannot establish bound artifact edit outcome from before/after snapshots: %s", path)
+		} else {
+			publication = workflow.ReconstructEditedCoverage(s, publication)
+		}
+		patchobs.Emit(publication.Observation)
+		_, coverageErr := workflow.PublishCoverage(s, publication)
+		return errors.Join(editErr, observationErr, coverageErr)
 	}
 	return editErr
 }
@@ -193,9 +217,9 @@ func classifyBoundArtifact(s *store.Store, slug, resolved string) boundArtifactK
 //     so the observation binds whatever is currently readable at
 //     `artifacts/post-apply.patch`, and records its absence honestly when
 //     there is none.
-func observeArtifactEdit(s *store.Store, slug string, bound boundArtifactKind, before, after patchobs.ArtifactSnapshot) (patchobs.Observation, bool) {
+func observeArtifactEdit(s *store.Store, slug string, bound boundArtifactKind, before, after patchobs.ArtifactSnapshot, companion ...patchobs.ArtifactSnapshot) (patchobs.Observation, bool) {
 	probe := patchobs.Observation{ArtifactBefore: &before, ArtifactAfter: &after}
-	if !probe.ArtifactMutated() {
+	if before.Observed && after.Observed && !probe.ArtifactMutated() {
 		return patchobs.Observation{}, false
 	}
 
@@ -206,9 +230,14 @@ func observeArtifactEdit(s *store.Store, slug string, bound boundArtifactKind, b
 			patch, present = string(after.Bytes), true
 		}
 	case boundArtifactRecipe:
-		body, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
-		if err == nil {
-			patch, present = body, true
+		snapshot := patchobs.ArtifactSnapshot{}
+		if len(companion) != 0 {
+			snapshot = companion[0]
+		} else {
+			snapshot = patchobs.SnapshotArtifact(filepath.Join(featureDirPath(s, slug), "artifacts", "post-apply.patch"))
+		}
+		if snapshot.Observed && snapshot.Present {
+			patch, present = string(snapshot.Bytes), true
 		}
 	}
 

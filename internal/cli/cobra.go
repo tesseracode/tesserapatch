@@ -1013,6 +1013,7 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 	// failure. Capture and diffstat are both computed here; only after
 	// both succeed does anything touch the feature directory.
 	var pendingDiffStat string
+	var finishCoverage func(error) error
 	if reapplying {
 		canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch"))
 		if readErr != nil {
@@ -1056,13 +1057,19 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 			// canonical patch write it binds (ADR-036 D2). Its preflight
 			// error returns BEFORE that write, so a capture the strict
 			// grammar refuses never lands (PI-3).
-			if _, obsErr := observePatchProducer(patchobs.ProducerApplyDone, s, slug, patch,
+			var obs patchobs.Observation
+			var obsErr error
+			if obs, obsErr = observePatchProducer(patchobs.ProducerApplyDone, s, slug, patch,
 				string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
 				return "", 0, obsErr
 			}
-			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+			publication := workflow.ObserveCoveragePublication(s, obs)
+			if err := s.WriteArtifactAtomic(slug, "post-apply.patch", patch); err != nil {
 				return "", 0, err
 			}
+			publication.Events.PatchRewritten = true
+			finishCoverage = coverageFinalizer(s, &publication)
+			defer func() { err = finishCoverage(err) }()
 			patchName, writeErr := s.WritePatch(slug, "apply", patch)
 			if writeErr != nil {
 				return "", 0, writeErr
@@ -1118,6 +1125,11 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 
 	if err := s.MarkFeatureState(slug, store.StateApplied, "apply --mode done", "Changes applied and recorded"); err != nil {
 		return patch, len(patch), err
+	}
+	if finishCoverage != nil {
+		if err := finishCoverage(nil); err != nil {
+			return patch, len(patch), err
+		}
 	}
 	fmt.Fprintf(out, "Feature %s marked as applied\n", slug)
 	return patch, len(patch), nil
@@ -1379,7 +1391,7 @@ features are interleaved on the same branch (the headline scoping case for
 Committed-range captures never include untracked working-tree files — only
 the committed snapshots at the endpoints contribute to the diff.`,
 		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (retErr error) {
 			slug := args[0]
 			s, err := openStoreFromCmd(cmd)
 			if err != nil {
@@ -1834,9 +1846,14 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			}
 
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
-			if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+			publication := workflow.ObserveCoveragePublication(s, recipeObservation)
+			publication.DeferRecipeWrites = true
+			if err := s.WriteArtifactAtomic(slug, "post-apply.patch", patch); err != nil {
 				return err
 			}
+			publication.Events.PatchRewritten = true
+			finishCoverage := coverageFinalizer(s, &publication)
+			defer func() { retErr = finishCoverage(retErr) }()
 			patchName := ""
 			if sameFeatureDup {
 				// PRD §3.2: re-recording the same feature with
@@ -1939,14 +1956,16 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
 			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
 			autogen := !noAutogen
-			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, autogen, regen)
+			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, autogen, regen, publication)
 			skippedPaths := autogenOutcome.SkippedPaths
 			reason := autogenOutcome.DriftReason
+			var recipeOut, recipeWarnings strings.Builder
 			if agErr != nil {
 				return fmt.Errorf("recipe autogen failed: %w", agErr)
 			} else {
-				out := cmd.OutOrStdout()
-				w := cmd.ErrOrStderr()
+				publication.Autogen = &autogenOutcome
+				out := &recipeOut
+				w := &recipeWarnings
 				switch autogenOutcome.Action {
 				case workflow.AutogenGenerated:
 					// PI-10 (PRD §6.1.3): the printed number is the
@@ -1981,7 +2000,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			if patchName != "" {
 				auditPatch = "patches/" + patchName
 			}
-			if _, err := workflow.AppendPatchGenerationForFeature(s, slug, workflow.PatchGenerationInput{
+			publication.Generation = &workflow.PatchGenerationInput{
 				Kind:       "record",
 				Patch:      patch,
 				AuditPatch: auditPatch,
@@ -1992,22 +2011,6 @@ the committed snapshots at the endpoints contribute to the diff.`,
 					Pathspecs: prov.Pathspecs,
 					ClaimIDs:  prov.ClaimIDs,
 				},
-			}); err != nil {
-				return fmt.Errorf("record patch generation: %w", err)
-			}
-
-			// v0.12.0 Wave β rev-1 Slice R2 (PRD-write-file-recipe-
-			// safety AC-7 + §4.2 "During record", ADR-029 D6):
-			// scan older active/effective features for write-file
-			// operations that target any path the just-recorded
-			// feature touched. Emit warning-class advisories on
-			// stderr. Warning-class per D6 ("Record-time later-
-			// touch detection is warning-class in v1."); execution
-			// of `record` continues regardless.
-			if ltWarnings := workflow.DetectRecordLaterTouchWarnings(s, slug); len(ltWarnings) > 0 {
-				for _, w := range ltWarnings {
-					fmt.Fprintf(cmd.ErrOrStderr(), "⚠ %s\n", w)
-				}
 			}
 
 			// v0.12.0 Wave γ Slice 4 (PRD-active-feature-session
@@ -2046,6 +2049,18 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				}
 			}
 
+			if err := finishCoverage(nil); err != nil {
+				return err
+			}
+			fmt.Fprint(cmd.OutOrStdout(), recipeOut.String())
+			fmt.Fprint(cmd.ErrOrStderr(), recipeWarnings.String())
+			// ADR-029's advisory must inspect the recipe that actually
+			// landed, not the pre-publication recipe it replaced.
+			if ltWarnings := workflow.DetectRecordLaterTouchWarnings(s, slug); len(ltWarnings) > 0 {
+				for _, w := range ltWarnings {
+					fmt.Fprintf(cmd.ErrOrStderr(), "⚠ %s\n", w)
+				}
+			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Recorded patch for %s (%d bytes, %d files)\n", slug, len(patch), filesChanged)
 			return nil
 		},
@@ -3485,8 +3500,14 @@ func isManualFlag(cmd *cobra.Command) bool {
 // feature state without invoking the provider. It is the single entry point
 // shared by analyze/define/explore/implement when --manual is set.
 func runManualPhase(cmd *cobra.Command, s *store.Store, slug, phase string) error {
-	if err := s.AdvanceStateManuallyWithCheckpoint(slug, phase, manualCheckpointHook(s, slug, phase)); err != nil {
+	var publication workflow.CoveragePublicationInput
+	if err := s.AdvanceStateManuallyWithCheckpoint(slug, phase, manualCheckpointHook(s, slug, phase, &publication)); err != nil {
 		return err
+	}
+	if phase == "implement" {
+		if _, err := workflow.PublishCoverage(s, publication); err != nil {
+			return err
+		}
 	}
 	m, _ := store.ManualPhase(phase)
 	fmt.Fprintf(cmd.OutOrStdout(), "Phase %s advanced manually for %s (artifact: %s; state: %s)\n", phase, slug, m.Path, m.State)
@@ -3506,7 +3527,7 @@ func runManualPhase(cmd *cobra.Command, s *store.Store, slug, phase string) erro
 // The hook runs after validation and before the state transition, so a
 // refused artifact publishes nothing. `analyze`, `define` and `explore`
 // advance non-bound artifacts and are deliberately not producers.
-func manualCheckpointHook(s *store.Store, slug, phase string) func(store.ManualCheckpoint) error {
+func manualCheckpointHook(s *store.Store, slug, phase string, publication ...*workflow.CoveragePublicationInput) func(store.ManualCheckpoint) error {
 	if phase != "implement" {
 		return nil
 	}
@@ -3518,7 +3539,11 @@ func manualCheckpointHook(s *store.Store, slug, phase string) func(store.ManualC
 			// be a fabricated observation, so the advance is refused.
 			return fmt.Errorf("implement --manual: no validated recipe bytes to checkpoint")
 		}
-		workflow.ObserveImplementCheckpoint(s, slug, string(checkpoint.Data))
+		obs := workflow.ObserveImplementCheckpoint(s, slug, string(checkpoint.Data))
+		if len(publication) != 0 {
+			*publication[0] = workflow.ObserveCoveragePublication(s, obs)
+			publication[0].Recipe = workflow.CoverageArtifact{Present: true, Bytes: obs.ArtifactAfter.Bytes, Path: checkpoint.Path}
+		}
 		return nil
 	}
 }

@@ -61,27 +61,53 @@ const (
 // (PRD §6.1.3, PI-10). The producer that derived the recipe is the only
 // caller holding a real operation count, so it reports it here.
 type AutogenOutcome struct {
-	Action            AutogenAction
-	SkippedPaths      []string
-	DriftReason       string
-	Operations        int
-	OriginProved      bool
-	ProvenanceWritten bool
+	Action             AutogenAction
+	SkippedPaths       []string
+	DriftReason        string
+	Operations         int
+	OriginProved       bool
+	ProvenanceWritten  bool
+	Recipe             CoverageArtifact
+	RecipeWritten      bool
+	StaleMarkerPresent bool
+	plan               *recordRecipePlan
+}
+
+type recordRecipePlan struct {
+	recipe     []byte
+	provenance []byte
+	stale      []byte
+	clearStale bool
 }
 
 // AutogenRecipeForRecord consumes the producer's pre-write observation.
 // Exact canonical equality, not the action or file set, licenses provenance.
 // Explicit regeneration may replace a recipe only with a complete derivation.
-func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, regenerate bool) (AutogenOutcome, error) {
+func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, regenerate bool, captured ...CoveragePublicationInput) (outcome AutogenOutcome, retErr error) {
 	if s.Root != obs.RepoRoot {
 		return AutogenOutcome{}, fmt.Errorf("recipe observation belongs to a different repository")
 	}
-	slug := obs.Slug
-	existing, recipeErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
-	if recipeErr != nil && !errors.Is(recipeErr, fs.ErrNotExist) {
-		return AutogenOutcome{}, fmt.Errorf("read existing recipe: %w", recipeErr)
+	var publication CoveragePublicationInput
+	if len(captured) != 0 {
+		publication = captured[0]
+	} else {
+		publication = ObserveCoveragePublication(s, obs)
 	}
-	haveExisting := recipeErr == nil
+	if publication.observationErr != nil {
+		return AutogenOutcome{}, publication.observationErr
+	}
+	existing := string(publication.Recipe.Bytes)
+	recipeErr := publication.Recipe.ReadError
+	if recipeErr != nil && !errors.Is(recipeErr, fs.ErrNotExist) {
+		return AutogenOutcome{Recipe: publication.Recipe, StaleMarkerPresent: publication.Events.StaleMarkerPresent}, fmt.Errorf("read existing recipe: %w", recipeErr)
+	}
+	haveExisting := publication.Recipe.Present
+	outcome = AutogenOutcome{Recipe: publication.Recipe, StaleMarkerPresent: publication.Events.StaleMarkerPresent, plan: &recordRecipePlan{}}
+	defer func() {
+		if retErr == nil && !publication.DeferRecipeWrites {
+			retErr = publishRecordRecipePlan(s, obs.Slug, &outcome)
+		}
+	}()
 	// This only narrows derivation. A declared parent is never a substitute
 	// for a missing captured preimage, even during explicit regeneration.
 	var prior ApplyRecipe
@@ -95,14 +121,14 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 	}
 	derived, err := DeriveRecipe(obs)
 	if err != nil {
-		return AutogenOutcome{}, err
+		return outcome, err
 	}
-	outcome := AutogenOutcome{SkippedPaths: derived.skippedPaths(), Operations: len(derived.recipe.Operations)}
+	outcome.SkippedPaths, outcome.Operations = derived.skippedPaths(), len(derived.recipe.Operations)
 	switch {
 	case len(derived.canonical) == 0:
 		outcome.DriftReason = "captured effects cannot produce a complete recipe; existing recipe preserved"
 		if haveExisting {
-			return markRecipeStale(s, slug, outcome)
+			return planRecipeStale(outcome)
 		}
 		outcome.Action = AutogenSkipped
 		return outcome, nil
@@ -111,59 +137,53 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 			outcome.Action = AutogenSkipped
 			return outcome, nil
 		}
-		if err := writeRecipe(s, slug, derived.recipe); err != nil {
-			return outcome, err
-		}
+		outcome.plan.recipe = derived.CanonicalBytes()
 		existing = string(derived.canonical)
+		outcome.Recipe = CoverageArtifact{Present: true, Bytes: derived.CanonicalBytes(), Path: publication.Recipe.Path}
+		outcome.RecipeWritten = true
 		outcome.Action = AutogenGenerated
 	case derived.ProvesOrigin([]byte(existing)):
 		outcome.Action = AutogenNoop
 	case regenerate:
-		if err := writeRecipe(s, slug, derived.recipe); err != nil {
-			return outcome, err
-		}
+		outcome.plan.recipe = derived.CanonicalBytes()
 		existing = string(derived.canonical)
+		outcome.Recipe = CoverageArtifact{Present: true, Bytes: derived.CanonicalBytes(), Path: publication.Recipe.Path}
+		outcome.RecipeWritten = true
 		outcome.Action = AutogenRegenerated
 	default:
 		outcome.DriftReason = "recipe bytes differ from the complete captured derivation; preserved without origin proof (GH #19 owns historical/manual adoption)"
-		return markRecipeStale(s, slug, outcome)
+		return planRecipeStale(outcome)
 	}
 	outcome.OriginProved = derived.ProvesOrigin([]byte(existing))
-	outcome.ProvenanceWritten, err = convergeRecipeProvenance(s, slug, derived, []byte(existing))
+	outcome.plan.provenance, err = convergeRecipeProvenance(derived, []byte(existing), publication.Provenance)
 	if err != nil {
 		return outcome, err
 	}
-	if err := clearStaleMarker(s, slug); err != nil {
-		return outcome, err
-	}
+	outcome.plan.clearStale = true
+	outcome.StaleMarkerPresent = false
 	return outcome, nil
 }
 
-func markRecipeStale(s *store.Store, slug string, outcome AutogenOutcome) (AutogenOutcome, error) {
+func planRecipeStale(outcome AutogenOutcome) (AutogenOutcome, error) {
 	sb := RecipeStaleness{
 		Stale:      true,
 		Reason:     outcome.DriftReason,
 		DetectedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 	data, _ := json.MarshalIndent(sb, "", "  ")
-	if err := s.WriteArtifact(slug, "recipe-stale.json", string(data)+"\n"); err != nil {
-		return outcome, err
-	}
+	outcome.plan.stale = append(data, '\n')
 	outcome.Action = AutogenStale
+	outcome.StaleMarkerPresent = true
 	return outcome, nil
 }
 
-func writeRecipe(s *store.Store, slug string, recipe ApplyRecipe) error {
-	data, err := EncodeRecipe(recipe)
-	if err != nil {
-		return err
-	}
-	return s.WriteArtifact(slug, "apply-recipe.json", string(data))
+func writeRecipe(s *store.Store, slug string, data []byte) error {
+	return s.WriteArtifactAtomic(slug, "apply-recipe.json", string(data))
 }
 
-func convergeRecipeProvenance(s *store.Store, slug string, derived RecipeDerivation, existing []byte) (bool, error) {
+func convergeRecipeProvenance(derived RecipeDerivation, existing []byte, priorArtifact CoverageArtifact) ([]byte, error) {
 	if !derived.ProvesOrigin(existing) || !fullRecipeBaseCommit(derived.baseCommit) {
-		return false, nil
+		return nil, nil
 	}
 	hasPreimage := false
 	for _, op := range derived.recipe.Operations {
@@ -173,18 +193,17 @@ func convergeRecipeProvenance(s *store.Store, slug string, derived RecipeDerivat
 		}
 	}
 	if !hasPreimage {
-		return false, nil
+		return nil, nil
 	}
 	hash := store.SHA256HexString(string(existing))
-	raw, err := s.ReadFeatureFile(slug, "artifacts/recipe-provenance.json")
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return false, fmt.Errorf("read recipe provenance: %w", err)
+	if priorArtifact.ReadError != nil {
+		return nil, fmt.Errorf("read recipe provenance: %w", priorArtifact.ReadError)
 	}
 	var prior RecipeProvenance
-	if err == nil && json.Unmarshal([]byte(raw), &prior) == nil &&
+	if priorArtifact.Present && json.Unmarshal(priorArtifact.Bytes, &prior) == nil &&
 		prior.BaseCommit == derived.baseCommit && prior.RecipeSHA256 != nil && *prior.RecipeSHA256 == hash {
 		if _, timeErr := time.Parse(time.RFC3339, prior.GeneratedAt); timeErr == nil {
-			return false, nil
+			return nil, nil
 		}
 	}
 	prov := RecipeProvenance{
@@ -192,12 +211,36 @@ func convergeRecipeProvenance(s *store.Store, slug string, derived RecipeDerivat
 	}
 	data, err := json.MarshalIndent(prov, "", "  ")
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	if err := s.WriteArtifact(slug, "recipe-provenance.json", string(data)+"\n"); err != nil {
-		return false, fmt.Errorf("write recipe provenance: %w", err)
+	return append(data, '\n'), nil
+}
+
+func publishRecordRecipePlan(s *store.Store, slug string, outcome *AutogenOutcome) error {
+	plan := outcome.plan
+	if plan.recipe != nil {
+		if err := writeRecipe(s, slug, plan.recipe); err != nil {
+			return err
+		}
 	}
-	return true, nil
+	if plan.provenance != nil {
+		if err := s.WriteArtifactAtomic(slug, "recipe-provenance.json", string(plan.provenance)); err != nil {
+			return fmt.Errorf("write recipe provenance: %w", err)
+		}
+		outcome.ProvenanceWritten = true
+	}
+	if plan.stale != nil {
+		if err := s.WriteArtifactAtomic(slug, "recipe-stale.json", string(plan.stale)); err != nil {
+			return err
+		}
+	}
+	if plan.clearStale {
+		if err := clearStaleMarker(s, slug); err != nil {
+			return err
+		}
+	}
+	outcome.plan = nil
+	return nil
 }
 
 func clearStaleMarker(s *store.Store, slug string) error {

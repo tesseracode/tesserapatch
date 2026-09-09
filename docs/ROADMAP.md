@@ -1607,6 +1607,10 @@ explicitly named by D15; category-(c) coverage-only checkpoints retain the
 existing S3 semantic validator and create no provenance/origin claim.
 Manual and auto P3 error-carrier closures are authorized. These corrections
 remain subject to independent S4 review; no domain/schema widening is proposed.
+The P3 manual/auto error carriers and event-qualified P2 checkpoint behavior
+are delivered, with reachable failure and coverage-only byte-preservation
+fixtures. The full draft is entering gated validation and independent review;
+S4 remains in progress and historical golden files remain frozen.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

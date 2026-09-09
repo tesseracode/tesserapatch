@@ -37,7 +37,7 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
-// s1Recorder collects everything handed to the publication seam.
+// s1Recorder collects the pre-write diagnostic observations, not publications.
 type s1Recorder struct{ got []patchobs.Observation }
 
 func (r *s1Recorder) Record(o patchobs.Observation) { r.got = append(r.got, o) }
@@ -255,22 +255,23 @@ func TestS1ImplementArmsObserveWhatTheyWrite(t *testing.T) {
 				// The rev-0 defect: one observation of the RAW response,
 				// taken before the parse, for both arms.
 				name: "valid-arm-observes-the-raw-response",
-				old:  "\t\tObserveImplementCheckpoint(s, slug, reserialized)",
-				new:  "\t\tObserveImplementCheckpoint(s, slug, recipeContent)",
+				old:  "\t\tobservation = ObserveImplementCheckpoint(s, slug, reserialized)",
+				new:  "\t\tobservation = ObserveImplementCheckpoint(s, slug, recipeContent)",
 			},
 			{
 				name: "an-arm-stops-observing-at-all",
-				old:  "\t\tObserveImplementCheckpoint(s, slug, recipeContent)\n",
+				old:  "\t\tobservation = ObserveImplementCheckpoint(s, slug, recipeContent)\n",
 				new:  "",
 			},
 			{
 				name: "the-observation-moves-below-the-write",
-				old: "\t\tObserveImplementCheckpoint(s, slug, reserialized)\n" +
-					"\t\tif err := s.WriteArtifact(slug, \"apply-recipe.json\", reserialized); err != nil {\n" +
+				old: "\t\tobservation = ObserveImplementCheckpoint(s, slug, reserialized)\n" +
+					"\t\tpublication = ObserveCoveragePublication(s, observation)\n" +
+					"\t\tif err := s.WriteArtifactAtomic(slug, \"apply-recipe.json\", reserialized); err != nil {\n" +
 					"\t\t\treturn err\n\t\t}",
-				new: "\t\tif err := s.WriteArtifact(slug, \"apply-recipe.json\", reserialized); err != nil {\n" +
+				new: "\t\tif err := s.WriteArtifactAtomic(slug, \"apply-recipe.json\", reserialized); err != nil {\n" +
 					"\t\t\treturn err\n\t\t}\n" +
-					"\t\tObserveImplementCheckpoint(s, slug, reserialized)",
+					"\t\tobservation = ObserveImplementCheckpoint(s, slug, reserialized)",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -347,7 +348,7 @@ func s1CheckArmPayloadIdentity(name string, block *ast.BlockStmt) error {
 			return true
 		}
 		switch {
-		case s1CalleeName(call) == "WriteArtifact" && len(call.Args) == 3:
+		case s1CalleeName(call) == "WriteArtifactAtomic" && len(call.Args) == 3:
 			artifact, isLit := rgaS0StringLit(call.Args[1])
 			if !isLit || artifact != "apply-recipe.json" {
 				return true
@@ -571,7 +572,7 @@ func TestS1RefreshRefusesBeforeItWrites(t *testing.T) {
 		})
 		t.Run("preflight-moved-below-the-write", func(t *testing.T) {
 			moved := strings.Replace(src, anchor, "", 1)
-			writeAnchor := "\tif err := s.WriteArtifact(slug, \"post-apply.patch\", newPatch); err != nil {\n" +
+			writeAnchor := "\tif err := s.WriteArtifactAtomic(slug, \"post-apply.patch\", newPatch); err != nil {\n" +
 				"\t\treturn fmt.Errorf(\"refresh: write post-apply.patch: %w\", err)\n\t}\n"
 			if !strings.Contains(moved, writeAnchor) {
 				t.Fatalf("write anchor no longer present:\n%q", writeAnchor)
@@ -646,7 +647,7 @@ func s1CheckPreflightPrecedesWrites(fileName, src, fnName string) error {
 			return true
 		}
 		switch s1CalleeName(call) {
-		case "WriteArtifact":
+		case "WriteArtifactAtomic":
 			// Only a BOUND artifact counts: an unrelated artifact write
 			// is not the event the preflight protects.
 			if len(call.Args) < 2 {

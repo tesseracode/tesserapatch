@@ -102,8 +102,7 @@ func rgaS0CLICallName(call *ast.CallExpr) string {
 	return ""
 }
 
-// rgaS0AssertNoCLICoverageArtifact fails when a CLI producer left a
-// coverage record on disk. Nothing writes one before S3/S4.
+// rgaS0AssertNoCLICoverageArtifact preserves absence on non-event paths.
 func rgaS0AssertNoCLICoverageArtifact(t *testing.T, root, slug string) {
 	t.Helper()
 	path := filepath.Join(root, ".tpatch", "features", slug, "artifacts", "recipe-coverage.json")
@@ -142,7 +141,7 @@ func TestRGAS0RecordRecipeGeneratedLine(t *testing.T) {
 		if len(recipe.Operations) != 2 {
 			t.Fatalf("derived recipe operations = %d, want 2: %+v", len(recipe.Operations), recipe.Operations)
 		}
-		rgaS0AssertNoCLICoverageArtifact(t, tmp, "s0-gen-two")
+		rgaS4CLICoverage(t, tmp, "s0-gen-two")
 	})
 
 	t.Run("a-deleted-file-is-subtracted-and-reported", func(t *testing.T) {
@@ -174,7 +173,7 @@ func TestRGAS0RecordRecipeGeneratedLine(t *testing.T) {
 		if got := countPatchFiles(readRecordedPatch(t, tmp, "s0-gen-del")); got != 2 {
 			t.Fatalf("captured patch file count = %d, want 2 (one create + one delete)", got)
 		}
-		rgaS0AssertNoCLICoverageArtifact(t, tmp, "s0-gen-del")
+		rgaS4CLICoverage(t, tmp, "s0-gen-del")
 	})
 }
 
@@ -969,12 +968,12 @@ func TestRGAS0OpenInEditorSourceContract(t *testing.T) {
 	})
 }
 
-// ── P5: `apply --mode done` writes the patch and publishes nothing ───────
+// ── P5: frozen patch/recipe behavior plus S4 publication ────────────────
 
 // TestRGAS0ApplyDoneProducerBaseline freezes P5 through the auto pipeline
 // (the shape `TestApplyAutoMode` already exercises): a non-empty capture
-// writes the canonical patch and a numbered snapshot, and no coverage
-// record appears beside them.
+// writes the canonical patch and a numbered snapshot. S4 adds a bound record
+// while the existing recipe bytes and success output remain frozen.
 func TestRGAS0ApplyDoneProducerBaseline(t *testing.T) {
 	tmp := t.TempDir()
 	gitInitTestRepo(t, tmp)
@@ -1012,5 +1011,5 @@ func TestRGAS0ApplyDoneProducerBaseline(t *testing.T) {
 	if string(after) != recipe {
 		t.Fatalf("P5 must not rewrite the recipe:\n got %q\nwant %q", after, recipe)
 	}
-	rgaS0AssertNoCLICoverageArtifact(t, tmp, slug)
+	rgaS4CLICoverage(t, tmp, slug)
 }

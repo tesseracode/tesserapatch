@@ -65,7 +65,7 @@ func featurePatchFixupCmd() *cobra.Command {
 	return cmd
 }
 
-func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reason, target string) error {
+func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reason, target string) (retErr error) {
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return err
@@ -122,11 +122,17 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	var recipeObservation patchobs.Observation
 	var obsErr error
 	if recipeObservation, obsErr = observePatchProducer(patchobs.ProducerFeaturePatch, s, slug, patch,
-		string(captureModeWorkingTreeAll), "", "", nil, nil); obsErr != nil {
+		string(captureModeWorkingTreeAll), "", "", nil, nil, !classification.Append); obsErr != nil {
 		return obsErr
 	}
 
+	publication := workflow.ObserveCoveragePublication(s, recipeObservation)
 	if !classification.Append {
+		coverage, err := workflow.PublishCoverage(s, publication)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "  Recipe coverage: %s\n", coverage.CoverageStatus)
 		if intent == store.PatchGenerationIntentRefresh {
 			fmt.Fprintln(cmd.ErrOrStderr(), "no patch byte change; refresh skipped")
 		} else {
@@ -135,9 +141,13 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 		return nil
 	}
 
-	if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+	if err := s.WriteArtifactAtomic(slug, "post-apply.patch", patch); err != nil {
 		return fmt.Errorf("write post-apply.patch: %w", err)
 	}
+	publication.Events.PatchRewritten = true
+	publication.DeferRecipeWrites = true
+	finishCoverage := coverageFinalizer(s, &publication)
+	defer func() { retErr = finishCoverage(retErr) }()
 	patchLabel := strings.TrimPrefix(classification.Kind, "amend-")
 	patchName, err := s.WritePatch(slug, patchLabel, patch)
 	if err != nil {
@@ -156,9 +166,11 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 		return err
 	}
 
-	if autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, true, false); agErr != nil {
+	autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, true, false, publication)
+	if agErr != nil {
 		return fmt.Errorf("recipe autogen failed: %w", agErr)
 	} else {
+		publication.Autogen = &autogenOutcome
 		for _, sp := range autogenOutcome.SkippedPaths {
 			fmt.Fprintf(cmd.ErrOrStderr(), "  recipe autogen skipped: %s\n", sp)
 		}
@@ -171,7 +183,7 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	if patchName != "" {
 		auditPatch = "patches/" + patchName
 	}
-	if _, err := workflow.AppendPatchGenerationForFeature(s, slug, workflow.PatchGenerationInput{
+	publication.Generation = &workflow.PatchGenerationInput{
 		Intent:            intent,
 		Reason:            reason,
 		FixupOfGeneration: target,
@@ -180,10 +192,11 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 		BaseCommit:        status.Apply.BaseCommit,
 		Upper:             store.GenerationUpper{Kind: "working-tree", Ref: "working-tree", Commit: ""},
 		Capture:           store.GenerationCapture{Mode: "working-tree-all", Pathspecs: []string{}, ClaimIDs: []string{}},
-	}); err != nil {
-		return fmt.Errorf("record patch generation: %w", err)
 	}
 
+	if err := finishCoverage(nil); err != nil {
+		return err
+	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Amended patch for %s (%s, %d bytes, %d files)\n", slug, classification.Kind, len(patch), countPatchFiles(patch))
 	return nil
 }
