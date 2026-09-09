@@ -48,7 +48,7 @@ var (
 	ErrWriteFileLaterTouch = errors.New("write-file later-touch drift detected")
 )
 
-// preimageCheckOutcome enumerates the four resolutions of a single
+// preimageCheckOutcome enumerates the resolutions of a single
 // write-file preimage precondition check. Kept internal — Slice 4 will
 // use this to route between hard-reject and downgrade-to-warning based
 // on the caller feature's supersession status.
@@ -67,6 +67,9 @@ const (
 	// preimageSkip — op is not a write-file (or does not target a file).
 	// No precheck applies.
 	preimageSkip
+	// preimageAlreadyPresent — a valid gate's exact postimage is present;
+	// the operation succeeds without writing, before drift classification.
+	preimageAlreadyPresent
 )
 
 // computeFileSHA256 returns the sha256-over-exact-bytes digest of `path`
@@ -90,7 +93,8 @@ func computeFileSHA256(path string) (string, error) {
 // `write-file` operation and returns an outcome + a human-readable
 // remediation message.
 //
-// The four table rows from PRD §3.3 map to outcomes:
+// ADR-036 D7 recognizes exact postimages before the ADR-029 drift cases.
+// Otherwise the precondition rows from PRD §3.3 map to outcomes:
 //
 //   - preimage_hash: "sha256:<h>" AND file exists with matching hash → preimageOK
 //   - preimage_hash: "sha256:<h>" AND file missing → preimageRejected
@@ -106,6 +110,10 @@ func computeFileSHA256(path string) (string, error) {
 // forbids embedding file bodies in diagnostics; only paths and hashes
 // appear.
 func checkWriteFilePreimage(repoRoot, slug string, opIndex int, op RecipeOperation) (preimageCheckOutcome, string) {
+	return checkWriteFilePreimageWithReader(repoRoot, slug, opIndex, op, os.ReadFile)
+}
+
+func checkWriteFilePreimageWithReader(repoRoot, slug string, opIndex int, op RecipeOperation, readFile func(string) ([]byte, error)) (preimageCheckOutcome, string) {
 	if op.Type != "write-file" {
 		return preimageSkip, ""
 	}
@@ -133,6 +141,14 @@ func checkWriteFilePreimage(repoRoot, slug string, opIndex int, op RecipeOperati
 			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot stat target for new-file check: %v; verify permissions before replay",
 				slug, opIndex, op.Path, err)
 		}
+		data, readErr := readFile(target)
+		if readErr != nil {
+			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: target is unreadable: %v",
+				slug, opIndex, op.Path, readErr)
+		}
+		if string(data) == op.Content {
+			return preimageAlreadyPresent, ""
+		}
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: new-file collision — target already exists but recipe expected an empty preimage; regenerate the recipe against the current tree or reconcile before replay",
 			slug, opIndex, op.Path)
 	}
@@ -153,7 +169,7 @@ func checkWriteFilePreimage(repoRoot, slug string, opIndex int, op RecipeOperati
 			slug, opIndex, op.Path, expected)
 	}
 
-	observed, err := computeFileSHA256(target)
+	data, err := readFile(target)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s but target file is missing; regenerate the recipe or reconcile before replay",
@@ -163,6 +179,10 @@ func checkWriteFilePreimage(repoRoot, slug string, opIndex int, op RecipeOperati
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s but target is unreadable: %v",
 			slug, opIndex, op.Path, expected, err)
 	}
+	if string(data) == op.Content {
+		return preimageAlreadyPresent, ""
+	}
+	observed := PreimageHashPrefix + sha256Hex(data)
 	if observed != expected {
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s, observed %s; regenerate the recipe against the current tree or reconcile before replay",
 			slug, opIndex, op.Path, expected, observed)
@@ -190,6 +210,8 @@ func isLowercaseHex(s string) bool {
 // per-op verdicts so callers can log warnings (legacy path) and hard-reject
 // with all failing reasons in one shot (ADR-029 D3 all-or-nothing).
 type PreimagePrecheckResult struct {
+	// AlreadyPresent records zero-based operation indexes for no-write success.
+	AlreadyPresent map[int]bool
 	// Errors are precondition failures that must block execution per
 	// ADR-029 D3. Populated in operation-index order.
 	Errors []string
@@ -280,6 +302,11 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 		switch outcome {
 		case preimageOK, preimageSkip:
 			// nothing to report
+		case preimageAlreadyPresent:
+			if out.AlreadyPresent == nil {
+				out.AlreadyPresent = make(map[int]bool)
+			}
+			out.AlreadyPresent[i] = true
 		case preimageLegacyWarn:
 			if msg != "" {
 				out.Warnings = append(out.Warnings, msg)
@@ -339,6 +366,7 @@ func (r *PreimagePrecheckResult) appendDrift(msg string, superseded bool, supers
 	// signal as the supersession-coupling downgrade.
 	suffixed := fmt.Sprintf("%s (downgraded: feature is superseded by %q per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)",
 		msg, superseder)
+	suffixed += "; this is an audit signal, not a certification that explicit apply, coverage or replay is safe"
 	r.Warnings = append(r.Warnings, suffixed)
 	// R5 / F-M1: the drift class is still preimage-mismatch; only the
 	// SURFACED severity is downgraded per D7. Wrapping with the

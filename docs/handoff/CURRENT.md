@@ -2,7 +2,23 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: BLOCKED
+
+**S5 BLOCKED (2026-09-09)**: the D7/D14 classifier/accounting unit is authored
+but unvalidated. D9 capture-binding recomputation needs operator adjudication:
+coverage records the current capture event, while same-patch generation and
+P2 coverage-only checkpoints intentionally update no independent descriptor.
+Comparing to the latest generation can reject legitimate events; trusting the
+coverage's own descriptor misses capture-only tampering. See the newest LOG
+entry for exact source anchors. No reader/verify-row/D17/doctor implementation
+has been added and no Go validation has run.
+
+The coordinator authorizes a shared read-only D17 preflight before auto-mode
+prepare as the ordinary closure of the no-writes-on-refusal invariant, without
+changing state-selected reapply or legacy behavior. This does not resolve the
+separate D9 authority gap.
+
+### S5 dispatch and authored units (historical)
 
 **S5 DISPATCH (2026-09-09)**: the operator reports external S4 approval and
 authorizes S5. Fresh WAVE_BASE:
@@ -2539,7 +2555,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — scope checkpoint before implementation
+- **Status**: Blocked — D9 capture authority adjudication; partial D7/D14 unit unvalidated
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2547,6 +2563,21 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The runtime worker delivered exact-postimage precheck/no-write accounting and
+matching anchored-verify recognition with focused mutation/read-error fixtures,
+then stopped at D9's unresolved independent capture-binding requirement.
+Coordinator inspection confirms a legitimate same-patch event can publish a
+new capture without a generation update; P2 checkpoints change coverage only.
+No capture-event carrier or weaker authority rule was silently invented.
+Partial work is checkpointed for recovery, not accepted. No Go validation ran.
+
+The existing auto prepare-before-execute ordering is handled by admitting the
+same read-only classifier before prepare; no second policy choice is needed.
+Operator adjudication of D9 must be recorded in an amending ADR with explicit
+primary-document qualifications before the remaining S5 implementation.
+
+### S5 dispatch summary (historical)
 
 Recorded operator-reported external S4 approval without inventing reviewer
 findings or validation claims. Inspected accepted S5/D7/D9/D11/D13/D14/D17
@@ -2797,12 +2828,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5 is in progress from `537ffd9`, limited to apply classification/accounting,
-read-time bindings, verify, read-only doctor and truthful remediation.
-S4 is internally accepted, externally approved and durably pushed. S5
-runtime work is delegated; independent contract controls are authored but
-not Go-validated. Scope was committed/pushed before dispatch.
-ADR-039/040 remain in force. S6 and GH #24 implementation are not authorized.
+S5 is blocked on D9 capture authority. The partial D7/D14 implementation and
+independent contract controls are authored but not Go-validated or approved.
+The worker is idle; the coverage reader, D13/D17 and D10 remain unimplemented.
+S4 stays internally accepted, externally approved and durably pushed.
+ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
 ### Accepted prerequisite state (historical)
 
@@ -2879,6 +2909,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
 - Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
+- Partial worker unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
+  `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
+  `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
 - Three session-owned ignored wrappers under `bin/s5-validation/`; not staged
   or part of the product, and removed at closure.
 
@@ -3454,6 +3487,8 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S5: no Go validation run. Readiness confirms clean/pushed `537ffd9` and
   terminal CI 34368468175 green on all required platform/observer jobs.
+- Partial D7/D14 unit is formatted only. Its runtime behavior, including
+  multiple operations on one target, still requires validation/review.
 
 ### Completed S4 results
 
@@ -9338,14 +9373,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Receive the bounded runtime draft from worker
-   `f88dc13c-d461-45f8-a583-b2a9eb806188`; do not edit its files while active.
-2. Checkpoint implementation, run serial gated validation and independent
+1. Obtain operator adjudication of D9 capture authority; record an amending
+   ADR and explicit contract qualifications before resuming the reader.
+2. Resume worker `f88dc13c-d461-45f8-a583-b2a9eb806188` after that decision,
+   including the same-target accounting review and auto preflight placement.
+3. Checkpoint implementation, run serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.
 
 ## Blockers
 
-- No S5 prerequisite blocker; implementation/validation/review remain.
+- S5 D9 blocker: no independent current capture-event descriptor survives all
+  accepted same-patch/checkpoint producer outcomes. Do not compare blindly
+  against an old generation or accept a copied self-description as proof.
+- The partial unit is not validated; implementation and review remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
@@ -9357,6 +9397,9 @@ at 471.544s. Formatting, vet and CLI build pass.
   new review findings/checklist. S4 is already archived; do not duplicate it.
 - S5's runtime ownership and strict resource-gated sequence are at the top
   of this file. Older S4 pending actions below are historical, not dispatches.
+- Worker `f88dc13c-d461-45f8-a583-b2a9eb806188` returned a partial D7/D14
+  unit and is idle. D9 needs a real contract choice, not an undocumented
+  marker. No Go validation has run; do not infer acceptance from checkpoints.
 - Verify must extend its captured inventory and instability detection for
   coverage/stale-marker inputs. D9 cannot be bolted on as a second live read.
 - Preserve ADR-039's narrow complete-operation domain and ADR-040's truthful

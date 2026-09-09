@@ -1,3 +1,48 @@
+## Implementation Blocker — GH #15 S5 capture-binding authority — 2026-09-09
+
+**State**: BLOCKED — operator contract adjudication required
+**WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+**Worker**: `f88dc13c-d461-45f8-a583-b2a9eb806188`
+
+The worker delivered the bounded D7/D14 classifier/accounting unit and stopped
+before implementing D9/D13/D17/D10. Coordinator inspection confirms the
+capture-binding gap:
+
+- ADR-036 D9 (`1597-1664`) requires independently recomputing the capture
+  descriptor; capture-only tampering is expected to fail as binding-stale.
+- `patch_generations.go:57-62` intentionally returns before metadata writes
+  when canonical patch bytes match the latest generation.
+- `recipe_coverage_publish.go:141-170` still publishes the current event's
+  capture. `feature_patch.go:129-141` likewise publishes P2's coverage-only
+  checkpoint without changing generation/state/other artifacts.
+- D2 permits multiple capture modes to produce identical patch bytes; P6/P7
+  legitimately publish no-capture records beside an older generation.
+
+Consequently, comparing every coverage capture with the latest generation
+rejects valid producer outcomes, while copying the coverage descriptor back
+into its own validator cannot detect a semantically valid capture-only edit.
+The present persisted contract has no independent current capture-event
+carrier. No new marker or schema field has been invented to hide the gap.
+Operator choice is required between an explicit D9 authority qualification
+and reopening the publication contract for independent event evidence.
+
+The auto-mode issue is an implementation placement requirement, not a second
+policy blocker: the same read-only D17 preflight may run before
+`runApplyAuto` calls `runApplyPrepare`, as well as on the non-reapplying
+execute fallthrough. It must preserve canonical reapply selection, legacy
+behavior and zero writes on the newly introduced refusal.
+
+### Checkpoint
+
+Partial, unvalidated changes: `recipe.go`, `writefile_safety.go`,
+`verify_anchored.go`, plus `recipe_authority_s5_apply_test.go` and
+`recipe_authority_s5_verify_test.go`. Exact-postimage accounting, injected
+target read errors and classifier mutations are authored; only formatting
+ran. Multi-operation same-target behavior still needs explicit review before
+acceptance. No Go validation or independent implementation verdict exists.
+Checkpoint the delivered work and tracking by explicit paths, not as S5
+completion. S6, GH #13 and GH #24 remain excluded.
+
 ## Implementation Transition — GH #15 S5 independent contract controls — 2026-09-09
 
 **State**: IN PROGRESS — authored, not Go-validated

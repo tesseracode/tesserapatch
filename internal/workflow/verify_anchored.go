@@ -965,11 +965,11 @@ func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, o
 	expected := *op.PreimageHash
 
 	if expected == "" {
-		_, found, err := ctx.blobAtTree(treeish, op.Path)
+		data, found, err := ctx.blobAtTree(treeish, op.Path)
 		if err != nil {
 			return false, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot read the baseline tree %s: %v", slug, opIndex, op.Path, treeish, err), ""
 		}
-		if found {
+		if found && string(data) != op.Content {
 			return false, fmt.Sprintf("recipe drift: [%s] op %d %s: new-file collision — the path already exists at baseline %s but the recipe expected an empty preimage; regenerate the recipe against the current tree or reconcile before replay",
 				slug, opIndex, op.Path, treeish), ""
 		}
@@ -991,6 +991,9 @@ func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, o
 	if !found {
 		return false, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s but the path is missing at baseline %s; regenerate the recipe or reconcile before replay",
 			slug, opIndex, op.Path, expected, treeish), ""
+	}
+	if string(data) == op.Content {
+		return true, "", ""
 	}
 	got := PreimageHashPrefix + sha256Hex(data)
 	if got != expected {

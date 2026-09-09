@@ -61,7 +61,13 @@ func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 		return result
 	}
 
-	for _, op := range recipe.Operations {
+	for i, op := range recipe.Operations {
+		if pre.AlreadyPresent[i] {
+			result.Applied++
+			result.Skipped++
+			result.Messages = append(result.Messages, fmt.Sprintf("[write-file] %s: already present (exact postimage), no write", op.Path))
+			continue
+		}
 		msg, warn, err := dryRunOperation(s, recipe.Feature, op)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
@@ -100,7 +106,13 @@ func ExecuteRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 		return result
 	}
 
-	for _, op := range recipe.Operations {
+	for i, op := range recipe.Operations {
+		if pre.AlreadyPresent[i] {
+			result.Applied++
+			result.Skipped++
+			result.Messages = append(result.Messages, fmt.Sprintf("[write-file] %s: already present (exact postimage), no write", op.Path))
+			continue
+		}
 		if err := executeOperation(s, recipe.Feature, op); err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
 		} else {

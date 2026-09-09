@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 IN PROGRESS — 2026-09-09**.
+**S5 🚧 BLOCKED — 2026-09-09**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1630,9 +1630,14 @@ Preserve ADR-029 atomicity/path-safety/supersession behavior, ADR-039/040,
 S3 purity, S4 publication and all 11 phase-boundary mutations. One runtime
 worker and a disjoint coordinator contract-test unit; all Go validation
 remains serial and resource-gated. Scope is checkpointed before code.
-Dispatch `caca158` is pushed; the runtime worker is active. The independent
-contract-test unit is authored/formatted with table/guidance/ADR-029
-mutation controls; no S5 Go validation has run.
+Dispatch `caca158` and independent contract-test checkpoint `e38a73a` are
+pushed. The worker delivered partial D7/D14 classification/accounting, then
+stopped at D9 capture authority: same-patch/P2 checkpoint publication can
+change capture without updating an independent generation descriptor.
+Operator adjudication is required; no weaker binding rule or new marker
+was invented. The reader/verify row/D17/doctor remain unimplemented and
+no S5 Go validation has run. Auto-mode preflight placement is authorized as
+a normal no-writes-on-refusal closure, not a separate policy change.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
