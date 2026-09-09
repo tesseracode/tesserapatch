@@ -137,6 +137,34 @@ make wave-close-test-shards
 make wave-close-check
 ```
 
+### 1.9 Detach anything that runs longer than about a minute
+
+The agent terminal integration returns no output and then stops responding for
+long invocations, and a delegated subagent hits the same wall. Recovery has
+taken up to nine minutes. Measured runtimes here: `internal/cli` **1831s**
+unsharded, the shard partition **~30 min**, `internal/workflow` **100s** — all
+far past that limit, so none of them can be run inline.
+
+Detach the run and read its result from a file, which does not depend on the
+terminal surviving:
+
+```sh
+# runner.sh — invoked as: nohup sh runner.sh >/dev/null 2>&1 &
+cd <repo> || exit 1
+make wave-close-test-shards > /tmp/shards.log 2>&1
+echo "exit=$?" > /tmp/shards.done
+```
+
+Then poll with short commands, or read `/tmp/shards.log` directly with the
+file-reading tool. Do **not** `sleep` in the foreground waiting for it — a
+70-second sleep wedges the terminal exactly like a long test does.
+
+Where the repository imposes a resource gate (see `docs/handoff/CURRENT.md` —
+≥80% free memory, load1 ≤5, no active Go toolchain process, sustained 60s),
+have the runner enforce it before starting rather than starting under
+contention: a suite that times out because the machine was busy produces a
+finding about the machine, not the code.
+
 ---
 
 ## 2. Recurring defect classes
@@ -167,7 +195,10 @@ report.
    ```sh
    cmd >/dev/null 2>&1; echo "EXIT=$?"
    ```
-   Nearly reported a passing exit-3 guard as broken.
+   Nearly reported a passing exit-3 guard as broken. The same trap in reverse:
+   `grep -c pattern file` **exits 1 when the count is 0**, so a clean
+   "0 failures" result surfaces as a non-zero command status. Read the printed
+   count, not the exit code.
 
 2. **Shell semantics differ from `make`.** `make` recipes run under `sh`, which
    word-splits unquoted expansions; **zsh does not**. Replicate Makefile logic
@@ -188,6 +219,35 @@ report.
 5. **Grep scope.** A missing hit may mean the wrong include pattern, not absent
    code. Confirm with a second, broader search before declaring something
    nonexistent.
+
+6. **`git status --short` collapses untracked directories.** A directory whose
+   contents are entirely untracked prints as ONE entry, not one per file. A
+   count taken this way under-reports and will not reconcile against a count
+   taken with `-uall`. When a file count is load-bearing — a handoff, a
+   baseline assertion, a sentinel comparison — always use:
+   ```sh
+   git status --short -uall | grep -c '^??'
+   ```
+   A collapsed count in a handoff stopped an implementer mid-task over a
+   "discrepancy" (9 entries vs 13 files) that did not exist.
+
+7. **`pgrep -f` patterns match more than you mean.** A resource gate that
+   excluded `/link` never fired, because `/link` matches macOS's
+   `/usr/libexec/linkd` — a permanent system daemon. The gate was unsatisfiable
+   and spun for 30 minutes. Anchor patterns to something specific to the target;
+   Go's tool binaries live under `pkg/tool/<goos>_<goarch>/`:
+   ```sh
+   pgrep -f 'go test|go build|go vet|pkg/tool/[^ ]*/(compile|link)'
+   ```
+   Always print what a process matcher actually matched (`pgrep -fl`) before
+   trusting it to gate anything.
+
+8. **Repo scripts may be intentionally non-executable.** `scripts/*.sh` here is
+   mode 644 and is invoked as `sh scripts/<name>.sh` by the Makefile. Calling it
+   directly fails with exit **126** ("found, not executable"). Invoke gates
+   through their Make target, or replicate the Makefile's exact invocation —
+   never `chmod +x` a tracked file to make your own command work, which dirties
+   the tree you are reviewing.
 
 ---
 
