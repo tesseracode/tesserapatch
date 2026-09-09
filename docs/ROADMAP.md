@@ -1624,6 +1624,10 @@ S4 rev-0 review is NEEDS REVISION: shared-writer incoming-chain coverage and
 P1 common status output need correction. A distinct P2 writing-event
 reason conflict (D15 "always pair" versus D3's exact semantic conditions)
 requires operator adjudication. No domain/schema widening is authorized.
+The operator selected `semantic-reasons`. ADR-040 qualifies D15's P2
+writing/output wording without changing D3, D16, the wire schema or ADR-039.
+Mapping/output corrections, paired semantic-drift fixtures and independent
+policy-fold review are in progress. GH #24 remains excluded.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

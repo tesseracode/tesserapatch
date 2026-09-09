@@ -10,6 +10,10 @@ coverage status/reasons line; and D15's P2 writing-event "always pair" rule
 contradicts D3 when raw canonical equality fails but semantic coverage is
 exact. The third needs operator adjudication, not invented reason codes or
 a change to ADR-039. The category-(c) checkpoint qualification is separate.
+The operator has now selected `semantic-reasons`: D3 remains unchanged;
+formatting-only mismatch keeps truthful stale-marker incompleteness without
+fabricated rewrite reasons. ADR-040 records the narrow D15/PRD qualification.
+The worker is fixing mapping/output and adding paired writing-event fixtures.
 
 **Current S4 state (2026-09-09)**: the first targeted run compiled the draft
 and passed the other selected producer/carryover tests, but stopped at step 2
@@ -136,6 +140,11 @@ fixture intent and express publication's expected delta without re-recording
 historical goldens. `internal/cli/recipe_authority_s2_golden_test.go` is also
 authorized only to compose its tests with the new S4 expected delta; the S2
 projection function itself stays unchanged.
+The operator-approved reason fold additionally assigns the coordinator
+ADR-040, its ADR/PRD/index pointers, the coupled
+`internal/cli/prepare_s7_rev16_test.go` Index pin, and new
+`internal/workflow/recipe_authority_s4_contract_test.go`
+(`rgaS4Contract*` / `TestRGAS4Contract*`). Worker ownership does not overlap.
 No same-file parallel edits. Any additional path or contract ambiguity
 requires explicit coordinator scope/adjudication before changes.
 The worker does not stage, commit, push or run Go validation; the coordinator
@@ -2381,7 +2390,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: Needs revision — mapping/output fixes and P2 writing-event adjudication
+- **Status**: In progress — semantic-reasons decision recorded; mapping/output revision active
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
 - **Release target**: `v0.17.0`
@@ -2389,6 +2398,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
+
+The operator selected `semantic-reasons` for the P2 writing-event conflict.
+ADR-040 explicitly qualifies D15 and the PRD output wording while preserving
+D3's exact reason rules, D16 origin proof and ADR-039's operation domain.
+The current S3 semantic builder is not changed to manufacture failure.
+The worker owns mapping/output fixes and paired real writing-event tests;
+the coordinator owns the policy/pointer/parity/index fold.
 
 The worker completed the P3 manual/auto caller closure with typed errors and
 no new persisted/public result field. Both CLI human/JSON failure paths have
@@ -2602,8 +2618,9 @@ P2 event qualification as well as the full publication/error/event behavior.
 The first targeted run stopped at step 2 on fixture/compatibility mismatches;
 the scoped corrections are in progress. Review-note guard tests pass.
 Independent review then found mapping/output defects and the distinct P2
-writing-event reason conflict. Fix the first two and obtain an explicit
-operator decision on the third before acceptance.
+writing-event reason conflict. The operator resolved the third in favor of
+unchanged D3 semantic reasons; ADR-040 records it. Mapping/output corrections,
+policy-fold review and full revalidation remain pending.
 
 ## Prerequisite Status
 
@@ -9002,8 +9019,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Correct the mapping/output review findings and adjudicate P2's formatting-
-   only writing-event reasons. Keep S3 semantic truth and ADR-039's domain intact.
+1. Correct the mapping/output review findings and implement/verify the
+   operator-selected semantic-reasons qualification. Keep S3 and ADR-039 intact.
 2. Run the required resource-gated sequence and independent review, including
    the exact P2 event qualification, all 11 N2 mutations and N3's boundary.
 3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
@@ -9013,8 +9030,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - Review blockers: unmapped shared-writer callers and missing P1 common
   coverage output; worker revision required.
-- Contract blocker: P2 writing-event "always pair" versus exact semantic
-  explanation in D3. Operator adjudication required; this is not GH #24.
+- P2 policy is resolved by the operator's `semantic-reasons` selection.
+  ADR-040 review and implementation evidence remain required; this is not GH #24.
 - Publication will deliberately change compatibility snapshots; adapt
   expectations narrowly without re-recording historical goldens.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.

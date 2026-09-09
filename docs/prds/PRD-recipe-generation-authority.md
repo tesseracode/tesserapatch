@@ -23,6 +23,13 @@ coverage-incomplete, including the previously described exact-replacement
 exception. The canonical schema and ten-predicate block remain unchanged.
 GH #24 owns planning for broader operation support.
 
+**S4 P2 publication-reason addendum**:
+[ADR-040](../adrs/ADR-040-p2-publication-reason-semantics.md) qualifies P2's
+writing-event and producer-output wording: the rewrite pair follows the
+unchanged D3 semantic condition, not every D16 byte mismatch. Stale-marker
+incompleteness and origin/provenance restrictions remain intact. No broader
+operation class or consumer authority is introduced.
+
 ## 0. Revision history
 
 | Rev | Date | Change |

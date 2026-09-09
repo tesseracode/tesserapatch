@@ -30,6 +30,13 @@ exact-replacement completeness exception and qualifies admissible
 reclassification without changing this document's wire schema or canonical
 ten-predicate block. Broader operation support is deferred to GH #24.
 
+**S4 P2 publication-reason addendum**:
+[ADR-040](./ADR-040-p2-publication-reason-semantics.md) resolves D15's
+over-broad "always pair" wording in favor of D3's unchanged semantic reason
+conditions. A non-D16 formatting mismatch does not invent rewrite reasons;
+origin, explanation and stale-marker status remain distinct. No schema,
+canonical predicate or ADR-039 domain change is made.
+
 ## Revision history
 
 | Rev | Date | Change |

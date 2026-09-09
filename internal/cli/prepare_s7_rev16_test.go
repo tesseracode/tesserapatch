@@ -992,11 +992,11 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 		},
 		{
 			// Readiness: only the explicitly pinned Index block may move.
-			// S2/S3 add the retention and operator-selected v1 domain decisions.
+			// Later slices add explicitly reviewed retention/domain/reason decisions.
 			label: "ADR index",
 			base:  input.baseIndex, current: input.index,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "111552aea1ee07df40b2f54b74a5f85b437f3f85156e5bf5b8da671e5a25435f"},
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "0b75e5abd82140d4672a55dcb9f925eb39698603ffb33884d3bca5fd20387ab6"},
 			},
 		},
 	}

@@ -24,6 +24,7 @@
 - [ADR-037: Reconcile Operation-Replay Candidate Authority](ADR-037-reconcile-operation-replay-candidate-authority.md) — Accepted rev-6 (2026-09-02, after rev-0 through rev-4 NEEDS REVISION, rev-5 APPROVED with notes, and rev-6 APPROVED); companion to accepted [PRD-reconcile-operation-replay-candidate](../prds/PRD-reconcile-operation-replay-candidate.md) rev-6, GH #13, target v0.18.0. Decisions D1–D36 plus D7b, D9.1, D12b, D20b and D29b; implementation remains blocked until GH #15 ships in v0.17.0.
 - [ADR-038: Bounded In-Memory Observation Image Retention](ADR-038-observation-image-retention.md) — Accepted (2026-09-07, GH #15 S2 independent review). A shared 32 MiB image budget, streaming Git bodies, and isolated recorder ownership retain exact preimages without unbounded body storage.
 - [ADR-039: Conservative v1 Coverage-Complete Operation Domain](ADR-039-coverage-complete-operation-domain.md) — Accepted operator policy (2026-09-08, GH #15 S3). Complete coverage admits only preimage-bearing write-file operations; broader-domain planning is deferred to GH #24. No wire-schema or execution change.
+- [ADR-040: P2 Publication Reasons Preserve Semantic Truth](ADR-040-p2-publication-reason-semantics.md) — Accepted operator policy (2026-09-09, GH #15 S4). D3's semantic rewrite-reason conditions remain authoritative for P2; non-D16 formatting mismatch does not fabricate reasons or origin. ADR-039 and the wire schema are unchanged.
 
 ## Locked-In Decisions (from review process)
 

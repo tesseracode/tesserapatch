@@ -1,3 +1,19 @@
+## Operator Adjudication — GH #15 S4 P2 semantic reasons — 2026-09-09
+
+**Selection**: `semantic-reasons`
+**State**: IN PROGRESS — review revisions
+
+The operator chose unchanged D3 semantic conditions. P2 formatting-only/
+non-D16 writing events preserve recipe/provenance and retain truthful
+stale-marker incompleteness, but do not fabricate the rewrite pair when
+explanation/simulation/reclassification remain exact.
+
+ADR-040 explicitly qualifies D15 and the paired PRD output wording. D3,
+D16, canonical schema/predicate blocks and ADR-039's domain remain unchanged.
+The worker fixes mapping/common output and adds paired actual writing-event
+evidence; the coordinator owns policy/pointers/guards/index. Independent
+policy review and all implementation revalidation remain required.
+
 ## Review — GH #15 S4 implementation rev-0 — 2026-09-09
 
 **Reviewer**: `s4-implementation-review`
