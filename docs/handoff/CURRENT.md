@@ -2,14 +2,17 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S4 approved for durable close (2026-09-09)**: all independent findings and
-validation steps 1-6 are complete. The exact 22-shard retry passed every
-invocation, each after a fresh qualifying resource window. Code is unchanged
-from full-suite dispatch `0d730e7`. This canonical field records review
-approval; final acceptance still requires push and the explicit-WAVE_BASE
-mechanical gate. No S5 dispatch or GH #24 implementation.
+**S4 ACCEPTED (2026-09-09)**: all independent findings are closed and all
+seven validation stages pass. The final explicit-WAVE_BASE mechanical gate
+reports **8/8 PASS**, no warnings, at pushed
+`e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`, including its own fresh complete
+22-shard run after the standalone full-suite pass. Every top-level Go
+invocation had a fresh qualifying resource window. Terminal tracking is
+documentation-only; no code, fixture or validation-command change follows
+the passing gate. The completion archive is in HISTORY. S5 requires a
+separate assignment and fresh base; GH #24 remains planning-only.
 
 ### S4 execution record (historical)
 
@@ -2460,14 +2463,34 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
+- **Status**: Complete — S4 ACCEPTED; all seven stages and independent review pass
 - **Assigned**: 2026-09-08
+- **Completed**: 2026-09-09
 - **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+- **Gate-validated/pushed tip**: `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`
 - **Release target**: `v0.17.0`
 
 WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
+
+S4 is accepted: one shared typed publisher and all seven governed producers
+are wired with publication-last atomic coverage, exact captured inputs,
+pre-write snapshots, event/no-event distinctions and explicit error propagation.
+Common stderr status is emitted only after successful publication. Manual/
+provider bytes and D16 origin rules remain intact; ADR-040 records the
+operator-selected truthful P2 semantic reasons without widening ADR-039.
+
+Independent review closed every finding, including incoming writer routes,
+function-value/import/shadow mapping, common output, policy and compatibility
+corrections. N1 is renamed and all 11 original N2 mutations remain with new
+negative controls. All seven validation stages pass; both the standalone
+22-shard suite and final gate's fresh 22-shard suite passed. The final gate
+is 8/8 PASS at pushed `e2c3cc3`. This terminal update changes only tracking;
+the three owned validation wrappers are removed and all 13 research files
+remain untouched. No S5/S6, GH #24 implementation or release/tag work occurred.
+
+### S4 execution summary (historical)
 
 The worker delivered the mapping/common-output revision and ADR-040 evidence.
 Incoming shared-writer callers now have explicit negative/positive controls.
@@ -2687,24 +2710,18 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S4 is approved for durable close: all review findings and steps 1-6 pass.
-The complete 22-shard retry passed at the current unchanged code; push and
-step 7 remain before acceptance. Details below preserve the revision history.
+S0-S4 are accepted; S4's reviewed implementation is durably pushed at
+`e2c3cc3`. All seven validation stages pass, with an 8/8 final gate and two
+complete exact 22-shard runs. No S4 blocker or review finding remains.
+Terminal tracking changes no code/fixture/validation command after that gate.
 
-S0-S3 are accepted, externally reviewed and durably pushed. S4 is dispatched
-from `2b441c5` for publication/event wiring only, preserving the S3 pure core
-and ADR-039 operation domain. All seven producers and all 11 existing
-phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
-implementation are excluded. The complete draft and P3/P2 corrections are
-delivered but unvalidated. Independent S4 review must confirm the detailed
-P2 event qualification as well as the full publication/error/event behavior.
-The first targeted run stopped at step 2 on fixture/compatibility mismatches;
-the scoped corrections are in progress. Review-note guard tests pass.
-Independent review then found mapping/output defects and the distinct P2
-writing-event reason conflict. The operator resolved the third in favor of
-unchanged D3 semantic reasons; ADR-040 records it. Mapping/output corrections are delivered and policy-fold review is APPROVED.
-Steps 1-5 now pass at `ee024dc`. Independent implementation-correction review,
-the full 22-shard suite and wave-close gate remain pending.
+S4 publishes coverage across P1-P7 without changing the S3 pure core,
+ADR-039 operation domain, public assets or replay authority. ADR-040 resolves
+the P2 writing-event reason conflict using the operator's `semantic-reasons`
+selection; category-(c) checkpoints remain coverage-only and create no
+origin/provenance claim. S5/S6 and GH #24 implementation are not dispatched.
+Historical intermediate states below and in the execution record are not
+current blockers.
 
 ## Prerequisite Status
 
@@ -2763,12 +2780,19 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
-- S4 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
-  `docs/supervisor/LOG.md`. Authorized code/test paths are enumerated above.
-- Coordinator: `internal/workflow/recipe_authority_s4_review_notes_test.go`.
-- Worker draft touches the declared publication/producer surfaces and adds
-  the declared atomic/runtime/guard test files. `accept.go` is now explicitly
-  added for the necessary P3 outer-caller error propagation.
+- S4 production: `internal/workflow/recipe_coverage_publish.go`,
+  `recipe_autogen.go`, `implement.go`, `refresh.go`, `accept.go`,
+  `reconcile.go`; `internal/store/artifact_atomic.go`; CLI `cobra.go`,
+  `feature_patch.go`, `phase2.go`, `c1.go`, `producer_observation.go`.
+- S4 runtime/event/publication/mapping/contract/review-note test families,
+  scoped S0-S2 compatibility tests and exact S4 golden deltas. Historical
+  golden files and the S2 projection function remain unchanged.
+- ADR-040, its ADR-036/PRD pointers, ADR index and directly coupled pin.
+- Tracking: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
+  `docs/ROADMAP.md`, `docs/supervisor/LOG.md`. Only these four tracked files
+  change after the passing gate at `e2c3cc3`.
+- The three owned ignored wrappers in `bin/s4-validation/` are removed.
+  The 13 research files, allowlist and reviewer playbook remain untouched.
 
 ### Completed S3 file record
 
@@ -3323,6 +3347,18 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Final S4 result: all seven prescribed validation stages **PASS**.
+- Step 7 at pushed `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`:
+  `make wave-close-check WAVE_BASE=2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+  exits 0, **8/8 PASS**, no warnings. Its own fresh complete 22-shard run
+  passes, in addition to the standalone step 6 pass below.
+- All independent findings are closed. Each top-level Go invocation used
+  60 continuous seconds at >=80% free memory, load1 <=5 and no active Go
+  tools. Terminal documentation does not change validated code, fixtures
+  or validation commands; it does not require another Go run.
+
+### S4 validation record (historical)
 
 - Step 6 recovered retry **PASS**: all 22 exact invocations. Main CLI
   623.856s, workflow 92.118s, all other packages and all 21 isolated CLI
@@ -9193,36 +9229,33 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit/push the review-approved close checkpoint so the durability gate
-   can compare HEAD with origin/main.
-2. Run `make wave-close-check WAVE_BASE=2b441c5aa374eeb7c7f651e87c9759b573332a2b`
-   with fresh resource windows before all top-level Go invocations.
-3. Record the gate result, archive S4 and push terminal tracking.
-   Do not start S5 or GH #24 implementation.
+1. Await a separate S5 assignment; record a fresh, fetched/pushed WAVE_BASE
+   before dispatch. S4 is accepted and requires no further correction.
+2. Keep GH #24 as non-blocking broader-domain planning only. GH #13
+   implementation still waits for shipped GH #15/v0.17.0.
 
 ## Blockers
 
-- All independent review findings and steps 1-6 pass. Step 7 and durable
-  close remain before S4 acceptance; no known implementation blocker remains.
-- P2 policy is resolved by the operator's `semantic-reasons` selection.
-  ADR-040 is independently APPROVED; implementation evidence remains required.
-  This is not GH #24.
-- Publication will deliberately change compatibility snapshots; adapt
-  expectations narrowly without re-recording historical goldens.
-- The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.
-- GH #24 is a non-blocking follow-up for broader-domain planning only.
-- GH #15 implementation has no planning blocker.
+- No S4 blocker remains. Independent review and all seven stages pass.
+- ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
+  conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
 
-- Active S4 WAVE_BASE is `2b441c5aa374eeb7c7f651e87c9759b573332a2b`,
+- S4 is ACCEPTED at gate-validated/pushed `e2c3cc3`; the terminal tracking
+  commit is documentation-only. The completion archive is in HISTORY.
+  All independent findings are closed; no implementation/review agent
+  remains active. Do not resume the historical pending actions above.
+- S4 WAVE_BASE is `2b441c5aa374eeb7c7f651e87c9759b573332a2b`,
   after the preserved reviewer commit and external-review receipt were
-  pushed. Do not reuse S3's `27ee8bc` or a release-tag range.
-- S4 worker ID: `c1f3cf18-a17c-4554-a805-2782498e7c9d`. Retrieve its result
-  before touching its owned files; it runs no Go validation and does no
-  staging/commits. Coordinator review-note test names use `rgaS4Review*` /
-  `TestRGAS4Review*` and remain outside the worker's scope.
+  pushed. A separately assigned S5 needs a new base, not this or a tag range.
+- Completed S4 worker: `c1f3cf18-a17c-4554-a805-2782498e7c9d`;
+  reviewer: `334f5d27-1085-4722-b23c-82652d39b04a`. Review-note test names
+  use `rgaS4Review*` / `TestRGAS4Review*`.
+- ADR-040 preserves D3 semantic reasons for P2 writing events; formatting-only
+  mismatch must not fabricate the rewrite pair. ADR-039 and GH #24 remain
+  unchanged. S4's ignored validation wrappers are removed.
 - N1/N2/N3 are explicit S4 requirements, not open S3 findings. The original
   11 pure-core mutations remain applicable even though publication gains
   its own strictly scoped file/call-chain permissions.
@@ -9233,7 +9266,7 @@ at 471.544s. Formatting, vet and CLI build pass.
   per-command protocol for the exact script without modifying its CI-pinned
   contents; inherited child markers must avoid gating nested test tools
   against their own already-gated parent process.
-- Active S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
+- Historical S3 WAVE_BASE is `27ee8bc45664f16a083b1a831e7ca04a7cb1c527`, not
   S2's `0c41be9` and not the last release tag. The S2 completion archive is
   already in HISTORY; do not duplicate or erase it when retargeting S3.
 - Core worker `560d7825-549b-476b-bba8-3d00567aeff0` completed its revision.
@@ -9241,7 +9274,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   reviewer `c566eb33-80c5-4bdc-b9c1-d4931f23e89f` both approved.
 - Record schema/semantic validation and replay authority are different:
   S3 must not treat `complete`, contextual hints or cross-base status as
-  permission to apply/reconcile. S4/S5 will consume the pure result later.
+  permission to apply/reconcile. S4 publishes the pure result; S5 consumer
+  integration remains a separately assigned future slice.
 - S2 is accepted through gate-validated, pushed `cc0f7eb`; the terminal
   tracking commit is documentation-only. Core production last changed at
   `6cc3633`; final compatibility tests at `c3b4451`. All static findings are

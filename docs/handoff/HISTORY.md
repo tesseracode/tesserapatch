@@ -9408,3 +9408,129 @@ all 13 research files and the allowlist are untouched.
 
 No S3 blocker remains. S4 needs a separate assignment and fresh WAVE_BASE.
 GH #24 remains future planning only; GH #13 waits for shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-09 — GH #15 S4 — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `implement-recipe-generation-authority-s4`
+- **Milestone**: GH #15 / ADR-036
+- **Description**: Shared coverage publication and all seven governed producers.
+- **Status**: Complete — ACCEPTED
+- **Assigned / completed**: 2026-09-08 / 2026-09-09
+- **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+- **Gate-validated/pushed tip**: `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`
+- **Range**: `2b441c5..e2c3cc3` (22 commits before terminal tracking).
+- **Boundary**: S4 only; no S5/S6, GH #24 implementation, release or tag.
+
+## Session Summary
+
+Recorded external S3 APPROVED and carried N1-N3 into S4. Reviewer-owned
+`bba1803` changed only REVIEW-PLAYBOOK.md with a valid trailer; it was
+preserved unchanged and pushed with the review receipt before taking the
+fresh S4 base. The reviewer's durability mismatch was not an S3 defect.
+Dispatch `70c5f9b` preceded implementation. One worker owned shared
+production/primary tests; the coordinator owned disjoint carryover/policy
+guards, compatibility expectations, serial validation and tracking.
+
+S4 adds one typed PublishCoverage boundary, a narrow generic atomic store
+adapter, immutable event inputs and pre-write snapshots. Coverage publishes
+last, atomically as one file, without claiming cross-file transactionality.
+All P1-P7 events and no-event arms are wired, including same-patch P2
+coverage-only checkpoints, identical-patch P3 writes, both P6 recipe-write
+arms/manual checkpoint, and P7 actual canonical artifact mutations before
+editor errors return. Common stderr status uses the sorted record/effect
+reason union only after successful publication.
+
+P3 manual and auto callers propagate typed publication failures instead of
+swallowing them as warnings/success; unrelated best-effort and shadow
+recovery behavior stays intact. No persisted/public ReconcileResult field
+was added. P2 category-(c) checkpoints use S3 semantic completeness, change
+coverage only and create no D16 origin/provenance claim.
+
+Independent review exposed a distinct D15 writing-event reason conflict:
+raw-format inequality does not imply D3 semantic rewrite failure. The
+operator selected `semantic-reasons`; ADR-040 qualifies D15/PRD wording.
+Formatting-only non-D16 preserved bytes remain truthfully incomplete on
+the stale marker without fabricated rewrite codes; actual semantic drift
+raises both codes. D3, D16, schema and ADR-039 remain unchanged.
+
+## Review Scoreboard and Pattern Catches
+
+- Rev-0: NEEDS REVISION on incoming shared-writer mapping, common status
+  output and the P2 writing-event contract conflict.
+- ADR-040 policy fold `fadaf31`: independently APPROVED; contract finding closed.
+- Common output and paired semantic-reason implementation: independently
+  APPROVED; output finding closed.
+- Mapping revisions: function-value/package/method aliases, parenthesized
+  direct calls, colliding workflow import alias `s` and shadowed writer
+  bindings exercised through same-validator controls. Final `9a3c1a6`
+  independently APPROVED; all mapping findings closed.
+- Cycle/store corrections `0dd96e1` + `c7b6aa4`: independently APPROVED;
+  historical fixtures and baseline source hash/history remain fixed.
+- Final implementation decision: ACCEPTED after all seven stages and the
+  8/8 gate pass. No independent finding remains open.
+
+N1 renames the real guard to TestRGAS0CoveragePhaseBoundaryHolds without an
+obsolete-name alias. N2 retargets only the designated publisher/producer
+boundary; all 11 original mutations survive, especially spaced AST calls
+and identical source in another file. Added incoming-call and fail-closed
+function-value/import/shadow controls prevent silent mapping exemptions.
+N3 preserves ADR-039's preimage-bearing write-file domain; GH #24 remains
+non-blocking planning only.
+
+Validation caught stale legacy publication assumptions, unreachable auto-
+accept fixtures, an invalid format name, exact newline and same-size Git
+fixture ambiguities, cycle diagnostic expectations and the atomic store
+method inventory. Narrow corrections preserved test intent. A separate
+independently derived S4 expected stage covers six producer fixtures and
+one cycle P6 diagnostic; no historical golden or S2 projection function was
+rewritten. Current-source provenance has its own exact pin, not a rewritten
+historical hash. Each new guard retains a failing mutation fixture.
+
+## Files Changed
+
+`internal/workflow/recipe_coverage_publish.go`, `recipe_autogen.go`,
+`implement.go`, `refresh.go`, `accept.go`, `reconcile.go`;
+`internal/store/artifact_atomic.go`; CLI `cobra.go`, `feature_patch.go`,
+`phase2.go`, `c1.go`, `producer_observation.go`; S4 runtime/event/mapping/
+publication/contract/review-note tests; scoped S0-S2 and legacy compatibility
+guards; separate S4 expected golden deltas; ADR-040, ADR-036/PRD/index
+pointers and directly coupled index pin; tracking.
+
+S3 pure core, ADR-039, public assets, SPEC, CHANGELOG, dependencies,
+historical golden files, allowlist and reviewer playbook remain unchanged
+from the S4 base.
+
+## Test Results
+
+All seven prescribed stages PASS:
+1. Gofmt produces no unformatted path.
+2. Targeted S0-S4 and coupled compatibility/index/source-provenance guards pass.
+3. Affected core packages and expanded CLI regression families pass.
+4. Serial vet passes.
+5. Serial CLI build passes.
+6. Exact 22-shard retry passes all invocations: main CLI 623.856s, workflow
+   92.118s, every other package and all 21 isolated CLI shards.
+7. `make wave-close-check WAVE_BASE=2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+   at pushed `e2c3cc3` exits 0: **8/8 PASS**, no warnings, including another
+   complete fresh 22-shard run.
+
+Every top-level Go invocation required 60 continuous seconds at >=80% free
+memory, load1 <=5 and no active Go tools. Runs were serial and stopped at
+the first failure; thresholds and the exact shard partition were not relaxed.
+The successful standalone retry had qualifying windows at 88-89% free.
+No code changed after full-suite dispatch `0d730e7`; terminal tracking changes
+no code, fixture, asset or validation command after the passing gate.
+
+## Current State, Blockers and Next Steps
+
+S4 is ACCEPTED and its validated implementation is pushed. All wave commits
+carry the Copilot trailer. Only the three owned ignored validation wrappers
+and their empty subdirectory are removed; all 13 research files are untouched.
+Terminal tracking records the accepted state without a new release or tag.
+
+No S4 blocker remains. S5 requires a separate assignment and fresh WAVE_BASE.
+GH #24 remains planning-only; GH #13 waits for shipped GH #15/v0.17.0.

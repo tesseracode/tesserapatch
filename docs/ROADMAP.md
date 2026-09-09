@@ -1587,106 +1587,38 @@ with all 11 sensitivity mutations retained, and N3's exclusion of GH #24.
 The reviewer-owned `bba1803` documentation commit is preserved and will be
 published with the review receipt before recording the fresh S4 base.
 Reviewer housekeeping and the external-review receipt are pushed unchanged
-through `2b441c5`. S4 is ✅ REVIEW APPROVED (dispatched 2026-09-08) from fresh
-WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
-Scope: one shared publisher, all P1-P7 events, exact ordering/error/recovery
-semantics and registry/call-chain guards. Carry N1's rename, retain all 11
-N2 mutations while retargeting the phase boundary, and keep N3/#24 out of
-scope. One worker owns production/shared tests; the coordinator owns disjoint
-review-note guard tests and tracking. S5/S6 and domain widening remain excluded.
-Dispatch `70c5f9b` is pushed and the publication worker is active. The
-coordinator's independent N1/N2/N3 guard unit is authored, including all 11
-original mutations and copied-publisher/different-file controls. No S4 Go
-validation has run.
-The working draft is delivered with 32 focused test families. P3's outer
-AcceptShadow propagation is a necessary authorized scope extension, and
-P2's non-writing checkpoint/D16 interpretation is under independent
-confirmation. No Go validation or S4 acceptance has occurred.
-The coordinator scoped P2's extra D16 check to the patch-writing events
-explicitly named by D15; category-(c) coverage-only checkpoints retain the
-existing S3 semantic validator and create no provenance/origin claim.
-Manual and auto P3 error-carrier closures are authorized. These corrections
-remain subject to independent S4 review; no domain/schema widening is proposed.
-The P3 manual/auto error carriers and event-qualified P2 checkpoint behavior
-are delivered, with reachable failure and coverage-only byte-preservation
-fixtures. The full draft is entering gated validation and independent review;
-S4 remains in progress and historical golden files remain frozen.
-First targeted validation compiled the draft and stopped at step 2 on stale
-S0/S2 fixture assumptions, two unreachable/misnamed auto-accept test inputs,
-and expected new publication snapshots. The corrections are partitioned
-between worker-owned fixtures and coordinator-owned legacy/golden deltas.
-No later validation stage has run; historical golden files remain unchanged.
-Coordinator corrections preserve S2 crash/capture intent and add a separate
-six-fixture publication delta using frozen input facts and independent hash
-calculations. The projection is authored but not yet revalidated; no old
-golden or S2 projection function was rewritten.
-S4 rev-0 review is NEEDS REVISION: shared-writer incoming-chain coverage and
-P1 common status output need correction. A distinct P2 writing-event
-reason conflict (D15 "always pair" versus D3's exact semantic conditions)
-requires operator adjudication. No domain/schema widening is authorized.
-The operator selected `semantic-reasons`. ADR-040 qualifies D15's P2
-writing/output wording without changing D3, D16, the wire schema or ADR-039.
-Mapping/output corrections, paired semantic-drift fixtures and independent
-policy-fold review are in progress. GH #24 remains excluded.
-Revision `395f58a` passes the repaired golden/legacy/policy/carryover families;
-targeted validation stopped on two remaining fixture assertions. Their exact
-input/precondition corrections are authored without changing production.
-Corrected checkpoint `ee024dc` now passes steps 1-5 under individual 89%
-free-memory gates. Independent correction review is pending before the full
-22-shard and wave-close phases; S4 is not yet accepted.
-Correction review closes common output and accepts fixture corrections, but
-one mapping-guard function-value alias bypass remains. A test-only
-fail-closed correction and registered/unregistered mutation fixtures are next;
-full validation and S4 acceptance remain pending.
-The alias correction is authored as a fail-closed whole-file reference
-check, not an assumed alias owner. Registered/unregistered/package aliases
-and artifact method values have negative controls; direct-call and literal
-text controls remain positive. Revalidation and confirmation are next.
-Alias correction `6287d5e` passes steps 1-5, including every new negative
-and positive control. Independent confirmation is pending before full
-22-shard validation and wave close.
-The alias correction still needs import-binding precedence: workflow imported
-as `s` currently collides with the assumed store receiver. Direct/value
-negative controls and conservative shadow handling are being added.
-The import-precedence correction and colliding/shadowed alias controls are
-authored, with production unchanged. Revalidation and correction review follow.
-Import-binding correction `9a3c1a6` passes steps 1-5, including the new
-collision/shadow controls. Independent confirmation is still required before
-full shards and wave close.
-The final mapping correction `9a3c1a6` is independently APPROVED; output and
-ADR-040 findings remain closed. All review findings and targeted validation
-are complete; the mandatory exact 22-shard and wave-close phases are next.
-The first full-suite invocation stopped on the old cycle diagnostic golden
-and store method inventory. Narrow test-only S4 deltas are being added;
-historical fixtures and production remain unchanged, and later shards have
-not run.
-The cycle correction adds only the required P6 diagnostic to expected bytes;
-the store guard admits exactly the reviewed atomic adapter. Historical
-fixtures/hash history stay fixed and the current routing-source pin is exact.
-Revalidation and independent correction review are next.
-The targeted retry caught an unused routing-comparator import; it is removed
-and its exact current-source pin refreshed. No production change; validation
-restarts from step 1.
-Corrected cycle/store expectations at `c7b6aa4` pass steps 1-5, including
-source-provenance pins and new sensitivities. Independent correction review
-is pending before the exact full-suite rerun.
-Cycle/store corrections `0dd96e1` + `c7b6aa4` are independently APPROVED.
-All findings are closed and steps 1-5 pass; the full exact 22-shard script
-is restarting before final wave close.
-The exact 22-shard retry now passes completely: main CLI 623.856s,
-workflow 92.118s, all other packages and all 21 isolated CLI shards.
-Every command used a fresh resource window. Reviewed/checkpoint range:
-`2b441c5..0d730e7`; final acceptance awaits push and the explicit-base
-mechanical gate. S5/S6 and GH #24 remain excluded.
-Policy/guard checkpoint `fadaf31` is under independent review, separately
-from worker mapping/output revisions. No Go revalidation has run yet.
-ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
-finding. Mapping/output revisions and implementation validation remain open;
-S4 is not accepted.
-The mapping/common-output revision is delivered with incoming-call controls,
-all-producer status/reason reporting and real ADR-040 paired writing fixtures.
-Coordinator golden expectations include only the corresponding producer
-stderr additions. Combined revalidation and correction review are next.
+through `2b441c5`.
+
+**S4 ✅ ACCEPTED — 2026-09-09** (dispatched 2026-09-08).
+**WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
+**Gate-validated/pushed range**:
+`2b441c5aa374eeb7c7f651e87c9759b573332a2b..e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`.
+
+One shared typed publisher covers all seven governed producers with exact
+event/no-event rules, immutable captured inputs, pre-write snapshots,
+publication-last atomic coverage and common stderr status. P3 manual/auto
+publication failures propagate without inventing persisted result fields.
+P2 category-(c) checkpoints change coverage only. Operator-approved ADR-040
+keeps P2 writing-event reasons semantically truthful without changing D3,
+D16, the wire schema or ADR-039's conservative domain.
+
+All independent findings are closed. N1's guard is renamed; N2 retains all
+11 original mutations, including AST-evasion and different-file controls,
+plus incoming writer/function-value/import/shadow mapping sensitivities.
+N3/GH #24 remains planning-only and outside implementation scope.
+Historical goldens stay frozen; separately derived exact S4 deltas cover
+the six producer fixtures and cycle P6 diagnostic. Store-method and source
+provenance guards retain their negative controls.
+
+All seven validation stages pass. The standalone exact 22-shard retry
+(main CLI 623.856s, workflow 92.118s) and the final gate's own fresh complete
+22-shard run pass. The explicit-base wave-close gate reports **8/8 PASS**,
+no warnings; every top-level Go invocation used a fresh qualifying resource
+window. Terminal tracking is documentation-only and the completion archive
+is in HISTORY. All 13 research files, allowlist, S3 pure core and public
+assets remain unchanged. S5/S6, domain widening and release/tag work remain
+undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
+
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

@@ -1,3 +1,34 @@
+## Implementation Decision — GH #15 S4 ACCEPTED — 2026-09-09
+
+**Decision**: ACCEPTED — all independent findings closed; all seven validation stages pass
+**WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+**Gate-validated/pushed tip**: `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`
+**Range**: `2b441c5..e2c3cc3` (22 commits before terminal tracking)
+
+### Evidence
+
+The final `make wave-close-check WAVE_BASE=2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+exited 0: **8/8 PASS**, no warnings. Its fresh complete 22-shard run passes,
+in addition to the standalone complete 22-shard retry. Every top-level Go
+invocation had the required 60 continuous seconds at >=80% free memory,
+load1 <=5 and no active Go tools. All wave commits have the required trailer;
+the tracked tree is clean and HEAD equals origin/main at the validated tip.
+
+Independent review approved ADR-040, the final mapping correction `9a3c1a6`
+and cycle/store corrections `0dd96e1` + `c7b6aa4`. All earlier publication,
+common-output, P2-policy and mapping findings are closed. N1 is renamed;
+all 11 N2 mutations and the added alias/import/shadow controls remain;
+N3/ADR-039's conservative domain and GH #24's planning-only boundary hold.
+
+### Action Taken
+
+Accept S4, flip CURRENT and ROADMAP, and archive the completion record in
+HISTORY. Remove only the three owned ignored validation wrappers. Commit
+and push terminal tracking with no code, fixture, asset or validation-command
+change after the passing gate. The 13 research files, historical goldens,
+allowlist, S3 pure core and reviewer playbook remain untouched.
+No S5 dispatch, GH #24 implementation, release or tag is authorized here.
+
 ## Implementation Decision — GH #15 S4 approved for durable close — 2026-09-09
 
 **Decision**: REVIEW APPROVED — final mechanical gate pending
