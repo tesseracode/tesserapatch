@@ -2,7 +2,76 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**S5 DISPATCH (2026-09-09)**: the operator reports external S4 approval and
+authorizes S5. Fresh WAVE_BASE:
+`537ffd9bff153efe37afa3bc6d66f4e00fc55d35`. Fetch confirms clean/pushed main,
+no stashes, one worktree, no operation markers and the original 13 untracked
+research files. Terminal CI 34368468175 passed all required jobs. S4's
+completion archive already exists; no review finding carries forward.
+
+### S5 scope, ownership and validation
+
+Authority: PRD-recipe-generation-authority S5; ADR-036 D7/D9/D11/D13/D14/D17,
+with ADR-029's unchanged refusal/atomicity/severity rules and ADR-039/040.
+
+- Exact-postimage no-op classification for empty and non-empty preimage gates,
+  apply and anchored verify; Applied and Skipped both increment with the exact
+  already-present message. Preserve missing/unreadable-target refusals, path
+  safety, all-or-nothing precheck and supersession severity.
+- Recompute raw bytes, bidirectional readable-existence flags, strict recipe
+  decodability, envelope owner, reference/capture, preimage/effect bindings.
+  Integrate with verify's immutable inventory, not a second live-artifact read.
+  Expose injectable read failures; chmod-dependent fixtures are not sufficient.
+- Add verify `recipe_generation_coverage` with the six-rung precedence ladder
+  and separate surface/schema vocabularies. Missing coverage and stale markers
+  warn; malformed and binding-stale block. V10 remains independently enforced.
+- Apply's seven-case D17 classifier runs only after the state-selected
+  canonical reapply return and before LoadRecipe/progress mutation. Named
+  refusals exit 2; incomplete readable/decodable recipes execute with warning;
+  absent coverage retains both legacy paths. Guidance is state-aware and
+  names neither a speculative unapply nor an unreachable reapply mode.
+- Doctor D10 is warning-only, Fixable:false and read-only even under --fix.
+  Every regeneration command needs a complete dry-derivation proof first;
+  otherwise report blocking reasons and manual remediation, without writes.
+- Preserve all 11 original phase-boundary mutations and S4 mapping controls.
+  Every new guard must have a wrong-input fixture rejected by that validator.
+
+One worker owns these production files, sequentially: new
+`internal/workflow/recipe_coverage_read.go`,
+`recipe_coverage_diagnostics.go`, `doctor_d10.go`; existing `recipe.go`,
+`writefile_safety.go`, `verify.go`, `verify_anchored.go`, `verify_landed.go`,
+`doctor.go`; `internal/cli/cobra.go`, `reject.go`. Its focused new tests are
+`internal/workflow/recipe_authority_s5_read_test.go`,
+`recipe_authority_s5_apply_test.go`, `recipe_authority_s5_verify_test.go`,
+`recipe_authority_s5_doctor_test.go`,
+`internal/cli/recipe_authority_s5_cli_test.go`.
+It may retarget `recipe_authority_s0_source_guards_test.go` only to admit
+the designated S5 read/consumer surface while preserving the pure core and
+all existing sensitivities. Additional production paths or contract ambiguity
+must be reported before expanding scope.
+
+The coordinator owns new, disjoint
+`internal/workflow/recipe_authority_s5_contract_test.go`, all tracking and
+any subsequently scoped historical/golden expectation updates. The worker
+does not edit those, stage/commit/push, or run Go validation. No same-file
+parallel edits. S3 pure files, S4 publisher, public assets, SPEC, CHANGELOG,
+dependencies, historical goldens, allowlist and all 13 research files are
+guarded unchanged unless a directly coupled need is explicitly adjudicated.
+No GH #13 replay candidate, GH #24 widening, S6, release or tag.
+
+Before EVERY top-level Go validation require 60 continuous seconds at >=80%
+free memory, load1 <=5 and no active go/compile/link/vet/test or *.test process.
+Run serially and stop at first failure: gofmt; targeted S0-S5; affected
+packages; vet; build; exact `sh scripts/wave-close-test-shards.sh`; then
+`make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
+Preserve the CI-pinned commands, use fresh gates for their top-level Go
+invocations, and keep long processes session-attached. Formatting owned files
+is allowed; tests/build/vet are coordinator-only. Independent review and
+terminal tracking/push are required before accepting S5.
+
+### S4 accepted prerequisite (historical)
 
 **S4 ACCEPTED (2026-09-09)**: all independent findings are closed and all
 seven validation stages pass. The final explicit-WAVE_BASE mechanical gate
@@ -2459,20 +2528,27 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s4`
+- **Task ID**: `implement-recipe-generation-authority-s5`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: Complete — S4 ACCEPTED; all seven stages and independent review pass
-- **Assigned**: 2026-09-08
-- **Completed**: 2026-09-09
-- **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
-- **Gate-validated/pushed tip**: `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`
+- **Description**: S5 — apply, verify, doctor and accounting
+- **Status**: In progress — scope checkpoint before implementation
+- **Assigned**: 2026-09-09
+- **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
 
-WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
+WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Recorded operator-reported external S4 approval without inventing reviewer
+findings or validation claims. Inspected accepted S5/D7/D9/D11/D13/D14/D17
+contracts and the existing apply/verify/publisher boundaries. The fresh
+clean/pushed baseline is `537ffd9`; all required terminal CI jobs pass.
+Retargeted CURRENT/ROADMAP/LOG before code and declared disjoint ownership.
+S5 implementation and Go validation have not begun.
+
+### S4 completion summary (historical)
 
 S4 is accepted: one shared typed publisher and all seven governed producers
 are wired with publication-last atomic coverage, exact captured inputs,
@@ -2710,6 +2786,14 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
+S5 is in progress from `537ffd9`, limited to apply classification/accounting,
+read-time bindings, verify, read-only doctor and truthful remediation.
+S4 is internally accepted, externally approved and durably pushed. No S5
+code or validation result exists yet; scope is checkpointed before dispatch.
+ADR-039/040 remain in force. S6 and GH #24 implementation are not authorized.
+
+### Accepted prerequisite state (historical)
+
 S0-S4 are accepted; S4's reviewed implementation is durably pushed at
 `e2c3cc3`. All seven validation stages pass, with an 8/8 final gate and two
 complete exact 22-shard runs. No S4 blocker or review finding remains.
@@ -2779,6 +2863,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
+
+### Completed S4 file record
 
 - S4 production: `internal/workflow/recipe_coverage_publish.go`,
   `recipe_autogen.go`, `implement.go`, `refresh.go`, `accept.go`,
@@ -3347,6 +3436,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S5: no Go validation run. Readiness confirms clean/pushed `537ffd9` and
+  terminal CI 34368468175 green on all required platform/observer jobs.
+
+### Completed S4 results
 
 - Final S4 result: all seven prescribed validation stages **PASS**.
 - Step 7 at pushed `e2c3cc3b5afaa0a2dfe6c28af7888eb1440d03ba`:
@@ -9229,19 +9323,29 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Await a separate S5 assignment; record a fresh, fetched/pushed WAVE_BASE
-   before dispatch. S4 is accepted and requires no further correction.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13
-   implementation still waits for shipped GH #15/v0.17.0.
+1. Commit/push S5 scope and dispatch the single bounded implementation worker.
+2. Author independent contract controls in the coordinator-owned test file.
+3. Checkpoint implementation, run serial gated validation and independent
+   review, correct findings, then close durably. Do not start S6 or GH #24.
 
 ## Blockers
 
-- No S4 blocker remains. Independent review and all seven stages pass.
+- No S5 prerequisite blocker; implementation/validation/review remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority.
 
 ## Context for Next Agent
+
+- Active S5 WAVE_BASE: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
+  The operator supplied external S4 approval and S5 authorization, but no
+  new review findings/checklist. S4 is already archived; do not duplicate it.
+- S5's runtime ownership and strict resource-gated sequence are at the top
+  of this file. Older S4 pending actions below are historical, not dispatches.
+- Verify must extend its captured inventory and instability detection for
+  coverage/stale-marker inputs. D9 cannot be bolted on as a second live read.
+- Preserve ADR-039's narrow complete-operation domain and ADR-040's truthful
+  P2 reasons. No GH #13 semantic replay or S6/public asset work is authorized.
 
 - S4 is ACCEPTED at gate-validated/pushed `e2c3cc3`; the terminal tracking
   commit is documentation-only. The completion archive is in HISTORY.

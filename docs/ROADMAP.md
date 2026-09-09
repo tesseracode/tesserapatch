@@ -1619,6 +1619,19 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
+**S5 🚧 IN PROGRESS — 2026-09-09**.
+**WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
+Operator-reported external S4 approval received; terminal CI 34368468175
+passes all required jobs and the tracked baseline is clean/pushed.
+Scope: exact-postimage apply/verify classification and accounting, read-time
+binding recomputation, six-rung verify row, total seven-case execute
+classifier, read-only doctor D10 and dry-derivation-gated remediation.
+Preserve ADR-029 atomicity/path-safety/supersession behavior, ADR-039/040,
+S3 purity, S4 publication and all 11 phase-boundary mutations. One runtime
+worker and a disjoint coordinator contract-test unit; all Go validation
+remains serial and resource-gated. Scope is checkpointed before code.
+S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
+
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

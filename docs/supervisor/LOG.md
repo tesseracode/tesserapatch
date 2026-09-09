@@ -1,3 +1,38 @@
+## Dispatch — GH #15 S5 apply, verify, doctor and accounting — 2026-09-09
+
+**Task**: `implement-recipe-generation-authority-s5`
+**State**: IN PROGRESS
+**WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+
+S4 is externally approved per the operator's message, internally accepted,
+archived and pushed. Fresh fetch confirms HEAD == origin/main at `537ffd9`,
+clean tracked state, no stashes, one main worktree and no operation markers.
+All 13 allowlisted research files remain untouched. Terminal CI 34368468175
+passed all three platform jobs and both observer jobs; release was skipped.
+
+Authorize PRD S5 only: D7 exact-postimage recognition and D14 accounting;
+D9 binding recomputation; D13 verify ladder; D11 read-only doctor D10 and
+dry-derivation remediation; D17's total execute classifier and exit/guidance.
+Preserve ADR-029's unchanged refusals, atomicity/path safety and supersession
+severity; preserve ADR-039/040 and the S3 pure core/S4 publisher.
+No GH #13 consumer, GH #24 widening, S6 assets/docs, release or tag.
+
+One worker owns the coupled runtime surfaces and primary tests. The
+coordinator owns a separate contract-test file, compatibility deltas if
+required, tracking, all serial resource-gated validation and commits.
+Explicit ownership and the exact validation protocol are in CURRENT.
+This dispatch is checkpointed before code; no S5 validation result is claimed.
+
+## External Review Receipt — GH #15 S4 — 2026-09-09
+
+**Verdict**: APPROVED (operator-reported)
+**Source**: "s4 is approved externally! lets start working on S5"
+
+No additional findings or reproduced checklist were supplied in this message;
+do not attribute new validation claims to the external reviewer. S4's own
+accepted implementation, 8/8 gate and archive remain at `537ffd9`.
+The operator authorizes S5, not S6 or GH #24 implementation.
+
 ## Implementation Decision — GH #15 S4 ACCEPTED — 2026-09-09
 
 **Decision**: ACCEPTED — all independent findings closed; all seven validation stages pass
