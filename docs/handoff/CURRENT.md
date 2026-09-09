@@ -3257,6 +3257,12 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
+- Retry `395f58a`: step 1 **PASS**; step 2 **FAIL** on two fixture assertions
+  after gates at 89% free/load1 3.21 and 2.21. Golden, legacy, policy and
+  carryover fixes pass. Same-patch refresh now gets explicit capture/equality
+  preconditions and a size-changing edit; offline auto-accept uses an exact
+  no-final-newline response. Production is unchanged; steps 3-7 remain unrun.
+
 - Combined revision is authored/formatted, not yet revalidated. Worker
   mapping/output/ADR-040 fixtures and coordinator legacy/golden fixtures
   will run together from validation step 1.

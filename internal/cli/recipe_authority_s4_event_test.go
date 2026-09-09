@@ -603,7 +603,7 @@ func TestRGAS4AutoAcceptPublicationFailureReachesCLIAndJSON(t *testing.T) {
 				content := `{"verdict":"unclear"}`
 				for _, message := range input.Messages {
 					if strings.Contains(message.Content, "# File: shared.txt") {
-						content = "a\nB-merged\nc\n"
+						content = "a\nB-merged\nc"
 					}
 				}
 				calls++
@@ -632,7 +632,7 @@ func TestRGAS4AutoAcceptPublicationFailureReachesCLIAndJSON(t *testing.T) {
 			if calls < 2 {
 				t.Fatalf("fixture did not reach provider-assisted auto-accept: calls=%d", calls)
 			}
-			if merged, readErr := os.ReadFile(filepath.Join(root, "shared.txt")); readErr != nil || string(merged) != "a\nB-merged\nc\n" {
+			if merged, readErr := os.ReadFile(filepath.Join(root, "shared.txt")); readErr != nil || string(merged) != "a\nB-merged\nc" {
 				t.Fatalf("%s route did not copy the resolved content: %q %v", format, merged, readErr)
 			}
 			if patch, readErr := s.ReadFeatureFile(slug, "artifacts/post-apply.patch"); readErr != nil || !strings.Contains(patch, "+B-merged") {

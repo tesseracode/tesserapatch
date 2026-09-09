@@ -102,18 +102,24 @@ func TestRGAS4RefreshSamePatchWritePublishesWithoutGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(target, []byte("new\n"), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte("new content\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	patch, err := gitutil.DiffFromCommitForPaths(root, head, []string{"a.txt"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !strings.Contains(patch, "-old\n") || !strings.Contains(patch, "+new content\n") {
+		t.Fatalf("same-patch fixture did not capture its intended change: %q", patch)
+	}
 	if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 		t.Fatal(err)
 	}
 	if err := RefreshAfterAccept(s, slug, head, patch); err != nil {
 		t.Fatal(err)
+	}
+	if written, err := s.ReadFeatureFile(slug, "artifacts/post-apply.patch"); err != nil || written != patch {
+		t.Fatalf("same-patch fixture changed its canonical bytes: before=%q after=%q err=%v", patch, written, err)
 	}
 	c := rgaS4ReadCoverage(t, s, slug)
 	if c.Producer != patchobs.ProducerReconcileAccept || c.Capture.Mode != patchobs.CaptureModeReconcile {

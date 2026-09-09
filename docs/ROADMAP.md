@@ -1628,6 +1628,9 @@ The operator selected `semantic-reasons`. ADR-040 qualifies D15's P2
 writing/output wording without changing D3, D16, the wire schema or ADR-039.
 Mapping/output corrections, paired semantic-drift fixtures and independent
 policy-fold review are in progress. GH #24 remains excluded.
+Revision `395f58a` passes the repaired golden/legacy/policy/carryover families;
+targeted validation stopped on two remaining fixture assertions. Their exact
+input/precondition corrections are authored without changing production.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

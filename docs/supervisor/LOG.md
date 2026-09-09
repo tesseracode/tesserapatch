@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S4 revision-1 validation stopped — 2026-09-09
+
+**Checkpoint**: `395f58a`
+**State**: IN PROGRESS — two fixture corrections
+
+Step 1 passed and step 2 stopped after fresh gates at 89% free/load1
+3.21/2.21. All golden/legacy/policy/carryover corrections pass. Remaining
+failures are the same-patch refresh fixture's generation assertion and the
+auto-accept fixture expecting a terminal newline the existing provider path
+does not preserve.
+
+Make the same-patch fixture change file size (avoiding same-size Git stat
+ambiguity), assert the intended non-empty patch and byte-identical refresh
+before checking generation absence, and preserve strict diagnostics if the
+invariant still fails. Make the offline provider return the exact no-final-
+newline body the assertion expects; do not loosen it with TrimSpace or alter
+production resolver behavior. Steps 3-7 have not run.
+
 ## Implementation Transition — GH #15 S4 review revision delivered — 2026-09-09
 
 **State**: IN PROGRESS — combined revalidation/correction review
