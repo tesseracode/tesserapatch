@@ -1,3 +1,22 @@
+## Review — GH #15 S4 mapping correction approved — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Checkpoint**: `9a3c1a6`
+
+### Verdict: APPROVED (correction review)
+
+The remaining mapping finding is closed. Imported qualifiers take precedence
+over receiver heuristics, and ambiguous shadowed writer references are
+refused before direct-call exemptions. Direct-call/function-value collision
+controls cover the reported bypasses. No significant issues remain in the
+correction; output and ADR-040 findings remain closed.
+
+### Action Taken
+
+All independent review findings are closed. Steps 1-5 pass at the corrected
+code. Proceed to the exact resource-gated 22-shard suite, then wave close.
+This is not whole-S4 acceptance; the reviewer ran no Go commands.
+
 ## Implementation Transition — GH #15 S4 import binding validated — 2026-09-09
 
 **Checkpoint**: `9a3c1a6`

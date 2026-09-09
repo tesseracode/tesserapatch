@@ -4,6 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
+**S4 full-validation phase (2026-09-09)**: independent review has closed all
+findings, including the final import/alias mapping correction at `9a3c1a6`.
+Steps 1-5 pass. Start the exact 22-shard suite with a fresh resource window
+for every Go invocation; step 7 and acceptance remain pending.
+
 **Current S4 validation (2026-09-09)**: corrected checkpoint `ee024dc`
 passes steps 1-5, including all targeted S0-S4/coupled guards, owning
 packages, CLI regressions, vet and build. Every command had a fresh
@@ -27,7 +32,8 @@ heuristics; shadowed writer bindings are refused rather than guessed.
 Colliding-`s` direct/value negatives and a harmless type-reference control
 are included. No production behavior changes.
 Checkpoint `9a3c1a6` passes the restarted steps 1-5, including colliding
-import and shadow controls. Independent mapping confirmation remains pending.
+import and shadow controls. Independent mapping confirmation is APPROVED;
+all review findings are closed. The exact 22-shard suite is starting.
 
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
@@ -3282,6 +3288,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Independent correction review of `9a3c1a6`: **APPROVED**, final mapping
+  finding closed. Output and ADR-040 findings remain closed.
+- Steps 1-5 pass at the corrected code; step 6 exact shards are starting.
+  Step 7 and acceptance remain pending.
 
 - Import-binding correction `9a3c1a6`: steps 1-2 **PASS** after fresh
   gates at 89% free/load1 2.24 and 3.25; workflow selector 7.422s,
@@ -9123,9 +9134,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- Output is independently approved. The mapping guard still needs the
-  function-value alias correction, its negative fixtures and confirmation.
-  Steps 6-7 remain outstanding.
+- All independent review findings are closed and steps 1-5 pass.
+  Steps 6-7 remain outstanding before S4 acceptance.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
   ADR-040 is independently APPROVED; implementation evidence remains required.
   This is not GH #24.
