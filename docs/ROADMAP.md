@@ -1664,6 +1664,9 @@ The cycle correction adds only the required P6 diagnostic to expected bytes;
 the store guard admits exactly the reviewed atomic adapter. Historical
 fixtures/hash history stay fixed and the current routing-source pin is exact.
 Revalidation and independent correction review are next.
+The targeted retry caught an unused routing-comparator import; it is removed
+and its exact current-source pin refreshed. No production change; validation
+restarts from step 1.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

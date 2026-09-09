@@ -1,3 +1,11 @@
+## Implementation Transition — GH #15 S4 comparator import correction — 2026-09-09
+
+Step 1 passed; restarted step 2 stopped at the CLI compile error from the
+now-unused `bytes` import in the routing comparator. Removed that import
+and refreshed only its exact current-source pin; historical hash/history
+remain fixed. Gates passed at 89% free. No later stage ran. Checkpoint and
+restart the gated sequence; no production change.
+
 ## Implementation Transition — GH #15 S4 cycle/store correction authored — 2026-09-09
 
 **State**: IN PROGRESS — test-only correction, unvalidated

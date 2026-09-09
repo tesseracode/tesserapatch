@@ -3305,6 +3305,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
+- Cycle/store correction retry: step 1 **PASS**, step 2 stopped on an unused
+  routing-comparator `bytes` import. It is removed and the exact current-source
+  pin refreshed; historical hash/history unchanged. No later stage ran.
+
 - Legacy cycle/store expectation corrections are authored/formatted.
   Same-comparator wrong-output fixtures and extra/missing store-method
   controls remain active. No Go revalidation has run for this correction.
