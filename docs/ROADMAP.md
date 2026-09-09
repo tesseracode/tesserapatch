@@ -1581,6 +1581,11 @@ Go command used the required fresh resource window. No publication API,
 producer/consumer wiring, public assets, dependency or release/tag change was
 made. Historical goldens, the allowlist and all 13 research files are
 unchanged. S4-S6 remain undispatched; GH #13 still waits for shipped v0.17.0.
+External S3 review is APPROVED with no findings; terminal CI 34291811355
+passed all required jobs. S4 carryover is N1's guard rename, N2's retargeting
+with all 11 sensitivity mutations retained, and N3's exclusion of GH #24.
+The reviewer-owned `bba1803` documentation commit is preserved and will be
+published with the review receipt before recording the fresh S4 base.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

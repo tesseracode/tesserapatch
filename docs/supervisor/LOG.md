@@ -1,3 +1,65 @@
+## Review — implement-recipe-generation-authority-s3 — 2026-09-08
+
+**Reviewer**: external (Copilot), supplied by the operator
+**Task**: GH #15 S3 — coverage schema and simulation (ADR-036 D3/D4, ADR-039)
+**Reported range**: `fb62e53..6ba932d`
+**S3 WAVE_BASE**: `27ee8bc`
+
+### Checklist
+
+- [x] Compiles
+- [x] Tests independently reproduced
+- [x] Formatted
+- [x] Artifacts deterministic and schema parity guarded
+- [x] No new I/O/secret surface in the pure S3 core
+- [x] Conservative domain matches ADR-039
+- [x] Handoff reflects its limits honestly
+
+### Verdict: APPROVED
+
+No findings. Carry the naming/phase-boundary notes to S4, not back into S3.
+The external reviewer independently confirmed the D5 conflict, enforced
+conservative operation domain, bidirectional completeness checks, held S3
+scope and 11 biting phase-boundary mutations.
+
+### External Validation Report
+
+| Stage | Reported result |
+|---|---|
+| gofmt / vet / build | clean |
+| patchobs | ok 1.5s |
+| workflow | ok 100.6s |
+| store | ok 6.1s |
+| gitutil | ok 15.8s |
+| CLI, unsharded | ok 1831.5s, 136 test files |
+| Standalone shard partition | exit 0, 41 results, 0 FAIL |
+| Wave-close with WAVE_BASE=27ee8bc | shards OK; durability check alone failed on reviewer-owned unpushed HEAD |
+
+The `[3/8]` failure was `bba1803 != origin/main (6ba932d)`: the former is
+the reviewer's own documentation commit, not S3's accepted close. No S3
+implementation correction is required.
+
+### S4 Carryover
+
+- **N1**: rename `TestRGAS0NoProductionCoverageSurfaceYet` to
+  `TestRGAS0CoveragePhaseBoundaryHolds` when retargeting it.
+- **N2**: retarget `rgaS0CoveragePhaseSource` to the designated S4 publisher
+  and registered producer call chains while keeping the pure core pure.
+  Retain all 11 existing planted mutations, especially spaced AST calls and
+  same source in another file. Any genuinely necessary removal must be
+  named and justified explicitly; no wholesale disabling.
+- **N3**: preserve ADR-039's current complete-operation domain. GH #24 is
+  non-blocking planning, not S4 implementation scope.
+
+### Coordinator Readiness Action
+
+Inspected `bba1803`: only `docs/REVIEW-PLAYBOOK.md` changed, with the required
+Copilot trailer. Preserve it without rewriting or dropping it and publish
+this documentation-only review receipt before recording S4's fresh base.
+S3 terminal CI 34291811355 is green on all three platforms and both observer
+jobs, with no failed steps. Tracked worktree is clean apart from this receipt;
+all 13 research files remain untouched. No S4 code has started.
+
 ## Implementation Decision — GH #15 S3 accepted — 2026-09-08
 
 **Decision**: ACCEPTED

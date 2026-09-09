@@ -12,6 +12,19 @@ validation stages pass. The explicit-WAVE_BASE mechanical gate reports
 window. The completion archive is in HISTORY; final tracking is
 documentation-only. GH #24 remains future planning; S4 is undispatched.
 
+**External S3 review received (2026-09-08)**: APPROVED, no findings.
+The reviewer independently reproduced validation; their lone wave-close
+durability failure was caused by their own unpushed `bba1803` review-playbook
+commit, not S3. That commit is documentation-only and has the required
+trailer; preserve/publish it with this review receipt before taking the
+fresh S4 WAVE_BASE. S3 terminal CI 34291811355 is green on all required jobs.
+
+**S4 carryover**: N1 rename the obsolete absence-guard name to
+`TestRGAS0CoveragePhaseBoundaryHolds`; N2 retarget its phase boundary without
+dropping the 11 planted mutations, including AST-evasion and different-file
+cases; N3 keep GH #24 and broader completeness outside S4. The full external
+verdict and independently reported timings are recorded in LOG.
+
 ### S3 execution record (historical)
 
 **S3 DISPATCHED (2026-09-08)**: coverage schema and pure simulation only,
@@ -2229,6 +2242,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 27ee8bc45664f16a083b1a831e7ca04a7cb1c527
 
 ## Session Summary
+
+Received the external S3 APPROVED verdict and registered N1-N3 for S4.
+Readiness inspection confirms only the reviewer's `docs/REVIEW-PLAYBOOK.md`
+commit is unpublished, with a valid trailer and no code changes. The
+coordinator preserves that commit unchanged and will publish the review
+receipt before assigning S4 from a fresh, fully pushed base. No research file
+or S3 implementation is changed by this housekeeping.
 
 S3 is complete and its validated code is pushed. The final mechanical gate
 passed all eight checks at `657a3db`, including another full 22-shard run.
@@ -8767,6 +8787,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 1. No further S3 implementation, review or validation remains.
 2. Leave S4 undispatched until a separate assignment with a freshly recorded
    WAVE_BASE. GH #24 remains a separate non-blocking planning task.
+3. The operator has now requested S4: publish the reviewer documentation/
+   external-review receipt, fetch the new base, and dispatch S4 with N1-N3.
 
 ## Blockers
 
