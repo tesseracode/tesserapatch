@@ -79,9 +79,8 @@ func TestAVPRoutingGoldens(t *testing.T) {
 				if err != nil {
 					t.Fatalf("missing golden %s: %v", name, err)
 				}
-				if !bytes.Equal(want, []byte(captured[name])) {
-					t.Fatalf("%s drifted from the pre-change golden\n--- golden ---\n%s\n--- current ---\n%s",
-						name, want, captured[name])
+				if err := rgaS4RoutingGoldenDelta(name, captured[name], want); err != nil {
+					t.Fatal(err)
 				}
 				compared++
 			}

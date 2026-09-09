@@ -148,6 +148,55 @@ func rgaS4ExpectedPublicationGolden(name string, previous []byte) ([]byte, error
 	return []byte(out), nil
 }
 
+func rgaS4ExpectedRoutingGolden(name string, frozen []byte) ([]byte, error) {
+	if name != "cycle-skip-execute-transcript.txt" {
+		return frozen, nil
+	}
+	const anchor = "[4/6] Generating apply recipe...\n"
+	const status = "recipe coverage: incomplete (canonical-patch-missing, operation-surplus, reference-not-durable)\n"
+	before := string(frozen)
+	if strings.Count(before, anchor) != 1 || strings.Contains(before, "recipe coverage: ") {
+		return nil, fmt.Errorf("frozen cycle producer boundary changed")
+	}
+	return []byte(strings.Replace(before, anchor, anchor+status, 1)), nil
+}
+
+func rgaS4RoutingGoldenDelta(name, got string, frozen []byte) error {
+	want, err := rgaS4ExpectedRoutingGolden(name, frozen)
+	if err != nil {
+		return err
+	}
+	if got != string(want) {
+		return fmt.Errorf("%s drifted beyond the S4 producer diagnostic\n--- expected ---\n%s\n--- current ---\n%s", name, want, got)
+	}
+	return nil
+}
+
+func TestRGAS4CycleGoldenDeltaAndSensitivities(t *testing.T) {
+	const name = "cycle-skip-execute-transcript.txt"
+	frozen, err := os.ReadFile(filepath.Join(routingGoldenDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, err := rgaS4ExpectedRoutingGolden(name, frozen)
+	if err != nil || rgaS4RoutingGoldenDelta(name, string(expected), frozen) != nil {
+		t.Fatalf("exact cycle diagnostic delta rejected: %v", err)
+	}
+	for _, wrong := range []string{
+		string(frozen),
+		strings.Replace(string(expected), "reference-not-durable", "invented-reason", 1),
+		strings.Replace(string(expected), "recipe coverage: incomplete", "recipe coverage: complete", 1),
+		string(expected) + "\n",
+	} {
+		if rgaS4RoutingGoldenDelta(name, wrong, frozen) == nil {
+			t.Fatal("same cycle comparator accepted missing/wrong/extra output")
+		}
+	}
+	if _, err := rgaS4ExpectedRoutingGolden(name, []byte(strings.Replace(string(frozen), "[4/6]", "[9/9]", 1))); err == nil {
+		t.Fatal("cycle expected-delta adapter accepted a changed frozen boundary")
+	}
+}
+
 func TestRGAS4GoldenPublicationDeltaAndSensitivities(t *testing.T) {
 	for _, name := range []string{
 		"compat-record.txt", "compat-land.txt", "compat-verify.txt", "compat-reconcile.txt",

@@ -1,3 +1,36 @@
+## Implementation Transition — GH #15 S4 cycle/store correction authored — 2026-09-09
+
+**State**: IN PROGRESS — test-only correction, unvalidated
+
+Both cycle comparison paths now use one exact expected P6 diagnostic delta
+at the frozen implement boundary. The historical cycle/state files remain
+unchanged, and missing/wrong/extra diagnostic mutations fail the same
+comparator. The prepare-era store inventory permits exactly the new reviewed
+`WriteArtifactAtomic` adapter and has both extra-writer and missing-adapter
+negative controls.
+
+The original routing source hash/history remain fixed; its current source
+has a separate exact pin for the comparison-call change. No production file
+changed. Restart the gated sequence and request independent correction review.
+
+## Implementation Transition — GH #15 S4 full suite stopped on legacy expectations — 2026-09-09
+
+**Checkpoint**: `09c4c5c`
+**State**: IN PROGRESS — test-only compatibility correction
+
+The first full-script invocation failed in CLI (632.796s); no later shard
+ran. Failures are the frozen cycle --skip-execute transcript (its P6 step now
+reports the required coverage status) and the prepare-era store function
+inventory (the reviewed generic WriteArtifactAtomic adapter is new).
+Other packages passed; no production failure was reported.
+
+Authorize coordinator-only changes to `prepare_routing_golden_test.go` and
+`prepare_s5_test.go`, plus the already-owned S4 golden helper and current-source
+pin in `prepare_pib_golden_test.go`. Preserve historical fixtures, baseline
+hash/history pins and exact comparison. Add only the prescribed P6 diagnostic
+delta and exact new method allowance, with negative controls. This is not
+recipe S5 implementation. Restart validation after checkpoint/review.
+
 ## Review — GH #15 S4 mapping correction approved — 2026-09-09
 
 **Reviewer**: `s4-implementation-review`

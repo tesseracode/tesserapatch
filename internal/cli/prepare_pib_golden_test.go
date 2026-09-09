@@ -178,7 +178,9 @@ var acceptedCheckSourceProvenance = map[string]struct {
 		},
 	},
 	"internal/cli/prepare_routing_golden_test.go": {
-		SHA256: "372459f1743308786cd396c0205a98952eeb25f1e91cede5031a06fff1efba8c",
+		// S4 adds only the explicitly tested P6 status delta at comparison.
+		CurrentSHA256: "8cf83169be28a2ae4892dc98c71ebd6ff9a89d23cc88b11497baf60cfb34c267",
+		SHA256:        "372459f1743308786cd396c0205a98952eeb25f1e91cede5031a06fff1efba8c",
 		History: []string{
 			routingReadmeCommit,
 			routingFixtureCommit,

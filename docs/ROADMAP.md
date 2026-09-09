@@ -1656,6 +1656,14 @@ full shards and wave close.
 The final mapping correction `9a3c1a6` is independently APPROVED; output and
 ADR-040 findings remain closed. All review findings and targeted validation
 are complete; the mandatory exact 22-shard and wave-close phases are next.
+The first full-suite invocation stopped on the old cycle diagnostic golden
+and store method inventory. Narrow test-only S4 deltas are being added;
+historical fixtures and production remain unchanged, and later shards have
+not run.
+The cycle correction adds only the required P6 diagnostic to expected bytes;
+the store guard admits exactly the reviewed atomic adapter. Historical
+fixtures/hash history stay fixed and the current routing-source pin is exact.
+Revalidation and independent correction review are next.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

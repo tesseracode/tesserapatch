@@ -726,6 +726,10 @@ func TestPrepareS5CycleCompatibilityRows(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		wantTranscript, err = rgaS4ExpectedRoutingGolden("cycle-skip-execute-transcript.txt", wantTranscript)
+		if err != nil {
+			t.Fatal(err)
+		}
 		wantState, err := os.ReadFile(filepath.Join(routingGoldenDir, "cycle-final-state.txt"))
 		if err != nil {
 			t.Fatal(err)
@@ -853,9 +857,9 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 		// GH #15 S1 adds one deliberately narrow store hook so
 		// `implement --manual` can checkpoint the exact recipe bytes after
 		// validation and before the state transition. The legacy method
-		// delegates to it with a nil callback; no other store surface is
-		// authorized by this allowance.
-		want = append(want, "*Store.AdvanceStateManuallyWithCheckpoint")
+		// delegates to it with a nil callback. S4 adds the reviewed generic
+		// atomic artifact adapter; no other store surface is authorized.
+		want = append(want, "*Store.AdvanceStateManuallyWithCheckpoint", "*Store.WriteArtifactAtomic")
 		sort.Strings(want)
 		got, err := prepareS5StoreFunctionSet(current)
 		if err != nil {
@@ -874,6 +878,15 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 		}
 		if reflect.DeepEqual(changed, want) {
 			t.Fatal("a synthetic store writer did not change the guarded function surface")
+		}
+		missingAtomic := clonePrepareS5Sources(current)
+		delete(missingAtomic, "internal/store/artifact_atomic.go")
+		withoutAtomic, err := prepareS5StoreFunctionSet(missingAtomic)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reflect.DeepEqual(withoutAtomic, want) {
+			t.Fatal("removing the required S4 atomic adapter did not change the guarded surface")
 		}
 	})
 }

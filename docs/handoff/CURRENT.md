@@ -4,6 +4,17 @@
 
 **Cluster state**: IN PROGRESS
 
+**S4 step 6 stopped (2026-09-09)**: the first full-script invocation found
+two remaining legacy expectations: cycle's new P6 coverage diagnostic and
+the generic atomic store method. No later shard ran. The coordinator is
+adding narrow expected deltas/current-source pins without changing historical
+goldens or production. All independent production findings remain closed.
+The test-only correction is authored: both cycle comparators apply the same
+single P6 diagnostic delta to frozen expected bytes, and the store inventory
+admits exactly `WriteArtifactAtomic` with a missing-adapter negative control.
+The routing source's historical hash/history remain fixed; a distinct exact
+current-source pin records its narrowly changed comparison call.
+
 **S4 full-validation phase (2026-09-09)**: independent review has closed all
 findings, including the final import/alias mapping correction at `9a3c1a6`.
 Steps 1-5 pass. Start the exact 22-shard suite with a fresh resource window
@@ -184,6 +195,11 @@ ADR-040, its ADR/PRD/index pointers, the coupled
 `internal/cli/prepare_s7_rev16_test.go` Index pin, and new
 `internal/workflow/recipe_authority_s4_contract_test.go`
 (`rgaS4Contract*` / `TestRGAS4Contract*`). Worker ownership does not overlap.
+The full-suite evidence additionally authorizes coordinator-only
+`internal/cli/prepare_routing_golden_test.go` and
+`internal/cli/prepare_s5_test.go` compatibility updates, plus the exact
+current-source pin in `prepare_pib_golden_test.go`. These are prepare-era
+test expectations, not S5 recipe-consumer implementation.
 No same-file parallel edits. Any additional path or contract ambiguity
 requires explicit coordinator scope/adjudication before changes.
 The worker does not stage, commit, push or run Go validation; the coordinator
@@ -3288,6 +3304,15 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Legacy cycle/store expectation corrections are authored/formatted.
+  Same-comparator wrong-output fixtures and extra/missing store-method
+  controls remain active. No Go revalidation has run for this correction.
+
+- Step 6 first invocation **FAIL**: CLI 632.796s, frozen cycle diagnostic
+  expectations and store-function inventory only. Other packages pass.
+  No later shard or step 7 ran. Historical goldens remain frozen while
+  narrow test-only expectation changes are authored.
 
 - Independent correction review of `9a3c1a6`: **APPROVED**, final mapping
   finding closed. Output and ADR-040 findings remain closed.
