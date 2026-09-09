@@ -529,7 +529,7 @@ func (f rgaS4OfflineTransport) RoundTrip(req *http.Request) (*http.Response, err
 }
 
 func TestRGAS4AutoAcceptPublicationFailureReachesCLIAndJSON(t *testing.T) {
-	for _, format := range []string{"text", "json"} {
+	for _, format := range []string{"human", "json"} {
 		t.Run(format, func(t *testing.T) {
 			slug := "s4-auto-accept"
 			root := rgaS4CLIFixture(t, slug, false)
@@ -619,6 +619,12 @@ func TestRGAS4AutoAcceptPublicationFailureReachesCLIAndJSON(t *testing.T) {
 			}
 			if calls < 2 {
 				t.Fatalf("fixture did not reach provider-assisted auto-accept: calls=%d", calls)
+			}
+			if merged, readErr := os.ReadFile(filepath.Join(root, "shared.txt")); readErr != nil || string(merged) != "a\nB-merged\nc\n" {
+				t.Fatalf("%s route did not copy the resolved content: %q %v", format, merged, readErr)
+			}
+			if patch, readErr := s.ReadFeatureFile(slug, "artifacts/post-apply.patch"); readErr != nil || !strings.Contains(patch, "+B-merged") {
+				t.Fatalf("%s route did not reach the successful P3 canonical write: %q %v", format, patch, readErr)
 			}
 			if strings.Contains(stdout.String(), "Reconciled ") || strings.Contains(stdout.String(), `"outcome": "reapplied"`) {
 				t.Fatalf("%s route reported false completion: %q", format, stdout.String())

@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
+incoming shared-writer callers escape the mapping guard; P1 lacks the common
+coverage status/reasons line; and D15's P2 writing-event "always pair" rule
+contradicts D3 when raw canonical equality fails but semantic coverage is
+exact. The third needs operator adjudication, not invented reason codes or
+a change to ADR-039. The category-(c) checkpoint qualification is separate.
+
 **Current S4 state (2026-09-09)**: the first targeted run compiled the draft
 and passed the other selected producer/carryover tests, but stopped at step 2
 on fixture and compatibility expectations listed in Test Results. Steps 3-7
@@ -2374,7 +2381,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: In progress — S4 draft and caller/checkpoint corrections delivered; validation next
+- **Status**: Needs revision — mapping/output fixes and P2 writing-event adjudication
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
 - **Release target**: `v0.17.0`
@@ -2594,6 +2601,9 @@ delivered but unvalidated. Independent S4 review must confirm the detailed
 P2 event qualification as well as the full publication/error/event behavior.
 The first targeted run stopped at step 2 on fixture/compatibility mismatches;
 the scoped corrections are in progress. Review-note guard tests pass.
+Independent review then found mapping/output defects and the distinct P2
+writing-event reason conflict. Fix the first two and obtain an explicit
+operator decision on the third before acceptance.
 
 ## Prerequisite Status
 
@@ -3212,6 +3222,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Independent rev-0 review of `2b441c5..c5247af`: **NEEDS REVISION** on
+  mapping completeness, P1 common output and the D3/D15 P2 writing-event
+  conflict. No Go validation was run by the reviewer.
 
 - Coordinator S2/compatibility corrections are formatted and authored,
   not Go-validated. Independent fixture hash calculations match the stated
@@ -8988,7 +9002,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Checkpoint the delivered full S4 draft and scoped P3/P2 corrections.
+1. Correct the mapping/output review findings and adjudicate P2's formatting-
+   only writing-event reasons. Keep S3 semantic truth and ADR-039's domain intact.
 2. Run the required resource-gated sequence and independent review, including
    the exact P2 event qualification, all 11 N2 mutations and N3's boundary.
 3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
@@ -8996,8 +9011,10 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- No known unimplemented caller fix remains. P3/P2 corrections await Go
-  validation and independent review; do not claim S4 acceptance yet.
+- Review blockers: unmapped shared-writer callers and missing P1 common
+  coverage output; worker revision required.
+- Contract blocker: P2 writing-event "always pair" versus exact semantic
+  explanation in D3. Operator adjudication required; this is not GH #24.
 - Publication will deliberately change compatibility snapshots; adapt
   expectations narrowly without re-recording historical goldens.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.

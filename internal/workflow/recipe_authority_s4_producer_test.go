@@ -290,13 +290,26 @@ func TestRGAS4AutoAcceptPublicationFailureReachesRunReconcile(t *testing.T) {
 				keyed:     map[string]string{"shared.txt": "a\nB-merged\nc\n"},
 			}
 			slugs := []string{slug}
+			const runtimeErrorSlug = "runtime-error"
 			if scenario == "publication-failure" {
 				if err := os.Mkdir(filepath.Join(s.TpatchDir(), "features", slug, "artifacts", "recipe-coverage.json"), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				// Ordinary per-feature hard errors must keep their legacy
-				// result representation while the publication cause survives.
-				slugs = append(slugs, "missing-feature")
+				// This feature passes planning but has no canonical patch,
+				// so its legacy error occurs inside reconcileFeature.
+				if _, err := s.AddFeature(store.AddFeatureInput{
+					Slug: runtimeErrorSlug, Title: "Runtime error", Request: "no patch fixture",
+				}); err != nil {
+					t.Fatal(err)
+				}
+				if err := s.MarkFeatureState(runtimeErrorSlug, store.StateApplied, "apply", "fixture without a recorded patch"); err != nil {
+					t.Fatal(err)
+				}
+				slugs = append(slugs, runtimeErrorSlug)
+				if planned, err := PlanReconcile(s, slugs); err != nil || len(planned) != len(slugs) ||
+					!slices.Contains(planned, slug) || !slices.Contains(planned, runtimeErrorSlug) {
+					t.Fatalf("fixture must pass planning before exercising P3: planned=%v err=%v", planned, err)
+				}
 			}
 			if scenario == "legacy-blocked" {
 				prov = nil
@@ -305,7 +318,14 @@ func TestRGAS4AutoAcceptPublicationFailureReachesRunReconcile(t *testing.T) {
 			if len(results) != len(slugs) {
 				t.Fatalf("structured results were dropped: %+v %v", results, err)
 			}
-			result := results[0]
+			bySlug := make(map[string]ReconcileResult, len(results))
+			for _, result := range results {
+				bySlug[result.Slug] = result
+			}
+			result, found := bySlug[slug]
+			if !found {
+				t.Fatalf("P3 result missing: %+v", results)
+			}
 			state, stateErr := s.LoadFeatureStatus(slug)
 			if stateErr != nil {
 				t.Fatal(stateErr)
@@ -326,8 +346,13 @@ func TestRGAS4AutoAcceptPublicationFailureReachesRunReconcile(t *testing.T) {
 				if got, readErr := os.ReadFile(filepath.Join(s.Root, "shared.txt")); readErr != nil || string(got) != "a\nB-merged\nc\n" {
 					t.Fatalf("fixture did not reach the bound-write event: %q %v", got, readErr)
 				}
-				if results[1].Outcome != store.ReconcileBlocked || results[1].Phase != "error" {
-					t.Fatalf("ordinary per-feature error semantics changed: %+v", results[1])
+				if patch, readErr := s.ReadFeatureFile(slug, "artifacts/post-apply.patch"); readErr != nil || !strings.Contains(patch, "+B-merged") {
+					t.Fatalf("fixture did not reach the successful P3 canonical write: %q %v", patch, readErr)
+				}
+				legacy, found := bySlug[runtimeErrorSlug]
+				if !found || legacy.Outcome != store.ReconcileBlocked || legacy.Phase != "error" ||
+					!strings.Contains(strings.Join(legacy.Notes, "\n"), "no recorded patch") {
+					t.Fatalf("ordinary runtime error semantics changed: %+v", legacy)
 				}
 			case "successful-auto-accept":
 				if err != nil || result.Outcome != store.ReconcileReapplied || state.State != store.StateApplied ||

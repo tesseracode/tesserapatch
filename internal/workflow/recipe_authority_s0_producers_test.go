@@ -1099,6 +1099,16 @@ func TestRGAS0ImplementRawArmIsCurrentlyUnreachable(t *testing.T) {
 
 		// The arm half of the same equivalence: swapping the extractor or
 		// the decode target must be caught too.
+		parsed, err := rgaS0Parse("implement.go", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fn := rgaS0FuncBody(parsed, "RunImplement")
+		if fn == nil {
+			t.Fatal("RunImplement not found")
+		}
+		start, end := int(fn.Body.Pos())-1, int(fn.Body.End())-1
+		armScope := src[start:end]
 		for _, tc := range []struct{ name, old, new string }{
 			{
 				name: "arm-stops-using-the-shared-extractor",
@@ -1107,15 +1117,19 @@ func TestRGAS0ImplementRawArmIsCurrentlyUnreachable(t *testing.T) {
 			},
 			{
 				name: "arm-decodes-into-another-type",
-				old:  "\tvar recipe ApplyRecipe\n\tif err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe);",
-				new:  "\tvar recipe RecipeProvenance\n\tif err := json.Unmarshal([]byte(mustExtractJSON(recipeContent)), &recipe);",
+				old:  "\tvar recipe ApplyRecipe\n",
+				new:  "\tvar recipe RecipeProvenance\n",
 			},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				if !strings.Contains(src, tc.old) {
-					t.Fatalf("mutation anchor no longer present:\n%q", tc.old)
+				if strings.Count(armScope, tc.old) != 1 {
+					t.Fatalf("mutation anchor must occur exactly once inside RunImplement:\n%q", tc.old)
 				}
-				extractor, target, err := rgaS0ImplementArmDecodeExpr(strings.Replace(src, tc.old, tc.new, 1))
+				mutated := src[:start] + strings.Replace(armScope, tc.old, tc.new, 1) + src[end:]
+				extractor, target, err := rgaS0ImplementArmDecodeExpr(mutated)
+				if tc.name == "arm-decodes-into-another-type" && (err != nil || extractor != "mustExtractJSON" || target != "RecipeProvenance") {
+					t.Fatalf("wrong-type fixture did not alter the actual arm target: extractor=%q target=%q err=%v", extractor, target, err)
+				}
 				if err == nil && extractor == "mustExtractJSON" && target == "ApplyRecipe" {
 					t.Fatalf("guard did not catch mutation %q", tc.name)
 				}

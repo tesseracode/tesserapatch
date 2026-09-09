@@ -1,3 +1,35 @@
+## Review — GH #15 S4 implementation rev-0 — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Range**: `2b441c5..c5247af`
+
+### Verdict: NEEDS REVISION
+
+Three MEDIUM findings:
+
+1. The producer mapping guard traverses only registered roots and skips the
+   immediate compatibility writer when no `.Autogen` assignment is present.
+   It misses an unregistered caller of `AutogenRecipeForRecord` and a P3
+   caller invoking that immediate-write path. Add incoming-chain coverage
+   and same-validator negatives for both cases.
+2. P1 omits the required common coverage status/reason output. After successful
+   publication, even skipped/noop autogen outcomes must report their coverage.
+   Preserve S5's separate consumer/remediation scope.
+3. D15's P2 writing-event "always pair" wording conflicts with D3's exact
+   reason conditions when a preserved compact gated recipe still exactly
+   explains/simulates/reclassifies the patch but fails D16's canonical bytes.
+   Existing code emits only the truthful stale-marker reason. Explicit
+   adjudication is required; do not fabricate rewrite reasons or redefine
+   semantic explanation through marker presence. This is separate from the
+   already-qualified category-(c) checkpoint rule.
+
+### Action Taken
+
+Record all findings before revision. Worker owns mapping/output corrections;
+request operator adjudication for the D3/D15 writing-event conflict. No schema
+or domain widening is authorized, and GH #24 remains excluded. The reviewer
+ran no Go commands; the first targeted run remains failed pending corrections.
+
 ## Implementation Transition — GH #15 S4 coordinator fixture corrections — 2026-09-09
 
 **State**: IN PROGRESS — authored, pending Go revalidation

@@ -1620,6 +1620,10 @@ Coordinator corrections preserve S2 crash/capture intent and add a separate
 six-fixture publication delta using frozen input facts and independent hash
 calculations. The projection is authored but not yet revalidated; no old
 golden or S2 projection function was rewritten.
+S4 rev-0 review is NEEDS REVISION: shared-writer incoming-chain coverage and
+P1 common status output need correction. A distinct P2 writing-event
+reason conflict (D15 "always pair" versus D3's exact semantic conditions)
+requires operator adjudication. No domain/schema widening is authorized.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
