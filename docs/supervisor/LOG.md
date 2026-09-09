@@ -1,3 +1,22 @@
+## Review — GH #15 S4 semantic-reasons policy fold — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Scope**: `fadaf31` policy fold only
+
+### Verdict: APPROVED
+
+ADR-040 consistently records the operator's semantic-reasons choice and
+closes the P2 contract-conflict finding. D3 conditions, D16 restrictions,
+category-(c) coverage-only behavior and ADR-039's domain are preserved.
+Pinned hashes match and all 66 prior reference bindings remain unchanged.
+No significant issues found; the reviewer ran no Go commands or edits.
+
+### Action Taken
+
+Record policy approval only. Mapping/output findings are still open pending
+worker revision and independent confirmation. Go revalidation and whole-S4
+acceptance remain separate requirements.
+
 ## Implementation Transition — GH #15 S4 reason-policy fold review — 2026-09-09
 
 **Policy checkpoint**: `fadaf31`

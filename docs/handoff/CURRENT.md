@@ -15,8 +15,9 @@ formatting-only mismatch keeps truthful stale-marker incompleteness without
 fabricated rewrite reasons. ADR-040 records the narrow D15/PRD qualification.
 The worker is fixing mapping/output and adding paired writing-event fixtures.
 The reason-policy fold is checkpointed at `fadaf31`; reviewer
-`334f5d27-1085-4722-b23c-82652d39b04a` is reviewing that narrow fold
-independently while the worker revises its disjoint code/tests.
+`334f5d27-1085-4722-b23c-82652d39b04a` independently APPROVED that narrow
+fold, closing the P2 contract finding. The worker is revising the remaining
+mapping/output findings; whole-S4 acceptance is not implied.
 
 **Current S4 state (2026-09-09)**: the first targeted run compiled the draft
 and passed the other selected producer/carryover tests, but stopped at step 2
@@ -3245,7 +3246,9 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - ADR-040 policy/guard fold is authored and formatted. All 66 existing
   ADR/PRD reference bindings remain unchanged by source calculation;
-  policy review and Go revalidation are pending.
+  policy review is APPROVED and Go revalidation is pending.
+- Independent policy-fold review of `fadaf31`: **APPROVED**, P2 contract
+  finding closed. Mapping/output findings still require implementation review.
 
 - Independent rev-0 review of `2b441c5..c5247af`: **NEEDS REVISION** on
   mapping completeness, P1 common output and the D3/D15 P2 writing-event
@@ -9038,7 +9041,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Review blockers: unmapped shared-writer callers and missing P1 common
   coverage output; worker revision required.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
-  ADR-040 review and implementation evidence remain required; this is not GH #24.
+  ADR-040 is independently APPROVED; implementation evidence remains required.
+  This is not GH #24.
 - Publication will deliberately change compatibility snapshots; adapt
   expectations narrowly without re-recording historical goldens.
 - The D3/D5 ambiguity is resolved for v1 by operator-approved ADR-039.

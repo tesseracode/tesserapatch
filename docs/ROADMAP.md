@@ -1630,6 +1630,9 @@ Mapping/output corrections, paired semantic-drift fixtures and independent
 policy-fold review are in progress. GH #24 remains excluded.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
+ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
+finding. Mapping/output revisions and implementation validation remain open;
+S4 is not accepted.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused
