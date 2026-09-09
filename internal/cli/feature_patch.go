@@ -129,10 +129,9 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	publication := workflow.ObserveCoveragePublication(s, recipeObservation)
 	if !classification.Append {
 		coverage, err := workflow.PublishCoverage(s, publication)
-		if err != nil {
+		if err := workflow.ReportCoverageStatus(cmd.ErrOrStderr(), coverage, err); err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "  Recipe coverage: %s\n", coverage.CoverageStatus)
 		if intent == store.PatchGenerationIntentRefresh {
 			fmt.Fprintln(cmd.ErrOrStderr(), "no patch byte change; refresh skipped")
 		} else {
@@ -146,7 +145,7 @@ func runFeaturePatchAmend(cmd *cobra.Command, s *store.Store, slug, intent, reas
 	}
 	publication.Events.PatchRewritten = true
 	publication.DeferRecipeWrites = true
-	finishCoverage := coverageFinalizer(s, &publication)
+	finishCoverage := coverageFinalizer(s, &publication, cmd.ErrOrStderr())
 	defer func() { retErr = finishCoverage(retErr) }()
 	patchLabel := strings.TrimPrefix(classification.Kind, "amend-")
 	patchName, err := s.WritePatch(slug, patchLabel, patch)

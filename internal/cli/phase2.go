@@ -183,7 +183,7 @@ agent implements the code).`,
 					return err
 				}
 				publication.Events.PatchRewritten = true
-				finishCoverage = coverageFinalizer(s, &publication)
+				finishCoverage = coverageFinalizer(s, &publication, cmd.ErrOrStderr())
 				defer func() { retErr = finishCoverage(retErr) }()
 				if name, _ := s.WritePatch(slug, "cycle", patch); name != "" {
 					fmt.Fprintf(out, "  Saved patch: patches/%s\n", name)

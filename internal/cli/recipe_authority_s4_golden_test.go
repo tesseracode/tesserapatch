@@ -133,6 +133,18 @@ func rgaS4ExpectedPublicationGolden(name string, previous []byte) ([]byte, error
 		}
 		out = strings.Replace(out, staged, "   M .tpatch/features/pib-golden/artifacts/recipe-coverage.json\n"+staged, 1)
 	}
+	switch name {
+	case "compat-record.txt", "phase-auto-implement.txt", "phase-manual-implement.txt":
+		line := "recipe coverage: complete\n"
+		if !recorded {
+			line = "recipe coverage: incomplete (canonical-patch-missing, operation-surplus, reference-not-durable)\n"
+		}
+		const stderr = "stderr:\n"
+		if strings.Count(out, stderr) != 1 || strings.Contains(out, "recipe coverage: ") {
+			return nil, fmt.Errorf("S4 producer diagnostic insertion point changed")
+		}
+		out = strings.Replace(out, stderr, stderr+line, 1)
+	}
 	return []byte(out), nil
 }
 
@@ -174,6 +186,12 @@ func TestRGAS4GoldenPublicationDeltaAndSensitivities(t *testing.T) {
 			for _, wrong := range []string{string(previous), string(expected) + "\n", ""} {
 				if preparePIBGoldenDelta(name, wrong) == nil {
 					t.Fatal("same comparator accepted missing publication or unrelated drift")
+				}
+			}
+			if strings.Contains(string(expected), "recipe coverage: ") {
+				wrong := strings.Replace(string(expected), "recipe coverage: ", "missing coverage diagnostic: ", 1)
+				if preparePIBGoldenDelta(name, wrong) == nil {
+					t.Fatal("same comparator accepted loss of common producer status")
 				}
 			}
 			invalid := strings.Replace(string(previous), `"type":`, `"wrong_type":`, 1)

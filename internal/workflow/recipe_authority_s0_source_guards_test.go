@@ -362,6 +362,7 @@ var rgaS0CoverageTokens = []string{
 	"ReconstructEditedCoverage",
 	"CoverageArtifact",
 	"ErrCoveragePublication",
+	"ReportCoverageStatus",
 	"coverage_status",
 }
 
@@ -414,7 +415,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		}
 	}
 	for _, token := range []string{
-		"PublishCoverage", "ErrCoveragePublication", "CoverageProducer", "recipe-coverage.json",
+		"PublishCoverage", "ReportCoverageStatus", "ErrCoveragePublication", "CoverageProducer", "recipe-coverage.json",
 		"ExecuteRecipe(", "executeOperation(", "LoadRecipe(", "DryRunRecipe(",
 		"ReadFeatureFile(", "WriteArtifact(", "WriteArtifactAtomic(", "WriteFeatureFile(", "filepath.Abs(",
 		"filepath.Glob(", "filepath.Walk", "filepath.EvalSymlinks(",
@@ -430,7 +431,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 				switch fn.Name {
 				case "ExecuteRecipe", "executeOperation", "DryRunRecipe", "dryRunOperation",
 					"LoadRecipe", "writeRecipe", "AutogenRecipeForRecord", "convergeRecipeProvenance",
-					"RunImplement", "GenerateWithRetry", "ObserveCoveragePublication", "PublishCoverage",
+					"RunImplement", "GenerateWithRetry", "ObserveCoveragePublication", "PublishCoverage", "ReportCoverageStatus",
 					"publishRecordRecipePlan":
 					callErr = fmt.Errorf("coverage core calls a publication/consumer helper: %s", fn.Name)
 				}
@@ -443,7 +444,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		switch sel.Sel.Name {
 		case "WriteArtifact", "WriteArtifactAtomic", "WriteFeatureFile", "ReadFeatureFile",
 			"ReadFile", "WriteFile", "ReadDir", "MkdirAll", "CreateTemp", "MarkFeatureState",
-			"SaveFeatureStatus", "SnapshotArtifact", "ObserveCoveragePublication", "PublishCoverage":
+			"SaveFeatureStatus", "SnapshotArtifact", "ObserveCoveragePublication", "PublishCoverage", "ReportCoverageStatus":
 			callErr = fmt.Errorf("coverage core acquired an I/O method: %s", sel.Sel.Name)
 		}
 		pkg, ok := sel.X.(*ast.Ident)

@@ -300,3 +300,42 @@ func TestRGAS4UnknownMarkerObservationCannotInventAReason(t *testing.T) {
 		t.Fatal("failed observation invented a coverage record")
 	}
 }
+
+func TestRGAS4CoverageStatusExactSortedUnionAndFailure(t *testing.T) {
+	coverage := RecipeCoverage{
+		CoverageStatus: CoverageIncomplete,
+		Reasons:        []string{"recipe-stale-marker-present", "simulation-mismatch"},
+		Effects: []CoverageEffect{
+			{ReasonCodes: []string{"operation-missing"}},
+			{ReasonCodes: []string{"preimage-unavailable"}},
+			{ReasonCodes: []string{"operation-missing"}},
+		},
+	}
+	before, _ := json.Marshal(coverage)
+	var output bytes.Buffer
+	if err := ReportCoverageStatus(&output, coverage, nil); err != nil {
+		t.Fatal(err)
+	}
+	want := "recipe coverage: incomplete (operation-missing, preimage-unavailable, recipe-stale-marker-present, simulation-mismatch)\n"
+	if output.String() != want {
+		t.Fatalf("status must contain the sorted union once: got %q want %q", output.String(), want)
+	}
+	after, _ := json.Marshal(coverage)
+	if !bytes.Equal(before, after) {
+		t.Fatal("status reporting mutated the published record")
+	}
+	output.Reset()
+	coverage = RecipeCoverage{CoverageStatus: CoverageComplete}
+	if err := ReportCoverageStatus(&output, coverage, nil); err != nil || output.String() != "recipe coverage: complete\n" {
+		t.Fatalf("complete status: %q %v", output.String(), err)
+	}
+	output.Reset()
+	failure := errors.New("publication failed before rename")
+	if err := ReportCoverageStatus(&output, coverage, failure); err != failure || output.Len() != 0 {
+		t.Fatalf("failed publication reported success or lost its cause: %q %v", output.String(), err)
+	}
+	coverage.CoverageStatus = "unknown"
+	if err := ReportCoverageStatus(&output, coverage, nil); err == nil || output.Len() != 0 {
+		t.Fatal("unknown status was reported as a closed successful status")
+	}
+}

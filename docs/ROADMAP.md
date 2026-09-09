@@ -1633,6 +1633,10 @@ from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract
 finding. Mapping/output revisions and implementation validation remain open;
 S4 is not accepted.
+The mapping/common-output revision is delivered with incoming-call controls,
+all-producer status/reason reporting and real ADR-040 paired writing fixtures.
+Coordinator golden expectations include only the corresponding producer
+stderr additions. Combined revalidation and correction review are next.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

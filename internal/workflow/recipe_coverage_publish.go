@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
@@ -169,4 +171,30 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 		return RecipeCoverage{}, fmt.Errorf("publish coverage: %w", err)
 	}
 	return c, nil
+}
+
+// ReportCoverageStatus is the common completion path for a publication. Status
+// is a stderr diagnostic, not part of a command's JSON/stdout result. The input
+// is the successfully published record; failed publications emit no status.
+func ReportCoverageStatus(w io.Writer, coverage RecipeCoverage, publicationErr error) error {
+	if publicationErr != nil {
+		return publicationErr
+	}
+	if w == nil {
+		w = os.Stderr
+	}
+	line := "recipe coverage: " + coverage.CoverageStatus
+	switch coverage.CoverageStatus {
+	case CoverageComplete:
+	case CoverageIncomplete:
+		reasons := append([]string{}, coverage.Reasons...)
+		for _, effect := range coverage.Effects {
+			reasons = append(reasons, effect.ReasonCodes...)
+		}
+		line += " (" + strings.Join(coverageSortedCopy(reasons), ", ") + ")"
+	default:
+		return fmt.Errorf("%w: cannot report unknown coverage status %q", ErrCoveragePublication, coverage.CoverageStatus)
+	}
+	fmt.Fprintln(w, line)
+	return nil
 }

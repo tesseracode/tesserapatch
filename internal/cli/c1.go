@@ -168,7 +168,8 @@ func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path strin
 			publication = workflow.ReconstructEditedCoverage(s, publication)
 		}
 		patchobs.Emit(publication.Observation)
-		_, coverageErr := workflow.PublishCoverage(s, publication)
+		coverage, coverageErr := workflow.PublishCoverage(s, publication)
+		coverageErr = workflow.ReportCoverageStatus(cmd.ErrOrStderr(), coverage, coverageErr)
 		return errors.Join(editErr, observationErr, coverageErr)
 	}
 	return editErr

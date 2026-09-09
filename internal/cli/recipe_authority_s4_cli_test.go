@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -125,13 +126,14 @@ func TestRGAS4P2CheckpointCoverageOnlyAndEmptyCaptureNoEvent(t *testing.T) {
 			args := []string{"feature", "patch", verb, "--path", root, slug, "--reason", "checkpoint"}
 			stdout, stderr, code := runCmdWithError(args...)
 			if code != 0 || !strings.Contains(stderr, "no patch byte change; "+verb+" skipped") ||
-				!strings.Contains(stdout, "Recipe coverage: complete") {
+				!strings.Contains(stderr, "recipe coverage: complete\n") {
 				t.Fatalf("checkpoint output: code=%d out=%s err=%s", code, stdout, stderr)
 			}
 			if after := rgaS4FeatureBytes(t, root, slug, true); !reflect.DeepEqual(before, after) {
 				t.Fatal("P2 checkpoint changed artifacts other than coverage")
 			}
 			c := rgaS4CLICoverage(t, root, slug)
+			rgaS4AssertReportedCoverageStatus(t, stderr, c)
 			if c.Producer != patchobs.ProducerFeaturePatch || slices.Contains(c.Reasons, "producer-patch-rewrite") ||
 				slices.Contains(c.Reasons, "recipe-not-regenerated") {
 				t.Fatalf("checkpoint borrowed rewrite reasons: %+v", c)
@@ -164,10 +166,12 @@ func TestRGAS4P2WritingPreservesDriftedRecipeAndPairedReasons(t *testing.T) {
 		t.Fatal(err)
 	}
 	modesWriteFile(t, root, "a.txt", "amended\n")
-	if _, stderr, code := runCmdWithError("feature", "patch", "refresh", "--path", root, slug); code != 0 {
+	_, stderr, code := runCmdWithError("feature", "patch", "refresh", "--path", root, slug)
+	if code != 0 {
 		t.Fatal(stderr)
 	}
 	c := rgaS4CLICoverage(t, root, slug)
+	rgaS4AssertReportedCoverageStatus(t, stderr, c)
 	for _, reason := range []string{"producer-patch-rewrite", "recipe-not-regenerated", "recipe-stale-marker-present"} {
 		if !slices.Contains(c.Reasons, reason) {
 			t.Fatalf("P2 omitted applicable reason %s: %+v", reason, c)
@@ -341,10 +345,11 @@ func TestRGAS4P2CompactRecipeCheckpointChangesCoverageOnly(t *testing.T) {
 				before := rgaS4FeatureBytes(t, root, slug, true)
 				stdout, stderr, code := runCmdWithError("feature", "patch", verb, "--path", root, slug, "--reason", "semantic checkpoint")
 				if code != 0 || !strings.Contains(stderr, "no patch byte change; "+verb+" skipped") ||
-					!strings.Contains(stdout, "Recipe coverage: complete") {
+					!strings.Contains(stderr, "recipe coverage: complete\n") {
 					t.Fatalf("compact checkpoint failed: code=%d out=%q err=%q", code, stdout, stderr)
 				}
 				c := rgaS4CLICoverage(t, root, slug)
+				rgaS4AssertReportedCoverageStatus(t, stderr, c)
 				if c.Producer != patchobs.ProducerFeaturePatch || c.CoverageStatus != workflow.CoverageComplete ||
 					c.RecipeSHA256 != workflow.CoverageSHA256(compact.Bytes()) ||
 					slices.Contains(c.Reasons, "producer-patch-rewrite") || slices.Contains(c.Reasons, "recipe-not-regenerated") {
@@ -359,6 +364,210 @@ func TestRGAS4P2CompactRecipeCheckpointChangesCoverageOnly(t *testing.T) {
 						t.Fatalf("checkpoint fabricated provenance without an origin claim: %v", err)
 					}
 				}
+			})
+		}
+	}
+}
+
+func rgaS4AssertReportedCoverageStatus(t *testing.T, output string, coverage workflow.RecipeCoverage) {
+	t.Helper()
+	want := "recipe coverage: " + coverage.CoverageStatus
+	if coverage.CoverageStatus == workflow.CoverageIncomplete {
+		set := map[string]bool{}
+		for _, reason := range coverage.Reasons {
+			set[reason] = true
+		}
+		for _, effect := range coverage.Effects {
+			for _, reason := range effect.ReasonCodes {
+				set[reason] = true
+			}
+		}
+		var reasons []string
+		for reason := range set {
+			reasons = append(reasons, reason)
+		}
+		sort.Strings(reasons)
+		want += " (" + strings.Join(reasons, ", ") + ")"
+	}
+	matches := 0
+	for _, line := range strings.Split(output, "\n") {
+		if line == want {
+			matches++
+		}
+	}
+	if matches != 1 || strings.Count(output, "recipe coverage:") != 1 {
+		t.Fatalf("expected one exact common coverage line %q, got %q", want, output)
+	}
+}
+
+func TestRGAS4RecordReportsAllAutogenOutcomes(t *testing.T) {
+	for _, outcome := range []string{"generated", "regenerated", "noop", "preserved", "skipped", "incomplete-regeneration"} {
+		t.Run(outcome, func(t *testing.T) {
+			slug := "s4-status"
+			root := rgaS4CLIFixture(t, slug, true)
+			args := []string{"record", "--path", root, slug, "--lenient"}
+			if outcome == "regenerated" || outcome == "noop" || outcome == "incomplete-regeneration" {
+				if _, stderr, code := runRecord(t, args...); code != 0 {
+					t.Fatal(stderr)
+				}
+			}
+			switch outcome {
+			case "regenerated":
+				modesWriteFile(t, root, "a.txt", "regenerated\n")
+				args = append(args, "--regenerate-recipe")
+			case "preserved":
+				recipe := fmt.Sprintf(`{"feature":%q,"operations":[{"type":"write-file","path":"a.txt","content":"manual\n","preimage_hash":""}]}`, slug)
+				if err := os.WriteFile(filepath.Join(root, ".tpatch", "features", slug, "artifacts", "apply-recipe.json"), []byte(recipe), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			case "skipped":
+				args = append(args, "--no-recipe-autogen")
+			case "incomplete-regeneration":
+				if err := os.Remove(filepath.Join(root, "README.md")); err != nil {
+					t.Fatal(err)
+				}
+				args = append(args, "--regenerate-recipe")
+			}
+			stdout, stderr, code := runRecord(t, args...)
+			if code != 0 {
+				t.Fatalf("record %s: %s", outcome, stderr)
+			}
+			coverage := rgaS4CLICoverage(t, root, slug)
+			rgaS4AssertReportedCoverageStatus(t, stderr, coverage)
+			if strings.Contains(stdout, "recipe coverage:") {
+				t.Fatal("coverage diagnostics must not pollute command stdout")
+			}
+			incomplete := outcome == "preserved" || outcome == "skipped" || outcome == "incomplete-regeneration"
+			if (coverage.CoverageStatus == workflow.CoverageIncomplete) != incomplete {
+				t.Fatalf("fixture did not reach %s: %+v", outcome, coverage)
+			}
+			if outcome == "skipped" && strings.Contains(stdout, "Recipe generated:") {
+				t.Fatal("withheld recipe reported a generation instead of the common incomplete status")
+			}
+		})
+	}
+}
+
+func TestRGAS4P2WritingReasonsFollowSemanticsNotFormatting(t *testing.T) {
+	for _, verb := range []string{"refresh", "fixup"} {
+		for _, changedSemantics := range []bool{false, true} {
+			name := verb + "/" + map[bool]string{false: "formatting-only", true: "changed-semantics"}[changedSemantics]
+			t.Run(name, func(t *testing.T) {
+				slug := "s4-semantic-reasons"
+				root := rgaS4CLIFixture(t, slug, false)
+				preimage := "one\ntwo\nthree\nold\nfive\nsix\nseven\n"
+				postimage := strings.Replace(preimage, "old\n", "new\n", 1)
+				modesWriteFile(t, root, "context.txt", preimage)
+				gitRun(t, root, "add", "context.txt")
+				gitRun(t, root, "commit", "-qm", "context fixture base")
+				gitRun(t, root, "config", "diff.context", "3")
+				modesWriteFile(t, root, "context.txt", postimage)
+				if _, stderr, code := runRecord(t, "record", "--path", root, slug, "--lenient"); code != 0 {
+					t.Fatal(stderr)
+				}
+				if initial := rgaS4CLICoverage(t, root, slug); initial.CoverageStatus != workflow.CoverageComplete {
+					t.Fatalf("fixture must start from a complete gated recipe: %+v", initial)
+				}
+				artifacts := filepath.Join(root, ".tpatch", "features", slug, "artifacts")
+				recipePath := filepath.Join(artifacts, "apply-recipe.json")
+				patchPath := filepath.Join(artifacts, "post-apply.patch")
+				provenancePath := filepath.Join(artifacts, "recipe-provenance.json")
+				canonical, err := os.ReadFile(recipePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				provenance, err := os.ReadFile(provenancePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				oldPatch, err := os.ReadFile(patchPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var compact bytes.Buffer
+				if err := json.Compact(&compact, canonical); err != nil || bytes.Equal(canonical, compact.Bytes()) {
+					t.Fatalf("fixture must change the on-disk recipe formatting: %v", err)
+				}
+				if err := os.WriteFile(recipePath, compact.Bytes(), 0o644); err != nil {
+					t.Fatal(err)
+				}
+
+				// A real Git-rendering change forces P2's writing branch
+				// without changing either image in the formatting-only row.
+				gitRun(t, root, "config", "diff.context", "0")
+				if changedSemantics {
+					postimage = strings.Replace(postimage, "new\n", "different\n", 1)
+					modesWriteFile(t, root, "context.txt", postimage)
+				}
+				captured, err := gitutil.CapturePatchScoped(root, nil)
+				if err != nil || captured == "" || captured == string(oldPatch) {
+					t.Fatalf("fixture must capture different nonempty patch bytes: %q %v", captured, err)
+				}
+				beforeGenerations := loadPatchGenerationsForTest(t, root, slug)
+				var observations []patchobs.Observation
+				restore := patchobs.SetRecorder(rgaS4CLIRecorder(func(observation patchobs.Observation) {
+					if observation.Producer != patchobs.ProducerFeaturePatch {
+						t.Fatalf("unexpected producer: %s", observation.Producer)
+					}
+					beforeWrite, err := os.ReadFile(patchPath)
+					if err != nil || !bytes.Equal(beforeWrite, oldPatch) {
+						t.Fatal("P2 observation must precede its canonical patch write")
+					}
+					observations = append(observations, observation)
+				}))
+				t.Cleanup(restore)
+				stdout, stderr, code := runCmdWithError("feature", "patch", verb, "--path", root, slug, "--reason", "semantic reason fixture")
+				if code != 0 || !strings.Contains(stdout, "Amended patch for ") || strings.Contains(stderr, "no patch byte change") {
+					t.Fatalf("fixture did not take P2's writing branch: code=%d out=%q err=%q", code, stdout, stderr)
+				}
+				if len(observations) != 1 || string(observations[0].PatchBytes) != captured {
+					t.Fatalf("P2 did not bind its actual capture: %+v", observations)
+				}
+				derived, err := workflow.DeriveRecipe(observations[0])
+				if err != nil || len(derived.CanonicalBytes()) == 0 || derived.ProvesOrigin(compact.Bytes()) {
+					t.Fatalf("fixture must be a complete derivation without raw D16 origin: %v", err)
+				}
+				if bytes.Equal(derived.CanonicalBytes(), canonical) == changedSemantics {
+					t.Fatal("fixture did not distinguish formatting from changed semantics")
+				}
+				writtenPatch, err := os.ReadFile(patchPath)
+				if err != nil || string(writtenPatch) != captured {
+					t.Fatalf("P2 did not publish the newly captured canonical patch: %v", err)
+				}
+				afterGenerations := loadPatchGenerationsForTest(t, root, slug)
+				if len(afterGenerations.Generations) != len(beforeGenerations.Generations)+1 {
+					t.Fatal("P2 writing event did not append its generation")
+				}
+				for path, before := range map[string][]byte{recipePath: compact.Bytes(), provenancePath: provenance} {
+					after, err := os.ReadFile(path)
+					if err != nil || !bytes.Equal(before, after) {
+						t.Fatalf("non-D16 writing event rewrote %s: %v", filepath.Base(path), err)
+					}
+				}
+				rawMarker, err := os.ReadFile(filepath.Join(artifacts, "recipe-stale.json"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var marker workflow.RecipeStaleness
+				if err := json.Unmarshal(rawMarker, &marker); err != nil || !marker.Stale ||
+					!strings.Contains(marker.Reason, "recipe bytes differ") || marker.DetectedAt == "" {
+					t.Fatalf("missing truthful raw-byte stale marker: %+v %v", marker, err)
+				}
+				coverage := rgaS4CLICoverage(t, root, slug)
+				wantReasons := []string{"recipe-stale-marker-present"}
+				if changedSemantics {
+					wantReasons = []string{"producer-patch-rewrite", "recipe-not-regenerated", "recipe-stale-marker-present", "simulation-mismatch"}
+				}
+				if coverage.Producer != patchobs.ProducerFeaturePatch ||
+					coverage.CoverageStatus != workflow.CoverageIncomplete || !slices.Equal(coverage.Reasons, wantReasons) {
+					t.Fatalf("rewrite reasons must follow semantic explanation, not the marker: got=%v want=%v", coverage.Reasons, wantReasons)
+				}
+				for _, effect := range coverage.Effects {
+					if len(effect.ReasonCodes) != 0 {
+						t.Fatalf("supported gated fixture gained inapplicable effect reasons: %+v", effect)
+					}
+				}
+				rgaS4AssertReportedCoverageStatus(t, stderr, coverage)
 			})
 		}
 	}

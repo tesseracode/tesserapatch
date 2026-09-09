@@ -17,7 +17,11 @@ The worker is fixing mapping/output and adding paired writing-event fixtures.
 The reason-policy fold is checkpointed at `fadaf31`; reviewer
 `334f5d27-1085-4722-b23c-82652d39b04a` independently APPROVED that narrow
 fold, closing the P2 contract finding. The worker is revising the remaining
-mapping/output findings; whole-S4 acceptance is not implied.
+mapping/output findings; its revision is now delivered. The mapping covers
+incoming and immediate compatibility writers, all producer completions report
+the exact status/reason union on stderr, and paired actual P2 writing-event
+fixtures implement ADR-040 without changing S3 semantics. Revalidation and
+independent correction review are next; whole-S4 acceptance is not implied.
 
 **Current S4 state (2026-09-09)**: the first targeted run compiled the draft
 and passed the other selected producer/carryover tests, but stopped at step 2
@@ -2403,6 +2407,15 @@ WAVE_BASE = 2b441c5aa374eeb7c7f651e87c9759b573332a2b
 
 ## Session Summary
 
+The worker delivered the mapping/common-output revision and ADR-040 evidence.
+Incoming shared-writer callers now have explicit negative/positive controls.
+All governed producer completions call the common reporter after publication,
+with no status on failed publication. Real refresh/fixup writing fixtures
+separate formatting-only drift from semantic drift and preserve recipe/
+provenance bytes. The coordinator's six expected golden deltas now include
+the new stderr line only when the captured command itself is a producer.
+No Go revalidation has run for this combined revision.
+
 The operator selected `semantic-reasons` for the P2 writing-event conflict.
 ADR-040 explicitly qualifies D15 and the PRD output wording while preserving
 D3's exact reason rules, D16 origin proof and ADR-039's operation domain.
@@ -2623,8 +2636,8 @@ The first targeted run stopped at step 2 on fixture/compatibility mismatches;
 the scoped corrections are in progress. Review-note guard tests pass.
 Independent review then found mapping/output defects and the distinct P2
 writing-event reason conflict. The operator resolved the third in favor of
-unchanged D3 semantic reasons; ADR-040 records it. Mapping/output corrections,
-policy-fold review and full revalidation remain pending.
+unchanged D3 semantic reasons; ADR-040 records it. Mapping/output corrections are delivered and policy-fold review is APPROVED.
+Full revalidation and independent implementation-correction review remain pending.
 
 ## Prerequisite Status
 
@@ -3243,6 +3256,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Combined revision is authored/formatted, not yet revalidated. Worker
+  mapping/output/ADR-040 fixtures and coordinator legacy/golden fixtures
+  will run together from validation step 1.
 
 - ADR-040 policy/guard fold is authored and formatted. All 66 existing
   ADR/PRD reference bindings remain unchanged by source calculation;
@@ -9038,8 +9055,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- Review blockers: unmapped shared-writer callers and missing P1 common
-  coverage output; worker revision required.
+- Mapping/output review revisions are delivered; Go revalidation and
+  independent confirmation are required before closing those findings.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
   ADR-040 is independently APPROVED; implementation evidence remains required.
   This is not GH #24.

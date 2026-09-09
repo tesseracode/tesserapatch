@@ -115,9 +115,13 @@ func TestRGAS4EditEventBoundaryAndEditorErrors(t *testing.T) {
 				if !bytes.Equal(raw, legacy) {
 					t.Fatal("non-event changed coverage")
 				}
+				if strings.Contains(stderr, "recipe coverage:") {
+					t.Fatal("non-event reported a coverage publication")
+				}
 				return
 			}
 			c := rgaS4CLICoverage(t, root, slug)
+			rgaS4AssertReportedCoverageStatus(t, stderr, c)
 			if c.Producer != patchobs.ProducerEdit || c.CoverageStatus != workflow.CoverageIncomplete ||
 				!slices.Contains(c.Reasons, "manual-bound-artifact-edit") ||
 				!slices.Contains(c.Reasons, "reference-not-durable") {
@@ -240,6 +244,9 @@ func TestRGAS4CycleSeparatesImplementAndPatchEvents(t *testing.T) {
 			if c.Producer != want {
 				t.Fatalf("event producer=%s want=%s", c.Producer, want)
 			}
+			if want == patchobs.ProducerCycle {
+				rgaS4AssertReportedCoverageStatus(t, stderr, c)
+			}
 		})
 	}
 }
@@ -315,7 +322,8 @@ func TestRGAS4ManualCheckpointPublishesAfterAcceptanceOnValidatedBytes(t *testin
 			t.Cleanup(restore)
 			cmd := &cobra.Command{}
 			cmd.SetOut(io.Discard)
-			cmd.SetErr(io.Discard)
+			var statusOutput bytes.Buffer
+			cmd.SetErr(&statusOutput)
 			if err := runManualPhase(cmd, s, slug, phase); err != nil {
 				t.Fatal(err)
 			}
@@ -328,9 +336,13 @@ func TestRGAS4ManualCheckpointPublishesAfterAcceptanceOnValidatedBytes(t *testin
 				if len(observations) != 0 {
 					t.Fatal("unrelated manual phase emitted a producer event")
 				}
+				if strings.Contains(statusOutput.String(), "recipe coverage:") {
+					t.Fatal("unrelated manual phase reported a publication")
+				}
 				return
 			}
 			c := rgaS4CLICoverage(t, root, slug)
+			rgaS4AssertReportedCoverageStatus(t, statusOutput.String(), c)
 			if len(observations) != 1 || c.Producer != patchobs.ProducerImplement ||
 				c.RecipeSHA256 != observations[0].ArtifactAfter.SHA256 {
 				t.Fatalf("manual checkpoint lost exact validated bytes: %+v", c)
@@ -638,4 +650,22 @@ func TestRGAS4AutoAcceptPublicationFailureReachesCLIAndJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRGAS4ApplyDoneReportsPublishedCoverage(t *testing.T) {
+	slug := "s4-done-status"
+	root := rgaS4CLIFixture(t, slug, true)
+	s, err := store.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(&stderr)
+	if _, _, err := runApplyDone(cmd, s, slug); err != nil {
+		t.Fatal(err)
+	}
+	coverage := rgaS4CLICoverage(t, root, slug)
+	rgaS4AssertReportedCoverageStatus(t, stderr.String(), coverage)
 }

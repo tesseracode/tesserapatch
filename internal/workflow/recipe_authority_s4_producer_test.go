@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -369,5 +370,81 @@ func TestRGAS4AutoAcceptPublicationFailureReachesRunReconcile(t *testing.T) {
 				rgaS0AssertNoCoverageArtifact(t, s.Root, slug)
 			}
 		})
+	}
+}
+
+func rgaS4CaptureCoverageStderr(t *testing.T, run func() error) (string, error) {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := os.Stderr
+	os.Stderr = writer
+	defer func() {
+		os.Stderr = previous
+		_ = writer.Close()
+		_ = reader.Close()
+	}()
+	runErr := run()
+	os.Stderr = previous
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	output, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(output), runErr
+}
+
+func TestRGAS4WorkflowProducersReportOnlySuccessfulPublications(t *testing.T) {
+	for _, producer := range []string{"implement", "reconcile-accept"} {
+		for _, fail := range []bool{false, true} {
+			t.Run(producer+"/"+map[bool]string{false: "published", true: "failed"}[fail], func(t *testing.T) {
+				s, root, slug := s1ImplementFixture(t)
+				run := func() error { return RunImplement(context.Background(), s, slug, nil, provider.Config{}) }
+				if producer == "reconcile-accept" {
+					head, err := gitutil.HeadCommit(root)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Test\naccepted\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+					patch, err := gitutil.DiffFromCommitForPaths(root, head, []string{"README.md"})
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err := s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
+						t.Fatal(err)
+					}
+					run = func() error { return RefreshAfterAccept(s, slug, head, patch) }
+				}
+				if fail {
+					if err := os.Mkdir(filepath.Join(s.TpatchDir(), "features", slug, "artifacts", "recipe-coverage.json"), 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				output, err := rgaS4CaptureCoverageStderr(t, run)
+				if fail {
+					if !errors.Is(err, ErrCoveragePublication) || strings.Contains(output, "recipe coverage:") {
+						t.Fatalf("failed publication reported a status: %q %v", output, err)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				coverage := rgaS4ReadCoverage(t, s, slug)
+				var expected bytes.Buffer
+				if err := ReportCoverageStatus(&expected, coverage, nil); err != nil {
+					t.Fatal(err)
+				}
+				if strings.Count(output, "recipe coverage:") != 1 || !strings.Contains(output, expected.String()) {
+					t.Fatalf("missing or duplicated common completion: got %q want %q", output, expected.String())
+				}
+			})
+		}
 	}
 }

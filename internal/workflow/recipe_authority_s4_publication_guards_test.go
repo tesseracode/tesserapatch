@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -72,9 +73,14 @@ func rgaS4ValidateRegistry(registry map[string][]string, producerSource string) 
 // RunImplement call starts a separate P6 event instead of becoming a P4 write.
 func rgaS4ValidateMapping(sources map[string]string, registry map[string][]string) error {
 	type function struct {
-		body *ast.FuncDecl
-		pkg  string
-		file string
+		body    *ast.FuncDecl
+		pkg     string
+		file    string
+		imports map[string]string
+	}
+	type edge struct {
+		callee string
+		call   *ast.CallExpr
 	}
 	functions := map[string]function{}
 	sites := map[string][]string{}
@@ -83,6 +89,20 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 		if err != nil {
 			return err
 		}
+		imports := map[string]string{}
+		for _, spec := range file.Imports {
+			path, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return err
+			}
+			if strings.HasPrefix(path, "github.com/tesseracode/tesserapatch/internal/") {
+				name := filepath.Base(path)
+				if spec.Name != nil {
+					name = spec.Name.Name
+				}
+				imports[name] = filepath.Base(path)
+			}
+		}
 		bound, _, err := rgaS0ScanWriteArtifact(path, src)
 		if err != nil {
 			return err
@@ -90,7 +110,7 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 		for _, decl := range file.Decls {
 			if fn, ok := decl.(*ast.FuncDecl); ok {
 				key := file.Name.Name + "." + fn.Name.Name
-				functions[key] = function{fn, file.Name.Name, path}
+				functions[key] = function{fn, file.Name.Name, path, imports}
 				for _, site := range bound {
 					if site.Func == rgaS0EnclosingName(fn) {
 						sites[key] = append(sites[key], site.key())
@@ -99,7 +119,38 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 			}
 		}
 	}
+	calls := map[string][]edge{}
+	incoming := map[string][]string{}
+	for key, fn := range functions {
+		ast.Inspect(fn.body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := rgaS0CallName(call)
+			if strings.HasPrefix(name, "s.") {
+				name = "store." + strings.TrimPrefix(name, "s.")
+			} else if !strings.Contains(name, ".") {
+				name = fn.pkg + "." + name
+				if _, local := functions[name]; !local && fn.imports["."] != "" {
+					name = fn.imports["."] + "." + rgaS0CallName(call)
+				}
+			} else if qualifier, member, found := strings.Cut(name, "."); found && fn.imports[qualifier] != "" {
+				name = fn.imports[qualifier] + "." + member
+			}
+			calls[key] = append(calls[key], edge{name, call})
+			incoming[name] = append(incoming[name], key)
+			return true
+		})
+	}
+	registeredRoots := map[string]bool{}
+	for _, roots := range registry {
+		for _, root := range roots {
+			registeredRoots[root] = true
+		}
+	}
 	owners := map[string]map[string]bool{}
+	coveredFunctions := map[string]bool{}
 	for producer, roots := range registry {
 		suppliesRecipePlan := false
 		for _, root := range roots {
@@ -119,18 +170,20 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 			})
 		}
 		seen := map[string]bool{}
-		var visit func(string)
-		visit = func(key string) {
-			if seen[key] || (key == "workflow.RunImplement" && producer != "implement") {
+		type visitState struct {
+			key              string
+			immediateAutogen bool
+		}
+		visited := map[visitState]bool{}
+		var visit func(string, bool)
+		visit = func(key string, immediateAutogen bool) {
+			state := visitState{key, immediateAutogen}
+			if visited[state] || (key == "workflow.RunImplement" && producer != "implement") {
 				return
 			}
-			// Only P1/P2 supply a recipe plan to the typed publisher;
-			// the other producers preserve their recipe. This distinguishes
-			// actual input flow from a context-free common-helper graph.
-			if key == "workflow.publishRecordRecipePlan" && !suppliesRecipePlan {
-				return
-			}
+			visited[state] = true
 			seen[key] = true
+			coveredFunctions[key] = true
 			fn, ok := functions[key]
 			if !ok {
 				return
@@ -141,26 +194,31 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 				}
 				owners[site][producer] = true
 			}
-			ast.Inspect(fn.body, func(n ast.Node) bool {
-				call, ok := n.(*ast.CallExpr)
-				if !ok {
-					return true
+			for _, call := range calls[key] {
+				if call.callee == "workflow.publishRecordRecipePlan" {
+					switch key {
+					case "workflow.PublishCoverage":
+						if !suppliesRecipePlan {
+							continue
+						}
+					case "workflow.AutogenRecipeForRecord":
+						if !immediateAutogen {
+							continue
+						}
+					}
 				}
-				name := rgaS0CallName(call)
-				if strings.HasPrefix(name, "s.") {
-					name = "store." + strings.TrimPrefix(name, "s.")
-				} else if !strings.Contains(name, ".") {
-					name = fn.pkg + "." + name
+				immediate := false
+				if call.callee == "workflow.AutogenRecipeForRecord" {
+					immediate = !rgaS4AutogenCallDefersWrites(fn.body, call.call)
 				}
-				visit(name)
-				return true
-			})
+				visit(call.callee, immediate)
+			}
 		}
 		for _, root := range roots {
 			if _, ok := functions[root]; !ok {
 				return fmt.Errorf("producer root missing: %s", root)
 			}
-			visit(root)
+			visit(root, root == "workflow.AutogenRecipeForRecord")
 		}
 		if !seen["workflow.PublishCoverage"] {
 			return fmt.Errorf("producer %s cannot reach the shared publisher", producer)
@@ -170,6 +228,33 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 		}
 		if producer == "artifact-edit" && !seen["cli.openInEditor"] {
 			return fmt.Errorf("editor delegation is unmapped")
+		}
+	}
+	// Trace every incoming route back from a bound writer, stopping only at
+	// registered event boundaries. A shared helper being covered from P1/P2
+	// does not excuse an additional unregistered caller of that same helper.
+	writeReachable := map[string]bool{}
+	var queue []string
+	for key := range sites {
+		writeReachable[key] = true
+		queue = append(queue, key)
+	}
+	for len(queue) != 0 {
+		key := queue[0]
+		queue = queue[1:]
+		if registeredRoots[key] {
+			continue
+		}
+		for _, caller := range incoming[key] {
+			if !writeReachable[caller] {
+				writeReachable[caller] = true
+				queue = append(queue, caller)
+			}
+		}
+	}
+	for key := range writeReachable {
+		if !coveredFunctions[key] {
+			return fmt.Errorf("unmapped incoming caller reaches a bound writer: %s", key)
 		}
 	}
 	for _, bound := range sites {
@@ -189,6 +274,57 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 	return nil
 }
 
+func rgaS4AutogenCallDefersWrites(fn *ast.FuncDecl, target *ast.CallExpr) bool {
+	if len(target.Args) != 5 {
+		// The compatibility call with four arguments publishes immediately.
+		return false
+	}
+	input, ok := target.Args[4].(*ast.Ident)
+	if !ok {
+		return false
+	}
+	deferred := false
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		block, ok := n.(*ast.BlockStmt)
+		if !ok {
+			return true
+		}
+		for index, stmt := range block.List {
+			assign, ok := stmt.(*ast.AssignStmt)
+			if !ok {
+				continue
+			}
+			isTarget := false
+			for _, rhs := range assign.Rhs {
+				isTarget = isTarget || rhs == target
+			}
+			if !isTarget {
+				continue
+			}
+			for _, prior := range block.List[:index] {
+				set, ok := prior.(*ast.AssignStmt)
+				if !ok || len(set.Lhs) != 1 || len(set.Rhs) != 1 {
+					continue
+				}
+				if name, ok := set.Lhs[0].(*ast.Ident); ok && name.Name == input.Name {
+					deferred = false
+				}
+				field, ok := set.Lhs[0].(*ast.SelectorExpr)
+				if !ok || field.Sel.Name != "DeferRecipeWrites" {
+					continue
+				}
+				receiver, receiverOK := field.X.(*ast.Ident)
+				value, valueOK := set.Rhs[0].(*ast.Ident)
+				if receiverOK && receiver.Name == input.Name {
+					deferred = valueOK && value.Name == "true"
+				}
+			}
+		}
+		return true
+	})
+	return deferred
+}
+
 func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 	producerSource := rgaS0ReadRepoFile(t, "internal/patchobs/patchobs.go")
 	if err := rgaS4ValidateRegistry(rgaS4Registry, producerSource); err != nil {
@@ -203,6 +339,63 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 	if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("existing-p1-p2-deferred-calls", func(t *testing.T) {
+		for path, name := range map[string]string{
+			"internal/cli/cobra.go":         "recordCmd",
+			"internal/cli/feature_patch.go": "runFeaturePatchAmend",
+		} {
+			file, err := rgaS0Parse(path, sources[path])
+			if err != nil {
+				t.Fatal(err)
+			}
+			fn := rgaS0FuncBody(file, name)
+			if fn == nil {
+				t.Fatalf("%s missing", name)
+			}
+			calls := 0
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok && rgaS0CallName(call) == "workflow.AutogenRecipeForRecord" {
+					calls++
+					if !rgaS4AutogenCallDefersWrites(fn, call) {
+						t.Fatalf("%s no longer supplies the proven deferred plan", name)
+					}
+				}
+				return true
+			})
+			if calls != 1 {
+				t.Fatalf("%s autogen call count=%d", name, calls)
+			}
+		}
+		if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("p3-direct-compatibility-autogen-writer", func(t *testing.T) {
+		path := "internal/workflow/refresh.go"
+		before := sources[path]
+		anchor := "publication := ObserveCoveragePublication(s, obs)"
+		sources[path] = strings.Replace(before, anchor, "_, _ = AutogenRecipeForRecord(s, obs, true, false)\n\t"+anchor, 1)
+		defer func() { sources[path] = before }()
+		if sources[path] == before || rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("P3's direct compatibility writer escaped site-to-producer mapping")
+		}
+	})
+	t.Run("unregistered-command-calls-compatibility-autogen", func(t *testing.T) {
+		path := "internal/cli/s4_unregistered_command.go"
+		sources[path] = "package cli\nfunc unregisteredCommand(s *store.Store, obs patchobs.Observation) { workflow.AutogenRecipeForRecord(s, obs, true, false) }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("unregistered incoming compatibility caller escaped mapping")
+		}
+	})
+	t.Run("unregistered-command-uses-import-alias", func(t *testing.T) {
+		path := "internal/cli/s4_unregistered_alias.go"
+		sources[path] = "package cli\nimport wf \"github.com/tesseracode/tesserapatch/internal/workflow\"\nfunc unregisteredAlias(s *store.Store, obs patchobs.Observation) { wf.AutogenRecipeForRecord(s, obs, true, false) }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("an import alias hid an unregistered incoming compatibility caller")
+		}
+	})
 	t.Run("five-only-registry", func(t *testing.T) {
 		five := map[string][]string{}
 		for name, roots := range rgaS4Registry {
@@ -324,7 +517,7 @@ func rgaS4PublicationSource(rel, src string) error {
 					switch id.Name {
 					case "CoverageArtifact", "CoveragePublicationInput", "ObserveCoveragePublication",
 						"PublishCoverage", "ReconstructEditedCoverage", "coverageFinalizer", "finishCoverage", "CoverageStatus",
-						"ErrCoveragePublication":
+						"ErrCoveragePublication", "ReportCoverageStatus":
 					default:
 						refusal = fmt.Errorf("producer acquired private coverage policy: %s", id.Name)
 					}
@@ -336,8 +529,13 @@ func rgaS4PublicationSource(rel, src string) error {
 				}
 			}
 			if literal, ok := n.(*ast.BasicLit); ok {
-				if value, valid := rgaS0StringLit(literal); valid && value == "recipe-coverage.json" && !publisher {
-					refusal = fmt.Errorf("producer owns a private coverage artifact")
+				if value, valid := rgaS0StringLit(literal); valid && !publisher {
+					if value == "recipe-coverage.json" {
+						refusal = fmt.Errorf("producer owns a private coverage artifact")
+					}
+					if strings.HasPrefix(strings.TrimSpace(strings.ToLower(value)), "recipe coverage:") {
+						refusal = fmt.Errorf("producer owns a private coverage status formatter")
+					}
 				}
 			}
 			return true
@@ -347,6 +545,9 @@ func rgaS4PublicationSource(rel, src string) error {
 		}
 	}
 	if !publisher {
+		if err := rgaS4CoverageCompletionCalls(src); err != nil {
+			return err
+		}
 		if rel == "internal/workflow/implement.go" {
 			return rgaS4ImplementPublicationOrder(src)
 		}
@@ -398,6 +599,7 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 		{"inline-producer-writer", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){ s.WriteArtifactAtomic(slug,\"recipe-coverage.json\",\"{}\") }"},
 		{"unregistered-producer-chain", "internal/cli/cobra.go", "package cli\nfunc other(){workflow.PublishCoverage(nil,workflow.CoveragePublicationInput{})}"},
 		{"private-producer-codec", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){workflow.EncodeRecipeCoverage(c)}"},
+		{"private-producer-status", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){fmt.Fprintln(w,\"recipe coverage: complete\")}"},
 		{"alternate-publisher-entry", rel, src + "\nfunc alternatePublisher(){ s.WriteArtifactAtomic(slug, \"recipe-coverage.json\", \"{}\") }\n"},
 		{"alternate-publisher-encoder", rel, src + "\nfunc alternateEncoder(){ EncodeRecipeCoverage(c) }\n"},
 		{"non-atomic-publication", rel, strings.Replace(src, `s.WriteArtifactAtomic(`, `s.WriteArtifact(`, 1)},
@@ -546,7 +748,7 @@ func TestRGAS4ImplementFinalizerOrderAndSensitivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Run("same-call-moved-before-provenance", func(t *testing.T) {
-		line := "\t_, coverageErr := PublishCoverage(s, publication)\n"
+		line := "\tcoverage, coverageErr := PublishCoverage(s, publication)\n"
 		mutated := strings.Replace(src, line, "", 1)
 		mutated = strings.Replace(mutated, "\tvar provenanceErr error\n", line+"\tvar provenanceErr error\n", 1)
 		if strings.Count(mutated, "PublishCoverage(s, publication)") != 1 ||
@@ -558,20 +760,21 @@ func TestRGAS4ImplementFinalizerOrderAndSensitivity(t *testing.T) {
 		{
 			"publication-before-state",
 			`stateErr := s.MarkFeatureState`,
-			`_, coverageErr := PublishCoverage(s, publication)
+			`coverage, coverageErr := PublishCoverage(s, publication)
 	stateErr := s.MarkFeatureState`,
 		},
 		{
 			"publication-only-on-state-success",
-			`_, coverageErr := PublishCoverage(s, publication)`,
-			`var coverageErr error
-	if stateErr == nil { _, coverageErr = PublishCoverage(s, publication) }`,
+			`coverage, coverageErr := PublishCoverage(s, publication)`,
+			`var coverage RecipeCoverage
+	var coverageErr error
+	if stateErr == nil { coverage, coverageErr = PublishCoverage(s, publication) }`,
 		},
 		{
 			"literal-nil-success-finalizer",
-			`_, coverageErr := PublishCoverage(s, publication)`,
+			`coverage, coverageErr := PublishCoverage(s, publication)`,
 			`if stateErr != nil { return stateErr }
-	_, coverageErr := PublishCoverage(s, publication)`,
+	coverage, coverageErr := PublishCoverage(s, publication)`,
 		},
 		{
 			"publication-failure-discarded",
@@ -610,7 +813,7 @@ func TestRGAS4PureCoreRejectsSpacedBoundIOMethods(t *testing.T) {
 			if err := rgaS0CoveragePhaseSource(rel, src); err != nil {
 				t.Fatal(err)
 			}
-			for _, method := range []string{"WriteArtifactAtomic", "ReadFeatureFile"} {
+			for _, method := range []string{"WriteArtifactAtomic", "ReadFeatureFile", "ReportCoverageStatus"} {
 				mutated := src + "\nfunc plantedReceiver(storeLike interface{}) { storeLike . " + method + " (\"slug\", \"artifact\", \"bytes\") }\n"
 				if rgaS0CoveragePhaseSource(rel, mutated) == nil {
 					t.Fatalf("pure phase validator accepted spaced %s in %s", method, rel)
@@ -717,4 +920,120 @@ func TestRGAS4AcceptPublicationErrorBoundaryAndSensitivity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func rgaS4CoverageCompletionCalls(src string) error {
+	file, err := rgaS0Parse("producer.go", src)
+	if err != nil {
+		return err
+	}
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		publications, completions := 0, 0
+		var refusal error
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			if call, ok := n.(*ast.CallExpr); ok {
+				name := rgaS0CallName(call)
+				if name == "PublishCoverage" || strings.HasSuffix(name, ".PublishCoverage") {
+					publications++
+				}
+			}
+			block, ok := n.(*ast.BlockStmt)
+			if !ok {
+				return true
+			}
+			for index, stmt := range block.List {
+				bind, ok := stmt.(*ast.AssignStmt)
+				if !ok || len(bind.Rhs) != 1 {
+					continue
+				}
+				publish, ok := bind.Rhs[0].(*ast.CallExpr)
+				if !ok {
+					continue
+				}
+				name := rgaS0CallName(publish)
+				if name != "PublishCoverage" && !strings.HasSuffix(name, ".PublishCoverage") {
+					continue
+				}
+				if len(bind.Lhs) != 2 || index+1 >= len(block.List) {
+					refusal = fmt.Errorf("%s loses publication completion", fn.Name.Name)
+					continue
+				}
+				record, recordOK := bind.Lhs[0].(*ast.Ident)
+				cause, causeOK := bind.Lhs[1].(*ast.Ident)
+				if !recordOK || !causeOK || record.Name == "_" || cause.Name == "_" {
+					refusal = fmt.Errorf("%s discards the published record or failure", fn.Name.Name)
+					continue
+				}
+				var completion *ast.AssignStmt
+				switch next := block.List[index+1].(type) {
+				case *ast.AssignStmt:
+					completion = next
+				case *ast.IfStmt:
+					completion, _ = next.Init.(*ast.AssignStmt)
+				}
+				if completion == nil || len(completion.Rhs) != 1 || len(completion.Lhs) != 1 {
+					refusal = fmt.Errorf("%s has conditional or missing common reporting", fn.Name.Name)
+					continue
+				}
+				report, ok := completion.Rhs[0].(*ast.CallExpr)
+				if !ok || (rgaS0CallName(report) != "ReportCoverageStatus" && !strings.HasSuffix(rgaS0CallName(report), ".ReportCoverageStatus")) ||
+					len(report.Args) != 3 {
+					refusal = fmt.Errorf("%s bypasses the common coverage reporter", fn.Name.Name)
+					continue
+				}
+				value, valueOK := report.Args[1].(*ast.Ident)
+				failure, failureOK := report.Args[2].(*ast.Ident)
+				returned, returnedOK := completion.Lhs[0].(*ast.Ident)
+				if !valueOK || !failureOK || !returnedOK || value.Name != record.Name ||
+					failure.Name != cause.Name || returned.Name != cause.Name {
+					refusal = fmt.Errorf("%s reports a different record or drops its failure", fn.Name.Name)
+					continue
+				}
+				completions++
+			}
+			return true
+		})
+		if refusal != nil {
+			return refusal
+		}
+		if publications != completions {
+			return fmt.Errorf("%s does not report every publication through the common completion", fn.Name.Name)
+		}
+	}
+	return nil
+}
+
+func TestRGAS4CoverageCompletionGuardAndSensitivity(t *testing.T) {
+	for path := range rgaS4ProducerFunctions {
+		if err := rgaS4CoverageCompletionCalls(rgaS0ReadRepoFile(t, path)); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+	}
+	src := rgaS0ReadRepoFile(t, "internal/cli/producer_observation.go")
+	line := "err = workflow.ReportCoverageStatus(statusWriter, coverage, err)"
+	for _, tc := range []struct{ name, old, replacement string }{
+		{"discarded-result", "coverage, err := workflow.PublishCoverage", "_, err := workflow.PublishCoverage"},
+		{"missing-report", line, "_ = coverage"},
+		{"generated-only-report", line, "if in.Autogen != nil && in.Autogen.Action == workflow.AutogenGenerated { " + line + " }"},
+		{"wrong-record", line, "err = workflow.ReportCoverageStatus(statusWriter, previousCoverage, err)"},
+		{"dropped-publication-failure", line, "err = workflow.ReportCoverageStatus(statusWriter, coverage, nil)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutated := strings.Replace(src, tc.old, tc.replacement, 1)
+			if mutated == src || rgaS4CoverageCompletionCalls(mutated) == nil {
+				t.Fatalf("common completion validator accepted %s", tc.name)
+			}
+		})
+	}
+	t.Run("aliased-publisher-without-report", func(t *testing.T) {
+		mutated := strings.Replace(src, "workflow.PublishCoverage", "wf.PublishCoverage", 1)
+		mutated = strings.Replace(mutated, line, "", 1)
+		if rgaS4CoverageCompletionCalls(mutated) == nil {
+			t.Fatal("an import alias hid a missing common completion")
+		}
+	})
 }

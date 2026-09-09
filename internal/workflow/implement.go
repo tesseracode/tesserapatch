@@ -268,7 +268,8 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 	publication.Recipe = CoverageArtifact{
 		Present: true, Bytes: observation.ArtifactAfter.Bytes, Path: observation.ArtifactAfter.Path,
 	}
-	_, coverageErr := PublishCoverage(s, publication)
+	coverage, coverageErr := PublishCoverage(s, publication)
+	coverageErr = ReportCoverageStatus(nil, coverage, coverageErr)
 	return errors.Join(stateErr, provenanceErr, coverageErr)
 }
 

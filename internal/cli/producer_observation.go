@@ -14,6 +14,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
@@ -36,14 +37,15 @@ func observeCaptureMode(label string) patchobs.CaptureMode {
 // coverageFinalizer is armed only after a successful bound write. Explicit
 // completion precedes the success message; the deferred path preserves primary
 // errors when a later owned write fails. Each event publishes at most once.
-func coverageFinalizer(s *store.Store, in *workflow.CoveragePublicationInput) func(error) error {
+func coverageFinalizer(s *store.Store, in *workflow.CoveragePublicationInput, statusWriter io.Writer) func(error) error {
 	finished := false
 	return func(primary error) error {
 		if finished {
 			return primary
 		}
 		finished = true
-		_, err := workflow.PublishCoverage(s, *in)
+		coverage, err := workflow.PublishCoverage(s, *in)
+		err = workflow.ReportCoverageStatus(statusWriter, coverage, err)
 		return errors.Join(primary, err)
 	}
 }

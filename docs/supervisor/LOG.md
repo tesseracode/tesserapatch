@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S4 review revision delivered — 2026-09-09
+
+**State**: IN PROGRESS — combined revalidation/correction review
+
+The worker delivered incoming shared-writer mapping, compatibility-path and
+alias controls, common status/reason reporting for all governed completions,
+and real P2 writing-event fixtures for the operator-selected semantic reason
+policy. Failed publications emit no successful status. The original 11 N2
+mutations and protected S3/domain surfaces remain unchanged.
+
+Coordinator golden expectations add the stderr status only to captured
+producer commands; setup-only publication changes only their artifact
+snapshots. Historical bytes and the S2 projection function remain frozen.
+Checkpoint the combined revision before restarting Go validation. Policy-fold
+review is already approved; mapping/output findings still need independent
+confirmation. No S4 acceptance is claimed.
+
 ## Review — GH #15 S4 semantic-reasons policy fold — 2026-09-09
 
 **Reviewer**: `s4-implementation-review`

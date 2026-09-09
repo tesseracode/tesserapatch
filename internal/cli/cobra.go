@@ -1068,7 +1068,7 @@ func runApplyDone(cmd *cobra.Command, s *store.Store, slug string) (patch string
 				return "", 0, err
 			}
 			publication.Events.PatchRewritten = true
-			finishCoverage = coverageFinalizer(s, &publication)
+			finishCoverage = coverageFinalizer(s, &publication, cmd.ErrOrStderr())
 			defer func() { err = finishCoverage(err) }()
 			patchName, writeErr := s.WritePatch(slug, "apply", patch)
 			if writeErr != nil {
@@ -1852,7 +1852,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 				return err
 			}
 			publication.Events.PatchRewritten = true
-			finishCoverage := coverageFinalizer(s, &publication)
+			finishCoverage := coverageFinalizer(s, &publication, cmd.ErrOrStderr())
 			defer func() { retErr = finishCoverage(retErr) }()
 			patchName := ""
 			if sameFeatureDup {
@@ -3505,7 +3505,8 @@ func runManualPhase(cmd *cobra.Command, s *store.Store, slug, phase string) erro
 		return err
 	}
 	if phase == "implement" {
-		if _, err := workflow.PublishCoverage(s, publication); err != nil {
+		coverage, err := workflow.PublishCoverage(s, publication)
+		if err := workflow.ReportCoverageStatus(cmd.ErrOrStderr(), coverage, err); err != nil {
 			return err
 		}
 	}
