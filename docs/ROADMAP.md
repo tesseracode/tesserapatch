@@ -1645,6 +1645,11 @@ text controls remain positive. Revalidation and confirmation are next.
 Alias correction `6287d5e` passes steps 1-5, including every new negative
 and positive control. Independent confirmation is pending before full
 22-shard validation and wave close.
+The alias correction still needs import-binding precedence: workflow imported
+as `s` currently collides with the assumed store receiver. Direct/value
+negative controls and conservative shadow handling are being added.
+The import-precedence correction and colliding/shadowed alias controls are
+authored, with production unchanged. Revalidation and correction review follow.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

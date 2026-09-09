@@ -18,6 +18,14 @@ Registered/unregistered/package aliases, method values and literal-text
 controls are added. S4 is not accepted.
 Checkpoint `6287d5e` now passes steps 1-5 with the added alias controls.
 Independent correction confirmation remains pending before full shards.
+The correction reviewer found a colliding-import-alias case: workflow
+imported as `s` is mistaken for the assumed store receiver. Import bindings
+must take precedence, with conservative shadow handling and direct/value
+alias fixtures. Mapping remains open; output and ADR-040 remain approved.
+That correction is authored: imported qualifiers resolve before receiver
+heuristics; shadowed writer bindings are refused rather than guessed.
+Colliding-`s` direct/value negatives and a harmless type-reference control
+are included. No production behavior changes.
 
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
@@ -3272,6 +3280,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Independent `6287d5e` review: **NEEDS REVISION** on the imported `s`
+  qualifier collision. The original function-value bypass is caught;
+  the new collision controls are required before mapping closure.
 
 - Alias correction `6287d5e`: steps 1-2 **PASS**, fresh gates at 89% free/
   load1 2.69 and 2.62; workflow selector 6.989s, CLI selector 27.507s.

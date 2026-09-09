@@ -131,10 +131,23 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 			expr = p.X
 		}
 	}
+	ambiguousImports := map[ast.Expr]string{}
 	resolve := func(pkg string, imports map[string]string, expr ast.Expr) string {
-		name := rgaS0CallName(&ast.CallExpr{Fun: unparen(expr)})
+		expr = unparen(expr)
+		name := rgaS0CallName(&ast.CallExpr{Fun: expr})
 		if name == "" {
 			return ""
+		}
+		if qualifier, member, found := strings.Cut(name, "."); found && imports[qualifier] != "" {
+			target := imports[qualifier] + "." + member
+			if selector, ok := expr.(*ast.SelectorExpr); ok {
+				if receiver, ok := selector.X.(*ast.Ident); ok &&
+					receiver.Obj != nil && receiver.Obj.Kind != ast.Pkg {
+					ambiguousImports[expr] = target
+					return ""
+				}
+			}
+			return target
 		}
 		if strings.HasPrefix(name, "s.") {
 			return "store." + strings.TrimPrefix(name, "s.")
@@ -145,9 +158,6 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 				return imports["."] + "." + name
 			}
 			return local
-		}
-		if qualifier, member, found := strings.Cut(name, "."); found && imports[qualifier] != "" {
-			return imports[qualifier] + "." + member
 		}
 		return name
 	}
@@ -335,10 +345,15 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 			default:
 				return true
 			}
+			target := resolve(file.Name.Name, fileImports[path], expr)
+			if shadowed := ambiguousImports[expr]; shadowed != "" &&
+				(writeReachable[shadowed] || artifactMethod) {
+				referenceErr = fmt.Errorf("ambiguous shadowed import names a bound writer %s in %s", shadowed, path)
+				return true
+			}
 			if directCallees[expr] {
 				return true
 			}
-			target := resolve(file.Name.Name, fileImports[path], expr)
 			if writeReachable[target] || artifactMethod {
 				referenceErr = fmt.Errorf("unmapped function-value reference to bound writer %s in %s", target, path)
 			}
@@ -504,6 +519,35 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 		defer delete(sources, path)
 		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
 			t.Fatal("an unregistered function-value alias hid the shared writer")
+		}
+	})
+	for _, test := range []struct{ name, body string }{
+		{"colliding-import-direct-call", "_, _ = s.AutogenRecipeForRecord(st, obs, true, false)"},
+		{"colliding-import-function-value", "autogen := s.AutogenRecipeForRecord; _, _ = autogen(st, obs, true, false)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path := "internal/cli/s4_colliding_import.go"
+			sources[path] = "package cli\nimport (\ns \"github.com/tesseracode/tesserapatch/internal/workflow\"\n\"github.com/tesseracode/tesserapatch/internal/store\"\n\"github.com/tesseracode/tesserapatch/internal/patchobs\"\n)\nfunc unregisteredCollidingImport(st *store.Store, obs patchobs.Observation) { " + test.body + " }\n"
+			defer delete(sources, path)
+			if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+				t.Fatal("workflow import s was incorrectly treated as a store receiver")
+			}
+		})
+	}
+	t.Run("shadowed-import-writer-binding-is-not-guessed", func(t *testing.T) {
+		path := "internal/cli/s4_shadowed_import.go"
+		sources[path] = "package cli\nimport s \"github.com/tesseracode/tesserapatch/internal/workflow\"\nvar _ s.ApplyRecipe\nfunc shadowedImport(s struct { AutogenRecipeForRecord func() }) { s.AutogenRecipeForRecord() }\n"
+		defer delete(sources, path)
+		if rgaS4ValidateMapping(sources, rgaS4Registry) == nil {
+			t.Fatal("a shadowed imported writer binding received guessed ownership")
+		}
+	})
+	t.Run("colliding-import-type-reference-is-harmless", func(t *testing.T) {
+		path := "internal/cli/s4_colliding_import_type.go"
+		sources[path] = "package cli\nimport s \"github.com/tesseracode/tesserapatch/internal/workflow\"\nfunc collidingImportType() s.ApplyRecipe { return s.ApplyRecipe{} }\n"
+		defer delete(sources, path)
+		if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
+			t.Fatalf("harmless type reference through import s was rejected: %v", err)
 		}
 	})
 	t.Run("package-level-function-value-alias", func(t *testing.T) {

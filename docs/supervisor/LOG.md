@@ -1,3 +1,34 @@
+## Implementation Transition — GH #15 S4 import-alias correction authored — 2026-09-09
+
+**State**: IN PROGRESS — test-only correction
+
+Resolve internal-package import qualifiers before the assumed `s` store
+receiver. A shadowed import that could identify a governed writer is left
+unresolved and refused, not assigned a guessed owner. New negatives cover
+both direct and function-value calls through workflow import `s`, plus an
+ambiguous shadow. A type-only use of import `s` remains a positive control.
+No production behavior changes. Restart the gated sequence and request
+independent confirmation; full shards remain deferred.
+
+## Review — GH #15 S4 alias correction — 2026-09-09
+
+**Reviewer**: `s4-implementation-review`
+**Checkpoint**: `6287d5e`
+
+### Verdict: NEEDS REVISION
+
+The local function-value bypass is caught, but one MEDIUM resolver defect
+remains: an imported workflow qualifier named `s` is treated as the assumed
+store receiver before import resolution. Both direct and function-value
+calls can therefore hide the immediate autogen writer.
+
+### Action Taken
+
+Resolve imported qualifiers before applying receiver heuristics, refuse
+ambiguous shadowed writer bindings conservatively, and add same-validator
+direct/function-value controls for the colliding alias. Output and ADR-040
+remain approved. No production change or full-validation claim.
+
 ## Implementation Transition — GH #15 S4 alias correction validated — 2026-09-09
 
 **Checkpoint**: `6287d5e`
