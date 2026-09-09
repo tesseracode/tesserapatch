@@ -1,3 +1,23 @@
+## Implementation Transition — GH #15 S5 independent contract controls — 2026-09-09
+
+**State**: IN PROGRESS — authored, not Go-validated
+**Dispatch**: `caca158`
+**Worker**: `f88dc13c-d461-45f8-a583-b2a9eb806188` (`s5-consumer-integration`)
+
+The worker owns the coupled runtime surfaces and primary tests. The
+coordinator's disjoint `recipe_authority_s5_contract_test.go` now pins the
+accepted D7 amendment/severity tables, both D13 verify ladders, both D17
+execute tables and the four byte-identical state-aware guidance blocks.
+Wrong-behavior, missing/duplicate-table and guidance mutations feed the
+same validators. Historical ADR-029 D3/D7 remain separately pinned with
+atomicity and false-safe-supersession mutations.
+
+The coordinator file is formatted; no Go validation has run. Three owned
+ignored wrappers under `bin/s5-validation/` are prepared to gate top-level
+Go invocations and stop after first failure, including nested wave-close
+invocations. They do not change tracked CI scripts and will be removed at
+closure. Await the runtime draft before the serial validation sequence.
+
 ## Dispatch — GH #15 S5 apply, verify, doctor and accounting — 2026-09-09
 
 **Task**: `implement-recipe-generation-authority-s5`

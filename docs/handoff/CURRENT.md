@@ -11,6 +11,13 @@ no stashes, one worktree, no operation markers and the original 13 untracked
 research files. Terminal CI 34368468175 passed all required jobs. S4's
 completion archive already exists; no review finding carries forward.
 
+Dispatch `caca158` is pushed. Runtime worker
+`f88dc13c-d461-45f8-a583-b2a9eb806188` is implementing its owned surfaces.
+The coordinator's disjoint contract-test unit is authored/formatted:
+accepted amendment/severity/classifier tables, state-aware guidance and
+ADR-029 preservation, all with failing-input sensitivity controls. No Go
+validation has run.
+
 ### S5 scope, ownership and validation
 
 Authority: PRD-recipe-generation-authority S5; ADR-036 D7/D9/D11/D13/D14/D17,
@@ -2546,7 +2553,11 @@ findings or validation claims. Inspected accepted S5/D7/D9/D11/D13/D14/D17
 contracts and the existing apply/verify/publisher boundaries. The fresh
 clean/pushed baseline is `537ffd9`; all required terminal CI jobs pass.
 Retargeted CURRENT/ROADMAP/LOG before code and declared disjoint ownership.
-S5 implementation and Go validation have not begun.
+Dispatch `caca158` is pushed and the runtime worker is active. The
+coordinator authored/formatted `recipe_authority_s5_contract_test.go` with
+six table pins, shared guidance equality and historical ADR-029 D3/D7 pins,
+plus wrong-input controls for every validator. Ignored serial-validation
+wrappers are prepared; no Go validation has run.
 
 ### S4 completion summary (historical)
 
@@ -2788,8 +2799,9 @@ integration or shipped assets belong to this slice.
 
 S5 is in progress from `537ffd9`, limited to apply classification/accounting,
 read-time bindings, verify, read-only doctor and truthful remediation.
-S4 is internally accepted, externally approved and durably pushed. No S5
-code or validation result exists yet; scope is checkpointed before dispatch.
+S4 is internally accepted, externally approved and durably pushed. S5
+runtime work is delegated; independent contract controls are authored but
+not Go-validated. Scope was committed/pushed before dispatch.
 ADR-039/040 remain in force. S6 and GH #24 implementation are not authorized.
 
 ### Accepted prerequisite state (historical)
@@ -2866,6 +2878,9 @@ remains blocked until that release is implemented, soaked and shipped.
 
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
+- Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
+- Three session-owned ignored wrappers under `bin/s5-validation/`; not staged
+  or part of the product, and removed at closure.
 
 ### Completed S4 file record
 
@@ -9323,9 +9338,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit/push S5 scope and dispatch the single bounded implementation worker.
-2. Author independent contract controls in the coordinator-owned test file.
-3. Checkpoint implementation, run serial gated validation and independent
+1. Receive the bounded runtime draft from worker
+   `f88dc13c-d461-45f8-a583-b2a9eb806188`; do not edit its files while active.
+2. Checkpoint implementation, run serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.
 
 ## Blockers

@@ -1630,6 +1630,9 @@ Preserve ADR-029 atomicity/path-safety/supersession behavior, ADR-039/040,
 S3 purity, S4 publication and all 11 phase-boundary mutations. One runtime
 worker and a disjoint coordinator contract-test unit; all Go validation
 remains serial and resource-gated. Scope is checkpointed before code.
+Dispatch `caca158` is pushed; the runtime worker is active. The independent
+contract-test unit is authored/formatted with table/guidance/ADR-029
+mutation controls; no S5 Go validation has run.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
