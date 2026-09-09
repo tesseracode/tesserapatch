@@ -4,6 +4,20 @@
 
 **Cluster state**: IN PROGRESS
 
+**Current S4 state (2026-09-09)**: the first targeted run compiled the draft
+and passed the other selected producer/carryover tests, but stopped at step 2
+on fixture and compatibility expectations listed in Test Results. Steps 3-7
+have not run. The worker owns its three fixture corrections; the coordinator
+owns the S2 compatibility/crash fixture updates and a narrow S4 golden delta.
+Independent review of immutable checkpoint `c5247af` is still running.
+Coordinator fixture corrections are authored: S2 now distinguishes S4's
+early preflight refusal from the original recipe-written/provenance-missing
+crash recovery; the capture fixture validates published coverage against its
+frozen observation. A separate S4 expected-golden delta covers exactly six
+producer fixtures, deriving hashes from frozen data without calling the
+publisher, builder or production hash/encoder helpers. Historical goldens
+and the S2 projection function remain unchanged. Go revalidation is pending.
+
 **S4 DISPATCHED (2026-09-08)**: shared coverage publication and the
 seven-producer obligation only. Fresh WAVE_BASE:
 `2b441c5aa374eeb7c7f651e87c9759b573332a2b`, fetched after publishing the
@@ -106,6 +120,15 @@ production surfaces sequentially:
 The coordinator owns tracking and the disjoint
 `internal/workflow/recipe_authority_s4_review_notes_test.go`
 (`rgaS4Review*` / `TestRGAS4Review*`), independently preserving N1/N2 evidence.
+After the first runtime evidence, the coordinator additionally owns
+`internal/workflow/recipe_authority_s2_test.go`,
+`internal/cli/recipe_authority_s2_cli_test.go`,
+`internal/cli/prepare_pib_golden_test.go`, and new
+`internal/cli/recipe_authority_s4_golden_test.go`, solely to preserve existing
+fixture intent and express publication's expected delta without re-recording
+historical goldens. `internal/cli/recipe_authority_s2_golden_test.go` is also
+authorized only to compose its tests with the new S4 expected delta; the S2
+projection function itself stays unchanged.
 No same-file parallel edits. Any additional path or contract ambiguity
 requires explicit coordinator scope/adjudication before changes.
 The worker does not stage, commit, push or run Go validation; the coordinator
@@ -2569,7 +2592,8 @@ phase-boundary mutations are in scope. S5/S6, broader completeness and GH #13
 implementation are excluded. The complete draft and P3/P2 corrections are
 delivered but unvalidated. Independent S4 review must confirm the detailed
 P2 event qualification as well as the full publication/error/event behavior.
-Coordinator validation is starting; review-note guard tests are authored.
+The first targeted run stopped at step 2 on fixture/compatibility mismatches;
+the scoped corrections are in progress. Review-note guard tests pass.
 
 ## Prerequisite Status
 
@@ -3188,6 +3212,19 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Coordinator S2/compatibility corrections are formatted and authored,
+  not Go-validated. Independent fixture hash calculations match the stated
+  D2/D3 descriptors; actual runtime comparison remains required.
+
+- S4 attempt 1 at `c5247af`: step 1 **PASS**; step 2 **FAIL**, stopping the
+  sequence. Both gates passed at 84% free/load1 2.77 and 3.81.
+  Failures: a stale S0 parse-arm mutation anchor; S2 provenance/crash and
+  no-publication expectations superseded by S4; auto-accept fixtures using
+  an unknown feature before planning and unsupported `--format text`; and
+  historical producer snapshots lacking the intended coverage additions.
+  No step 3-7 command ran. The code compiles and the other selected S4
+  families, including N1/N2/N3 carryover guards, pass.
 
 - S4: no Go validation yet. S3 terminal CI 34291811355 is green on all
   required jobs; external review independently reports full reproduction.

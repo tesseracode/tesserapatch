@@ -1,3 +1,44 @@
+## Implementation Transition — GH #15 S4 coordinator fixture corrections — 2026-09-09
+
+**State**: IN PROGRESS — authored, pending Go revalidation
+
+Preserve the S2 provenance/crash fixture while recognizing S4's earlier
+pre-write refusal: a missing recipe remains missing on observation failure,
+then an explicitly established recipe-written/crash state proves noop repair.
+The S2 late-worktree-mutation fixture now validates the newly published
+coverage against its captured observation instead of requiring no sidecar.
+
+Add a separate S4 expected delta for exactly six producer goldens (the four
+recorded-feature cases plus automatic/manual implement). Hashes derive from
+frozen facts with independent D2/D3 projections; no publisher, builder,
+observation or production hash/encoder helper supplies expected behavior.
+Wire types provide layout only. Exact comparison and negative mutations
+remain; historical files and the S2 projection function are unchanged.
+The existing S2 guard composes its tested stage with the new publication
+stage before calling the shared comparator.
+
+No Go revalidation has run. Worker-owned fixture repairs and the immutable
+whole-S4 review remain in progress.
+
+## Implementation Transition — GH #15 S4 targeted validation stopped — 2026-09-09
+
+**Checkpoint**: `c5247af`
+**State**: IN PROGRESS — fixture/compatibility corrections
+
+Step 1 passed; step 2 failed after separate gates at 84% free memory and
+load1 2.77/3.81. The draft compiles and the other selected S4 tests pass,
+including independent N1/N2/N3 carryover checks. Failures are a stale S0
+parse-arm mutation anchor, S2 assumptions about provenance failure timing and
+absence of coverage, auto-accept fixtures stopped by an unknown planning
+feature or unsupported `--format text`, and producer goldens missing the
+intended coverage artifact/status additions. Steps 3-7 did not run.
+
+Worker corrects its S0/S4 fixtures. Coordinator owns the narrowly authorized
+S2 crash/capture fixture updates and S4 expected-golden projection; historical
+golden bytes and the S2 projection stay frozen. Independent whole-S4 review
+of the immutable checkpoint remains active and will report production issues
+separately. Do not call fixture repairs a passing validation result.
+
 ## Implementation Transition — GH #15 S4 draft ready for validation — 2026-09-09
 
 **Worker**: `s4-coverage-publication`

@@ -1611,6 +1611,15 @@ The P3 manual/auto error carriers and event-qualified P2 checkpoint behavior
 are delivered, with reachable failure and coverage-only byte-preservation
 fixtures. The full draft is entering gated validation and independent review;
 S4 remains in progress and historical golden files remain frozen.
+First targeted validation compiled the draft and stopped at step 2 on stale
+S0/S2 fixture assumptions, two unreachable/misnamed auto-accept test inputs,
+and expected new publication snapshots. The corrections are partitioned
+between worker-owned fixtures and coordinator-owned legacy/golden deltas.
+No later validation stage has run; historical golden files remain unchanged.
+Coordinator corrections preserve S2 crash/capture intent and add a separate
+six-fixture publication delta using frozen input facts and independent hash
+calculations. The projection is authored but not yet revalidated; no old
+golden or S2 projection function was rewritten.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

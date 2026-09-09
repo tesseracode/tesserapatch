@@ -284,7 +284,21 @@ func TestRGAS2ProvenanceFailureAndRecovery(t *testing.T) {
 	if err == nil || out.ProvenanceWritten {
 		t.Fatalf("provenance failure became success: %+v, %v", out, err)
 	}
-	recipe := rgaS2Read(t, s, "apply-recipe.json")
+	if _, err := s.ReadFeatureFile("s2", "artifacts/apply-recipe.json"); !os.IsNotExist(err) {
+		t.Fatalf("S4 pre-write provenance refusal must precede recipe publication: %v", err)
+	}
+	derived, err := DeriveRecipe(obs)
+	if err != nil || len(derived.CanonicalBytes()) == 0 {
+		t.Fatalf("derive crash-window fixture: %v", err)
+	}
+	// Preserve the S2 crash-recovery case independently of S4's earlier
+	// refusal: the recipe exists, but provenance was never published.
+	recipe := string(derived.CanonicalBytes())
+	rgaS2Write(t, s, "apply-recipe.json", recipe)
+	out, err = AutogenRecipeForRecord(s, obs, true, false)
+	if err == nil || out.ProvenanceWritten || rgaS2Read(t, s, "apply-recipe.json") != recipe {
+		t.Fatalf("failed provenance recovery changed the recipe or reported success: %+v, %v", out, err)
+	}
 	if err := os.Remove(provPath); err != nil {
 		t.Fatal(err)
 	}

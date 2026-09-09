@@ -170,11 +170,17 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 				t.Fatal(err)
 			}
 			expected, err := rgaS2ExpectedProducerGolden(name, frozen)
-			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
+			if err != nil {
 				t.Fatalf("independent S2 delta refused: %v", err)
 			}
 			if !strings.Contains(string(expected), "+recorded change\n--- .tpatch/features/pib-golden/artifacts/recipe-provenance.json") {
 				t.Fatal("provenance was inserted inside the canonical patch instead of after its complete body")
+			}
+			// Keep S2's independently checked stage intact, then compare
+			// its mutations through the current publication-aware oracle.
+			expected, err = rgaS4ExpectedPublicationGolden(name, expected)
+			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
+				t.Fatalf("S2/S4 composed expected delta refused: %v", err)
 			}
 			for _, mutation := range []struct{ old, new string }{
 				{`"preimage_hash": ""`, `"preimage_hash": "sha256:wrong"`},
