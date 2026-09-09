@@ -1,3 +1,16 @@
+## Implementation Transition — GH #15 S4 reason-policy fold review — 2026-09-09
+
+**Policy checkpoint**: `fadaf31`
+**Reviewer**: `334f5d27-1085-4722-b23c-82652d39b04a`
+**State**: IN PROGRESS
+
+ADR-040, primary pointers, unchanged-D3/decision mutation guards and the
+coupled ADR-index pin are checkpointed independently of worker revisions.
+All 66 existing predicate-reference bindings remain unchanged. The retained
+reviewer is checking only this narrow operator-selected policy fold without
+Go commands or edits; the worker owns mapping/output and paired writing-event
+fixtures. No Go revalidation or S4 acceptance is claimed.
+
 ## Operator Adjudication — GH #15 S4 P2 semantic reasons — 2026-09-09
 
 **Selection**: `semantic-reasons`

@@ -1628,6 +1628,8 @@ The operator selected `semantic-reasons`. ADR-040 qualifies D15's P2
 writing/output wording without changing D3, D16, the wire schema or ADR-039.
 Mapping/output corrections, paired semantic-drift fixtures and independent
 policy-fold review are in progress. GH #24 remains excluded.
+Policy/guard checkpoint `fadaf31` is under independent review, separately
+from worker mapping/output revisions. No Go revalidation has run yet.
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict
 all-paths parsing and widening the inventory to `+++`/`---` readers. Focused

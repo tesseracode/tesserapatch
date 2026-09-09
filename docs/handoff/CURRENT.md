@@ -14,6 +14,9 @@ The operator has now selected `semantic-reasons`: D3 remains unchanged;
 formatting-only mismatch keeps truthful stale-marker incompleteness without
 fabricated rewrite reasons. ADR-040 records the narrow D15/PRD qualification.
 The worker is fixing mapping/output and adding paired writing-event fixtures.
+The reason-policy fold is checkpointed at `fadaf31`; reviewer
+`334f5d27-1085-4722-b23c-82652d39b04a` is reviewing that narrow fold
+independently while the worker revises its disjoint code/tests.
 
 **Current S4 state (2026-09-09)**: the first targeted run compiled the draft
 and passed the other selected producer/carryover tests, but stopped at step 2
@@ -3239,6 +3242,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- ADR-040 policy/guard fold is authored and formatted. All 66 existing
+  ADR/PRD reference bindings remain unchanged by source calculation;
+  policy review and Go revalidation are pending.
 
 - Independent rev-0 review of `2b441c5..c5247af`: **NEEDS REVISION** on
   mapping completeness, P1 common output and the D3/D15 P2 writing-event
