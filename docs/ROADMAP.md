@@ -1587,7 +1587,7 @@ with all 11 sensitivity mutations retained, and N3's exclusion of GH #24.
 The reviewer-owned `bba1803` documentation commit is preserved and will be
 published with the review receipt before recording the fresh S4 base.
 Reviewer housekeeping and the external-review receipt are pushed unchanged
-through `2b441c5`. S4 is 🚧 IN PROGRESS (dispatched 2026-09-08) from fresh
+through `2b441c5`. S4 is ✅ REVIEW APPROVED (dispatched 2026-09-08) from fresh
 WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
 Scope: one shared publisher, all P1-P7 events, exact ordering/error/recovery
 semantics and registry/call-chain guards. Carry N1's rename, retain all 11
@@ -1673,6 +1673,11 @@ is pending before the exact full-suite rerun.
 Cycle/store corrections `0dd96e1` + `c7b6aa4` are independently APPROVED.
 All findings are closed and steps 1-5 pass; the full exact 22-shard script
 is restarting before final wave close.
+The exact 22-shard retry now passes completely: main CLI 623.856s,
+workflow 92.118s, all other packages and all 21 isolated CLI shards.
+Every command used a fresh resource window. Reviewed/checkpoint range:
+`2b441c5..0d730e7`; final acceptance awaits push and the explicit-base
+mechanical gate. S5/S6 and GH #24 remain excluded.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

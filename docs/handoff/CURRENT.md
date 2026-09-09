@@ -2,7 +2,16 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**S4 approved for durable close (2026-09-09)**: all independent findings and
+validation steps 1-6 are complete. The exact 22-shard retry passed every
+invocation, each after a fresh qualifying resource window. Code is unchanged
+from full-suite dispatch `0d730e7`. This canonical field records review
+approval; final acceptance still requires push and the explicit-WAVE_BASE
+mechanical gate. No S5 dispatch or GH #24 implementation.
+
+### S4 execution record (historical)
 
 **S4 step 6 stopped (2026-09-09)**: the first full-script invocation found
 two remaining legacy expectations: cycle's new P6 coverage diagnostic and
@@ -2451,7 +2460,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S4 — shared coverage publication and all seven governed producers
-- **Status**: In progress — semantic-reasons decision recorded; mapping/output revision active
+- **Status**: Review approved — steps 1-6 pass; final wave-close gate pending
 - **Assigned**: 2026-09-08
 - **WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
 - **Release target**: `v0.17.0`
@@ -2677,6 +2686,10 @@ No coverage schema, simulation, producer coverage publication, consumer
 integration or shipped assets belong to this slice.
 
 ## Current State
+
+S4 is approved for durable close: all review findings and steps 1-6 pass.
+The complete 22-shard retry passed at the current unchanged code; push and
+step 7 remain before acceptance. Details below preserve the revision history.
 
 S0-S3 are accepted, externally reviewed and durably pushed. S4 is dispatched
 from `2b441c5` for publication/event wiring only, preserving the S3 pure core
@@ -3310,6 +3323,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Step 6 recovered retry **PASS**: all 22 exact invocations. Main CLI
+  623.856s, workflow 92.118s, all other packages and all 21 isolated CLI
+  shards pass. Each invocation had a fresh 60-second window at 88-89% free
+  memory, load1 <=4.23 and no active Go tools.
+- No code changed after full-suite dispatch `0d730e7`. Step 7 is next.
 
 - Independent cycle/store correction review (`0dd96e1` + `c7b6aa4`):
   **APPROVED**, no significant issue. All prior findings remain closed.
@@ -9174,17 +9193,17 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Correct the mapping/output review findings and implement/verify the
-   operator-selected semantic-reasons qualification. Keep S3 and ADR-039 intact.
-2. Run the required resource-gated sequence and independent review, including
-   the exact P2 event qualification, all 11 N2 mutations and N3's boundary.
-3. Close S4 with WAVE_BASE `2b441c5aa374eeb7c7f651e87c9759b573332a2b`.
+1. Commit/push the review-approved close checkpoint so the durability gate
+   can compare HEAD with origin/main.
+2. Run `make wave-close-check WAVE_BASE=2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+   with fresh resource windows before all top-level Go invocations.
+3. Record the gate result, archive S4 and push terminal tracking.
    Do not start S5 or GH #24 implementation.
 
 ## Blockers
 
-- All independent review findings are closed and steps 1-5 pass.
-  Steps 6-7 remain outstanding before S4 acceptance.
+- All independent review findings and steps 1-6 pass. Step 7 and durable
+  close remain before S4 acceptance; no known implementation blocker remains.
 - P2 policy is resolved by the operator's `semantic-reasons` selection.
   ADR-040 is independently APPROVED; implementation evidence remains required.
   This is not GH #24.

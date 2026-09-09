@@ -1,3 +1,22 @@
+## Implementation Decision — GH #15 S4 approved for durable close — 2026-09-09
+
+**Decision**: REVIEW APPROVED — final mechanical gate pending
+**WAVE_BASE**: `2b441c5aa374eeb7c7f651e87c9759b573332a2b`
+**Reviewed/checkpoint range**: `2b441c5..0d730e7`
+
+All review findings and validation steps 1-6 pass. The exact 22-shard retry
+passed all invocations: main CLI 623.856s, workflow 92.118s, all other packages
+and all 21 isolated CLI shards. Each invocation had a fresh minute at
+88-89% free memory, load1 <=4.23 and no active Go tools.
+No code changed after full-suite dispatch.
+
+S3 pure core, ADR-039 domain, assets, SPEC, CHANGELOG, dependencies, execution/
+verify consumer code, historical goldens, allowlist and reviewer playbook
+remain unchanged from the S4 base. All 13 research files are untouched.
+N1 is renamed; all 11 N2 mutations and additional mapping controls hold;
+N3/#24 remains excluded. Checkpoint/push and run the explicit-base final gate.
+No S5 or release/tag dispatch; acceptance is still conditional on step 7.
+
 ## Review — GH #15 S4 cycle/store compatibility corrections — 2026-09-09
 
 **Reviewer**: `s4-implementation-review`
