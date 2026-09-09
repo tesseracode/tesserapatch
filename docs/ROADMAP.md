@@ -1650,6 +1650,9 @@ as `s` currently collides with the assumed store receiver. Direct/value
 negative controls and conservative shadow handling are being added.
 The import-precedence correction and colliding/shadowed alias controls are
 authored, with production unchanged. Revalidation and correction review follow.
+Import-binding correction `9a3c1a6` passes steps 1-5, including the new
+collision/shadow controls. Independent confirmation is still required before
+full shards and wave close.
 Policy/guard checkpoint `fadaf31` is under independent review, separately
 from worker mapping/output revisions. No Go revalidation has run yet.
 ADR-040 policy fold `fadaf31` is independently APPROVED, closing the contract

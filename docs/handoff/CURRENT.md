@@ -26,6 +26,8 @@ That correction is authored: imported qualifiers resolve before receiver
 heuristics; shadowed writer bindings are refused rather than guessed.
 Colliding-`s` direct/value negatives and a harmless type-reference control
 are included. No production behavior changes.
+Checkpoint `9a3c1a6` passes the restarted steps 1-5, including colliding
+import and shadow controls. Independent mapping confirmation remains pending.
 
 **S4 review rev-0: NEEDS REVISION (2026-09-09)**. Three MEDIUM items:
 incoming shared-writer callers escape the mapping guard; P1 lacks the common
@@ -3280,6 +3282,14 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Import-binding correction `9a3c1a6`: steps 1-2 **PASS** after fresh
+  gates at 89% free/load1 2.24 and 3.25; workflow selector 7.422s,
+  CLI selector 27.462s.
+- Steps 3-5 **PASS**: gitutil 7.013s, patchobs 1.398s, store 2.594s,
+  workflow 92.071s; CLI regressions 106.360s; vet/build clean. Every command
+  gated independently at 89% free/load1 <=3.14.
+- Independent confirmation remains pending; full steps 6-7 are unrun.
 
 - Independent `6287d5e` review: **NEEDS REVISION** on the imported `s`
   qualifier collision. The original function-value bypass is caught;

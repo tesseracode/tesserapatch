@@ -1,3 +1,15 @@
+## Implementation Transition — GH #15 S4 import binding validated — 2026-09-09
+
+**Checkpoint**: `9a3c1a6`
+**State**: IN PROGRESS — correction confirmation pending
+
+Steps 1-5 pass, including all import-collision/shadow controls, original
+alias/direct-call controls and N1-N3 guards. Full workflow 92.071s, CLI
+regressions 106.360s, vet/build clean. Each invocation had its own 60-second
+window at 89% free memory and load1 <=5.
+Production is unchanged by this test-only fix. Independent mapping
+confirmation remains before the full 22-shard and wave-close phases.
+
 ## Implementation Transition — GH #15 S4 import-alias correction authored — 2026-09-09
 
 **State**: IN PROGRESS — test-only correction
