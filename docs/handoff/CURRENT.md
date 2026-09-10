@@ -2,7 +2,40 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
+
+**S5 ADR-041 rev-1 ACCEPTED (2026-09-09)**: independent re-review is
+APPROVED, with both original findings closed. The concrete capture-evidence
+contract is accepted and indexed; its primary qualifications are effective.
+This is policy acceptance only, not runtime acceptance. The original S5
+WAVE_BASE remains `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
+
+### Resumed S5 ownership
+
+After the bounded same-target D7 correction, the runtime worker may implement
+the accepted evidence foundation first: new
+`internal/workflow/recipe_capture_event.go`,
+`recipe_capture_event_codec.go`, `recipe_authority_s5_capture_event_test.go`,
+`recipe_authority_s5_capture_publish_test.go`; existing
+`recipe_coverage_publish.go`, `internal/cli/producer_observation.go` and
+`recipe_authority_s0_source_guards_test.go`. Existing S5 runtime ownership
+below remains. Only the ADR-041-required pair publication/prior-reference
+validation extension reopens those S4 production surfaces.
+
+The coordinator owns the disjoint S4 publication/mapping guard extension in
+`internal/workflow/recipe_authority_s4_publication_guards_test.go`,
+its existing S5 contract-test file, ADR-index/current-source pin and tracking.
+Historical goldens stay frozen; compatibility updates are scoped separately
+after evidence. No same-file parallel edits, Go validations or commits by
+the worker. The foundation must be checkpointed before consumer integration;
+all S5 runtime validation/review is still pending.
+
+GH #13 has an explicit planning dependency in ADR-041 section 7: revise its
+ordered gates, candidate identity/integrity and acceptance publication/
+rollback set before implementation. That is downstream planning, not part
+of this S5 runtime authorization. GH #24 and S6 remain excluded.
+
+### S5 contract review history
 
 **S5 ADR-041 rev-1 authored (2026-09-09)**: effective captured
 `parent_created_paths` is now independent evidence input; observed binary-
@@ -2588,7 +2621,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Review — ADR-041 rev-1 corrections authored; runtime integration paused
+- **Status**: In progress — ADR-041 accepted; bounded runtime resumption
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2596,6 +2629,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent re-review approved ADR-041 rev-1 with no significant issue.
+The supervisor accepted the concrete contract, graduated both primary
+qualifications and registered the ADR with the exact coupled index pin.
+Bounded S4 evidence-publication surfaces are reopened before S5 readers.
+The operator's independent-evidence direction is now concretely specified;
+runtime work and all Go validation remain incomplete.
+
+### S5 rev-1 proposal summary (historical)
 
 ADR-041 rev-1 and primary qualifications now address the two rev-0 findings,
 with independent parent-exclusion inputs and bounded observed-binary-stub
@@ -2891,10 +2933,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5's independent capture-event evidence proposal awaits rev-1 re-review.
-Concrete contract approval is still required. The partial D7/D14
+S5's independent capture-event evidence contract is Accepted rev-1 after
+independent approval. The partial D7/D14
 implementation and independent contract controls are authored but not
-Go-validated or approved. The runtime worker is idle; the coverage reader,
+Go-validated or approved. The runtime worker owns the bounded same-target
+correction, followed by the accepted evidence foundation. The coverage reader,
 D13/D17 and D10 remain unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
@@ -2974,8 +3017,10 @@ remains blocked until that release is implemented, soaked and shipped.
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
 - Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
-- Proposed policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
+- Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
+- ADR index and directly coupled exact current-region pin:
+  `docs/adrs/README.md`, `internal/cli/prepare_s7_rev16_test.go`.
 - Partial worker unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
   `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
   `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
@@ -9440,18 +9485,17 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Obtain independent ADR-041 rev-1 re-review before accepting the concrete
-   capture-evidence contract; both rev-0 corrections are authored.
-2. Resume worker `f88dc13c-d461-45f8-a583-b2a9eb806188` after that decision,
-   including the same-target accounting review and auto preflight placement.
+1. Receive the bounded same-target accounting correction from worker
+   `f88dc13c-d461-45f8-a583-b2a9eb806188`.
+2. Implement/checkpoint the ADR-041 evidence foundation, then resume S5
+   read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.
 
 ## Blockers
 
-- The operator selected independent capture evidence; the concrete carrier,
-  publication/recovery and binding contract is Proposed, not yet approved.
-  Runtime integration stays paused until that amendment is accepted.
+- The D9 policy blocker is resolved by Accepted ADR-041 rev-1. The evidence
+  foundation and S5 consumers remain implementation work, not accepted code.
 - The partial unit is not validated; implementation and review remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.

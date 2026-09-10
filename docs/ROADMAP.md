@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 CONTRACT REV-1 REVIEW — 2026-09-09**.
+**S5 🚧 IN PROGRESS — ADR-041 accepted — 2026-09-09**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1651,6 +1651,11 @@ Rev-1 corrects those cases before re-review; runtime integration stays paused.
 Those corrections are authored with an independent effective parent-exclusion
 set, bounded binary-stub proof rules and six added actual-reader/mutation
 cases (42 supplemental total). Independent re-review is next.
+Independent re-review is APPROVED with no significant issue. ADR-041 rev-1
+is accepted/indexed, primary qualifications are effective, and only its
+required S4 pair-publication surfaces reopen before the S5 reader.
+GH #13's separate gate/identity/acceptance planning dependency is recorded
+in ADR-041 section 7. Runtime implementation/validation/review remain pending.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

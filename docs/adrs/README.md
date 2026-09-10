@@ -25,6 +25,7 @@
 - [ADR-038: Bounded In-Memory Observation Image Retention](ADR-038-observation-image-retention.md) — Accepted (2026-09-07, GH #15 S2 independent review). A shared 32 MiB image budget, streaming Git bodies, and isolated recorder ownership retain exact preimages without unbounded body storage.
 - [ADR-039: Conservative v1 Coverage-Complete Operation Domain](ADR-039-coverage-complete-operation-domain.md) — Accepted operator policy (2026-09-08, GH #15 S3). Complete coverage admits only preimage-bearing write-file operations; broader-domain planning is deferred to GH #24. No wire-schema or execution change.
 - [ADR-040: P2 Publication Reasons Preserve Semantic Truth](ADR-040-p2-publication-reason-semantics.md) — Accepted operator policy (2026-09-09, GH #15 S4). D3's semantic rewrite-reason conditions remain authoritative for P2; non-D16 formatting mismatch does not fabricate reasons or origin. ADR-039 and the wire schema are unchanged.
+- [ADR-041: Independent Capture-Event Consistency Evidence](ADR-041-independent-capture-event-evidence.md) — Accepted rev-1 (2026-09-09, GH #15 S5 independent contract review). Deterministic companion evidence precedes final coverage publication; read-time pairing preserves capture authority across same-patch events. Includes bounded incomplete proofs, captured parent exclusions and 42 supplemental cases. GH #13 needs the separate planning follow-up in section 7 before implementation; S5 runtime acceptance remains pending.
 
 ## Locked-In Decisions (from review process)
 

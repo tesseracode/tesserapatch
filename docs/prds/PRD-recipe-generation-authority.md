@@ -30,22 +30,22 @@ unchanged D3 semantic condition, not every D16 byte mismatch. Stale-marker
 incompleteness and origin/provenance restrictions remain intact. No broader
 operation class or consumer authority is introduced.
 
-**Proposed S5 independent capture-event addendum — not yet accepted**:
+**S5 independent capture-event addendum**:
 [ADR-041](../adrs/ADR-041-independent-capture-event-evidence.md) specifies the
-concrete proposal for the operator-selected `independent-evidence` direction.
+accepted rev-1 contract for the operator-selected `independent-evidence` direction.
 See its §9 exact supersession list and the
-[primary-contract addendum below](#proposed-s5-addendum--independent-capture-event-evidence).
-The accepted rev-7 360-row matrix remains historical baseline; the proposal
+[primary-contract addendum below](#s5-addendum--independent-capture-event-evidence).
+The accepted rev-7 360-row matrix remains historical baseline; the amendment
 adds separately named cases, not a silently revised matrix or runtime claim.
-Independent review and explicit acceptance precede resumed implementation.
+Independent contract review is APPROVED; runtime acceptance remains separate.
 
-## Proposed S5 addendum — independent capture-event evidence
+## S5 addendum — independent capture-event evidence
 
-**Status: Proposed (2026-09-09), not Accepted.** ADR-041 is normative for the
-proposed amendment if accepted; until then S5 consumer integration remains
-paused. The selected direction does not itself accept its wire contract.
+**Status: Accepted rev-1 (2026-09-09), after independent review.** ADR-041
+is normative for this amendment and permits bounded S5 integration.
+Runtime implementation, validation and review remain separate obligations.
 
-| Primary-contract section | Proposed explicit qualification |
+| Primary-contract section | Accepted explicit qualification |
 |---|---|
 | §6.2, §6.14 | A deterministic `artifacts/recipe-capture-event.json` independently carries the same immutable capture/reference observation and effective parent-exclusion set, plus final raw patch/recipe bindings and one-way raw coverage pairing hash. Generation identity remains advisory. Independently reconstructable bytes/trees are still checked; unavailable historical sides and inherently omitted unsupported payloads (including observed binary stubs) retain their publication flags and explicitly limited proof, never fabricated source bytes (ADR-041 §4.2) |
 | §6.10, §6.15, S4 | All P1-P7 governed events now publish companion atomically **before** final atomic coverage, including same-byte, checkpoint and incomplete events. P2 category-(c) permits **exactly companion + coverage**; all other no-write guarantees remain. No-events write neither |
@@ -58,7 +58,7 @@ paused. The selected direction does not itself accept its wire contract.
 
 **Acceptance baseline qualification:** §9 and its **360 rows remain
 verbatim**, including counts and IDs. They document accepted rev-7, not a
-universal post-amendment contract. ADR-041 §8 adds **42 proposed `ICE-*`
+universal post-amendment contract. ADR-041 §8 adds **42 accepted `ICE-*`
 cases**, separate from `RGA-*`. Its §9 identifies affected historical
 publication/checkpoint/crash, binding, vocabulary and remediation rows.
 Future runtime fixtures need actual producer-created companion evidence and
@@ -72,7 +72,7 @@ The companion supplies unkeyed consistency evidence, not authenticated
 authorship/history; coordinated consistent editing of all local artifacts
 is not cryptographic authentication. No new source-body persistence,
 generation append policy, GH #24 widening, candidate consumer or S6 release
-work is proposed here.
+work is authorized here.
 
 ## 0. Revision history
 

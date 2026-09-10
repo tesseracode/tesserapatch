@@ -1,13 +1,13 @@
 # ADR-041 - Independent Capture-Event Consistency Evidence
 
-**Status**: Proposed rev-1 — concrete contract awaiting independent review
+**Status**: Accepted rev-1 — independent contract review approved 2026-09-09
 **Date**: 2026-09-09
 **Owner**: Core
 **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15), S5
 **Direction selected**: `independent-evidence` (operator, 2026-09-09)
 **Planning baseline**: pushed `c2f0581`; S5 WAVE_BASE
 `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
-**Amends, if accepted**: [ADR-036](./ADR-036-recipe-coverage-authority.md)
+**Amends**: [ADR-036](./ADR-036-recipe-coverage-authority.md)
 D2/D9/D10/D11/D13/D15/D17 and
 [PRD-recipe-generation-authority](../prds/PRD-recipe-generation-authority.md)
 as enumerated in §9
@@ -18,11 +18,12 @@ as enumerated in §9
 [ADR-037](./ADR-037-reconcile-operation-replay-candidate-authority.md),
 [PRD-reconcile-operation-replay-candidate](../prds/PRD-reconcile-operation-replay-candidate.md)
 
-The operator selected an architectural direction, **not this schema, its
-partial-observation rules, migration policy or acceptance**. This is planning
-only. S5 reader integration remains paused until independent review and
-explicit acceptance. No runtime implementation, GH #13 candidate work,
-GH #24 widening, S6 public documentation, release or tag is authorized here.
+The operator selected the independent-evidence direction. Independent rev-0
+review required binary-payload and parent-exclusion corrections; rev-1 closes
+both findings and is APPROVED. The supervisor accepts this concrete contract
+for bounded S5 implementation. Acceptance is not a claim that runtime code
+is implemented, validated or reviewed. GH #13 candidate work, GH #24 widening,
+S6 public documentation, release and tag remain outside this authorization.
 
 ## 1. Problem and bounded decision
 
@@ -41,7 +42,7 @@ A latest-generation comparison therefore rejects real events. Feeding
 `coverage.capture` back to its own validator cannot detect capture-only drift.
 Neither a `producer` label nor a generation ID closes that gap.
 
-**Proposed decision:** add one replace-in-place per-feature artifact,
+**Decision:** add one replace-in-place per-feature artifact,
 `artifacts/recipe-capture-event.json` (below, **E**), independently constructed
 from the same immutable S1 observation and exact final bound-artifact inputs
 that produce `artifacts/recipe-coverage.json` (**C**). Publish E atomically,
@@ -92,7 +93,7 @@ Path: `.tpatch/features/<requested-slug>/artifacts/recipe-capture-event.json`.
 The reader constructs this path from its validated requested slug, never from
 a field in either artifact. It uses the same artifact path-safety policy as C.
 
-This is the sole proposed E schema; placeholders below denote full digests,
+This is the sole E schema; placeholders below denote full digests,
 not literal accepted values. The example is a P1 existing-file write.
 
 ```json
@@ -645,15 +646,15 @@ separate precise follow-up before implementation:
 
 That follow-up is a downstream planning dependency, not authority to implement
 a replay candidate in S5. ADR-039's domain, ADR-040's reasons and D16 remain
-unchanged; GH #24 and S6/release stay outside this proposal.
+unchanged; GH #24 and S6/release stay outside this amendment.
 
 ## 8. Supplementary acceptance plan
 
-These **42 proposed cases** are separate from the accepted rev-7
+These **42 accepted cases** are separate from the accepted rev-7
 `RGA-001`–`RGA-360` matrix. Do not renumber, rewrite or recount its 360 rows.
 Current producer/consumer fixtures gain honest E inputs where required; the
 historical matrix remains the accepted baseline with §9's explicit
-qualifications. `ICE-*` IDs below are unique to this proposal.
+qualifications. `ICE-*` IDs below are unique to this amendment.
 
 Every negative control must pass the deliberately wrong input through the
 **actual validator/finalizer/classifier** used by the positive case. A token
@@ -706,7 +707,7 @@ through the artifact-read seam, not OS permissions.
 | ICE-041 | Omitting the effective exclusion from E while retaining C, or removing C's parent reason/claiming complete while retaining E's set (even if its C pairing hash is refreshed), fails the actual independent-input validator; inferring exclusions from C's reasons fails the same control |
 | ICE-042 | E parent_created_paths is required/non-null, sorted, unique and root-relative; null/missing/duplicate/escaping/absolute/noncanonical wire mutations refuse, and current-parent mutation cannot silently replace the captured exclusion set |
 
-After acceptance, coordinator-owned work must extend actual publication and
+Implementation must extend actual publication and
 source-derived site-mapping guards to E, preserve all existing eleven
 phase-boundary mutations plus S4 alias/import/shadow controls, and add
 mutation-sensitive E schema/pair/inventory/order/vocabulary controls. Frozen
@@ -716,11 +717,11 @@ are subsequent work; no Go command or test result is claimed by this ADR.
 
 ## 9. Exact supersession and preservation list
 
-These are **proposed qualifications**, effective only on acceptance. The
+These are **accepted qualifications**. The
 primary ADR/PRD addenda point here rather than making their historical text
 silently universal.
 
-| Existing statement/surface | Proposed qualification |
+| Existing statement/surface | Accepted qualification |
 |---|---|
 | ADR-036 D2; PRD §6.2: immutable capture used for coverage | Same input also constructs E; P7 retains its before/after exception; new commit carry-forward requires a valid prior pair plus independent reconstruction (§4) |
 | D9; PRD §6.14: reference/capture independently recomputed without a persisted event carrier | E is required independent capture/reference/event/parent-exclusion consistency input; generation never substitutes. Actual content/tree proofs remain mandatory for complete authority; unavailable historical sides and inherently omitted unsupported payloads in truthful incomplete records have only explicitly limited consistency validation (§4.2), without changing publication-time observation flags |
@@ -741,7 +742,8 @@ and existing event triggers; generation append policy; no persisted source
 bodies; C-absent verify/legacy apply behavior; no replay authority from a
 warning, no GH #13 execution and no GH #24 widening.
 
-Review should explicitly adjudicate the new wire artifact and vocabulary,
-the bounded incomplete-observation meaning (§4.2), the honest pre-E crash
-limit (§5.3) and migration (§7). These are concrete proposed decisions, not
-claims that the old text or implementation already supplied them.
+Independent rev-1 review approves the new wire artifact and vocabulary,
+bounded incomplete-observation meaning (§4.2), honest pre-E crash limit
+(§5.3) and migration (§7). These are accepted decisions, not claims that the
+old text or implementation already supplied them. Runtime validation and
+independent implementation review remain required.

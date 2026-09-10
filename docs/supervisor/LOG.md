@@ -1,3 +1,22 @@
+## Review and Decision — GH #15 S5 ADR-041 rev-1 — 2026-09-09
+
+**Reviewer**: `s5-capture-evidence-rev1-review`
+**Range**: `cec05c2..d2f04d4`
+**Verdict**: APPROVED — no significant issues
+
+Both rev-0 findings are closed: observed-but-inherently-unreconstructable
+unsupported payloads have bounded incomplete handling, and the effective
+parent-exclusion set is carried independently and supplied to S3.
+The 42 supplemental cases cover the added positive/negative reader cohorts.
+This was read-only contract review; no Go validation or runtime acceptance.
+
+**Decision**: accept ADR-041 rev-1 as the concrete contract for the
+operator-selected independent-evidence direction. Graduate its status and
+primary qualifications, register it in the ADR index with the coupled pin,
+then reopen only the S4 publication surfaces it explicitly amends.
+Resume S5 against that accepted contract after a durable checkpoint.
+The runtime implementation, validation and review remain incomplete.
+
 ## Planning Transition — GH #15 S5 ADR-041 rev-1 — 2026-09-09
 
 **State**: AWAITING REVIEW — both rev-0 corrections authored

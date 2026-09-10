@@ -37,23 +37,23 @@ conditions. A non-D16 formatting mismatch does not invent rewrite reasons;
 origin, explanation and stale-marker status remain distinct. No schema,
 canonical predicate or ADR-039 domain change is made.
 
-**Proposed S5 independent capture-event addendum — not yet accepted**:
+**S5 independent capture-event addendum**:
 [ADR-041](./ADR-041-independent-capture-event-evidence.md) is the concrete
-proposal for the operator-selected `independent-evidence` direction.
+accepted rev-1 contract for the operator-selected `independent-evidence` direction.
 Its [supersession list](./ADR-041-independent-capture-event-evidence.md#9-exact-supersession-and-preservation-list)
 qualifies D2/D9/D10/D11/D13/D15/D17; the
-[primary-contract addendum below](#proposed-s5-addendum--independent-capture-event-evidence)
+[primary-contract addendum below](#s5-addendum--independent-capture-event-evidence)
 states the affected boundaries. Accepted rev-7 remains the historical
 baseline, not a claim that S4 already supplies independent capture evidence.
-No implementation authority follows until independent review and acceptance.
+Independent contract review is APPROVED; runtime acceptance remains separate.
 
-## Proposed S5 addendum — independent capture-event evidence
+## S5 addendum — independent capture-event evidence
 
-**Status: Proposed (2026-09-09), not Accepted.** The operator selected the
-direction, not this concrete contract. ADR-041 owns the proposed companion
+**Status: Accepted rev-1 (2026-09-09), after independent review.**
+ADR-041 owns the companion
 schema and supplementary `ICE-001`–`ICE-042` cases; it does not replace D3.
 
-If accepted, the following explicit qualifications govern the corresponding
+The following explicit qualifications govern the corresponding
 historical sections below:
 
 - **D2/D9:** a new `artifacts/recipe-capture-event.json`, independently
@@ -103,8 +103,8 @@ accepted 360-row matrix is preserved verbatim as historical baseline and
 qualified by ADR-041 §9 plus its separately named supplementary cases.
 Unkeyed event consistency is not authenticated authorship or history:
 coordinated consistent edits of all local artifacts are not cryptographic
-proof. The proposed addendum must be independently reviewed before code
-resumes.
+proof. This accepted addendum permits the bounded S5 implementation; it is
+not runtime acceptance.
 
 ## Revision history
 
