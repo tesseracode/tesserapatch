@@ -93,6 +93,16 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 	} else {
 		publication = ObserveCoveragePublication(s, obs)
 	}
+	outcome, retErr = PlanRecipeForRecord(obs, autogen, regenerate, publication, time.Now().UTC())
+	if retErr == nil && !publication.DeferRecipeWrites {
+		retErr = publishRecordRecipePlan(s, obs.Slug, &outcome)
+	}
+	return outcome, retErr
+}
+
+// PlanRecipeForRecord is the pure half of record autogeneration. It never
+// publishes, even on success. Both production and diagnostics use this plan.
+func PlanRecipeForRecord(obs patchobs.Observation, autogen, regenerate bool, publication CoveragePublicationInput, now time.Time) (outcome AutogenOutcome, retErr error) {
 	if publication.observationErr != nil {
 		return AutogenOutcome{}, publication.observationErr
 	}
@@ -103,11 +113,6 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 	}
 	haveExisting := publication.Recipe.Present
 	outcome = AutogenOutcome{Recipe: publication.Recipe, StaleMarkerPresent: publication.Events.StaleMarkerPresent, plan: &recordRecipePlan{}}
-	defer func() {
-		if retErr == nil && !publication.DeferRecipeWrites {
-			retErr = publishRecordRecipePlan(s, obs.Slug, &outcome)
-		}
-	}()
 	// This only narrows derivation. A declared parent is never a substitute
 	// for a missing captured preimage, even during explicit regeneration.
 	var prior ApplyRecipe
@@ -128,7 +133,7 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 	case len(derived.canonical) == 0:
 		outcome.DriftReason = "captured effects cannot produce a complete recipe; existing recipe preserved"
 		if haveExisting {
-			return planRecipeStale(outcome)
+			return planRecipeStale(outcome, now)
 		}
 		outcome.Action = AutogenSkipped
 		return outcome, nil
@@ -152,10 +157,10 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 		outcome.Action = AutogenRegenerated
 	default:
 		outcome.DriftReason = "recipe bytes differ from the complete captured derivation; preserved without origin proof (GH #19 owns historical/manual adoption)"
-		return planRecipeStale(outcome)
+		return planRecipeStale(outcome, now)
 	}
 	outcome.OriginProved = derived.ProvesOrigin([]byte(existing))
-	outcome.plan.provenance, err = convergeRecipeProvenance(derived, []byte(existing), publication.Provenance)
+	outcome.plan.provenance, err = convergeRecipeProvenance(derived, []byte(existing), publication.Provenance, now)
 	if err != nil {
 		return outcome, err
 	}
@@ -164,11 +169,11 @@ func AutogenRecipeForRecord(s *store.Store, obs patchobs.Observation, autogen, r
 	return outcome, nil
 }
 
-func planRecipeStale(outcome AutogenOutcome) (AutogenOutcome, error) {
+func planRecipeStale(outcome AutogenOutcome, now time.Time) (AutogenOutcome, error) {
 	sb := RecipeStaleness{
 		Stale:      true,
 		Reason:     outcome.DriftReason,
-		DetectedAt: time.Now().UTC().Format(time.RFC3339),
+		DetectedAt: now.UTC().Format(time.RFC3339),
 	}
 	data, _ := json.MarshalIndent(sb, "", "  ")
 	outcome.plan.stale = append(data, '\n')
@@ -181,7 +186,7 @@ func writeRecipe(s *store.Store, slug string, data []byte) error {
 	return s.WriteArtifactAtomic(slug, "apply-recipe.json", string(data))
 }
 
-func convergeRecipeProvenance(derived RecipeDerivation, existing []byte, priorArtifact CoverageArtifact) ([]byte, error) {
+func convergeRecipeProvenance(derived RecipeDerivation, existing []byte, priorArtifact CoverageArtifact, now time.Time) ([]byte, error) {
 	if !derived.ProvesOrigin(existing) || !fullRecipeBaseCommit(derived.baseCommit) {
 		return nil, nil
 	}
@@ -207,7 +212,7 @@ func convergeRecipeProvenance(derived RecipeDerivation, existing []byte, priorAr
 		}
 	}
 	prov := RecipeProvenance{
-		BaseCommit: derived.baseCommit, GeneratedAt: time.Now().UTC().Format(time.RFC3339), RecipeSHA256: &hash,
+		BaseCommit: derived.baseCommit, GeneratedAt: now.UTC().Format(time.RFC3339), RecipeSHA256: &hash,
 	}
 	data, err := json.MarshalIndent(prov, "", "  ")
 	if err != nil {

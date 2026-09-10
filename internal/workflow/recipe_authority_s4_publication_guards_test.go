@@ -13,7 +13,7 @@ import (
 )
 
 var rgaS4ProducerFunctions = map[string]map[string]bool{
-	"internal/workflow/recipe_autogen.go":  {"AutogenRecipeForRecord": true, "convergeRecipeProvenance": true, "publishRecordRecipePlan": true},
+	"internal/workflow/recipe_autogen.go":  {"AutogenRecipeForRecord": true, "PlanRecipeForRecord": true, "convergeRecipeProvenance": true, "publishRecordRecipePlan": true},
 	"internal/workflow/implement.go":       {"RunImplement": true, "ObserveImplementCheckpoint": true},
 	"internal/workflow/refresh.go":         {"RefreshAfterAccept": true},
 	"internal/workflow/accept.go":          {"AcceptShadow": true},
@@ -486,6 +486,9 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 			}
 			calls := 0
 			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok && name == "recordCmd" && rgaS0CallName(call) == "workflow.PlanRecord" {
+					calls++
+				}
 				if call, ok := n.(*ast.CallExpr); ok && rgaS0CallName(call) == "workflow.AutogenRecipeForRecord" {
 					calls++
 					if !rgaS4AutogenCallDefersWrites(fn, call) {
@@ -494,7 +497,11 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 				}
 				return true
 			})
-			if calls != 1 {
+			want := 1
+			if name == "recordCmd" {
+				want = 2
+			}
+			if calls != want {
 				t.Fatalf("%s autogen call count=%d", name, calls)
 			}
 		}
@@ -593,7 +600,7 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 		}
 	})
 	t.Run("parenthesized-direct-call-keeps-owner", func(t *testing.T) {
-		path := "internal/cli/cobra.go"
+		path := "internal/cli/feature_patch.go"
 		before := sources[path]
 		sources[path] = strings.Replace(before, "workflow.AutogenRecipeForRecord(s,",
 			"(workflow.AutogenRecipeForRecord)(s,", 1)
@@ -730,6 +737,9 @@ func rgaS4PublicationSource(rel, src string) error {
 			}
 			if id, ok := n.(*ast.Ident); ok {
 				coverageSymbol := strings.Contains(id.Name, "Coverage") || strings.Contains(id.Name, "CaptureEvent") || id.Name == "coverageFinalizer"
+				if rel == "internal/cli/cobra.go" && (owner == "runApplyExecuteChecked" || owner == "runApplyAuto") && id.Name == "SnapshotRecipeCoverage" {
+					return true
+				}
 				if coverageSymbol && !publisher {
 					// The shared outcome carries exact bytes; it defines no
 					// wire schema and performs no coverage policy itself.

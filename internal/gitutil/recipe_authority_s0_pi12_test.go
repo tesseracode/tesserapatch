@@ -466,6 +466,7 @@ func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 		"internal/gitutil/gitutil.go|stripGitInternalFileStanzas": "PI-9 sanitization",
 		"internal/gitutil/gitutil.go|headerPathIsGitInternal":     "PI-9 sanitization",
 		"internal/cli/cobra.go|countPatchFiles":                   "PI-10 display counter",
+		"internal/workflow/record_plan.go|ScanRecordCollisions":   "PI-10 shared collision display counter",
 	}
 	// Readers S1 removed or demoted out of production. A reappearance is
 	// a regression, not a refactor.
@@ -585,13 +586,17 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/workflow/reconcile.go|extractUpstreamContext":        1,
 		},
 		"NormalizePatchEffects": {
-			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict":             1,
-			"internal/workflow/patch_effect_adapters.go|patchEffectViews":              1,
-			"internal/workflow/hunk_overlap.go|parsePatchHunks":                        1,
-			"internal/patchobs/patchobs.go|observeWithImageBudget":                     1,
-			"internal/workflow/recipe_derivation.go|DeriveRecipe":                      1,
-			"internal/workflow/recipe_coverage.go|coverageObservation":                 1,
-			"internal/workflow/recipe_capture_event.go|ValidateRecipeCaptureEventPair": 1,
+			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict":               1,
+			"internal/workflow/patch_effect_adapters.go|patchEffectViews":                1,
+			"internal/workflow/hunk_overlap.go|parsePatchHunks":                          1,
+			"internal/patchobs/patchobs.go|observeWithImageBudget":                       1,
+			"internal/workflow/recipe_derivation.go|DeriveRecipe":                        1,
+			"internal/workflow/recipe_coverage.go|coverageObservation":                   1,
+			"internal/workflow/recipe_capture_event.go|ValidateRecipeCaptureEventPair":   1,
+			"internal/workflow/recipe_coverage_reconstruct.go|reconstructRecipeCoverage": 1,
+			"internal/patchobs/reconstruct.go|Reconstruct":                               1,
+			"internal/gitutil/patch_reconstruct.go|ReconstructPatchPostimage":            1,
+			"internal/gitutil/gitutil.go|CapturePatchScopedReadOnly":                     1,
 		},
 		// The unexported shared parse. S1 added it for ONE reason: the
 		// authority refuses a repeated destination path, and PI-12's
@@ -609,7 +614,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 	wantTotals := map[string]int{
 		"FilesInPatchStrict":         6,
 		"PathsAffectedByPatchStrict": 4,
-		"NormalizePatchEffects":      7,
+		"NormalizePatchEffects":      11,
 		"normalizePatchEffects":      2,
 		"FilesInPatch":               0,
 		"PathsAffectedByPatch":       0,

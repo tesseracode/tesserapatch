@@ -7,7 +7,97 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
+
+func TestRGAS5VerifyCoverageLadderRowsAndInstability(t *testing.T) {
+	s, complete := rgaS5ReadFixture(t)
+	status, err := s.LoadFeatureStatus("s5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	incomplete := complete
+	incomplete.Events.StaleMarkerPresent = true
+	artifact := func(read RecipeArtifactRead) artifactSnapshot {
+		presence := PresenceAbsent
+		if read.Exists && read.Err == nil {
+			presence = PresenceNonEmpty
+			if len(read.Bytes) == 0 {
+				presence = PresenceEmpty
+			}
+		}
+		return artifactSnapshot{Presence: presence, Bytes: read.Bytes, Err: read.Err}
+	}
+	for _, tc := range []struct {
+		name   string
+		rung   int
+		in     RecipeCoverageInput
+		change func(*RecipeCoverageSnapshot)
+	}{
+		{"malformed", 1, complete, func(s *RecipeCoverageSnapshot) { s.Coverage.Err = errors.New("EIO") }},
+		{"evidence", 2, complete, func(s *RecipeCoverageSnapshot) { s.Event = RecipeArtifactRead{} }},
+		{"incomplete", 3, incomplete, nil},
+		{"marker", 4, complete, func(s *RecipeCoverageSnapshot) { s.Marker.Exists = true }},
+		{"legacy-marker", 5, complete, func(s *RecipeCoverageSnapshot) { s.Coverage = RecipeArtifactRead{}; s.Marker.Exists = true }},
+		{"complete", 6, complete, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snap := rgaS5ReadSnapshot(t, tc.in)
+			if tc.change != nil {
+				tc.change(&snap)
+			}
+			entry := &inventoryEntry{Slug: "s5", Status: &status, Recipe: artifact(snap.Recipe), Patch: artifact(snap.Patch),
+				Coverage: artifact(snap.Coverage), CaptureEvent: artifact(snap.Event), StaleMarker: artifact(snap.Marker),
+				Provenance: artifact(RecipeArtifactRead{})}
+			ctx := &verifyRunContext{root: s.Root, floorOK: true, inv: &featureInventory{
+				Order: []string{"s5"}, Entries: map[string]*inventoryEntry{"s5": entry}}}
+			if _, err := entry.ReadErr(); err != nil {
+				t.Fatal("coverage errors escaped through the legacy inventory shortcut")
+			}
+			row := checkRecipeGenerationCoverage(ctx, s, "s5")
+			validate := func(row store.VerifyCheckResult) error {
+				severity := SeverityWarn
+				if tc.rung < 3 || tc.rung == 6 {
+					severity = SeverityBlock
+				}
+				if row.ID != CheckRecipeGenerationCoverage || row.Severity != severity || row.Passed != (tc.rung == 6) || row.Skipped {
+					return fmt.Errorf("wrong coverage row: %+v", row)
+				}
+				return nil
+			}
+			if err := validate(row); err != nil {
+				t.Fatal(err)
+			}
+			wrong := row
+			wrong.Severity = SeverityBlock
+			if row.Severity == SeverityBlock {
+				wrong.Severity = SeverityWarn
+			}
+			if err := validate(wrong); err == nil {
+				t.Fatal("same row validator accepted changed precedence severity")
+			}
+			if tc.rung == 6 && row.Remediation != "" {
+				t.Fatal("passing row acquired gratuitous fields")
+			}
+		})
+	}
+	before, err := buildInventory(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := ReadRecipeArtifact
+	t.Cleanup(func() { ReadRecipeArtifact = original })
+	ReadRecipeArtifact = func(path string) RecipeArtifactRead {
+		if filepath.Base(path) == "recipe-capture-event.json" {
+			return RecipeArtifactRead{Exists: true, Err: errors.New("portable transition")}
+		}
+		return original(path)
+	}
+	if got := inventoryInstability(s, before); !strings.Contains(got, "recipe-capture-event.json") {
+		t.Fatalf("companion readability transition missed: %q", got)
+	}
+}
 
 func TestRGAS5PreimageAtTreeExactPostimage(t *testing.T) {
 	root := t.TempDir()

@@ -4,6 +4,20 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer draft delivered (2026-09-09)**: the scoped reader/reconstruction,
+verify/apply/doctor behavior and shared readonly record planner are authored.
+Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` stopped editing; only formatting
+and whitespace inspection ran. Coordinator-owned legacy count expectations
+and the isolated compat-verify row delta precede a fresh gated validation
+sequence and independent implementation review. S5 is not accepted.
+
+Current coordinator test-delta ownership additionally includes
+`internal/workflow/verify_landed_grouph_test.go`,
+`internal/workflow/doctor_d9_test.go`,
+`internal/cli/doctor_d9_test.go`, limited to the appended check/registry
+counts and preservation of older row positions. Existing golden ownership
+is unchanged; no historical fixtures/projections are rewritten.
+
 **S5 shared record-planner scope approved (2026-09-09)**: the consumer
 worker stopped without edits to request the actual-producer feasibility
 surface required by ADR-041. The coordinator authorizes pure autogen planning
@@ -2907,7 +2921,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — remaining consumers with shared readonly record planner
+- **Status**: In progress — consumer draft delivered; test deltas and validation/review next
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2915,6 +2929,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The consumer worker delivered the complete scoped draft and stopped.
+Immutable C/E/P/R/marker snapshots, readonly reconstruction, the verify row,
+execute classifier, D10 and actual shared record planning are present but
+unvalidated. The coordinator is checkpointing before three old count updates
+and a byte-exact passing-row delta that preserves compat-verify's V8 failure.
+
+### Earlier consumer dispatch summary (historical)
 
 The fresh consumer worker identified required ownership for truthful actual-
 producer remediation and stopped without edits. The coordinator inspected
@@ -3396,7 +3418,7 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards pass the complete internal-unit steps 1-5: targeted/index/actual
 goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
-integration, D13/D17 and D10 are now dispatched but remain unimplemented;
+integration, D13/D17 and D10 are now authored but unvalidated/unreviewed;
 full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
@@ -3475,6 +3497,13 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- Consumer draft: workflow read/diagnostic/reconstruction/D10/planner modules,
+  captured recipe loading and pure autogen planning, verify inventory/row,
+  doctor registry; CLI apply/auto/record/doctor integration and narrow
+  collision/diffstat/pending-baseline wrappers; gitutil pure reconstruction/
+  readonly capture and patchobs reference reads; scoped tests/source guards.
+  The exact file set is recorded by the consumer checkpoint.
 
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
@@ -10004,9 +10033,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Implement remaining S5 read/verify/apply/doctor behavior under the current
-   single-worker ownership at the top of this file.
-2. Adapt only the coordinator-owned exact expected deltas where new consumer
+1. Checkpoint and independently review the delivered S5 consumer draft.
+2. Adapt only the coordinator-owned legacy counts and exact expected deltas where new consumer
    output requires them; preserve historical evidence and prior projection bodies.
 3. Checkpoint implementation, restart serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.

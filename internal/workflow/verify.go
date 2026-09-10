@@ -66,7 +66,8 @@ const (
 	// coupling). PRD §7.2 answer to open Q2 ("v1 blocks only on
 	// preimage mismatch") makes this the sole shipped-surface refusal
 	// signal at both apply-time and verify-time.
-	CheckWriteFilePreimageFresh = "write_file_preimage_fresh"
+	CheckWriteFilePreimageFresh   = "write_file_preimage_fresh"
+	CheckRecipeGenerationCoverage = "recipe_generation_coverage"
 )
 
 // Severity vocabulary (ADR-013 / PRD §3.2).
@@ -196,7 +197,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 		SchemaVersion: verifySchemaVersion,
 		Slug:          slug,
 		VerifiedAt:    time.Now().UTC().Format(time.RFC3339),
-		Checks:        make([]store.VerifyCheckResult, 0, 11),
+		Checks:        make([]store.VerifyCheckResult, 0, 12),
 		Repository:    ctx.repositoryInfo(),
 	}
 
@@ -215,7 +216,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 			Passed:      false,
 			Remediation: fmt.Sprintf("could not load status.json: %v", err),
 		})
-		// Append the remaining ten abort-path shape entries so the JSON
+		// Append the remaining eleven abort-path shape entries so the JSON
 		// report stays byte-stable when V0 aborts.
 		for _, c := range stubChecksAfterAbort() {
 			report.Checks = append(report.Checks, c)
@@ -311,6 +312,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	// V10 — write_file_preimage_fresh, produced by the dynamic phase so
 	// each member is evaluated at its OWN baseline (D15).
 	report.Checks = append(report.Checks, phase.v10)
+	report.Checks = append(report.Checks, checkRecipeGenerationCoverage(ctx, s, slug))
 	report.Advisories = append(report.Advisories, evidence.Advisories...)
 	report.Advisories = append(report.Advisories, phase.advisories...)
 	report.Advisories = append(report.Advisories, ctx.inventoryAdvisories(slug)...)
@@ -557,6 +559,10 @@ func stubChecksAfterAbort() []store.VerifyCheckResult {
 		Passed:   true,
 		Skipped:  true,
 		Reason:   "skipped: V0 (status_loaded) aborted the run",
+	})
+	out = append(out, store.VerifyCheckResult{
+		ID: CheckRecipeGenerationCoverage, Severity: SeverityBlock, Passed: false,
+		Skipped: true, Reason: "skipped: V0 (status_loaded) aborted the run",
 	})
 	return out
 }

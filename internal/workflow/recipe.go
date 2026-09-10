@@ -159,8 +159,16 @@ func LoadRecipe(s *store.Store, slug string) (ApplyRecipe, error) {
 	if err != nil {
 		return ApplyRecipe{}, fmt.Errorf("no recipe found — run 'tpatch implement %s' first", slug)
 	}
+	return LoadRecipeBytes(slug, []byte(data), nil)
+}
+
+// LoadRecipeBytes preserves legacy decoding/errors over an immutable capture.
+func LoadRecipeBytes(slug string, data []byte, readErr error) (ApplyRecipe, error) {
+	if readErr != nil {
+		return ApplyRecipe{}, fmt.Errorf("no recipe found — run 'tpatch implement %s' first", slug)
+	}
 	var recipe ApplyRecipe
-	if err := json.Unmarshal([]byte(data), &recipe); err != nil {
+	if err := json.Unmarshal(data, &recipe); err != nil {
 		return ApplyRecipe{}, fmt.Errorf("invalid recipe JSON: %w", err)
 	}
 	return recipe, nil

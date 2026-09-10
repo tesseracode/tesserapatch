@@ -131,8 +131,8 @@ func TestRunVerify_V0V1V2_AllPass(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunVerify: %v", err)
 	}
-	if len(report.Checks) != 11 {
-		t.Fatalf("expected 11-check array, got %d", len(report.Checks))
+	if len(report.Checks) != 12 {
+		t.Fatalf("expected 12-check array, got %d", len(report.Checks))
 	}
 	must := func(id string) store.VerifyCheckResult {
 		for _, c := range report.Checks {
@@ -483,15 +483,15 @@ func TestRunVerify_JSONShape(t *testing.T) {
 		t.Errorf("schema_version=1.1 expected, got %v", m["schema_version"])
 	}
 	checks, ok := m["checks"].([]any)
-	if !ok || len(checks) != 11 {
-		t.Errorf("expected 11-check array in JSON, got %v entries", len(checks))
+	if !ok || len(checks) != 12 {
+		t.Errorf("expected 12-check array in JSON, got %v entries", len(checks))
 	}
-	// All eleven check IDs present, in order.
+	// All twelve check IDs present, preserving the existing sequence.
 	wantIDs := []string{
 		CheckStatusLoaded, CheckIntentFilesPresent, CheckRecipeParses, CheckRecipeOpTargetsResolve,
 		CheckDepMetadataValid, CheckSatisfiedByReachable, CheckDependencyGateSatisfied,
 		CheckRecipeReplayClean, CheckPostApplyPatchReplayClean, CheckReconcileOutcomeConsistent,
-		CheckWriteFilePreimageFresh,
+		CheckWriteFilePreimageFresh, CheckRecipeGenerationCoverage,
 	}
 	for i, want := range wantIDs {
 		gotID := checks[i].(map[string]any)["id"]
@@ -523,8 +523,8 @@ func TestRunVerify_V0_AbortsWhenStatusUnreadable(t *testing.T) {
 	if report == nil {
 		t.Fatal("report should still be produced for shape stability")
 	}
-	if len(report.Checks) != 11 {
-		t.Errorf("expected 11-check array even on V0 abort, got %d", len(report.Checks))
+	if len(report.Checks) != 12 {
+		t.Errorf("expected 12-check array even on V0 abort, got %d", len(report.Checks))
 	}
 	if report.Checks[0].ID != CheckStatusLoaded || report.Checks[0].Passed {
 		t.Errorf("V0 should be the first failed check, got %+v", report.Checks[0])

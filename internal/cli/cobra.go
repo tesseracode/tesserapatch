@@ -955,11 +955,18 @@ func runApplyExecuteChecked(cmd *cobra.Command, s *store.Store, slug string, che
 		return result, nil
 	}
 
-	recipe, err := workflow.LoadRecipe(s, slug)
+	coverageSnapshot := workflow.SnapshotRecipeCoverage(s.Root, slug)
+	recipe, warning, refusal, err := workflow.RecipeExecutePreflight(s.Root, statusBefore, coverageSnapshot)
+	if refusal != "" {
+		return workflow.RecipeExecResult{}, validationError("%s", refusal)
+	}
 	if err != nil {
 		return workflow.RecipeExecResult{}, err
 	}
-	warnRecipeStale(cmd.ErrOrStderr(), s, slug)
+	if warning != "" {
+		fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", warning)
+	}
+	warnRecipeStale(cmd.ErrOrStderr(), s, slug, coverageSnapshot.Recipe.Bytes)
 	if err := markApplyProgress(s, slug, "apply --mode execute", "Executing recipe"); err != nil {
 		return workflow.RecipeExecResult{}, err
 	}
@@ -1239,6 +1246,22 @@ func runApplyAuto(cmd *cobra.Command, s *store.Store, slug string) error {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%v\n", err)
 		return err
 	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return err
+	}
+	pending, err := unappliedBaselinePending(s, status)
+	if err != nil {
+		return err
+	}
+	if status.State != store.StateUnapplied && !pending {
+		_, _, refusal, preflightErr := workflow.RecipeExecutePreflight(s.Root, status, workflow.SnapshotRecipeCoverage(s.Root, slug))
+		if refusal != "" {
+			return validationError("%s", refusal)
+		}
+		// Absent coverage retains the old prepare/legacy-load behavior.
+		_ = preflightErr
+	}
 	if status, err := s.LoadFeatureStatus(slug); err == nil && status.State == store.StateUnapplied {
 		if canonical, readErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "post-apply.patch")); readErr == nil {
 			if gitutil.ValidatePatchReverse(s.Root, canonical) == nil {
@@ -1328,7 +1351,7 @@ func checkParentGenerationStaleGate(w io.Writer, s *store.Store, slug, action st
 // keeps the guard backward-compatible. The recipe_sha256 field is a
 // pointer so older sidecars that predate the content-drift guard
 // decode as nil and the hash check is silently skipped (with a note).
-func warnRecipeStale(w io.Writer, s *store.Store, slug string) {
+func warnRecipeStale(w io.Writer, s *store.Store, slug string, recipeBytes []byte) {
 	raw, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "recipe-provenance.json"))
 	if err != nil || strings.TrimSpace(raw) == "" {
 		return
@@ -1357,11 +1380,7 @@ func warnRecipeStale(w io.Writer, s *store.Store, slug string) {
 		fmt.Fprintln(w, "note: recipe provenance predates recipe-hash guard (content-drift check skipped)")
 		return
 	}
-	recipeBytes, rerr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
-	if rerr != nil {
-		return
-	}
-	sum := sha256.Sum256([]byte(recipeBytes))
+	sum := sha256.Sum256(recipeBytes)
 	current := fmt.Sprintf("%x", sum[:])
 	if current != *prov.RecipeSHA256 {
 		fmt.Fprintf(w, "warning: apply-recipe.json has been edited since it was generated (hash %s → %s) — results may differ\n",
@@ -1848,6 +1867,21 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// Write post-apply.patch (backwards compat) + sequential patch (GAP 7)
 			publication := workflow.ObserveCoveragePublication(s, recipeObservation)
 			publication.DeferRecipeWrites = true
+			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
+			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
+			recordPlan := workflow.PlanRecord(s, status, recipeObservation, publication, !noAutogen, regen, time.Now().UTC())
+			if err := recordPlan.RecordGateError(forceAmend, allowCollisionReason, lenient, stagedFlag); err != nil {
+				return err
+			}
+			if workflow.RecordPendingBaselineCandidate(status) {
+				if err := refuseIfUnappliedBaselinePending(s, status, "record"); err != nil {
+					return err
+				}
+			}
+			var regenerationPlan workflow.RecordPlan
+			if recordPlan.Autogen.Action == workflow.AutogenStale {
+				regenerationPlan = workflow.PlanRecord(s, status, recipeObservation, publication, true, true, time.Now().UTC())
+			}
 			if err := s.WriteArtifactAtomic(slug, "post-apply.patch", patch); err != nil {
 				return err
 			}
@@ -1953,10 +1987,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 			// Item M15-W2.2/3 — recipe autogen + drift detection.
 			// `artifacts/post-apply.patch` remains the reconcile source
 			// of truth; the recipe is derived for replay/inspection only.
-			noAutogen, _ := cmd.Flags().GetBool("no-recipe-autogen")
-			regen, _ := cmd.Flags().GetBool("regenerate-recipe")
-			autogen := !noAutogen
-			autogenOutcome, agErr := workflow.AutogenRecipeForRecord(s, recipeObservation, autogen, regen, publication)
+			autogenOutcome, agErr := recordPlan.Autogen, recordPlan.RecipeError
 			skippedPaths := autogenOutcome.SkippedPaths
 			reason := autogenOutcome.DriftReason
 			var recipeOut, recipeWarnings strings.Builder
@@ -1986,8 +2017,10 @@ the committed snapshots at the endpoints contribute to the diff.`,
 					if reason != "" {
 						fmt.Fprintf(w, "  drift: %s\n", reason)
 					}
-					fmt.Fprintln(w, "  recipe-stale.json sidecar written. To replace the recipe with one derived from the patch, rerun:")
-					fmt.Fprintf(w, "    tpatch record %s --regenerate-recipe\n", slug)
+					fmt.Fprintln(w, "  recipe-stale.json sidecar written.")
+					// A new explicit regeneration plan must pass all default
+					// record gates; the current stale action is not authority.
+					fmt.Fprintf(w, "  %s\n", regenerationPlan.Remediation(slug))
 				case workflow.AutogenNoop, workflow.AutogenSkipped:
 					// no user-visible message
 				}
@@ -2108,36 +2141,7 @@ the committed snapshots at the endpoints contribute to the diff.`,
 // treat that as "skip the gate" rather than block — missing signal is
 // not the same as "no orphans".
 func detectAmendOrphans(s *store.Store) (orphans []store.FeatureRef, prevHead string, ok bool) {
-	prev, err := gitutil.RevParse(s.Root, "HEAD@{1}")
-	if err != nil || prev == "" {
-		return nil, "", false
-	}
-	prevParent, err := gitutil.RevParse(s.Root, "HEAD@{1}^")
-	if err != nil || prevParent == "" {
-		return nil, "", false
-	}
-	headParent, err := gitutil.RevParse(s.Root, "HEAD^")
-	if err != nil || headParent == "" {
-		return nil, "", false
-	}
-	if prevParent != headParent {
-		// Not an amend shape — the user moved more than one commit
-		// (rebase across multiple commits, merge, branch switch, …).
-		return nil, "", true
-	}
-	curHead, err := gitutil.RevParse(s.Root, "HEAD")
-	if err != nil || curHead == "" {
-		return nil, "", false
-	}
-	if curHead == prev {
-		// HEAD did not actually move — nothing was amended away.
-		return nil, "", true
-	}
-	deps, derr := store.CollectDependentSHAs(s)
-	if derr != nil {
-		return nil, "", false
-	}
-	return store.IsAmendBreaking(prev, deps), prev, true
+	return workflow.DetectRecordAmendOrphans(s)
 }
 
 // uniqueOrphanSlugs returns the de-duplicated, sorted feature slugs

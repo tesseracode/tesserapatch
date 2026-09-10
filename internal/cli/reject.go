@@ -36,7 +36,8 @@ import (
 //	0  success
 //	1  unexpected internal error
 //	2  pre-mutation input validation (bad reason, empty note, evidence
-//	   that cannot be resolved/hashed, path-safety violation)
+//	   that cannot be resolved/hashed, path-safety violation, or named
+//	   recipe coverage / no-readable-executable-recipe refusal)
 //	3  post-validation state-machine refusal (wrong source state, live
 //	   dependents, already rejected, reopen of a non-rejected feature,
 //	   edge onto a rejected parent, confirm-upstreamed on a rejected

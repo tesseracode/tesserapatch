@@ -235,11 +235,12 @@ type artifactSnapshot struct {
 func snapshotArtifact(root, slug, name string, whitespaceIsEmpty bool) artifactSnapshot {
 	rel := filepath.ToSlash(filepath.Join("artifacts", name))
 	p := filepath.Join(root, ".tpatch", "features", slug, "artifacts", name)
-	data, err := os.ReadFile(p)
+	read := ReadRecipeArtifact(p)
+	data, err := read.Bytes, read.Err
+	if !read.Exists && err == nil {
+		return artifactSnapshot{Presence: PresenceAbsent, Path: rel}
+	}
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return artifactSnapshot{Presence: PresenceAbsent, Path: rel}
-		}
 		// Permission denied, EIO, EISDIR, … — the artifact EXISTS as far
 		// as we can tell and we could not read it. Never absence.
 		return artifactSnapshot{Presence: PresenceAbsent, Err: err, Path: rel}
@@ -253,13 +254,16 @@ func snapshotArtifact(root, slug, name string, whitespaceIsEmpty bool) artifactS
 // inventoryEntry is one feature's immutable capture. An entry with
 // Err != nil is an explicit `unreadable` row and is NEVER omitted (D17).
 type inventoryEntry struct {
-	Slug        string
-	Status      *store.FeatureStatus
-	Err         error
-	Recipe      artifactSnapshot
-	Patch       artifactSnapshot
-	Provenance  artifactSnapshot
-	Generations []byte
+	Slug         string
+	Status       *store.FeatureStatus
+	Err          error
+	Recipe       artifactSnapshot
+	Patch        artifactSnapshot
+	Provenance   artifactSnapshot
+	Coverage     artifactSnapshot
+	CaptureEvent artifactSnapshot
+	StaleMarker  artifactSnapshot
+	Generations  []byte
 	// GenerationsErr is a NON-absence read failure on
 	// `patch-generations.json`. Rev-0 discarded it, so a corrupt or
 	// unreadable manifest silently produced an empty touched-path set
@@ -410,6 +414,9 @@ func buildInventory(s *store.Store) (*featureInventory, error) {
 			ie.Recipe = snapshotArtifact(s.Root, fe.Slug, "apply-recipe.json", true)
 			ie.Patch = snapshotArtifact(s.Root, fe.Slug, "post-apply.patch", false)
 			ie.Provenance = snapshotArtifact(s.Root, fe.Slug, "recipe-provenance.json", true)
+			ie.Coverage = snapshotArtifact(s.Root, fe.Slug, "recipe-coverage.json", false)
+			ie.CaptureEvent = snapshotArtifact(s.Root, fe.Slug, "recipe-capture-event.json", false)
+			ie.StaleMarker = snapshotArtifact(s.Root, fe.Slug, "recipe-stale.json", false)
 			gen, genErr := os.ReadFile(s.PatchGenerationsPath(fe.Slug))
 			if genErr != nil && !errors.Is(genErr, os.ErrNotExist) {
 				ie.GenerationsErr = genErr
@@ -505,6 +512,9 @@ func inventoryInstability(s *store.Store, before *featureInventory) string {
 			{"artifacts/apply-recipe.json", b.Recipe, a.Recipe},
 			{"artifacts/post-apply.patch", b.Patch, a.Patch},
 			{"artifacts/recipe-provenance.json", b.Provenance, a.Provenance},
+			{"artifacts/recipe-coverage.json", b.Coverage, a.Coverage},
+			{"artifacts/recipe-capture-event.json", b.CaptureEvent, a.CaptureEvent},
+			{"artifacts/recipe-stale.json", b.StaleMarker, a.StaleMarker},
 		} {
 			// rev-2 adjudication finding 5: READABILITY is part of the
 			// captured state. An artifact that flips between readable and

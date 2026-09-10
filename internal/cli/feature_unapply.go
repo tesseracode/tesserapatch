@@ -18,6 +18,7 @@ import (
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 const featureUnapplyApplyHint = "Use 'tpatch apply <slug>' to reapply a feature that has been unapplied."
@@ -447,9 +448,7 @@ func refuseIfUnappliedBaselinePending(s *store.Store, status store.FeatureStatus
 }
 
 func unappliedBaselinePending(s *store.Store, status store.FeatureStatus) (bool, error) {
-	if status.State != store.StateUnapplied &&
-		status.LastCommand != "feature unapply" &&
-		!strings.Contains(status.Notes, "artifacts/unapply/") {
+	if !workflow.RecordPendingBaselineCandidate(status) {
 		return false, nil
 	}
 	canonical, err := s.ReadFeatureFile(status.Slug, filepath.Join("artifacts", "post-apply.patch"))

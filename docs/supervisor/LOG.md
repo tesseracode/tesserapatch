@@ -1,3 +1,25 @@
+## Implementation Transition — GH #15 S5 consumers delivered — 2026-09-09
+
+**Worker**: `51ca5679-7631-4492-ae58-7e0fead1b61e`
+**State**: IN PROGRESS — complete scoped draft; validation/review pending
+
+The worker delivered immutable coverage snapshots, readonly bounded text/
+binary reconstruction, the six-rung verify row, seven-case execute preflight
+and captured-byte execution, warning-only D10, and shared PlanRecord/pure
+PlanRecipeForRecord integration. Reader/planner/CLI and mutation fixtures
+are authored; only formatting and whitespace inspection ran. Editing stopped.
+
+The coordinator will update three directly coupled legacy expectations:
+verify_landed_grouph_test.go's 11->12 row count, workflow/doctor_d9_test.go's
+registry list and CLI/doctor_d9_test.go's 9->10 count while preserving D9's
+index. The parent-owned expected golden stage adds only the passing coverage
+row to compat-verify; its existing V8 failure/exit 2 must remain.
+
+Checkpoint the delivered code before those bounded test deltas. Request
+independent review against that immutable checkpoint while the coordinator
+prepares deltas; no Go commands from reviewers. Then restart the full
+resource-gated validation protocol. No S5 acceptance or release is claimed.
+
 ## Scope Decision — GH #15 S5 shared record feasibility — 2026-09-09
 
 **State**: IN PROGRESS — consumer scope expanded before implementation

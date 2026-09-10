@@ -14,12 +14,12 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // captureDiffStatFailClosed wraps CaptureDiffStatScoped with the
@@ -35,14 +35,7 @@ import (
 // failure at that point reported an error while leaving mutated
 // artifacts behind.
 func captureDiffStatFailClosed(repoRoot string, pathspecs []string) (string, error) {
-	diffStat, err := gitutil.CaptureDiffStatScoped(repoRoot, pathspecs)
-	if err != nil {
-		if errors.Is(err, gitutil.ErrNestedWorktreeDiscovery) {
-			return "", err
-		}
-		return "", nil
-	}
-	return diffStat, nil
+	return workflow.CaptureRecordDiffStat(repoRoot, pathspecs)
 }
 
 // nestedWorktreeScopedPathspecs partitions the caller's pathspecs into

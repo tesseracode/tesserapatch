@@ -1742,6 +1742,9 @@ planner or mutating doctor path is authorized.
 The fresh consumer/planner worker is active; coordinator-owned golden
 scouting preserves the existing V8-driven compat-verify failure and row
 isolation. No consumer implementation result or new validation is claimed.
+The complete scoped consumer/planner draft is now delivered and the worker
+stopped. Legacy check-count expectations and an isolated compat-verify row
+delta precede fresh validation and independent review. No S5 acceptance yet.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

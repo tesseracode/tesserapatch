@@ -3,33 +3,19 @@ package cli
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 
-	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
+	"github.com/tesseracode/tesserapatch/internal/workflow"
 )
 
 // collisionMatch describes a single byte-identical existing
 // post-apply.patch found by the record-time collision scan.
-type collisionMatch struct {
-	Slug   string
-	Path   string // relative to repo root, for diagnostics
-	SHA256 string
-	Bytes  int
-	Files  int
-}
+type collisionMatch = workflow.RecordCollisionMatch
 
 // collisionScanResult bundles the matches found and the
 // classification per PRD-record-collision-detection §4 steps 5–6.
-type collisionScanResult struct {
-	NewSHA256    string
-	NewBytes     int
-	SameFeature  bool // current slug already has a byte-identical post-apply.patch
-	CrossFeature []collisionMatch
-}
+type collisionScanResult = workflow.RecordCollisionScan
 
 // scanCanonicalPatchCollisions enumerates every feature's
 // artifacts/post-apply.patch (skipping missing files) and reports
@@ -45,63 +31,7 @@ type collisionScanResult struct {
 // Numbered audit snapshots under patches/ are intentionally NOT scanned:
 // they may legitimately repeat (PRD §7).
 func scanCanonicalPatchCollisions(s *store.Store, currentSlug, newPatch string) (collisionScanResult, error) {
-	res := collisionScanResult{}
-	res.NewSHA256, res.NewBytes = gitutil.PatchSignature(newPatch)
-
-	features, err := s.ListFeatures()
-	if err != nil {
-		return res, err
-	}
-	slugs := make([]string, 0, len(features))
-	for _, f := range features {
-		slugs = append(slugs, f.Slug)
-	}
-	sort.Strings(slugs)
-
-	for _, slug := range slugs {
-		patchPath := filepath.Join(s.Root, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
-		st, statErr := os.Stat(patchPath)
-		if statErr != nil {
-			// PRD §4 step 4a: skip missing files silently. Other
-			// stat errors (permission denied, ...) are also skipped
-			// here — record cannot reliably reason about a feature
-			// directory whose canonical patch is unreadable, and
-			// false-positive blocking is worse than missing a
-			// pathological collision.
-			continue
-		}
-		if int64(res.NewBytes) != st.Size() {
-			continue
-		}
-		raw, readErr := os.ReadFile(patchPath)
-		if readErr != nil {
-			continue
-		}
-		existingSHA, _ := gitutil.PatchSignature(string(raw))
-		if existingSHA != res.NewSHA256 {
-			continue
-		}
-		// Defence in depth: digest equality is statistically
-		// definitive, but we still byte-compare so a hypothetical
-		// hash collision (or a future signature change) cannot
-		// false-positive a refusal.
-		if string(raw) != newPatch {
-			continue
-		}
-		m := collisionMatch{
-			Slug:   slug,
-			Path:   filepath.Join(".tpatch", "features", slug, "artifacts", "post-apply.patch"),
-			SHA256: res.NewSHA256,
-			Bytes:  res.NewBytes,
-			Files:  countPatchFiles(string(raw)),
-		}
-		if slug == currentSlug {
-			res.SameFeature = true
-			continue
-		}
-		res.CrossFeature = append(res.CrossFeature, m)
-	}
-	return res, nil
+	return workflow.ScanRecordCollisions(s, currentSlug, newPatch)
 }
 
 // printCollisionRefusal writes the cross-feature refusal diagnostic to

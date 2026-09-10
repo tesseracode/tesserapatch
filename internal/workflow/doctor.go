@@ -144,10 +144,14 @@ func RunDoctor(s *store.Store, options DoctorOptions) (DoctorReport, error) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					severity := "error"
+					if check.id == "D10" {
+						severity = "warning"
+					}
 					ctx.addFinding(DoctorFinding{
 						CheckID:  check.id,
 						Code:     "check-error",
-						Severity: "error",
+						Severity: severity,
 						Message:  "check panicked",
 						Fixable:  false,
 					})
@@ -241,6 +245,7 @@ func doctorRegistry() []doctorCheck {
 		{id: "D7", run: runDoctorD7},
 		{id: "D8", run: runDoctorD8},
 		{id: "D9", run: runDoctorD9},
+		{id: "D10", run: runDoctorD10},
 	}
 }
 
@@ -344,9 +349,18 @@ func (ctx *doctorContext) addFinding(f DoctorFinding) {
 func sortDoctorReport(report *DoctorReport) {
 	sort.Slice(report.Findings, func(i, j int) bool {
 		a, b := report.Findings[i], report.Findings[j]
+		if len(a.CheckID) != len(b.CheckID) {
+			return len(a.CheckID) < len(b.CheckID)
+		}
 		return doctorFindingSortKey(a) < doctorFindingSortKey(b)
 	})
-	sort.Slice(report.Checks, func(i, j int) bool { return report.Checks[i].CheckID < report.Checks[j].CheckID })
+	sort.Slice(report.Checks, func(i, j int) bool {
+		a, b := report.Checks[i].CheckID, report.Checks[j].CheckID
+		if len(a) != len(b) {
+			return len(a) < len(b)
+		}
+		return a < b
+	})
 }
 
 func doctorFindingSortKey(f DoctorFinding) string {

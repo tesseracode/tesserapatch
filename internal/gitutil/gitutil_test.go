@@ -8,6 +8,51 @@ import (
 	"testing"
 )
 
+func TestRGAS5ReadonlyCaptureMatchesRecordWithoutIndexWrites(t *testing.T) {
+	root := t.TempDir()
+	gitInit(t, root)
+	for path, content := range map[string]string{
+		"hello.txt": "edited\n", "a new.txt": "new\r\n", "z-empty": "", "literal[1].txt": "no newline",
+	} {
+		if err := os.WriteFile(filepath.Join(root, path), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	indexPath := filepath.Join(root, ".git", "index")
+	for _, paths := range [][]string{nil, {"hello.txt"}, {"literal[1].txt", "a new.txt"}} {
+		before, err := os.ReadFile(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		info, err := os.Stat(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		readonly, err := CapturePatchScopedReadOnly(root, paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+		after, err := os.ReadFile(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		afterInfo, err := os.Stat(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(before) != string(after) || !info.ModTime().Equal(afterInfo.ModTime()) {
+			t.Fatal("readonly capture changed the real index")
+		}
+		historical, err := CapturePatchScoped(root, paths)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if readonly != historical {
+			t.Fatalf("readonly capture differs from actual historical capture for %v", paths)
+		}
+	}
+}
+
 // gitInit sets up a minimal git repo with one committed file. Mirrors
 // the helper in internal/workflow/reconcile_test.go but kept package-
 // local to avoid an import cycle.

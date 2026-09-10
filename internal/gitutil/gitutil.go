@@ -274,7 +274,7 @@ func CaptureDiffStatScoped(repoRoot string, pathspecs []string) (string, error) 
 		args = append(args, nestedExcludes...)
 		args = append(args, pathspecs...)
 	}
-	out, err := runGit(repoRoot, args...)
+	out, err := runCaptureGitReadOnly(repoRoot, args...)
 	if err != nil {
 		return "", err
 	}
@@ -318,8 +318,6 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	}
 	excludePatterns = append(excludePatterns, nestedExcludes...)
 
-	skipPrefixes := []string{".tpatch/", ".claude/skills/", ".github/skills/", ".github/prompts/", ".cursor/rules/", ".windsurfrules"}
-
 	// Stage untracked files with --intent-to-add so they appear in git diff
 	untrackedFiles, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, nestedPrefixes)
 	if err != nil {
@@ -327,14 +325,7 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	}
 	var stagedNewFiles []string
 	for _, file := range untrackedFiles {
-		skip := false
-		for _, prefix := range skipPrefixes {
-			if strings.HasPrefix(file, prefix) || file == strings.TrimSuffix(prefix, "/") {
-				skip = true
-				break
-			}
-		}
-		if skip {
+		if captureUntrackedExcluded(file) {
 			continue
 		}
 		// Stage as intent-to-add (makes new files visible to git diff)
@@ -382,6 +373,122 @@ func CapturePatchScoped(repoRoot string, pathspecs []string) (string, error) {
 	}
 
 	return normalizePatchTail(patch), nil
+}
+
+func captureUntrackedExcluded(path string) bool {
+	for _, prefix := range []string{".tpatch/", ".claude/skills/", ".github/skills/", ".github/prompts/", ".cursor/rules/", ".windsurfrules"} {
+		if strings.HasPrefix(path, prefix) || path == strings.TrimSuffix(prefix, "/") {
+			return true
+		}
+	}
+	return false
+}
+
+// CapturePatchScopedReadOnly captures the same default index-to-worktree
+// changes without intent-to-add/reset, a temporary index, or object writes.
+// Unsupported conversion/rename cases refuse a dry recommendation rather than
+// claim equality with record's existing intent-to-add capture.
+func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, error) {
+	if os.Getenv("GIT_EXTERNAL_DIFF") != "" {
+		return "", fmt.Errorf("readonly capture cannot invoke an external diff driver")
+	}
+	config, configErr := runCaptureGitReadOnly(repoRoot, "config", "--get-regexp", `^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`)
+	if configErr != nil {
+		exit, ok := configErr.(*exec.ExitError)
+		if !ok || exit.ExitCode() != 1 {
+			return "", fmt.Errorf("readonly capture cannot establish conversion configuration")
+		}
+	}
+	for _, line := range strings.Split(config, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if fields[0] == "core.autocrlf" && len(fields) > 1 && (fields[1] == "false" || fields[1] == "0" || fields[1] == "no" || fields[1] == "off") {
+			continue
+		}
+		if fields[0] != "diff.renames" || (len(fields) > 1 && strings.Contains(strings.ToLower(fields[1]), "cop")) {
+			return "", fmt.Errorf("readonly capture cannot establish exact bytes without configured conversion/copy behavior")
+		}
+	}
+	excludes := []string{":(exclude).tpatch", ":(exclude).claude/skills", ":(exclude).github/skills",
+		":(exclude).github/prompts", ":(exclude).cursor/rules", ":(exclude).windsurfrules"}
+	nested, prefixes, err := nestedWorktreeCaptureFilters(repoRoot)
+	if err != nil {
+		return "", err
+	}
+	untracked, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, prefixes)
+	if err != nil {
+		return "", err
+	}
+	filtered := untracked[:0]
+	for _, path := range untracked {
+		if !captureUntrackedExcluded(path) {
+			filtered = append(filtered, path)
+		}
+	}
+	untracked = filtered
+	if len(untracked) != 0 {
+		args := append([]string{"check-attr", "-z", "--all", "--"}, untracked...)
+		attributes, err := runCaptureGitReadOnly(repoRoot, args...)
+		if err != nil || attributes != "" {
+			return "", fmt.Errorf("readonly untracked capture cannot establish attribute-converted bytes")
+		}
+	}
+	args := append([]string{"diff", "--no-ext-diff", "--no-textconv", "--"}, excludes...)
+	args = append(args, nested...)
+	args = append(args, pathspecs...)
+	tracked, err := runCaptureGitReadOnly(repoRoot, args...)
+	if err != nil {
+		return "", err
+	}
+	type fragment struct{ path, text string }
+	var fragments []fragment
+	add := func(text string) error {
+		effects, err := NormalizePatchEffects(text)
+		if err != nil {
+			return err
+		}
+		for _, effect := range effects {
+			if len(untracked) != 0 && (effect.ChangeKind == ChangeKindDelete || effect.ChangeKind == ChangeKindRename || effect.ChangeKind == ChangeKindCopy) {
+				return fmt.Errorf("readonly capture cannot establish intent-to-add rename matching")
+			}
+			fragments = append(fragments, fragment{effect.Path, text[effect.FragmentStart:effect.FragmentEnd]})
+		}
+		return nil
+	}
+	if err := add(tracked); err != nil {
+		return "", err
+	}
+	for _, path := range untracked {
+		cmd := exec.Command("git", "diff", "--no-index", "--no-ext-diff", "--no-textconv", "--", os.DevNull, path)
+		cmd.Dir = repoRoot
+		cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
+		out, diffErr := cmd.Output()
+		if diffErr != nil {
+			exit, ok := diffErr.(*exec.ExitError)
+			if !ok || exit.ExitCode() != 1 {
+				return "", fmt.Errorf("readonly untracked capture failed for %q", path)
+			}
+		}
+		if err := add(string(out)); err != nil {
+			return "", err
+		}
+	}
+	sort.SliceStable(fragments, func(i, j int) bool { return fragments[i].path < fragments[j].path })
+	var out strings.Builder
+	for _, f := range fragments {
+		out.WriteString(f.text)
+	}
+	return normalizePatchTail(out.String()), nil
+}
+
+func runCaptureGitReadOnly(root string, args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
+	out, err := cmd.Output()
+	return string(out), err
 }
 
 // CapturePatchFromCommits captures the diff between two commits, excluding tpatch artifacts.
@@ -511,6 +618,7 @@ func ValidatePatchReverse(repoRoot, patch string) error {
 	}
 	cmd := exec.Command("git", "apply", "--reverse", "--check", "-")
 	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
 	cmd.Stdin = strings.NewReader(patch)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

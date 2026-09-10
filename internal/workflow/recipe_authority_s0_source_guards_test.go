@@ -450,6 +450,9 @@ func rgaS0UnregisteredEvidenceLiteral(rel, src string) error {
 }
 
 func rgaS0CoveragePhaseSource(rel, src string) error {
+	if _, registered := rgaS5ReadFunctions[rel]; registered {
+		return rgaS5ReadSource(rel, src)
+	}
 	switch rel {
 	case "internal/workflow/recipe_coverage_types.go",
 		"internal/workflow/recipe_coverage_codec.go",
@@ -632,7 +635,7 @@ func rgaS0CheckAutogenDerivation(src string) error {
 		return err
 	}
 
-	for _, name := range []string{"RecipeFromPatch", "AutogenRecipeForRecord"} {
+	for _, name := range []string{"RecipeFromPatch", "PlanRecipeForRecord"} {
 		fn := rgaS0FuncBody(file, name)
 		if fn == nil {
 			return fmt.Errorf("%s missing", name)
@@ -651,6 +654,135 @@ func rgaS0CheckAutogenDerivation(src string) error {
 		})
 		if !derives || forbidden {
 			return fmt.Errorf("%s must derive from its supplied observation, never file sets or live bodies", name)
+		}
+	}
+	wrapper := rgaS0FuncBody(file, "AutogenRecipeForRecord")
+	if wrapper == nil {
+		return fmt.Errorf("autogen compatibility wrapper missing")
+	}
+	delegates := false
+	ast.Inspect(wrapper, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok && rgaS0CallName(call) == "PlanRecipeForRecord" {
+			delegates = true
+		}
+		return true
+	})
+	if !delegates {
+		return fmt.Errorf("autogen compatibility wrapper bypasses pure recipe planning")
+	}
+	for _, name := range []string{"PlanRecipeForRecord", "planRecipeStale", "convergeRecipeProvenance"} {
+		fn := rgaS0FuncBody(file, name)
+		if fn == nil {
+			return fmt.Errorf("pure planning helper missing: %s", name)
+		}
+		if err := rgaS5ReadFunction("recipe_autogen.go", fn); err != nil {
+			return err
+		}
+		var impure error
+		ast.Inspect(fn, func(n ast.Node) bool {
+			if selector, ok := n.(*ast.SelectorExpr); ok {
+				switch selector.Sel.Name {
+				case "ReadFile", "ReadFeatureFile", "Open", "OpenFile", "ReadDir", "Observe", "Now", "RunOfflineGitIn", "HeadCommit":
+					impure = fmt.Errorf("%s acquired live input %s", name, selector.Sel.Name)
+				}
+			}
+			if id, ok := n.(*ast.Ident); ok && id.Name == "ObserveCoveragePublication" {
+				impure = fmt.Errorf("%s rereads publication inputs", name)
+			}
+			return true
+		})
+		if impure != nil {
+			return impure
+		}
+	}
+	return nil
+}
+
+var rgaS5ReadFunctions = map[string]map[string]bool{
+	"internal/patchobs/reconstruct.go":      {},
+	"internal/gitutil/patch_reconstruct.go": {},
+	"internal/workflow/recipe_coverage_read.go": {
+		"SnapshotRecipeCoverage": true, "coverageReadArtifact": true, "AssessRecipeCoverage": true,
+		"recipeReadStatus": true, "reconstructedObservation": true, "(RecipeCoverageAssessment).BindingFailure": true,
+		"(RecipeCoverageAssessment).Diagnostic": true,
+	},
+	"internal/workflow/recipe_coverage_reconstruct.go": {"reconstructRecipeCoverage": true},
+	"internal/workflow/recipe_coverage_diagnostics.go": {
+		"recipeCoverageReasons": true, "(RecipeCoverageAssessment).explanation": true,
+		"inventoryCoverageSnapshot": true, "checkRecipeGenerationCoverage": true, "RecipeExecutePreflight": true,
+	},
+	"internal/workflow/record_plan.go":   {"PlanRecord": true, "PlanDefaultRecord": true, "recordPublicationPath": true},
+	"internal/workflow/doctor_d10.go":    {"runDoctorD10": true},
+	"internal/workflow/verify.go":        {"runVerifyWithContext": true, "stubChecksAfterAbort": true},
+	"internal/workflow/verify_landed.go": {"buildInventory": true, "inventoryInstability": true},
+}
+
+// Every selector reference is inspected, not only calls: a method value,
+// method expression or package alias cannot hide a writer from this boundary.
+func rgaS5ReadFunction(rel string, node ast.Node) error {
+	var refusal error
+	ast.Inspect(node, func(n ast.Node) bool {
+		name := ""
+		switch value := n.(type) {
+		case *ast.SelectorExpr:
+			name = value.Sel.Name
+		case *ast.Ident:
+			name = value.Name
+		}
+		switch name {
+		case "WriteArtifact", "WriteArtifactAtomic", "WriteFeatureFile", "WriteFile",
+			"Create", "CreateTemp", "Mkdir", "MkdirAll", "Remove", "RemoveAll", "Rename",
+			"MarkFeatureState", "SaveFeatureStatus", "WritePatch", "SnapshotArtifact",
+			"NewTempIndex", "ValidateStagedPatch", "ReverseApplyCheckAtHEAD", "CreateShadow",
+			"PublishCoverage", "publishRecordRecipePlan", "AutogenRecipeForRecord", "writeRecipe", "clearStaleMarker",
+			"ObserveAndEmit", "Emit", "SetRecorder", "GenerateWithRetry", "ExecuteRecipe", "Command", "CommandContext",
+			"CapturePatch", "CapturePatchScoped", "CaptureUnstagedPatch",
+			"EnsureDoctorBackup", "BackupPathForOverwrite", "Acquire", "Lock", "Flock":
+			refusal = fmt.Errorf("%s: readonly planning/assessment acquired %s", rel, name)
+		}
+		return true
+	})
+	return refusal
+}
+
+func rgaS5ReadSource(rel, src string) error {
+	file, err := rgaS0Parse(rel, src)
+	if err != nil {
+		return err
+	}
+	legacy := rel == "internal/workflow/verify.go" || rel == "internal/workflow/verify_landed.go"
+	for _, decl := range file.Decls {
+		fn, isFunc := decl.(*ast.FuncDecl)
+		if !isFunc {
+			if !legacy {
+				if err := rgaS5ReadFunction(rel, decl); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		owner := rgaS0EnclosingName(fn)
+		registered := rgaS5ReadFunctions[rel][owner]
+		if !legacy || registered {
+			if err := rgaS5ReadFunction(rel, fn); err != nil {
+				return err
+			}
+		}
+		var evidence bool
+		ast.Inspect(fn, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok {
+				evidence = evidence || strings.Contains(id.Name, "RecipeCoverage") ||
+					strings.Contains(id.Name, "CaptureEvent") || id.Name == "CoveragePublicationInput"
+			}
+			if expr, ok := n.(ast.Expr); ok {
+				if text, ok := rgaS0ConstantString(expr); ok {
+					evidence = evidence || strings.Contains(text, "recipe-coverage.json") || strings.Contains(text, "recipe-capture-event.json")
+				}
+			}
+			return true
+		})
+		if evidence && !registered {
+			return fmt.Errorf("%s: unregistered coverage read function %s", rel, owner)
 		}
 	}
 	return nil
