@@ -25,8 +25,12 @@ func runDoctorD10(ctx *doctorContext) {
 		if a.Rung == 6 {
 			continue
 		}
-		if a.Rung == 5 && !snap.Patch.Exists && snap.Patch.Err == nil && !snap.Recipe.Exists && snap.Recipe.Err == nil {
-			continue
+		if a.Rung == 5 {
+			patch := coverageReadArtifact(slug, "post-apply.patch", snap.Patch)
+			recipe := coverageReadArtifact(slug, "apply-recipe.json", snap.Recipe)
+			if !patch.Present || !recipe.Present {
+				continue
+			}
 		}
 		plan := PlanDefaultRecord(ctx.store, *feature.Status, snap, time.Now().UTC(), inventory)
 		ctx.addFinding(DoctorFinding{CheckID: "D10", Code: a.Code, Severity: "warning",

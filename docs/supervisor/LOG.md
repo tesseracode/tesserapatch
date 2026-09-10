@@ -1,3 +1,29 @@
+## Validation Result — GH #15 S5 rev-1 owning suites — 2026-09-09
+
+**Checkpoint**: `de7c3ae`
+**State**: IN PROGRESS — steps 1-3a PASS; affected CLI stopped on four cases
+
+Targeted/gateway/golden families pass, as do full core suites (workflow
+107.172s). Affected CLI (74.258s) exposes two stale-dependency fixtures that
+edit recipes after recording without a producer checkpoint, an obsolete
+"D10 is unknown" fixture, and a real D10 cohort error: missing coverage was
+reported with only one of patch/recipe present. No vet/build or later stage
+ran. Every fresh command window held at 81-82% free, load1 <=5.
+
+Coordinator corrections: checkpoint edited dependency-test recipes through
+the real manual implement producer, preserving dependency/generation evidence;
+use an actually unknown doctor ID; restrict D10's absent-coverage cohort to
+both artifacts present without hiding present malformed/incomplete coverage.
+Keep the original one-warning doctor expectation and add explicit cohort
+controls instead of blessing the extra warning. No relaxed binding gate.
+
+The correction is authored/formatted. Dependency fixtures checkpoint the
+manual recipe and assert byte identity; their original stale-generation
+assertions remain. Unknown-check uses D999. D10 suppresses missing-C findings
+unless both P/R are readable, while present malformed C still reports.
+Runtime cohort cases cover neither/one/both, injected P/R read failures and
+malformed C without a pair. No revalidation yet.
+
 ## Validation Result — GH #15 S5 rev-1 targeted correction — 2026-09-09
 
 **Checkpoint**: `8d35559`

@@ -67,6 +67,13 @@ func writeStaleDepApplyRecipe(t *testing.T, tmpDir, childSlug, fileName string) 
 	if err := os.WriteFile(filepath.Join(artDir, "apply-recipe.json"), []byte(recipe), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if _, stderr, code := runCmdWithError("implement", "--manual", "--path", tmpDir, childSlug); code != 0 {
+		t.Fatalf("manual recipe checkpoint failed: %s", stderr)
+	}
+	checkpointed, err := os.ReadFile(filepath.Join(artDir, "apply-recipe.json"))
+	if err != nil || string(checkpointed) != recipe {
+		t.Fatalf("manual checkpoint changed the dependency fixture's recipe: %v", err)
+	}
 }
 
 func assertStaleDepDiagnostic(t *testing.T, stderr, parentSlug, currentParentGenerationID string) {

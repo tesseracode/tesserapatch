@@ -12,7 +12,65 @@ import (
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
+
+func TestRGAS5DoctorMissingCoverageRequiresReadablePair(t *testing.T) {
+	for _, tc := range []struct {
+		name                    string
+		patch, recipe, coverage bool
+		unreadable              string
+		want                    int
+	}{
+		{name: "neither"},
+		{name: "patch-only", patch: true},
+		{name: "recipe-only", recipe: true},
+		{name: "both", patch: true, recipe: true, want: 1},
+		{name: "patch-unreadable", patch: true, recipe: true, unreadable: "post-apply.patch"},
+		{name: "recipe-unreadable", patch: true, recipe: true, unreadable: "apply-recipe.json"},
+		{name: "malformed-coverage-without-pair", coverage: true, want: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := store.Init(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.AddFeature(store.AddFeatureInput{Title: "D10 cohort", Slug: "cohort"}); err != nil {
+				t.Fatal(err)
+			}
+			for name, present := range map[string]bool{
+				"post-apply.patch": tc.patch, "apply-recipe.json": tc.recipe, "recipe-coverage.json": tc.coverage,
+			} {
+				if present {
+					if err := s.WriteArtifact("cohort", name, "fixture bytes\n"); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			read := ReadRecipeArtifact
+			ReadRecipeArtifact = func(path string) RecipeArtifactRead {
+				if filepath.Base(path) == tc.unreadable {
+					return RecipeArtifactRead{Exists: true, Err: fs.ErrPermission}
+				}
+				return read(path)
+			}
+			t.Cleanup(func() { ReadRecipeArtifact = read })
+			report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D10"}})
+			if err != nil || len(report.Findings) != tc.want {
+				t.Fatalf("missing-coverage cohort: findings=%+v err=%v", report.Findings, err)
+			}
+			for _, finding := range report.Findings {
+				code := "recipe-coverage-missing"
+				if tc.coverage {
+					code = "recipe-coverage-malformed"
+				}
+				if finding.Code != code || finding.Severity != "warning" || finding.Fixable {
+					t.Fatalf("cohort filter hid or promoted explicit coverage evidence: %+v", finding)
+				}
+			}
+		})
+	}
+}
 
 func rgaS5ReadOnlyGitWrapper(t *testing.T) *gitWrapper {
 	t.Helper()

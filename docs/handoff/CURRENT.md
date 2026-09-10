@@ -4,6 +4,17 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 rev-1 full core PASS (2026-09-09)**: steps 1-3a pass, including workflow
+107.172s and the original gateway/budget guards. Affected CLI stops at two
+post-record recipe-edit fixtures, an obsolete unknown-D10 fixture and a
+real missing-coverage cohort bug. Coordinator owns the two CLI test files
+and doctor_d10.go/S5 doctor tests for this correction. No vet/build or later
+stage ran; fresh windows held at 81-82% free.
+Corrections are authored/formatted: real manual checkpoints preserve edited
+recipe bytes and stale-generation evidence; D999 remains unknown; D10's
+missing-C cohort requires both readable artifacts, with explicit negative
+and malformed-C positive controls. The original doctor warning count stays.
+
 **S5 rev-1 targeted run (2026-09-09)**: formatting and targeted patchobs/
 gitutil/workflow pass, including original gateway/budget regressions and
 new correction controls. CLI fails only old P1 failure-timing expectations:
@@ -4214,6 +4225,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Rev-1 retry `de7c3ae`: steps 1-2 PASS (patchobs 0.789s, gitutil 1.124s,
+  workflow 18.179s, CLI 39.077s). Full core PASS (patchobs 1.686s,
+  gitutil 8.309s, store 2.815s, workflow 107.172s). Affected CLI 74.258s
+  FAIL on four scoped cases; no vet/build/later stages. Every command had
+  a fresh minute at 81-82% free and load1 <=5.
 
 - Rev-1 `8d35559`: formatting PASS; targeted patchobs 0.878s/gitutil 1.144s/
   workflow 19.149s PASS including six-finding and gateway controls.

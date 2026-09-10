@@ -99,7 +99,7 @@ func TestDoctorCLIUnknownCheckFailsBeforeRun(t *testing.T) {
 	root := buildRootCmd()
 	root.SetOut(&out)
 	root.SetErr(&errOut)
-	root.SetArgs([]string{"--path", rootDir, "doctor", "--check", "D10"})
+	root.SetArgs([]string{"--path", rootDir, "doctor", "--check", "D999"})
 	err := root.Execute()
 	if err == nil {
 		t.Fatal("expected unknown check error")

@@ -1781,6 +1781,12 @@ Rev-1 targeted core/gateway/correction controls pass; CLI stops only on old
 P1 failure timing now superseded by the required pre-mutation gate. Update
 those expectations to demand unchanged artifacts and the exact early refusal;
 no production or safety-guard relaxation.
+The retry passes all targets and full core (workflow 107.172s), then affected
+CLI exposes two uncheckpointed edited-recipe fixtures, unknown-D10 input and
+a real D10 missing-coverage cohort error. Correct those without relaxing
+binding or accepting the extra warning; no vet/build/later stages ran.
+Those corrections are authored/formatted with real checkpoint and cohort
+controls; the original doctor warning expectation is preserved.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
