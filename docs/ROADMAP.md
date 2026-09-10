@@ -1777,6 +1777,10 @@ continues all six findings; no revalidation or closure is claimed.
 Consumer rev-1 is delivered for all six findings, with concrete regressions,
 and the worker stopped. Restart gated validation and independent re-review;
 implementation claims alone do not close findings.
+Rev-1 targeted core/gateway/correction controls pass; CLI stops only on old
+P1 failure timing now superseded by the required pre-mutation gate. Update
+those expectations to demand unchanged artifacts and the exact early refusal;
+no production or safety-guard relaxation.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

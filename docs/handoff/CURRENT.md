@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 rev-1 targeted run (2026-09-09)**: formatting and targeted patchobs/
+gitutil/workflow pass, including original gateway/budget regressions and
+new correction controls. CLI fails only old P1 failure-timing expectations:
+known invalid publication targets now correctly refuse before writes.
+Coordinator expectation fix requires exact refusal and unchanged artifacts;
+no production change. No later stage ran; both fresh gates held at 81% free.
+
 **S5 consumer rev-1 delivered (2026-09-09)**: all six correction scopes and
 their concrete regressions are authored/formatted. The worker stopped.
 Checkpoint, reset only the owned failure sentinel and restart gated
@@ -4207,6 +4214,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Rev-1 `8d35559`: formatting PASS; targeted patchobs 0.878s/gitutil 1.144s/
+  workflow 19.149s PASS including six-finding and gateway controls.
+  CLI 42.946s FAIL only P1/P1-noop old late-failure expectations.
+  Fresh windows at 81% free/load1 <=5; no later stage ran.
 
 - Consumer retry 3 `1b16550`: steps 1-2 PASS (patchobs 0.823s,
   gitutil 0.827s, workflow 14.239s, CLI 34.595s). Step 3 full patchobs

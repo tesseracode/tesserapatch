@@ -1,3 +1,21 @@
+## Validation Result — GH #15 S5 rev-1 targeted correction — 2026-09-09
+
+**Checkpoint**: `8d35559`
+**State**: IN PROGRESS — step 2 stopped only on old P1 failure timing expectations
+
+Formatting passes. Targeted patchobs 0.878s, gitutil 1.144s and workflow
+19.149s pass, including the reported invocation/offline/locale regressions
+and new six-finding controls. CLI 42.946s fails only its P1/P1-noop cases:
+the now-correct shared gate refuses a known directory target before mutation,
+not later as an atomic-rename failure. No later stage ran. Both command
+gates passed at 81% free memory, load1 <=5.
+
+The coordinator updates only those two cases to require the precise early
+refusal and byte-identical feature artifacts, retaining nonzero/no-status/
+no-success checks. Other producer rename failures and late publication order
+checks remain; shared API failure-boundary tests still cover P1 publication.
+No production behavior or guard threshold changes in this expectation fix.
+
 ## Validation Transition — GH #15 S5 consumer rev-1 delivered — 2026-09-09
 
 **Worker**: `51ca5679-7631-4492-ae58-7e0fead1b61e`

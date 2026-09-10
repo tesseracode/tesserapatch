@@ -404,16 +404,26 @@ func TestRGAS4CLIProducerPublicationFailuresAreNonzero(t *testing.T) {
 			if invoke == nil {
 				invoke = func() (string, string, int) { return runCmdWithError(args...) }
 			}
+			before := rgaS4FeatureBytes(t, root, slug)
 			stdout, stderr, code := invoke()
 			target := filepath.Join(artifacts, "recipe-coverage.json")
-			causeIndex := strings.Index(stderr, target+": ")
-			if code == 0 || !strings.Contains(stderr, "coverage publication failed") ||
-				!strings.Contains(stderr, "rename ") || causeIndex < 0 {
-				t.Fatalf("%s hid publication failure: code=%d stdout=%s stderr=%s", event, code, stdout, stderr)
-			}
-			cause := strings.SplitN(stderr[causeIndex+len(target)+2:], "\n", 2)[0]
-			if strings.TrimSpace(cause) == "" {
-				t.Fatalf("%s dropped the underlying rename failure: %s", event, stderr)
+			if event == "P1" || event == "P1-noop" {
+				if code == 0 || !strings.Contains(filepath.ToSlash(stderr), "record refuses: artifacts/recipe-coverage.json: publication artifact is a directory") {
+					t.Fatalf("%s hid the pre-mutation publication-path refusal: code=%d stdout=%s stderr=%s", event, code, stdout, stderr)
+				}
+				if !reflect.DeepEqual(before, rgaS4FeatureBytes(t, root, slug)) {
+					t.Fatal("known invalid publication target changed feature artifacts before refusal")
+				}
+			} else {
+				causeIndex := strings.Index(stderr, target+": ")
+				if code == 0 || !strings.Contains(stderr, "coverage publication failed") ||
+					!strings.Contains(stderr, "rename ") || causeIndex < 0 {
+					t.Fatalf("%s hid publication failure: code=%d stdout=%s stderr=%s", event, code, stdout, stderr)
+				}
+				cause := strings.SplitN(stderr[causeIndex+len(target)+2:], "\n", 2)[0]
+				if strings.TrimSpace(cause) == "" {
+					t.Fatalf("%s dropped the underlying rename failure: %s", event, stderr)
+				}
 			}
 			if strings.Contains(stdout+stderr, "recipe coverage:") {
 				t.Fatalf("%s reported status over failed publication: stdout=%s stderr=%s", event, stdout, stderr)
@@ -423,7 +433,7 @@ func TestRGAS4CLIProducerPublicationFailuresAreNonzero(t *testing.T) {
 					t.Fatalf("%s reported success over failed publication: %s", event, stdout)
 				}
 			}
-			if event == "P1" || event == "P1-noop" || event == "P2-write" || event == "P2-fixup" {
+			if event == "P2-write" || event == "P2-fixup" {
 				generation := loadPatchGenerationsForTest(t, root, slug)
 				if len(generation.Generations) == 0 {
 					t.Fatal("coverage failure happened before generation publication")
