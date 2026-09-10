@@ -1739,6 +1739,9 @@ Consumer scope now includes shared readonly record feasibility and pure
 autogen planning extraction, used by the producer and remediation alike.
 The first fresh worker stopped without edits for this approval; no guessed
 planner or mutating doctor path is authorized.
+The fresh consumer/planner worker is active; coordinator-owned golden
+scouting preserves the existing V8-driven compat-verify failure and row
+isolation. No consumer implementation result or new validation is claimed.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

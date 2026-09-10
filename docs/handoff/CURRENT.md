@@ -23,6 +23,19 @@ staged validation's temp index must never leak into doctor D10.
 The consumer worker's original scope remains; coordinator golden/tracking
 files and accepted D7 execution are untouched.
 
+Active worker: `51ca5679-7631-4492-ae58-7e0fead1b61e`
+(`s5-consumers-and-record-plan`). It owns the approved consumer/planner files;
+all older workers are stopped. It runs no Go validation or Git writes.
+
+Coordinator golden scouting: `compat-verify.txt` intentionally retains
+overall `failed` / exit 2 because its existing V8 forward check fails.
+A passing new coverage row must not turn that fixture green or alter its
+other rows/status/artifact bytes. The normal passing check's wire shape is
+only `id`, `severity`, `passed`; V7/V8/V10-only mode/provenance fields remain
+separate. Adapt the expected consumer delta only after actual output is
+delivered; preserve the existing foundation E projection and all frozen
+historical fixtures.
+
 **Remaining S5 consumers dispatched (2026-09-09)**: independent golden-delta
 review APPROVED `97ff4ff`; the foundation/ordered internal unit is accepted
 after steps 1-5. Remaining work is read-time content/binding reconstruction,

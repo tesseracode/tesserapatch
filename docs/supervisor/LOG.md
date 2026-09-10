@@ -25,6 +25,10 @@ Do not suggest lenient/force/collision overrides to evade failed gates.
 This implements Accepted ADR-041's producer-feasibility requirement; it adds
 no schema/policy change or new wave. Consumer implementation remains the
 same bounded S5 assignment, with coordinator golden/tracking ownership.
+Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` is active under that scope.
+Independent coordinator scouting confirmed the legacy compat-verify golden
+must retain its V8-driven failure even when the new coverage row passes;
+that constraint is preserved in CURRENT for the later expected delta.
 
 ## Review and Decision — GH #15 S5 internal foundation unit — 2026-09-09
 
