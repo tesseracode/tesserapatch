@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 foundation findings statically closed (2026-09-09)**: independent
+review confirms all reported foundation findings closed at `7a737a0`,
+including writer guards at `fbac9f0`. Targeted and full core suites pass;
+the exact expected golden delta still precedes affected CLI/vet/build
+completion. No foundation runtime or whole-S5 acceptance yet.
+
 **S5 owning core packages PASS; CLI golden delta pending (2026-09-09)**:
 all four full core suites pass, including workflow 98.559s. The affected
 CLI run stopped only on TestPreparePIBPreChangeGoldens, whose frozen expected
@@ -2808,6 +2814,13 @@ WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
 
+Independent review closed the binary-pair finding and confirmed all
+foundation findings closed. Runtime acceptance still waits for the exact
+golden delta and the remaining affected CLI/vet/build stages. The golden
+implementer remains active on its four test files only.
+
+### Earlier owning-package result summary (historical)
+
 Full owning packages pass under fresh gates. The affected CLI run's only
 failing family is the historical producer golden comparator. Its expected
 S5 stage must add the capture-event artifact and land staging path for the
@@ -3244,9 +3257,9 @@ coupled index family and all full core packages. Affected CLI validation
 requires the exact expected golden delta, and foundation confirmation remains;
 neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
 remain unimplemented.
-The evidence foundation's binary correction is authored and awaits static
-confirmation/revalidation. Writer guards are statically approved at
-`fbac9f0`; the ordered unit's separate static approval remains scoped.
+All evidence-foundation findings are statically closed at `7a737a0`.
+Writer guards are approved at `fbac9f0`; the ordered unit's separate static
+approval remains scoped. Runtime acceptance still needs the remaining stages.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 

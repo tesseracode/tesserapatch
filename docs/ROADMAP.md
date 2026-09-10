@@ -1718,6 +1718,9 @@ sensitivities; historical fixture bytes and S2/S4 projections stay unchanged.
 The golden worker is active. Read-only consumer scouting preserves the
 inventory/strict-grammar/zero-write reconstruction constraints in CURRENT;
 consumer implementation still waits for the foundation checkpoint.
+Independent review now confirms all foundation findings closed at `7a737a0`.
+The exact golden delta and remaining affected CLI/vet/build stages still
+precede runtime acceptance; this is not whole-S5 approval.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

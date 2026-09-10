@@ -1,3 +1,18 @@
+## Review — GH #15 S5 foundation finding closure — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Checkpoint**: `7a737a0` (writer guards at `fbac9f0`)
+**Verdict**: APPROVED — static finding closure only
+
+All previously reported foundation findings are closed. Binary grammar
+validation rejects the rehashed text counterexample, preserves observed
+gitlink precedence and does not infer text from absence of a marker.
+No Go commands were run by the reviewer.
+
+Targeted and full core suites pass separately. The exact expected golden
+delta still blocks completion of the affected CLI/vet/build stages; no
+foundation runtime or whole-S5 acceptance is declared yet.
+
 ## Validation Result — GH #15 S5 owning packages and golden delta — 2026-09-09
 
 **Code checkpoint**: `7a737a0` (tracking-only `9f8f3ae` followed)
