@@ -1,3 +1,19 @@
+## Validation Result — GH #15 S5 foundation/ordered unit steps 1-5 PASS — 2026-09-09
+
+**Code checkpoint**: `97ff4ff` (tracking-only `ed0e0b6` followed)
+**State**: IN PROGRESS — exact delta review pending before consumer dispatch
+
+The stable unit completes steps 1-5: targeted/index/actual-golden families
+pass; full core passes (patchobs 1.417s, gitutil 6.590s, store 2.778s,
+workflow 98.676s); affected CLI passes in 64.139s; vet and CLI build pass.
+Each top-level command had a fresh qualifying minute at 84-85% free memory,
+load1 <=5 and no active Go tools. No code changed during validation.
+
+Ordered-noop and foundation static findings are closed. Await the read-only
+golden-delta verdict, then accept this internal unit and dispatch remaining
+S5 readers/verify/execute/doctor work. This is not a wave close: full S5
+consumer integration, final 22-shard validation and explicit-base gate remain.
+
 ## Validation Result — GH #15 S5 live golden retry — 2026-09-09
 
 **Checkpoint**: `97ff4ff`

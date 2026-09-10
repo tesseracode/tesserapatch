@@ -1727,6 +1727,10 @@ review the delta; earlier projections and historical fixtures remain intact.
 The expanded targeted retry at `97ff4ff` now passes actual goldens plus
 S0-S5/index/provenance families under fresh gates. Remaining unit stages and
 independent delta review precede consumer integration.
+The internal unit now passes all steps 1-5, including full core (workflow
+98.676s), affected CLI (64.139s), vet/build and actual goldens. Await the
+independent delta verdict before consumer dispatch; final S5 shards/gate
+remain after that implementation.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

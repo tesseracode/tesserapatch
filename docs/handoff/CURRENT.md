@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 foundation/ordered unit steps 1-5 PASS (2026-09-09)**: actual goldens,
+targeted/index families, full core (workflow 98.676s), affected CLI (64.139s),
+vet and build all pass at unchanged code `97ff4ff`. Every command had a
+fresh qualifying 84-85%-free window. Await independent golden-delta review,
+then dispatch remaining S5 consumers. This is not whole-S5 acceptance or
+a wave close; final shards/gate remain after consumer implementation.
+
 **S5 live golden retry PASS (2026-09-09)**: steps 1-2 pass at `97ff4ff`,
 including actual producer/routing goldens, S0-S5 and ADR-index/provenance
 families. Fresh per-command gates held at 84-85% free. Continue owning
@@ -2818,7 +2825,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — live golden retry passes; remaining unit stages next
+- **Status**: In progress — internal unit steps 1-5 pass; delta review before consumers
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2826,6 +2833,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The foundation/ordered internal unit now passes all steps 1-5, including
+actual historical golden comparison, full core, affected CLI, vet and build.
+No code changed during validation and every command had its own qualifying
+window. Static findings are closed; the exact delta review is the remaining
+internal-unit prerequisite before S5 consumer dispatch.
+
+### Earlier live-golden result summary (historical)
 
 The expanded targeted retry now passes, including the previously failing
 actual producer goldens and all mutation/index/provenance families.
@@ -3279,12 +3294,10 @@ integration or shipped assets belong to this slice.
 ADR-041 is Accepted rev-1. The evidence foundation and all three caller
 closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
-guards now pass the corrected targeted retry in all four packages plus the
-coupled index family and all full core packages. Affected CLI validation
-now includes a passing targeted actual-golden retry; the remaining unit
-sequence and delta review still precede acceptance.
-neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
-remain unimplemented.
+guards pass the complete internal-unit steps 1-5: targeted/index/actual
+goldens, all full core packages, affected CLI, vet and build. Exact delta
+review still precedes internal-unit acceptance. Coverage read integration,
+D13/D17 and D10 remain unimplemented; full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -3966,6 +3979,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Internal-unit steps 1-5 PASS at code `97ff4ff`: full core patchobs 1.417s,
+  gitutil 6.590s, store 2.778s, workflow 98.676s; affected CLI 64.139s;
+  vet/build PASS. Earlier expanded targeted/actual-golden command passed.
+  Every command used a fresh minute at 84-85% free, load1 <=5, no Go tools.
+- Final S5 shards/gate have not run because consumer integration remains.
 
 - Golden retry `97ff4ff`: steps 1-2 PASS, including S0-S5, ADR-index,
   PreparePIB and actual routing/producer goldens. Patchobs 0.810s,
