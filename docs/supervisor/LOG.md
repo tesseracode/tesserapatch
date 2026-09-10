@@ -1,3 +1,26 @@
+## Operator Adjudication — GH #15 S5 independent capture evidence — 2026-09-09
+
+**Selection**: `independent-evidence`
+**State**: IN PROGRESS — amending ADR planning; runtime integration paused
+
+The operator chose to preserve D9's independent capture-binding promise by
+planning independent capture-event evidence and reopening the affected S4
+publication rules. This authorizes the architectural direction, not an
+unreviewed wire format or implementation.
+
+Draft ADR-041 and explicit ADR-036/PRD qualifications before further reader
+integration. Specify the evidence carrier, deterministic identity, trusted
+producer inputs, all seven event/no-event paths, P2's expanded checkpoint
+publication set, ordering/crash recovery, missing/stale evidence behavior,
+legacy compatibility and the exact S5/GH #13 binding boundary. Distinguish
+consistency evidence from authenticated provenance: copying self-description
+or trusting a label is not independent capture verification.
+Preserve ADR-039/040, D16 origin proof and no source-body persistence.
+Obtain independent review of the concrete contract before implementation.
+
+Partial runtime checkpoint `98bd801` is pushed and remains unvalidated.
+S6, GH #24 widening and GH #13 implementation remain outside scope.
+
 ## Implementation Blocker — GH #15 S5 capture-binding authority — 2026-09-09
 
 **State**: BLOCKED — operator contract adjudication required

@@ -2,7 +2,18 @@
 
 ## Status
 
-**Cluster state**: BLOCKED
+**Cluster state**: IN PROGRESS
+
+**S5 adjudication selected (2026-09-09)**: the operator chose
+`independent-evidence`: preserve D9's independent capture-binding promise
+by planning an independent capture-event carrier and reopening the affected
+S4 publication rules. Draft ADR-041 plus explicit ADR-036/PRD qualifications;
+the concrete schema/ordering/migration contract needs independent review
+before runtime integration resumes. Partial checkpoint `98bd801` is pushed
+and unvalidated. No implementation authority is inferred from the choice of
+direction alone; ADR-039/040 and D16 remain unchanged.
+
+### S5 blocker discovery (historical; policy direction selected)
 
 **S5 BLOCKED (2026-09-09)**: the D7/D14 classifier/accounting unit is authored
 but unvalidated. D9 capture-binding recomputation needs operator adjudication:
@@ -2555,7 +2566,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — D9 capture authority adjudication; partial D7/D14 unit unvalidated
+- **Status**: In progress — planning independent capture evidence; runtime integration paused
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2563,6 +2574,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The operator selected `independent-evidence` for the D9 blocker. Plan a
+concrete amending ADR, including the affected S4 publication/checkpoint
+rules, then independently review it before resuming the reader.
+The partial runtime unit and blocker record are pushed at `98bd801`.
+
+### S5 blocker discovery summary (historical)
 
 The runtime worker delivered exact-postimage precheck/no-write accounting and
 matching anchored-verify recognition with focused mutation/read-error fixtures,
@@ -2828,9 +2846,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5 is blocked on D9 capture authority. The partial D7/D14 implementation and
-independent contract controls are authored but not Go-validated or approved.
-The worker is idle; the coverage reader, D13/D17 and D10 remain unimplemented.
+S5 is planning independent capture-event evidence, as selected by the
+operator. Concrete contract approval is still required. The partial D7/D14
+implementation and independent contract controls are authored but not
+Go-validated or approved. The runtime worker is idle; the coverage reader,
+D13/D17 and D10 remain unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
@@ -9373,8 +9393,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Obtain operator adjudication of D9 capture authority; record an amending
-   ADR and explicit contract qualifications before resuming the reader.
+1. Draft and independently review ADR-041 for the selected independent
+   capture-evidence direction, with explicit ADR-036/PRD qualifications.
 2. Resume worker `f88dc13c-d461-45f8-a583-b2a9eb806188` after that decision,
    including the same-target accounting review and auto preflight placement.
 3. Checkpoint implementation, run serial gated validation and independent
@@ -9382,9 +9402,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- S5 D9 blocker: no independent current capture-event descriptor survives all
-  accepted same-patch/checkpoint producer outcomes. Do not compare blindly
-  against an old generation or accept a copied self-description as proof.
+- The operator selected independent capture evidence; the concrete carrier,
+  publication/recovery and binding contract is not yet authored or approved.
+  Runtime integration stays paused until that amendment is accepted.
 - The partial unit is not validated; implementation and review remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.

@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 BLOCKED — 2026-09-09**.
+**S5 🚧 IN PROGRESS — contract amendment — 2026-09-09**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1638,6 +1638,10 @@ Operator adjudication is required; no weaker binding rule or new marker
 was invented. The reader/verify row/D17/doctor remain unimplemented and
 no S5 Go validation has run. Auto-mode preflight placement is authorized as
 a normal no-writes-on-refusal closure, not a separate policy change.
+The operator selected `independent-evidence`: plan ADR-041 and reopen only
+the S4 publication rules needed for independent capture-event evidence.
+Concrete schema/ordering/migration approval precedes runtime resumption;
+the selected direction is not itself acceptance of an implementation.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
