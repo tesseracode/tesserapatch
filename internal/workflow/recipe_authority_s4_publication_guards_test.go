@@ -959,6 +959,9 @@ func rgaS4ImplementPublicationOrder(src string) error {
 		return fmt.Errorf("P6 final return missing")
 	}
 	joined, ok := last.Results[0].(*ast.CallExpr)
+	if ok && rgaS0CallName(joined) == "ReportCoverageStatus" && len(joined.Args) == 3 {
+		joined, ok = joined.Args[2].(*ast.CallExpr)
+	}
 	if !ok || rgaS0CallName(joined) != "errors.Join" || len(joined.Args) != 3 {
 		return fmt.Errorf("P6 must preserve both primary and publication errors")
 	}
@@ -1006,13 +1009,13 @@ func TestRGAS4ImplementFinalizerOrderAndSensitivity(t *testing.T) {
 		},
 		{
 			"publication-failure-discarded",
-			`return errors.Join(stateErr, provenanceErr, coverageErr)`,
+			`return ReportCoverageStatus(nil, coverage, errors.Join(stateErr, provenanceErr, coverageErr))`,
 			`return stateErr`,
 		},
 		{
 			"reversed-error-precedence",
-			`return errors.Join(stateErr, provenanceErr, coverageErr)`,
-			`return errors.Join(coverageErr, provenanceErr, stateErr)`,
+			`errors.Join(stateErr, provenanceErr, coverageErr)`,
+			`errors.Join(coverageErr, provenanceErr, stateErr)`,
 		},
 		{
 			"valid-arm-returns-before-common-finalizer",
@@ -1196,28 +1199,56 @@ func rgaS4CoverageCompletionCalls(src string) error {
 					refusal = fmt.Errorf("%s discards the published record or failure", fn.Name.Name)
 					continue
 				}
-				var completion *ast.AssignStmt
+				var result ast.Expr
+				propagated := false
 				switch next := block.List[index+1].(type) {
 				case *ast.AssignStmt:
-					completion = next
+					if len(next.Lhs) == 1 && len(next.Rhs) == 1 {
+						result = next.Rhs[0]
+						if returned, ok := next.Lhs[0].(*ast.Ident); ok {
+							propagated = returned.Name == cause.Name
+							if fn.Type.Results != nil {
+								for _, field := range fn.Type.Results.List {
+									for _, name := range field.Names {
+										propagated = propagated || returned.Name == name.Name
+									}
+								}
+							}
+						}
+					}
 				case *ast.IfStmt:
-					completion, _ = next.Init.(*ast.AssignStmt)
+					if completion, ok := next.Init.(*ast.AssignStmt); ok && len(completion.Lhs) == 1 && len(completion.Rhs) == 1 {
+						result = completion.Rhs[0]
+						returned, ok := completion.Lhs[0].(*ast.Ident)
+						propagated = ok && returned.Name == cause.Name
+					}
+				case *ast.ReturnStmt:
+					if len(next.Results) == 1 {
+						result, propagated = next.Results[0], true
+					}
 				}
-				if completion == nil || len(completion.Rhs) != 1 || len(completion.Lhs) != 1 {
+				if result == nil || !propagated {
 					refusal = fmt.Errorf("%s has conditional or missing common reporting", fn.Name.Name)
 					continue
 				}
-				report, ok := completion.Rhs[0].(*ast.CallExpr)
+				report, ok := result.(*ast.CallExpr)
 				if !ok || (rgaS0CallName(report) != "ReportCoverageStatus" && !strings.HasSuffix(rgaS0CallName(report), ".ReportCoverageStatus")) ||
 					len(report.Args) != 3 {
 					refusal = fmt.Errorf("%s bypasses the common coverage reporter", fn.Name.Name)
 					continue
 				}
 				value, valueOK := report.Args[1].(*ast.Ident)
-				failure, failureOK := report.Args[2].(*ast.Ident)
-				returned, returnedOK := completion.Lhs[0].(*ast.Ident)
-				if !valueOK || !failureOK || !returnedOK || value.Name != record.Name ||
-					failure.Name != cause.Name || returned.Name != cause.Name {
+				failureExpr := report.Args[2]
+				joined := false
+				if call, ok := failureExpr.(*ast.CallExpr); ok && rgaS0CallName(call) == "errors.Join" && len(call.Args) >= 2 {
+					failureExpr = call.Args[len(call.Args)-1]
+					joined = true
+				}
+				failure, failureOK := failureExpr.(*ast.Ident)
+				needsPrimary := fn.Name.Name == "RunImplement" || fn.Name.Name == "RefreshAfterAccept" ||
+					fn.Name.Name == "runEditWithObservation" || fn.Name.Name == "coverageFinalizer"
+				if !valueOK || !failureOK || value.Name != record.Name || failure.Name != cause.Name ||
+					(needsPrimary && !joined) {
 					refusal = fmt.Errorf("%s reports a different record or drops its failure", fn.Name.Name)
 					continue
 				}
@@ -1231,6 +1262,17 @@ func rgaS4CoverageCompletionCalls(src string) error {
 		if publications != completions {
 			return fmt.Errorf("%s does not report every publication through the common completion", fn.Name.Name)
 		}
+		primaryCauses := map[string][]string{
+			"RunImplement":           {"stateErr", "provenanceErr", "coverageErr"},
+			"RefreshAfterAccept":     {"retErr", "coverageErr"},
+			"runEditWithObservation": {"editErr", "observationErr", "coverageErr"},
+			"coverageFinalizer":      {"primary", "err"},
+		}[fn.Name.Name]
+		if publications > 0 && len(primaryCauses) > 0 {
+			if err := rgaS5CallerClosureSource(src, fn.Name.Name, primaryCauses); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -1242,13 +1284,17 @@ func TestRGAS4CoverageCompletionGuardAndSensitivity(t *testing.T) {
 		}
 	}
 	src := rgaS0ReadRepoFile(t, "internal/cli/producer_observation.go")
-	line := "err = workflow.ReportCoverageStatus(statusWriter, coverage, err)"
+	line := "return workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(primary, err))"
 	for _, tc := range []struct{ name, old, replacement string }{
 		{"discarded-result", "coverage, err := workflow.PublishCoverage", "_, err := workflow.PublishCoverage"},
 		{"missing-report", line, "_ = coverage"},
 		{"generated-only-report", line, "if in.Autogen != nil && in.Autogen.Action == workflow.AutogenGenerated { " + line + " }"},
-		{"wrong-record", line, "err = workflow.ReportCoverageStatus(statusWriter, previousCoverage, err)"},
-		{"dropped-publication-failure", line, "err = workflow.ReportCoverageStatus(statusWriter, coverage, nil)"},
+		{"wrong-record", line, "return workflow.ReportCoverageStatus(statusWriter, previousCoverage, errors.Join(primary, err))"},
+		{"dropped-publication-failure", line, "return workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(primary, nil))"},
+		{"dropped-primary-failure", line, "return workflow.ReportCoverageStatus(statusWriter, coverage, err)"},
+		{"nil-primary-failure", line, "return workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(nil, err))"},
+		{"reversed-primary-failure", line, "return workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(err, primary))"},
+		{"discarded-reporting-result", line, "workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(primary, err))"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			mutated := strings.Replace(src, tc.old, tc.replacement, 1)

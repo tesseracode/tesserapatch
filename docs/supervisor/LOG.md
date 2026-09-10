@@ -1,3 +1,21 @@
+## Validation Transition — GH #15 S5 foundation and ordered unit — 2026-09-09
+
+**State**: IN PROGRESS — first Go validation sequence pending
+
+The foundation worker delivered c1/implement/refresh caller closures and
+their real primary-error/status and wiring mutation fixtures, then stopped
+editing. The coordinator retargeted the existing completion guards to direct
+returns/deferred named-error assignment with primary errors joined before
+reporting, reusing the actual S5 caller validator and retaining dropped/
+reversed/nil-error controls.
+
+Checkpoint the stable combined unit and start fresh per-command resource
+gates: formatting, targeted S0-S5, affected packages, vet and build, stopping
+at the first failure. No other agent may edit while validation runs.
+Full slice shards/wave-close wait for the still-unimplemented S5 consumers.
+The ordered unit has static approval; the completed evidence foundation
+still needs independent implementation review. No Go result is claimed yet.
+
 ## Review and Decision — GH #15 S5 ordered no-op rev-1 — 2026-09-09
 
 **Reviewer**: `s5-ordered-noop-rev1-review`

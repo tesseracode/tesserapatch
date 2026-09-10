@@ -142,7 +142,9 @@ func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path strin
 	if observed {
 		before = patchobs.SnapshotArtifact(path)
 		companion = patchobs.SnapshotArtifact(filepath.Join(featureDirPath(s, slug), "artifacts", "post-apply.patch"))
-		publication = workflow.ObserveCoveragePublication(s, patchobs.Observation{Slug: slug, PatchSHA256: companion.SHA256})
+		publication = workflow.ObserveCoveragePublication(s, patchobs.Observation{
+			Producer: patchobs.ProducerEdit, RepoRoot: s.Root, Slug: slug,
+		})
 	}
 	editErr := openInEditor(cmd.OutOrStdout(), path)
 	if !observed {
@@ -169,8 +171,7 @@ func runEditWithObservation(cmd *cobra.Command, s *store.Store, slug, path strin
 		}
 		patchobs.Emit(publication.Observation)
 		coverage, coverageErr := workflow.PublishCoverage(s, publication)
-		coverageErr = workflow.ReportCoverageStatus(cmd.ErrOrStderr(), coverage, coverageErr)
-		return errors.Join(editErr, observationErr, coverageErr)
+		return workflow.ReportCoverageStatus(cmd.ErrOrStderr(), coverage, errors.Join(editErr, observationErr, coverageErr))
 	}
 	return editErr
 }

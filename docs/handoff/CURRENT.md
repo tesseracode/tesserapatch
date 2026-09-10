@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 unit validation starting (2026-09-09)**: all foundation caller closures
+and ordered no-op corrections are delivered. The worker has stopped editing.
+Completion guards now admit the actual joined-error return/deferred shapes
+while preserving failure/order sensitivities. Checkpoint this stable unit,
+then run gated formatting, targeted S0-S5, affected packages, vet/build;
+stop at first failure. Full slice shards/close await consumer implementation.
+No Go validation result is claimed yet.
+
 **S5 ordered no-op rev-1 static review APPROVED (2026-09-09)**: all three
 findings are closed. ADR-042's clarification is accepted/indexed with primary
 pointers and the exact coupled index pin. This is not runtime acceptance:
@@ -2682,7 +2690,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — ordered unit statically approved; evidence closure before validation
+- **Status**: In progress — stable foundation/ordered unit entering gated validation
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2690,6 +2698,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Foundation caller closures are delivered, including P7 pre-editor frozen
+context and primary-aware reporting for P3/P6/P7. The worker is idle and
+stopped editing. Coordinator completion guards recognize the actual direct-
+return/deferred joined-error forms and retain failure/ordering mutations.
+The stable combined unit is checkpointed before the first gated Go sequence.
+
+### Earlier S5 static-review summary (historical)
 
 Independent ordered no-op rev-1 review is APPROVED with no significant issue.
 ADR-042 is accepted as a clarification, preserving large-file exact no-ops
@@ -3042,8 +3058,8 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
-three caller closures. The ordered no-op rev-1 correction is independently
+ADR-041 is Accepted rev-1. The evidence foundation and all three caller
+closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
 guards are not yet Go-validated or runtime-accepted. Coverage read integration,
 D13/D17 and D10 remain unimplemented.
@@ -3133,6 +3149,9 @@ remains blocked until that release is implemented, soaked and shipped.
   `recipe_authority_s5_capture_publish_test.go`,
   `recipe_authority_s0_source_guards_test.go`,
   `internal/cli/producer_observation.go`.
+- Foundation caller closures: `internal/cli/c1.go`,
+  `internal/workflow/implement.go`, `refresh.go`, with regression additions
+  in `recipe_authority_s5_capture_publish_test.go`.
 - Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:
@@ -3715,6 +3734,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- First S5 unit validation sequence is starting; no Go result yet. All
+  implementation workers are stopped. Every command needs its own fresh
+  60-second qualifying window and the sequence stops at its first failure.
 
 - S5: no Go validation run. Readiness confirms clean/pushed `537ffd9` and
   terminal CI 34368468175 green on all required platform/observer jobs.
@@ -9606,11 +9629,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Finish the evidence caller closures and separate bounded ordered no-op
-   proof under the current file-disjoint ownership at the top of this file.
-   Ordered rev-1 is statically approved; receive/pause the foundation worker before
-   running the serial resource-gated validation sequence.
-2. Checkpoint and validate/review the delivered units, then resume S5
+1. Run the stable unit's serial resource-gated validation (formatting,
+   targeted S0-S5, affected packages, vet/build), stopping at first failure.
+2. Independently review the completed evidence foundation; then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.

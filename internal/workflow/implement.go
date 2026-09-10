@@ -269,8 +269,7 @@ Output ONLY valid JSON: {"feature": "<slug>", "operations": [...]}`
 		Present: true, Bytes: observation.ArtifactAfter.Bytes, Path: observation.ArtifactAfter.Path,
 	}
 	coverage, coverageErr := PublishCoverage(s, publication)
-	coverageErr = ReportCoverageStatus(nil, coverage, coverageErr)
-	return errors.Join(stateErr, provenanceErr, coverageErr)
+	return ReportCoverageStatus(nil, coverage, errors.Join(stateErr, provenanceErr, coverageErr))
 }
 
 // ObserveImplementCheckpoint is P6's immutable observation (ADR-036 D2,

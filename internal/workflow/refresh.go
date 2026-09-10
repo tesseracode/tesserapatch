@@ -128,8 +128,7 @@ func RefreshAfterAccept(s *store.Store, slug, upstreamCommit, originalPatch stri
 	publication.Events.PatchRewritten = true
 	defer func() {
 		coverage, coverageErr := PublishCoverage(s, publication)
-		coverageErr = ReportCoverageStatus(nil, coverage, coverageErr)
-		retErr = errors.Join(retErr, coverageErr)
+		retErr = ReportCoverageStatus(nil, coverage, errors.Join(retErr, coverageErr))
 	}()
 
 	// Audit snapshot into patches/. The label "reconcile" matches the

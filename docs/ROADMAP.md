@@ -1676,6 +1676,9 @@ regression functions. Validation and independent confirmation remain pending.
 Independent ordered rev-1 correction review is now APPROVED. ADR-042 is
 accepted/indexed with primary pointers; runtime validation is still pending
 alongside the evidence caller closures. No S5 completion is claimed.
+All foundation caller closures are now delivered and the worker stopped.
+The stable combined unit enters gated formatting/targeted/affected/vet/build
+validation; full slice shards/close wait for consumer integration.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

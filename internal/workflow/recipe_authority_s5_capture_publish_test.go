@@ -2,8 +2,11 @@ package workflow
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"go/ast"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
+	"github.com/tesseracode/tesserapatch/internal/provider"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -413,5 +417,300 @@ func TestRGAS5ObservationAndSameByteFailureDoNotClaimNewEvent(t *testing.T) {
 	rgaS5ReadPublishedPair(t, s, "s3")
 	if after = snapshotTreeForRefresh(t, featureDir); !reflect.DeepEqual(before, after) {
 		t.Fatal("pre-E interruption modified the previous coherent pair")
+	}
+}
+
+func TestRGAS5ImplementPrimaryErrorsSuppressPairStatus(t *testing.T) {
+	for _, raw := range []bool{false, true} {
+		for _, failure := range []string{"", "state", "provenance", "state+event", "state+coverage"} {
+			t.Run(fmt.Sprintf("raw=%v/%s", raw, failure), func(t *testing.T) {
+				s, _, slug := s1ImplementFixture(t)
+				if raw {
+					previous := implementRecipeContentHook
+					implementRecipeContentHook = func(string) string { return "undecodable provider response\n" }
+					t.Cleanup(func() { implementRecipeContentHook = previous })
+				}
+				feature := filepath.Join(s.TpatchDir(), "features", slug)
+				for _, part := range strings.Split(failure, "+") {
+					var path string
+					switch part {
+					case "state":
+						path = filepath.Join(feature, "status.json")
+						if err := os.Remove(path); err != nil {
+							t.Fatal(err)
+						}
+					case "provenance":
+						path = filepath.Join(feature, "artifacts", "recipe-provenance.json")
+					case "event":
+						path = filepath.Join(feature, "artifacts", "recipe-capture-event.json")
+					case "coverage":
+						path = filepath.Join(feature, "artifacts", "recipe-coverage.json")
+					}
+					if path != "" {
+						if err := os.Mkdir(path, 0o755); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				output, err := rgaS4CaptureCoverageStderr(t, func() error {
+					return RunImplement(context.Background(), s, slug, nil, provider.Config{})
+				})
+				if (err != nil) != (failure != "") {
+					t.Fatalf("primary/publication outcome changed: %v", err)
+				}
+				statusLines := strings.Count(output, "recipe coverage:")
+				if (failure == "" && statusLines != 1) || (failure != "" && statusLines != 0) {
+					t.Fatalf("completion status ignored the enclosing result: %q error=%v", output, err)
+				}
+				pairFailure := strings.Contains(failure, "+")
+				if errors.Is(err, ErrCoveragePublication) != pairFailure {
+					t.Fatalf("publication sentinel was swallowed or manufactured: %v", err)
+				}
+				if strings.Contains(failure, "state") {
+					var cause *os.PathError
+					if !errors.As(err, &cause) || !strings.Contains(cause.Path, "status.json") {
+						t.Fatalf("primary state read cause was lost: %v", err)
+					}
+				}
+				switch failure {
+				case "state+event", "state+coverage":
+					artifact := "recipe-capture-event.json"
+					if failure == "state+coverage" {
+						artifact = "recipe-coverage.json"
+					}
+					primary := strings.Index(err.Error(), "status.json")
+					secondary := strings.Index(err.Error(), artifact)
+					if primary < 0 || secondary <= primary {
+						t.Fatalf("primary cause must precede publication cause: %v", err)
+					}
+					if failure == "state+event" {
+						if _, readErr := s.ReadFeatureFile(slug, "artifacts/recipe-coverage.json"); !os.IsNotExist(readErr) {
+							t.Fatal("E failure did not prevent C publication")
+						}
+					} else {
+						event, readErr := s.ReadFeatureFile(slug, "artifacts/recipe-capture-event.json")
+						if readErr != nil {
+							t.Fatal(readErr)
+						}
+						if _, decodeErr := DecodeRecipeCaptureEvent([]byte(event)); decodeErr != nil {
+							t.Fatal("state/C failure did not retain whole E")
+						}
+					}
+				default:
+					e, c := rgaS5ReadPublishedPair(t, s, slug)
+					coverage, decodeErr := DecodeRecipeCoverage(c)
+					if decodeErr != nil || e.Capture.Mode != patchobs.CaptureModeNoCapture ||
+						!e.RecipePresent || coverage.RecipeDecodable == raw {
+						t.Fatalf("primary error cancelled the owed truthful P6 pair: %+v %v", coverage, decodeErr)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestRGAS5RefreshPrimaryErrorsSuppressPairStatus(t *testing.T) {
+	for _, boundary := range []string{"", "recipe-capture-event.json", "recipe-coverage.json"} {
+		t.Run(boundary, func(t *testing.T) {
+			s, in := rgaS5DurablePublicationFixture(t)
+			feature := filepath.Join(s.TpatchDir(), "features", "s3")
+			patches := filepath.Join(feature, "patches")
+			if err := os.Remove(patches); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(patches, []byte("block the numbered audit write"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if boundary != "" {
+				if err := os.Mkdir(filepath.Join(feature, "artifacts", boundary), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			output, err := rgaS4CaptureCoverageStderr(t, func() error {
+				return RefreshAfterAccept(s, "s3", in.Observation.Reference.Commit, string(in.Observation.PatchBytes))
+			})
+			if err == nil || !strings.Contains(err.Error(), "write numbered reconcile patch") {
+				t.Fatalf("fixture did not reach the primary post-patch failure: %v", err)
+			}
+			if strings.Contains(output, "recipe coverage:") {
+				t.Fatalf("failed refresh reported successful completion: %q", output)
+			}
+			var primary *os.PathError
+			if !errors.As(err, &primary) || primary.Path != patches {
+				t.Fatalf("the underlying primary audit-write cause was lost: %v", err)
+			}
+			if boundary == "" {
+				e, _ := rgaS5ReadPublishedPair(t, s, "s3")
+				if !e.Event.PatchRewritten || e.Capture.Mode != patchobs.CaptureModeReconcile {
+					t.Fatal("primary audit error cancelled the owed P3 event")
+				}
+			} else {
+				if !errors.Is(err, ErrCoveragePublication) ||
+					strings.Index(err.Error(), boundary) <= strings.Index(err.Error(), "write numbered reconcile patch") {
+					t.Fatalf("primary/publication failures were not chained in order: %v", err)
+				}
+				if boundary == "recipe-capture-event.json" {
+					if _, readErr := s.ReadFeatureFile("s3", "artifacts/recipe-coverage.json"); !os.IsNotExist(readErr) {
+						t.Fatal("E failure did not prevent C publication after primary failure")
+					}
+				}
+			}
+		})
+	}
+}
+
+func rgaS5CallerClosureSource(src, function string, causes []string) error {
+	file, err := rgaS0Parse(function, src)
+	if err != nil {
+		return err
+	}
+	fn := rgaS0FuncBody(file, function)
+	if fn == nil {
+		return fmt.Errorf("caller %s is missing", function)
+	}
+	var reports, observations, editors []*ast.CallExpr
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		switch strings.TrimPrefix(rgaS0CallName(call), "workflow.") {
+		case "ReportCoverageStatus":
+			reports = append(reports, call)
+		case "ObserveCoveragePublication":
+			observations = append(observations, call)
+		case "openInEditor":
+			editors = append(editors, call)
+		}
+		return true
+	})
+	if len(reports) != 1 || len(reports[0].Args) != 3 {
+		return fmt.Errorf("caller needs exactly one three-argument status reporter")
+	}
+	report := reports[0]
+	join, ok := report.Args[2].(*ast.CallExpr)
+	if !ok || rgaS0CallName(join) != "errors.Join" || len(join.Args) != len(causes) {
+		return fmt.Errorf("status reporter must receive the combined primary/publication result")
+	}
+	for i, cause := range causes {
+		id, ok := join.Args[i].(*ast.Ident)
+		if !ok || id.Name != cause {
+			return fmt.Errorf("cause %d must be %s", i, cause)
+		}
+	}
+	propagates := false
+	if function == "RefreshAfterAccept" {
+		ast.Inspect(fn.Body, func(node ast.Node) bool {
+			deferred, ok := node.(*ast.DeferStmt)
+			if !ok {
+				return true
+			}
+			ast.Inspect(deferred.Call, func(node ast.Node) bool {
+				assign, ok := node.(*ast.AssignStmt)
+				if ok && len(assign.Lhs) == 1 && len(assign.Rhs) == 1 && assign.Rhs[0] == report {
+					id, ok := assign.Lhs[0].(*ast.Ident)
+					propagates = ok && id.Name == "retErr"
+				}
+				return true
+			})
+			return false
+		})
+	} else {
+		ast.Inspect(fn.Body, func(node ast.Node) bool {
+			ret, ok := node.(*ast.ReturnStmt)
+			propagates = propagates || (ok && len(ret.Results) == 1 && ret.Results[0] == report)
+			return true
+		})
+	}
+	if !propagates {
+		return fmt.Errorf("caller discards the combined reporting result")
+	}
+	if function != "runEditWithObservation" {
+		return nil
+	}
+	if len(observations) != 1 || len(editors) != 1 || observations[0].Pos() >= editors[0].Pos() ||
+		len(observations[0].Args) != 2 {
+		return fmt.Errorf("P7 must freeze its context before invoking the editor")
+	}
+	identity, ok := observations[0].Args[1].(*ast.CompositeLit)
+	if !ok {
+		return fmt.Errorf("P7 requires an explicit observation identity")
+	}
+	fields := map[string]ast.Expr{}
+	for _, entry := range identity.Elts {
+		keyValue, ok := entry.(*ast.KeyValueExpr)
+		if !ok {
+			return fmt.Errorf("P7 identity must use named fields")
+		}
+		key, ok := keyValue.Key.(*ast.Ident)
+		if !ok {
+			return fmt.Errorf("P7 identity key is not a field")
+		}
+		fields[key.Name] = keyValue.Value
+	}
+	for field, want := range map[string]string{"Producer": "patchobs.ProducerEdit", "RepoRoot": "s.Root"} {
+		selector, ok := fields[field].(*ast.SelectorExpr)
+		if !ok {
+			return fmt.Errorf("P7 identity lacks %s", field)
+		}
+		base, ok := selector.X.(*ast.Ident)
+		if !ok || base.Name+"."+selector.Sel.Name != want {
+			return fmt.Errorf("P7 identity has the wrong %s", field)
+		}
+	}
+	slug, ok := fields["Slug"].(*ast.Ident)
+	if !ok || slug.Name != "slug" {
+		return fmt.Errorf("P7 identity must retain the requested slug")
+	}
+	return nil
+}
+
+func TestRGAS5PrimaryAwareCallerWiringAndMutations(t *testing.T) {
+	for _, caller := range []struct {
+		path, function string
+		causes         []string
+	}{
+		{"internal/cli/c1.go", "runEditWithObservation", []string{"editErr", "observationErr", "coverageErr"}},
+		{"internal/workflow/implement.go", "RunImplement", []string{"stateErr", "provenanceErr", "coverageErr"}},
+		{"internal/workflow/refresh.go", "RefreshAfterAccept", []string{"retErr", "coverageErr"}},
+	} {
+		t.Run(caller.function, func(t *testing.T) {
+			src := rgaS0ReadRepoFile(t, caller.path)
+			validate := func(source string) error { return rgaS5CallerClosureSource(source, caller.function, caller.causes) }
+			if err := validate(src); err != nil {
+				t.Fatal(err)
+			}
+			joined := "errors.Join(" + strings.Join(caller.causes, ", ") + ")"
+			reversed := slices.Clone(caller.causes)
+			slices.Reverse(reversed)
+			for name, bad := range map[string]string{
+				"primary-ignored-by-status": strings.Replace(src, joined, "coverageErr", 1),
+				"primary-after-publication": strings.Replace(src, joined, "errors.Join("+strings.Join(reversed, ", ")+")", 1),
+			} {
+				t.Run(name, func(t *testing.T) {
+					if bad == src || validate(bad) == nil {
+						t.Fatal("the actual caller-wiring validator accepted its wrong-input mutation")
+					}
+				})
+			}
+			if caller.function == "runEditWithObservation" {
+				bad := strings.Replace(src, "Producer: patchobs.ProducerEdit", "Producer: patchobs.ProducerRecord", 1)
+				if bad == src || validate(bad) == nil {
+					t.Fatal("P7 caller could bypass pre-editor reference validation")
+				}
+				start := strings.Index(src, "\tif observed {\n")
+				editor := strings.Index(src, "\teditErr := openInEditor")
+				if start < 0 || editor <= start {
+					t.Fatal("could not locate the actual pre-editor observation block")
+				}
+				block := src[start:editor]
+				without := src[:start] + src[editor:]
+				end := start + strings.Index(without[start:], "\n") + 1
+				late := without[:end] + block + without[end:]
+				if validate(late) == nil {
+					t.Fatal("P7 caller validator accepted reference reconstruction after the editor")
+				}
+			}
+		})
 	}
 }
