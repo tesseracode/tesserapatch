@@ -310,8 +310,8 @@ func TestACL113_SchemaIsAdditiveSuperset(t *testing.T) {
 		}
 	}
 	checks, ok := m["checks"].([]any)
-	if !ok || len(checks) != 11 {
-		t.Fatalf("checks is not an 11-entry array")
+	if !ok || len(checks) != 12 {
+		t.Fatalf("checks is not a 12-entry array")
 	}
 	row, _ := checks[0].(map[string]any)
 	for _, key := range []string{"id", "severity", "passed"} {

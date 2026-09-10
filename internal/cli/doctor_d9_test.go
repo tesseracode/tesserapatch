@@ -95,7 +95,7 @@ func TestDoctorCLID9HelpAndDefaultRegistryCount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Summary.ChecksRun != 9 || len(report.Checks) != 9 || report.Checks[8].CheckID != "D9" {
+	if report.Summary.ChecksRun != 10 || len(report.Checks) != 10 || report.Checks[8].CheckID != "D9" || report.Checks[9].CheckID != "D10" {
 		t.Fatalf("default doctor registry = %#v", report.Checks)
 	}
 }

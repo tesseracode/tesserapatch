@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer validation ready (2026-09-09)**: coordinator counts and the
+isolated expected verify-row delta are authored/formatted. The delta preserves
+all original rows, V8 failure/exit 2 and artifact bytes, with exact comparator
+mutations. Checkpoint and restart the gated sequence. Independent consumer
+review `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` is read-only at `95be8dd`;
+all implementation workers stopped. No consumer Go result yet.
+
 **S5 consumer draft delivered (2026-09-09)**: the scoped reader/reconstruction,
 verify/apply/doctor behavior and shared readonly record planner are authored.
 Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` stopped editing; only formatting
@@ -2921,7 +2928,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — consumer draft delivered; test deltas and validation/review next
+- **Status**: In progress — full consumer draft entering gated validation/review
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2929,6 +2936,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Coordinator legacy counts and the separate expected compat-verify row are
+authored/formatted. Original row IDs, V8 failure/exit 2 and artifact bytes stay
+exact; negative controls use the final comparator. All workers stopped before
+the first consumer validation run, with independent review on immutable code.
+
+### Earlier consumer delivery summary (historical)
 
 The consumer worker delivered the complete scoped draft and stopped.
 Immutable C/E/P/R/marker snapshots, readonly reconstruction, the verify row,
@@ -4108,6 +4122,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Consumer draft `95be8dd` and coordinator row/count deltas have not yet run
+  Go validation. The passing foundation-unit results below are prerequisites,
+  not proof of the newly authored consumers.
 
 - Internal-unit steps 1-5 PASS at code `97ff4ff`: full core patchobs 1.417s,
   gitutil 6.590s, store 2.778s, workflow 98.676s; affected CLI 64.139s;

@@ -1,3 +1,22 @@
+## Validation Transition — GH #15 S5 full consumer draft — 2026-09-09
+
+**Runtime checkpoint**: `95be8dd`
+**State**: IN PROGRESS — coordinator deltas authored; first consumer validation next
+
+The three legacy expectations now admit exactly twelve verify checks and
+ten doctor IDs while retaining D9's old position. A separate expected verify
+stage appends only the minimal passing coverage row to compat-verify; original
+eleven IDs, V8 failure, overall failed/exit-2 result and all artifact bytes
+remain fixed. Same-final-comparator mutations cover row absence/duplication,
+ID/severity/pass/mode and false repair of the old V8/global verdict.
+S2/S4 and foundation E projection bodies remain unchanged.
+
+Checkpoint these seven test files plus tracking, then restart gated gofmt,
+targeted S0-S5/index/actual-golden validation, owning/affected suites,
+vet/build and ultimately final shards/gate. Stop at the first failure.
+Independent consumer review `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
+uses immutable `95be8dd` and runs no Go commands. All implementers stopped.
+
 ## Implementation Transition — GH #15 S5 consumers delivered — 2026-09-09
 
 **Worker**: `51ca5679-7631-4492-ae58-7e0fead1b61e`

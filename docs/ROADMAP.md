@@ -1745,6 +1745,10 @@ isolation. No consumer implementation result or new validation is claimed.
 The complete scoped consumer/planner draft is now delivered and the worker
 stopped. Legacy check-count expectations and an isolated compat-verify row
 delta precede fresh validation and independent review. No S5 acceptance yet.
+The seven parent-owned count/golden files are updated, preserving original
+V8 failure and artifact bytes with comparator mutations. The stable consumer
+draft now enters fresh gated validation; independent review is read-only at
+`95be8dd`.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

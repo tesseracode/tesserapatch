@@ -202,6 +202,87 @@ func rgaS5ExpectedCaptureEventGolden(name string, previous []byte) ([]byte, erro
 	return []byte(out), nil
 }
 
+const rgaS5GoldenVerifyRow = `    {
+      "id": "recipe_generation_coverage",
+      "severity": "block",
+      "passed": true
+    }`
+
+func rgaS5ExpectedVerifyGolden(name string, previous []byte) ([]byte, error) {
+	if name != "compat-verify.txt" {
+		return previous, nil
+	}
+	old := string(previous)
+	const prefix = "$ tpatch --path <workspace> verify pib-golden --json --quiet --no-write\nexit 2\nstdout:\n"
+	if !strings.HasPrefix(old, prefix) || strings.Contains(old, `"id": "recipe_generation_coverage"`) {
+		return nil, fmt.Errorf("S5 verify fixture lost its original command/result or already contains the new row")
+	}
+	body, _, found := strings.Cut(strings.TrimPrefix(old, prefix), "\nstderr:\n")
+	if !found {
+		return nil, fmt.Errorf("S5 verify report boundary is missing")
+	}
+	var report struct {
+		SchemaVersion string `json:"schema_version"`
+		Slug          string `json:"slug"`
+		Verdict       string `json:"verdict"`
+		ExitCode      int    `json:"exit_code"`
+		Checks        []struct {
+			ID       string `json:"id"`
+			Severity string `json:"severity"`
+			Passed   bool   `json:"passed"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal([]byte(body), &report); err != nil {
+		return nil, err
+	}
+	ids := []string{"status_loaded", "intent_files_present", "recipe_parses", "recipe_op_targets_resolve",
+		"dep_metadata_valid", "satisfied_by_reachable", "dependency_gate_satisfied", "recipe_replay_clean",
+		"post_apply_patch_replay_clean", "reconcile_outcome_consistent", "write_file_preimage_fresh"}
+	if report.SchemaVersion != "1.1" || report.Slug != "pib-golden" || report.Verdict != "failed" ||
+		report.ExitCode != 2 || len(report.Checks) != len(ids) {
+		return nil, fmt.Errorf("S5 verify fixture lost its original report shape/verdict")
+	}
+	for i, id := range ids {
+		if report.Checks[i].ID != id {
+			return nil, fmt.Errorf("S5 verify fixture changed original check %d", i)
+		}
+	}
+	if report.Checks[8].Passed || report.Checks[8].Severity != "block" {
+		return nil, fmt.Errorf("S5 verify fixture lost its independent V8 failure")
+	}
+	coverageBody, err := rgaS2GoldenSection(old, "artifacts/recipe-coverage.json")
+	if err != nil {
+		return nil, err
+	}
+	eventBody, err := rgaS2GoldenSection(old, "artifacts/recipe-capture-event.json")
+	if err != nil {
+		return nil, err
+	}
+	var coverage struct {
+		Feature string `json:"feature"`
+		Status  string `json:"coverage_status"`
+	}
+	var event struct {
+		Feature string `json:"feature"`
+		Hash    string `json:"coverage_sha256"`
+	}
+	if err := json.Unmarshal([]byte(coverageBody), &coverage); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal([]byte(eventBody), &event); err != nil {
+		return nil, err
+	}
+	if coverage.Feature != "pib-golden" || coverage.Status != "complete" ||
+		event.Feature != coverage.Feature || event.Hash != rgaS5GoldenHash(coverageBody) {
+		return nil, fmt.Errorf("S5 verify expected stage lacks its independently derived complete pair")
+	}
+	const footer = "    }\n  ],\n  \"lifecycle_state\": \"applied\","
+	if strings.Count(old, footer) != 1 {
+		return nil, fmt.Errorf("S5 verify check-list boundary is missing or ambiguous")
+	}
+	return []byte(strings.Replace(old, footer, "    },\n"+rgaS5GoldenVerifyRow+"\n  ],\n  \"lifecycle_state\": \"applied\",", 1)), nil
+}
+
 func rgaS5ReplaceGoldenSection(t *testing.T, transcript, relative, body string) string {
 	t.Helper()
 	oldBody, err := rgaS2GoldenSection(transcript, relative)
@@ -234,6 +315,10 @@ func TestRGAS5GoldenCaptureEventDeltaAndSensitivities(t *testing.T) {
 				t.Fatal(err)
 			}
 			expected, err := rgaS5ExpectedCaptureEventGolden(name, previous)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected, err = rgaS5ExpectedVerifyGolden(name, expected)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -413,6 +498,57 @@ func TestRGAS5GoldenCaptureEventDeltaAndSensitivities(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestRGAS5VerifyGoldenDeltaAndSensitivities(t *testing.T) {
+	const name = "compat-verify.txt"
+	frozen, err := os.ReadFile(filepath.Join(preparePIBGoldenDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, err := rgaS2ExpectedProducerGolden(name, frozen)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, err = rgaS4ExpectedPublicationGolden(name, previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous, err = rgaS5ExpectedCaptureEventGolden(name, previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, err := rgaS5ExpectedVerifyGolden(name, previous)
+	if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
+		t.Fatalf("exact new verify row was rejected: %v", err)
+	}
+	current := string(expected)
+	for name, wrong := range map[string]string{
+		"missing-row":           string(previous),
+		"wrong-id":              strings.Replace(current, `"id": "recipe_generation_coverage"`, `"id": "coverage"`, 1),
+		"wrong-severity":        strings.Replace(current, rgaS5GoldenVerifyRow, strings.Replace(rgaS5GoldenVerifyRow, `"block"`, `"warn"`, 1), 1),
+		"failed-new-row":        strings.Replace(current, rgaS5GoldenVerifyRow, strings.Replace(rgaS5GoldenVerifyRow, `"passed": true`, `"passed": false`, 1), 1),
+		"duplicate-row":         strings.Replace(current, rgaS5GoldenVerifyRow, rgaS5GoldenVerifyRow+",\n"+rgaS5GoldenVerifyRow, 1),
+		"gratuitous-mode":       strings.Replace(current, rgaS5GoldenVerifyRow, strings.Replace(rgaS5GoldenVerifyRow, `"passed": true`, "\"passed\": true,\n      \"mode\": \"forward\"", 1), 1),
+		"false-overall-green":   strings.NewReplacer("exit 2\n", "exit 0\n", `"verdict": "failed"`, `"verdict": "passed"`, `"exit_code": 2`, `"exit_code": 0`).Replace(current),
+		"old-V8-failure-erased": strings.Replace(current, "\"id\": \"post_apply_patch_replay_clean\",\n      \"severity\": \"block\",\n      \"passed\": false", "\"id\": \"post_apply_patch_replay_clean\",\n      \"severity\": \"block\",\n      \"passed\": true", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if wrong == current || preparePIBGoldenDelta("compat-verify.txt", wrong) == nil {
+				t.Fatal("same final comparator accepted the wrong verify report")
+			}
+		})
+	}
+	if _, err := rgaS5ExpectedVerifyGolden(name, expected); err == nil {
+		t.Fatal("verify adapter accepted an already-applied row delta")
+	}
+	if _, err := rgaS5ExpectedVerifyGolden(name, frozen); err == nil {
+		t.Fatal("verify adapter claimed a passing coverage row without expected pair evidence")
+	}
+	unaffected := []byte("unrelated fixture bytes\n")
+	if got, err := rgaS5ExpectedVerifyGolden("compat-record.txt", unaffected); err != nil || !bytes.Equal(got, unaffected) {
+		t.Fatal("verify-only delta changed an unrelated fixture")
 	}
 }
 

@@ -1003,7 +1003,7 @@ func TestDoctorD9SourceGuardForbidsAuthoritySyscallAndProcessAliases(t *testing.
 }
 
 func TestDoctorD9RegistryOrderAndTaxonomySensitivity(t *testing.T) {
-	if got := DoctorCheckIDs(); fmt.Sprint(got) != fmt.Sprint([]string{"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9"}) {
+	if got := DoctorCheckIDs(); fmt.Sprint(got) != fmt.Sprint([]string{"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10"}) {
 		t.Fatalf("doctor registry = %#v", got)
 	}
 	expected := []string{
