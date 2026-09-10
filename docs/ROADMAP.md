@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 BLOCKED — resource gate before affected CLI — 2026-09-09**.
+**S5 🚧 IN PROGRESS — resource-gated validation retry — 2026-09-10**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1807,6 +1807,10 @@ closed. Resource-gated fresh validation and final wave-close still remain;
 S5 is not accepted.
 At 2026-09-10 00:12 PDT the readiness sample remains ineligible (78% free,
 load1 5.84); no Go validation was attempted.
+At 01:22 PDT the operator requested a retry: 84% free/load1 3.67/no active
+Go tools. The code/checkpoint is unchanged and pushed. Restart from
+formatting with a fresh full gate before every command; all static findings
+are closed but S5 validation/acceptance remain incomplete.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

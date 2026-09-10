@@ -2,7 +2,16 @@
 
 ## Status
 
-**Cluster state**: BLOCKED
+**Cluster state**: IN PROGRESS
+
+**S5 validation resuming (2026-09-10 01:22 PDT)**: operator requested another
+resource check. Snapshot: 84% free, load1 3.67, no active Go tools. Fetch
+confirms unchanged/pushed `b2060f6`, clean tracked state and all 13 research
+files. Restart from formatting at code `a119dca`; every command still needs
+its full fresh 60-second gate. All static findings are closed; validation
+and S5 acceptance remain outstanding.
+
+### Earlier resource-blocked record (historical)
 
 **S5 all static findings closed (2026-09-10)**: independent review APPROVED
 the remaining gitlink correction at `a119dca`. No consumer/D10 finding remains
@@ -3039,7 +3048,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — all static findings closed; resource-gated validation pending
+- **Status**: In progress — operator-requested fresh validation restart
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3047,6 +3056,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Resources are again inside instantaneous thresholds (84% free/load1 3.67,
+no active Go tools). The repository checkpoint is unchanged and pushed.
+The operator-requested retry restarts from formatting, with a full fresh
+qualifying minute before every command. No gate or test result is inferred
+from the initial resource sample.
+
+### Earlier static-closure summary (historical)
 
 Independent static review approved `a119dca`; all consumer/D10 findings are
 closed. A readiness check at 2026-09-10 00:12 PDT still shows only 78% free
@@ -10276,6 +10293,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   during the 600-second wait before step 3b; latest observed range 71-74%.
   Follow-up at 2026-09-10 00:12 PDT: 78% free memory, load1 5.84; still
   ineligible for validation.
+  At 01:22 PDT the operator-requested sample is eligible (84%, load1 3.67);
+  a fresh full qualifying minute is still required before each command.
 - All consumer/D10 findings, including streamed gitlinks, are statically
   closed at `a119dca`. Fresh validation after that correction and whole-S5
   acceptance remain incomplete.

@@ -1,3 +1,18 @@
+## Validation Resumption — GH #15 S5 — 2026-09-10
+
+**Code checkpoint**: `a119dca` (tracking tip `b2060f6`)
+**State**: IN PROGRESS — operator-requested resource retry
+
+At 01:22 PDT the readiness sample reports 84% free memory, load1 3.67 and
+no active Go tools. Fetch confirms unchanged/pushed `b2060f6`, clean tracked
+state and the original 13 research files. All static findings are closed.
+
+Clear only the owned failure sentinel and restart at formatting, since the
+gitlink code changed after the earlier partial validation. Each Go command
+still requires its own 60-second qualifying window; the instantaneous sample
+is not a gate pass. Run serially and stop at the first failure through the
+remaining prescribed stages. No S5 acceptance or S6 dispatch yet.
+
 ## Review — GH #15 S5 streamed-gitlink correction — 2026-09-10
 
 **Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
