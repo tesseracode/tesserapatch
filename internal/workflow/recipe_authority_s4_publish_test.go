@@ -34,6 +34,16 @@ func rgaS4ReadCoverage(t *testing.T, s *store.Store, slug string) RecipeCoverage
 	return c
 }
 
+func rgaS4AssertCoverageRenameFailure(t *testing.T, err error, target string) {
+	t.Helper()
+	var renameErr *os.LinkError
+	if !errors.Is(err, ErrCoveragePublication) || !strings.Contains(err.Error(), "recipe-coverage.json") ||
+		!errors.As(err, &renameErr) || renameErr.Op != "rename" || renameErr.New != target ||
+		renameErr.Err == nil || !errors.Is(err, renameErr.Err) {
+		t.Fatalf("coverage publication lost its artifact or rename cause: %v", err)
+	}
+}
+
 func rgaS4PublicationFixture(t *testing.T) (*store.Store, CoveragePublicationInput) {
 	t.Helper()
 	root := t.TempDir()
@@ -65,16 +75,52 @@ func TestRGAS4PublishAllProducersAndFailures(t *testing.T) {
 		patchobs.ProducerCycle, patchobs.ProducerApplyDone, patchobs.ProducerImplement, patchobs.ProducerEdit,
 	} {
 		t.Run(string(producer), func(t *testing.T) {
-			s, in := rgaS4PublicationFixture(t)
-			in.Observation.Producer = producer
+			var s *store.Store
+			var in CoveragePublicationInput
 			if producer == patchobs.ProducerImplement || producer == patchobs.ProducerEdit {
-				in.Observation.Capture = patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeNoCapture}
+				s, in = rgaS5DurablePublicationFixture(t)
+				unproved := in
+				unproved.Observation.Producer = producer
+				unproved.Observation.Capture = patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeNoCapture}
+				if _, err := PublishCoverage(s, unproved); !errors.Is(err, ErrCoveragePublication) ||
+					!strings.Contains(err.Error(), "validated frozen prior evidence pair") {
+					t.Fatalf("unproved no-capture reference accepted: %v", err)
+				}
+				for _, name := range []string{"recipe-capture-event.json", "recipe-coverage.json"} {
+					if _, err := s.ReadFeatureFile("s3", "artifacts/"+name); !os.IsNotExist(err) {
+						t.Fatalf("unproved reference published %s: %v", name, err)
+					}
+				}
+				prior, err := PublishCoverage(s, in)
+				if err != nil || prior.Producer != patchobs.ProducerRecord || prior.CoverageStatus != CoverageComplete {
+					t.Fatalf("prior capturing event: %+v %v", prior, err)
+				}
+				rgaS5ReadPublishedPair(t, s, "s3")
+				patch := string(in.Observation.PatchBytes)
+				in = ObserveCoveragePublication(s, patchobs.Observation{
+					Producer: patchobs.ProducerEdit, RepoRoot: s.Root, Slug: "s3",
+				})
+				in.Observation = patchobs.Observe(patchobs.Input{
+					Producer: producer, RepoRoot: s.Root, Slug: "s3", Patch: patch, PatchPresent: true,
+					Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeNoCapture},
+				})
+				in = ReconstructEditedCoverage(s, in)
+				if in.Observation.Reference.Kind != patchobs.ReferenceKindCommit ||
+					in.Observation.Reference.Commit != prior.Reference.Commit ||
+					in.Observation.Reference.PreimageSetSHA256 != prior.Reference.PreimageSetSHA256 ||
+					in.Observation.Capture.Mode != patchobs.CaptureModeNoCapture {
+					t.Fatalf("validated frozen prior reference was not reconstructed: %+v", in.Observation)
+				}
+			} else {
+				s, in = rgaS4PublicationFixture(t)
+				in.Observation.Producer = producer
 			}
 			c, err := PublishCoverage(s, in)
 			if err != nil || c.CoverageStatus != CoverageComplete || c.Producer != producer {
 				t.Fatalf("publication: %+v %v", c, err)
 			}
 			rgaS4ReadCoverage(t, s, "s3")
+			rgaS5ReadPublishedPair(t, s, "s3")
 			first, _ := s.ReadFeatureFile("s3", "artifacts/recipe-coverage.json")
 			if _, err := PublishCoverage(s, in); err != nil {
 				t.Fatal(err)
@@ -90,9 +136,8 @@ func TestRGAS4PublishAllProducersAndFailures(t *testing.T) {
 			if err := os.Mkdir(target, 0o755); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := PublishCoverage(s, in); err == nil || !errors.Is(err, ErrCoveragePublication) {
-				t.Fatalf("publication failure hidden: %v", err)
-			}
+			_, err = PublishCoverage(s, in)
+			rgaS4AssertCoverageRenameFailure(t, err, target)
 			leaks, err := filepath.Glob(filepath.Join(filepath.Dir(target), ".recipe-coverage.json.tmp-*"))
 			if err != nil || len(leaks) != 0 {
 				t.Fatalf("atomic replacement leaked files: %v %v", leaks, err)
@@ -227,11 +272,18 @@ func TestRGAS4P2CheckpointUsesSemanticCoverageWithoutOriginClaim(t *testing.T) {
 					t.Fatalf("coverage-only checkpoint must use the unchanged semantic predicates: %+v %v", c, err)
 				}
 				rgaS4ReadCoverage(t, s, "s3")
+				e, _ := rgaS5ReadPublishedPair(t, s, "s3")
+				if e.Event.PatchRewritten || e.Event.RecipeRegenerated {
+					t.Fatal("P2 checkpoint invented a write or origin claim")
+				}
 			}
 			after := snapshotTreeForRefresh(t, featureDir)
-			delete(after, "artifacts/recipe-coverage.json")
+			if !rewritten {
+				delete(after, "artifacts/recipe-capture-event.json")
+				delete(after, "artifacts/recipe-coverage.json")
+			}
 			if !reflect.DeepEqual(before, after) {
-				t.Fatal("P2 origin policy changed a non-coverage artifact or fabricated provenance")
+				t.Fatal("P2 origin policy changed an artifact outside E/C or fabricated provenance")
 			}
 		})
 	}

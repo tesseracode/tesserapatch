@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 compatibility/registered-writer corrections delivered (2026-09-09)**:
+the compatibility agent stopped with six test-only deltas, exact E+C write-
+set/real prior-pair controls and unchanged historical goldens. The coordinator
+reuses the full-path/constant detector in registered producer files too, with
+four same-phase-validator writer mutations and an unrelated-writer positive
+control. The binary pair correction remains with the foundation worker;
+no Go revalidation yet.
+
 **S5 foundation rev-0: NEEDS REVISION (2026-09-09)**. Two MEDIUM findings:
 the pair validator misses grammar-proven binary content, and registered
 producer files bypass full-path/constant-expression E writer detection.
@@ -2734,6 +2742,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Compatibility corrections and the registered-file writer guard fix are
+authored/formatted. The exact parser site/note/error/write-set expectations
+advance only by the accepted D7/ADR-041 deltas, with nine write-set mutations,
+wrong-recipe binding control and all old phase mutations retained.
+The coordinator's full-path/alias/escape guard controls reproduce the review
+bypass inside actual registered c1 source. Binary validation remains in flight.
+
+### Earlier foundation-review summary (historical)
 
 Independent foundation review returned NEEDS REVISION on grammar-proven
 binary/projection inconsistency and registered-file E-only writer detection.

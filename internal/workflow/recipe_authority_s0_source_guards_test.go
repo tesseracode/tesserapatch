@@ -1008,12 +1008,15 @@ func TestRGAS0ReconcilePhase2SourceContract(t *testing.T) {
 // TestRGAS0ADR029D7DowngradeNoteFrozen freezes the exact apply-time
 // downgrade note and the routing behaviour behind it: when the feature is
 // superseded, preimage-mismatch drift moves from Errors to Warnings with
-// a provenance suffix, and later-touch drift receives the same suffix.
+// the frozen provenance suffix plus D7's audit disclaimer. Later-touch
+// drift retains the original provenance suffix without that apply disclaimer.
 // S5's coverage row must not inherit this downgrade (PRD §9.9 RGA-337).
 func TestRGAS0ADR029D7DowngradeNoteFrozen(t *testing.T) {
 	const superseder = "newer-feature"
 	const base = "recipe drift: [old-feature] op 0 src/a.txt: preimage mismatch"
-	wantSuffixed := base + ` (downgraded: feature is superseded by "newer-feature" per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)`
+	const frozenNote = ` (downgraded: feature is superseded by "newer-feature" per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)`
+	const auditDisclaimer = "; this is an audit signal, not a certification that explicit apply, coverage or replay is safe"
+	wantSuffixed := base + frozenNote + auditDisclaimer
 
 	t.Run("preimage-drift-not-superseded-stays-an-error", func(t *testing.T) {
 		var r PreimagePrecheckResult
@@ -1047,7 +1050,7 @@ func TestRGAS0ADR029D7DowngradeNoteFrozen(t *testing.T) {
 		const lt = "later-touch: src/a.txt also touched by newer-feature"
 		var r PreimagePrecheckResult
 		r.appendLaterTouchWarn(lt, true, superseder)
-		want := lt + ` (downgraded: feature is superseded by "newer-feature" per Wave α; historical drift is warning-class per PRD-feature-supersession §4.5 / ADR-029 D7)`
+		want := lt + frozenNote
 		if len(r.Warnings) != 1 || r.Warnings[0] != want {
 			t.Fatalf("Warnings[0] =\n %q\nwant\n %q", strings.Join(r.Warnings, "|"), want)
 		}

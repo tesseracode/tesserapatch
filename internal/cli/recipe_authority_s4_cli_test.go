@@ -49,7 +49,7 @@ func rgaS4CLIFixture(t *testing.T, slug string, dirty bool) string {
 	return root
 }
 
-func rgaS4FeatureBytes(t *testing.T, root, slug string, excludeCoverage bool) map[string]string {
+func rgaS4FeatureBytes(t *testing.T, root, slug string) map[string]string {
 	t.Helper()
 	base := filepath.Join(root, ".tpatch", "features", slug)
 	result := map[string]string{}
@@ -64,9 +64,6 @@ func rgaS4FeatureBytes(t *testing.T, root, slug string, excludeCoverage bool) ma
 		if err != nil {
 			return err
 		}
-		if excludeCoverage && filepath.ToSlash(rel) == "artifacts/recipe-coverage.json" {
-			return nil
-		}
 		raw, err := os.ReadFile(path)
 		result[filepath.ToSlash(rel)] = string(raw)
 		return err
@@ -75,6 +72,135 @@ func rgaS4FeatureBytes(t *testing.T, root, slug string, excludeCoverage bool) ma
 		t.Fatal(err)
 	}
 	return result
+}
+
+func rgaS4CheckPairOnlyChanges(before, after map[string]string) error {
+	pair := map[string]bool{
+		"artifacts/recipe-capture-event.json": true,
+		"artifacts/recipe-coverage.json":      true,
+	}
+	for name := range pair {
+		if _, exists := after[name]; !exists {
+			return fmt.Errorf("checkpoint omitted %s", name)
+		}
+	}
+	for name, body := range before {
+		if pair[name] {
+			continue
+		}
+		if got, exists := after[name]; !exists || got != body {
+			return fmt.Errorf("checkpoint changed or removed %s outside E/C", name)
+		}
+	}
+	for name := range after {
+		if _, existed := before[name]; !pair[name] && !existed {
+			return fmt.Errorf("checkpoint added %s outside E/C", name)
+		}
+	}
+	return nil
+}
+
+func rgaS4CLICapturePair(t *testing.T, root, slug string) workflow.RecipeCaptureEvent {
+	t.Helper()
+	artifacts := filepath.Join(root, ".tpatch", "features", slug, "artifacts")
+	rawE, err := os.ReadFile(filepath.Join(artifacts, "recipe-capture-event.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := workflow.DecodeRecipeCaptureEvent(rawE)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawC, err := os.ReadFile(filepath.Join(artifacts, "recipe-coverage.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch, patchErr := os.ReadFile(filepath.Join(artifacts, "post-apply.patch"))
+	recipe, recipeErr := os.ReadFile(filepath.Join(artifacts, "apply-recipe.json"))
+	bindings := workflow.RecipeCaptureBindings{
+		RepoRoot: root, Feature: slug,
+		Patch:  workflow.CoverageArtifact{Present: patchErr == nil, Bytes: patch},
+		Recipe: workflow.CoverageArtifact{Present: recipeErr == nil, Bytes: recipe},
+	}
+	if err := workflow.ValidateRecipeCaptureEventPair(e, rawC, bindings); err != nil {
+		t.Fatalf("published E/C does not bind the actual artifacts: %v", err)
+	}
+	return e
+}
+
+func TestRGAS4CheckpointPairGuardsAreSensitive(t *testing.T) {
+	before := map[string]string{
+		"artifacts/apply-recipe.json":      "manual compact recipe",
+		"artifacts/post-apply.patch":       "patch",
+		"artifacts/patch-generations.json": "generations",
+		"artifacts/empty-marker":           "",
+		"status.json":                      "status",
+	}
+	for _, mutation := range []string{"", "recipe-write", "patch-write", "generation-write", "state-write",
+		"removed-empty", "invented-provenance", "event-lookalike", "missing-event", "missing-coverage"} {
+		t.Run(mutation, func(t *testing.T) {
+			after := map[string]string{}
+			for name, body := range before {
+				after[name] = body
+			}
+			after["artifacts/recipe-capture-event.json"] = "new event"
+			after["artifacts/recipe-coverage.json"] = "new coverage"
+			switch mutation {
+			case "recipe-write":
+				after["artifacts/apply-recipe.json"] += "\n"
+			case "patch-write":
+				after["artifacts/post-apply.patch"] += "\n"
+			case "generation-write":
+				after["artifacts/patch-generations.json"] += "\n"
+			case "state-write":
+				after["status.json"] += "\n"
+			case "removed-empty":
+				delete(after, "artifacts/empty-marker")
+			case "invented-provenance":
+				after["artifacts/recipe-provenance.json"] = "invented"
+			case "event-lookalike":
+				after["artifacts/recipe-capture-event.json.extra"] = "not E"
+			case "missing-event":
+				delete(after, "artifacts/recipe-capture-event.json")
+			case "missing-coverage":
+				delete(after, "artifacts/recipe-coverage.json")
+			}
+			if err := rgaS4CheckPairOnlyChanges(before, after); (err != nil) != (mutation != "") {
+				t.Fatalf("pair-only write-set guard mutation=%s err=%v", mutation, err)
+			}
+		})
+	}
+	slug := "s4-pair-binding-control"
+	root := rgaS4CLIFixture(t, slug, true)
+	if _, stderr, code := runRecord(t, "record", "--path", root, slug, "--lenient"); code != 0 {
+		t.Fatal(stderr)
+	}
+	e := rgaS4CLICapturePair(t, root, slug)
+	artifacts := filepath.Join(root, ".tpatch", "features", slug, "artifacts")
+	rawC, err := os.ReadFile(filepath.Join(artifacts, "recipe-coverage.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings := workflow.RecipeCaptureBindings{
+		RepoRoot: root, Feature: slug,
+		Patch:  workflow.CoverageArtifact{Present: true},
+		Recipe: workflow.CoverageArtifact{Present: true},
+	}
+	bindings.Patch.Bytes, err = os.ReadFile(filepath.Join(artifacts, "post-apply.patch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bindings.Recipe.Bytes, err = os.ReadFile(filepath.Join(artifacts, "apply-recipe.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := workflow.ValidateRecipeCaptureEventPair(e, rawC, bindings); err != nil {
+		t.Fatal(err)
+	}
+	bindings.Recipe.Bytes = append(bindings.Recipe.Bytes, '\n')
+	if err := workflow.ValidateRecipeCaptureEventPair(e, rawC, bindings); err == nil {
+		t.Fatal("the same E/C validator accepted changed exact recipe bytes")
+	}
 }
 
 func TestRGAS4RecordNoopRepairsCoverageAndProvenance(t *testing.T) {
@@ -122,24 +248,25 @@ func TestRGAS4P2CheckpointCoverageOnlyAndEmptyCaptureNoEvent(t *testing.T) {
 			if err := os.Remove(path); err != nil {
 				t.Fatal(err)
 			}
-			before := rgaS4FeatureBytes(t, root, slug, true)
+			before := rgaS4FeatureBytes(t, root, slug)
 			args := []string{"feature", "patch", verb, "--path", root, slug, "--reason", "checkpoint"}
 			stdout, stderr, code := runCmdWithError(args...)
 			if code != 0 || !strings.Contains(stderr, "no patch byte change; "+verb+" skipped") ||
 				!strings.Contains(stderr, "recipe coverage: complete\n") {
 				t.Fatalf("checkpoint output: code=%d out=%s err=%s", code, stdout, stderr)
 			}
-			if after := rgaS4FeatureBytes(t, root, slug, true); !reflect.DeepEqual(before, after) {
-				t.Fatal("P2 checkpoint changed artifacts other than coverage")
+			if err := rgaS4CheckPairOnlyChanges(before, rgaS4FeatureBytes(t, root, slug)); err != nil {
+				t.Fatal(err)
 			}
 			c := rgaS4CLICoverage(t, root, slug)
+			e := rgaS4CLICapturePair(t, root, slug)
 			rgaS4AssertReportedCoverageStatus(t, stderr, c)
 			if c.Producer != patchobs.ProducerFeaturePatch || slices.Contains(c.Reasons, "producer-patch-rewrite") ||
-				slices.Contains(c.Reasons, "recipe-not-regenerated") {
+				slices.Contains(c.Reasons, "recipe-not-regenerated") || e.Event.PatchRewritten || e.Event.RecipeRegenerated {
 				t.Fatalf("checkpoint borrowed rewrite reasons: %+v", c)
 			}
 			rgaS0CommitAll(t, root)
-			untouched := rgaS4FeatureBytes(t, root, slug, false)
+			untouched := rgaS4FeatureBytes(t, root, slug)
 			_, stderr, code = runCmdWithError(args...)
 			if verb == "refresh" && code != 0 {
 				t.Fatal(stderr)
@@ -147,8 +274,11 @@ func TestRGAS4P2CheckpointCoverageOnlyAndEmptyCaptureNoEvent(t *testing.T) {
 			if verb == "fixup" && code == 0 {
 				t.Fatal("empty fixup must refuse")
 			}
-			if after := rgaS4FeatureBytes(t, root, slug, false); !reflect.DeepEqual(untouched, after) {
+			if after := rgaS4FeatureBytes(t, root, slug); !reflect.DeepEqual(untouched, after) {
 				t.Fatal("P2 empty capture invented an event")
+			}
+			if strings.Contains(stderr, "recipe coverage:") {
+				t.Fatal("P2 empty capture reported a publication")
 			}
 		})
 	}
@@ -275,8 +405,18 @@ func TestRGAS4CLIProducerPublicationFailuresAreNonzero(t *testing.T) {
 				invoke = func() (string, string, int) { return runCmdWithError(args...) }
 			}
 			stdout, stderr, code := invoke()
-			if code == 0 || !strings.Contains(stderr, "publish coverage") {
+			target := filepath.Join(artifacts, "recipe-coverage.json")
+			causeIndex := strings.Index(stderr, target+": ")
+			if code == 0 || !strings.Contains(stderr, "coverage publication failed") ||
+				!strings.Contains(stderr, "rename ") || causeIndex < 0 {
 				t.Fatalf("%s hid publication failure: code=%d stdout=%s stderr=%s", event, code, stdout, stderr)
+			}
+			cause := strings.SplitN(stderr[causeIndex+len(target)+2:], "\n", 2)[0]
+			if strings.TrimSpace(cause) == "" {
+				t.Fatalf("%s dropped the underlying rename failure: %s", event, stderr)
+			}
+			if strings.Contains(stdout+stderr, "recipe coverage:") {
+				t.Fatalf("%s reported status over failed publication: stdout=%s stderr=%s", event, stdout, stderr)
 			}
 			for _, success := range []string{"Recorded patch for", "Amended patch for", "marked as applied", "Phase implement advanced manually", "is now in state: applied"} {
 				if strings.Contains(stdout, success) {
@@ -342,22 +482,23 @@ func TestRGAS4P2CompactRecipeCheckpointChangesCoverageOnly(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				before := rgaS4FeatureBytes(t, root, slug, true)
+				before := rgaS4FeatureBytes(t, root, slug)
 				stdout, stderr, code := runCmdWithError("feature", "patch", verb, "--path", root, slug, "--reason", "semantic checkpoint")
 				if code != 0 || !strings.Contains(stderr, "no patch byte change; "+verb+" skipped") ||
 					!strings.Contains(stderr, "recipe coverage: complete\n") {
 					t.Fatalf("compact checkpoint failed: code=%d out=%q err=%q", code, stdout, stderr)
 				}
 				c := rgaS4CLICoverage(t, root, slug)
+				e := rgaS4CLICapturePair(t, root, slug)
 				rgaS4AssertReportedCoverageStatus(t, stderr, c)
 				if c.Producer != patchobs.ProducerFeaturePatch || c.CoverageStatus != workflow.CoverageComplete ||
 					c.RecipeSHA256 != workflow.CoverageSHA256(compact.Bytes()) ||
-					slices.Contains(c.Reasons, "producer-patch-rewrite") || slices.Contains(c.Reasons, "recipe-not-regenerated") {
+					slices.Contains(c.Reasons, "producer-patch-rewrite") || slices.Contains(c.Reasons, "recipe-not-regenerated") ||
+					e.Event.PatchRewritten || e.Event.RecipeRegenerated {
 					t.Fatalf("checkpoint imposed origin or borrowed rewrite reasons: %+v", c)
 				}
-				after := rgaS4FeatureBytes(t, root, slug, true)
-				if !reflect.DeepEqual(before, after) {
-					t.Fatal("compact checkpoint changed recipe, provenance, patch, generation, state or another artifact")
+				if err := rgaS4CheckPairOnlyChanges(before, rgaS4FeatureBytes(t, root, slug)); err != nil {
+					t.Fatal(err)
 				}
 				if !keepProvenance {
 					if _, err := os.Stat(provenancePath); !os.IsNotExist(err) {

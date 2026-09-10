@@ -60,12 +60,10 @@ func TestRGAS4ImplementBothWriteArmsAndFailures(t *testing.T) {
 					return
 				}
 				if strings.Contains(failure, "coverage") {
-					if !strings.Contains(err.Error(), "publish coverage") {
-						t.Fatalf("publication error hidden: %v", err)
-					}
+					rgaS4AssertCoverageRenameFailure(t, err, filepath.Join(s.TpatchDir(), "features", slug, "artifacts", "recipe-coverage.json"))
 					if failure == "state+coverage" {
 						stateIndex := strings.Index(err.Error(), "status.json")
-						coverageIndex := strings.Index(err.Error(), "publish coverage")
+						coverageIndex := strings.Index(err.Error(), ErrCoveragePublication.Error())
 						var pathErr *fs.PathError
 						if stateIndex < 0 || stateIndex >= coverageIndex || !errors.As(err, &pathErr) {
 							t.Fatalf("primary state cause must precede chained coverage cause: %v", err)
@@ -135,9 +133,7 @@ func TestRGAS4RefreshSamePatchWritePublishesWithoutGeneration(t *testing.T) {
 	if err := os.Mkdir(coveragePath, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := RefreshAfterAccept(s, slug, head, patch); err == nil || !strings.Contains(err.Error(), "publish coverage") {
-		t.Fatalf("P3 publication failure must reach caller: %v", err)
-	}
+	rgaS4AssertCoverageRenameFailure(t, RefreshAfterAccept(s, slug, head, patch), coveragePath)
 }
 
 func TestRGAS4AcceptShadowPropagatesPublicationFailure(t *testing.T) {

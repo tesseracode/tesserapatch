@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -93,6 +93,11 @@ func TestRGAS4EditEventBoundaryAndEditorErrors(t *testing.T) {
 			if err := os.WriteFile(coveragePath, legacy, 0o644); err != nil {
 				t.Fatal(err)
 			}
+			eventPath := filepath.Join(artifacts, "recipe-capture-event.json")
+			legacyEvent := []byte("pre-event capture sentinel\n")
+			if err := os.WriteFile(eventPath, legacyEvent, 0o644); err != nil {
+				t.Fatal(err)
+			}
 			if tc.decoy {
 				if err := os.WriteFile(filepath.Join(base, "apply-recipe.json"), []byte("decoy\n"), 0o644); err != nil {
 					t.Fatal(err)
@@ -103,9 +108,16 @@ func TestRGAS4EditEventBoundaryAndEditorErrors(t *testing.T) {
 			} else {
 				rgaS4SetEditor(t, tc.mode, "new bytes\n", tc.fail)
 			}
-			_, stderr, code := runCmdWithError("edit", "--path", root, slug, tc.artifact)
+			stdout, stderr, code := runCmdWithError("edit", "--path", root, slug, tc.artifact)
 			if (code != 0) != (tc.fail || tc.unknown) {
 				t.Fatalf("editor outcome code=%d stderr=%s", code, stderr)
+			}
+			if tc.fail && !strings.Contains(stderr, "exit status 37") {
+				t.Fatalf("editor's actual failure cause disappeared: %s", stderr)
+			}
+			if tc.unknown && (!strings.Contains(stderr, "cannot establish bound artifact edit outcome from before/after snapshots") ||
+				!strings.Contains(stderr, filepath.Join(artifacts, "apply-recipe.json"))) {
+				t.Fatalf("unknown observation's actual failure cause disappeared: %s", stderr)
 			}
 			raw, err := os.ReadFile(coveragePath)
 			if err != nil {
@@ -115,16 +127,26 @@ func TestRGAS4EditEventBoundaryAndEditorErrors(t *testing.T) {
 				if !bytes.Equal(raw, legacy) {
 					t.Fatal("non-event changed coverage")
 				}
-				if strings.Contains(stderr, "recipe coverage:") {
+				if rawE, err := os.ReadFile(eventPath); err != nil || !bytes.Equal(rawE, legacyEvent) {
+					t.Fatalf("non-event changed capture evidence: %v", err)
+				}
+				if strings.Contains(stdout+stderr, "recipe coverage:") {
 					t.Fatal("non-event reported a coverage publication")
 				}
 				return
 			}
 			c := rgaS4CLICoverage(t, root, slug)
-			rgaS4AssertReportedCoverageStatus(t, stderr, c)
+			e := rgaS4CLICapturePair(t, root, slug)
+			if tc.fail || tc.unknown {
+				if strings.Contains(stdout+stderr, "recipe coverage:") {
+					t.Fatal("primary edit/observation failure reported successful coverage publication")
+				}
+			} else {
+				rgaS4AssertReportedCoverageStatus(t, stderr, c)
+			}
 			if c.Producer != patchobs.ProducerEdit || c.CoverageStatus != workflow.CoverageIncomplete ||
 				!slices.Contains(c.Reasons, "manual-bound-artifact-edit") ||
-				!slices.Contains(c.Reasons, "reference-not-durable") {
+				!slices.Contains(c.Reasons, "reference-not-durable") || !e.Event.BoundArtifactEdited {
 				t.Fatalf("P7 mutation not honestly bound: %+v", c)
 			}
 		})
@@ -198,15 +220,25 @@ func TestRGAS4EditPrimaryAndPublicationErrorOrdering(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := &cobra.Command{}
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetErr(&output)
 	err = runEditWithObservation(cmd, s, slug, filepath.Join(artifacts, "apply-recipe.json"))
-	if err == nil {
-		t.Fatal("editor and publication failures disappeared")
+	var editorErr *exec.ExitError
+	var renameErr *os.LinkError
+	if !errors.Is(err, workflow.ErrCoveragePublication) ||
+		!errors.As(err, &editorErr) || editorErr.ExitCode() != 37 ||
+		!errors.As(err, &renameErr) || renameErr.Op != "rename" ||
+		renameErr.New != filepath.Join(artifacts, "recipe-coverage.json") ||
+		renameErr.Err == nil || !errors.Is(err, renameErr.Err) {
+		t.Fatalf("editor or publication artifact/cause disappeared: %v", err)
 	}
-	editor, publication := strings.Index(err.Error(), "exit status 37"), strings.Index(err.Error(), "publish coverage")
+	editor, publication := strings.Index(err.Error(), "exit status 37"), strings.Index(err.Error(), workflow.ErrCoveragePublication.Error())
 	if editor < 0 || publication <= editor {
 		t.Fatalf("editor must precede chained publication failure: %v", err)
+	}
+	if strings.Contains(output.String(), "recipe coverage:") {
+		t.Fatalf("failed paired publication reported success: %s", output.String())
 	}
 }
 
@@ -429,16 +461,18 @@ func TestRGAS4P2CheckpointBindsActualTamperedCanonicalArtifact(t *testing.T) {
 			} else if err := os.WriteFile(path, []byte("malformed canonical bytes"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			before := rgaS4FeatureBytes(t, root, slug, true)
+			before := rgaS4FeatureBytes(t, root, slug)
 			if _, stderr, code := runCmdWithError("feature", "patch", "refresh", "--path", root, slug); code != 0 {
 				t.Fatal(stderr)
 			}
 			c := rgaS4CLICoverage(t, root, slug)
-			if c.PatchPresent == missing || c.CoverageStatus != workflow.CoverageIncomplete {
+			e := rgaS4CLICapturePair(t, root, slug)
+			if c.PatchPresent == missing || c.CoverageStatus != workflow.CoverageIncomplete ||
+				e.PatchPresent == missing || e.Event.PatchRewritten || e.Event.RecipeRegenerated {
 				t.Fatalf("checkpoint bound captured bytes that it did not write: %+v", c)
 			}
-			if after := rgaS4FeatureBytes(t, root, slug, true); !reflect.DeepEqual(before, after) {
-				t.Fatal("checkpoint repaired a non-coverage artifact")
+			if err := rgaS4CheckPairOnlyChanges(before, rgaS4FeatureBytes(t, root, slug)); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}

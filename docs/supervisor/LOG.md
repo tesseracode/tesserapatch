@@ -1,3 +1,26 @@
+## Implementation Transition — GH #15 S5 compatibility and writer guard delivered — 2026-09-09
+
+**State**: IN PROGRESS — authored/formatted; binary correction/revalidation pending
+
+The compatibility agent stopped after its six owned test files: exact
+normalizer count/site registration, preserved base-note plus explicit audit
+disclaimer, typed publication/rename causes and error order, real prior pairs
+for no-capture inputs, E+C-only checkpoint comparisons and no-event pair
+preservation, primary-error status suppression. Nine write-set mutations
+and a wrong-recipe pair control accompany the deltas. Historical goldens
+remain unchanged.
+
+The coordinator closes the registered-file detection gap by invoking the
+existing decoded constant/full-path detector there too, preserving the
+designated publisher exemption. Controls place full-path, concatenated,
+constant-aliased and escaped E-only writers in an unregistered function of
+the actual c1 source; an unrelated feature-file writer remains a positive
+control. The publisher guard also rejects alternate WriteFeatureFile paths.
+
+Checkpoint these disjoint tests. The foundation worker still owns only the
+grammar-proven binary pair correction and its capture-event tests. No Go
+revalidation until that worker stops and the combined correction is saved.
+
 ## Review — GH #15 S5 capture-evidence foundation rev-0 — 2026-09-09
 
 **Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`

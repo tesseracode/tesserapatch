@@ -676,6 +676,11 @@ func rgaS4PublicationSource(rel, src string) error {
 		return err
 	}
 	publisher := rel == "internal/workflow/recipe_coverage_publish.go"
+	if !publisher {
+		if err := rgaS0UnregisteredEvidenceLiteral(rel, src); err != nil {
+			return err
+		}
+	}
 	for _, decl := range file.Decls {
 		fn, isFunc := decl.(*ast.FuncDecl)
 		owner := ""
@@ -692,7 +697,7 @@ func rgaS4PublicationSource(rel, src string) error {
 						refusal = fmt.Errorf("coverage derivation/encoding outside the primary publisher: %s", owner)
 					}
 					if selector, ok := call.Fun.(*ast.SelectorExpr); ok && owner != "PublishCoverage" &&
-						(selector.Sel.Name == "WriteArtifact" || selector.Sel.Name == "WriteArtifactAtomic") {
+						(selector.Sel.Name == "WriteArtifact" || selector.Sel.Name == "WriteArtifactAtomic" || selector.Sel.Name == "WriteFeatureFile") {
 						refusal = fmt.Errorf("alternate artifact writer in the publisher file: %s", owner)
 					}
 				}
@@ -772,7 +777,7 @@ func rgaS4PublicationSource(rel, src string) error {
 					}
 				}
 			}
-		case "s.WriteArtifact", "os.WriteFile":
+		case "s.WriteArtifact", "s.WriteFeatureFile", "os.WriteFile":
 			order = append(order, "non-atomic-write")
 		}
 		return true
@@ -802,6 +807,7 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 		{"private-producer-status", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){fmt.Fprintln(w,\"recipe coverage: complete\")}"},
 		{"alternate-publisher-entry", rel, src + "\nfunc alternatePublisher(){ s.WriteArtifactAtomic(slug, \"recipe-coverage.json\", \"{}\") }\n"},
 		{"alternate-publisher-event-entry", rel, src + "\nfunc alternateEventPublisher(){ s.WriteArtifactAtomic(slug, \"recipe-capture-event.json\", \"{}\") }\n"},
+		{"alternate-publisher-feature-entry", rel, src + "\nfunc alternateFeaturePublisher(){ s.WriteFeatureFile(slug, \"artifacts/recipe-capture-event.json\", \"{}\") }\n"},
 		{"alternate-publisher-encoder", rel, src + "\nfunc alternateEncoder(){ EncodeRecipeCoverage(c) }\n"},
 		{"alternate-publisher-event-encoder", rel, src + "\nfunc alternateEventEncoder(){ EncodeCaptureEvent(e) }\n"},
 		{"non-atomic-publication", rel, strings.Replace(src, `s.WriteArtifactAtomic(`, `s.WriteArtifact(`, 1)},
@@ -837,6 +843,26 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 		).Replace(src)
 		if err := rgaS0CoveragePhaseSource(rel, wrong); err == nil {
 			t.Fatal("same phase validator accepted C-before-E publication")
+		}
+	})
+	t.Run("registered-file-evidence-only-writers", func(t *testing.T) {
+		const registered = "internal/cli/c1.go"
+		original := rgaS0ReadRepoFile(t, registered)
+		for name, addition := range map[string]string{
+			"full-path":      "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-capture-event.json\", \"{}\") }\n",
+			"concatenated":   "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/\" + \"recipe-\" + \"capture-event.json\", \"{}\") }\n",
+			"constant-alias": "\nconst eventName = \"recipe-\" + \"capture-\" + \"event.json\"\nconst eventPath = \"artifacts/\" + eventName\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, eventPath, \"{}\") }\n",
+			"escaped-path":   "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-\\x63apture-event.json\", \"{}\") }\n",
+		} {
+			t.Run(name, func(t *testing.T) {
+				if err := rgaS0CoveragePhaseSource(registered, original+addition); err == nil {
+					t.Fatal("registered-file dispatch bypassed evidence-only writer detection")
+				}
+			})
+		}
+		harmless := original + "\nfunc ordinaryFeatureFile(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/custom.json\", \"{}\") }\n"
+		if err := rgaS0CoveragePhaseSource(registered, harmless); err != nil {
+			t.Fatalf("unrelated feature file acquired an evidence restriction: %v", err)
 		}
 	})
 }
