@@ -2,7 +2,22 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: BLOCKED
+
+**S5 resource-blocked before step 3b (2026-09-09 23:52 PDT)**: code
+`a97b4af97ae3a0996b687453d82f815daaecb792` passes formatting, all targets/
+index/goldens/gateway controls and all full core packages (workflow 113.364s).
+The affected CLI command never started: memory stayed 71-74% through the
+600-second gate wait, below the required >=80% continuous minute. Exit 75;
+no test failed in this latest run and no threshold was relaxed.
+
+The owned failure sentinel remains. Code is pushed and tracked state was
+clean at the block. If code is unchanged, resume at step 3b after a fresh
+qualifying window, then vet/build and final stages. Any review-driven code
+change requires a restart at formatting. Independent review confirmation
+and S5 acceptance remain pending.
+
+### Prior S5 correction/validation record (historical)
 
 **S5 D10 cohort retry (2026-09-09)**: the negative cohort controls and CLI
 targets pass; the sole failure is a positive doctor fixture that never wrote
@@ -3002,7 +3017,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — consumer rev-1 delivered; gated validation/re-review next
+- **Status**: Blocked — resource gate before affected CLI; review confirmation pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3010,6 +3025,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Latest code `a97b4af` passes steps 1-3a, including every targeted/new
+regression and full core suite. Step 3b was not launched: its resource gate
+timed out after 600 seconds at 71-74% free memory. No test failed in this
+run. The code is durably pushed; validation is paused without relaxing the
+resource threshold, and independent correction review is still pending.
+
+### Earlier correction delivery summary (historical)
 
 The worker delivered all six corrections and stopped. Production path gates,
 bounded streamed retention proof, hunkless-payload refusal, readonly capability
@@ -3540,8 +3563,9 @@ guards pass the complete internal-unit steps 1-5: targeted/index/actual
 goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
 integration, D13/D17 and D10 compile and passed targeted/index/live-golden
-validation before review. All six review/runtime corrections are now authored
-and await revalidation/re-review. Full S5 validation/close remain.
+validation. All six review corrections and the D10 cohort correction now
+pass targeted and full core validation. The current code is resource-blocked
+before affected CLI; correction re-review and full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -4230,6 +4254,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Latest retry `a97b4af`: steps 1-3a PASS. Targeted patchobs 0.783s,
+  gitutil 1.091s, workflow 18.625s, CLI 38.747s; full core patchobs 1.702s,
+  gitutil 7.759s, store 2.718s, workflow 113.364s.
+- Step 3b resource gate BLOCKED/exit 75 after 600s at 71-74% free memory.
+  The CLI command did not run; no vet/build/shards/wave-close afterward.
+  Earlier per-command gates passed at 81-82%; no test failed in this run.
 
 - Cohort retry `1b0399b`: formatting PASS; patchobs 0.837s, gitutil 1.106s
   and CLI 39.303s PASS. Workflow 17.828s FAIL only on the positive D10 fixture
@@ -10191,18 +10222,23 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Checkpoint and independently review the delivered S5 consumer draft.
-2. Adapt only the coordinator-owned legacy counts and exact expected deltas where new consumer
-   output requires them; preserve historical evidence and prior projection bodies.
-3. Checkpoint implementation, restart serial gated validation and independent
-   review, correct findings, then close durably. Do not start S6 or GH #24.
+1. Retrieve independent correction review; correct any new finding without
+   relaxing the existing safety/fixture contracts.
+2. When resources qualify for a fresh minute, clear only the owned failure
+   sentinel and resume step 3b if code remains at `a97b4af`; otherwise restart
+   from formatting after the new code checkpoint.
+3. Finish affected CLI, vet/build, exact shards and explicit-base wave-close,
+   then archive/push terminal S5 tracking. Do not start S6 or GH #24.
 
 ## Blockers
 
 - D9 policy is resolved by Accepted ADR-041 rev-1; the foundation/ordered
   internal unit is accepted. Remaining S5 consumers are not accepted.
-- All six consumer corrections are authored, not yet validated or confirmed.
-  Parent-owned old counts and exact row/count deltas are approved.
+- Resource gate: >=80% free memory was unavailable for a continuous minute
+  during the 600-second wait before step 3b; latest observed range 71-74%.
+- Corrections pass targeted/full core suites but independent confirmation
+  and the remaining validation stages are incomplete. Parent-owned old counts
+  and exact row/count deltas are approved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10215,17 +10251,19 @@ at 471.544s. Formatting, vet and CLI build pass.
   new review findings/checklist. S4 is already archived; do not duplicate it.
 - S5's runtime ownership and strict resource-gated sequence are at the top
   of this file. Older S4 pending actions below are historical, not dispatches.
-- Current worker `51ca5679-7631-4492-ae58-7e0fead1b61e` owns only the
-  currently scoped remediation/gateway correction. Earlier implementation
-  workers are stopped; do not resume their historical assignments.
+- Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` delivered all six corrections
+  and stopped. All implementation workers are idle; do not resume historical
+  assignments while validation is resource-blocked.
 - Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` reviews immutable
-  `95be8dd` plus the narrow `c27989d` factoring correction. Reviewer
+  rev-1 `8d35559` plus D10 correction `1b0399b` and scoped fixture updates.
+  Reviewer
   `222308b5-9449-462e-80be-599ccd4dcd1f` approved the parent-owned
   `cf381a1`/`bef41c5` row/count deltas; neither reviewer runs Go.
 - Foundation/ordered code and its expected E delta passed internal steps
-  1-5 and independent review. New consumers pass targeted/index/live goldens,
-  but the full owning workflow suite currently fails budget/offline/locale
-  invariants. The owned failure sentinel stays until correction checkpoint.
+  1-5 and independent review. New consumers at `a97b4af` pass targeted/index/
+  live goldens and all full core suites. No current test failure remains;
+  resources block step 3b and independent correction review remains pending.
+  The owned failure sentinel prevents accidental later-stage execution.
 - The verify inventory extension is authored; its one-capture/instability
   contract remains required through correction. No reference-body proof may
   come from a fresh mutable-worktree read.

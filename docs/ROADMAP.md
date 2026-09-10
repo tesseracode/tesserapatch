@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 IN PROGRESS — ADR-041 accepted — 2026-09-09**.
+**S5 🚧 BLOCKED — resource gate before affected CLI — 2026-09-09**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1789,6 +1789,11 @@ Those corrections are authored/formatted with real checkpoint and cohort
 controls; the original doctor warning expectation is preserved.
 Cohort retry passes negative cases and CLI targets; seed the recipe artifact
 missing from the positive truthful-command fixture before restarting.
+Latest code `a97b4af` now passes steps 1-3a, including targeted/live-golden/
+gateway controls and all full core suites (workflow 113.364s). Step 3b never
+started: memory stayed 71-74% through a 600-second gate wait, exiting 75.
+No test failed in that run and no threshold was relaxed. Review confirmation
+and remaining CLI/vet/build/shards/gate stages still precede S5 acceptance.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

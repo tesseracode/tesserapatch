@@ -1,3 +1,23 @@
+## Validation Blocker — GH #15 S5 resource gate — 2026-09-09
+
+**Code checkpoint**: `a97b4af97ae3a0996b687453d82f815daaecb792`
+**State**: BLOCKED — resources before affected CLI, not a test failure
+
+The latest retry passes formatting, all targeted/index/golden/gateway tests
+and all full core packages: workflow 113.364s, patchobs 1.702s, gitutil 7.759s,
+store 2.718s. The positive D10 recipe fixture and negative cohort controls
+pass. Earlier commands had their required fresh minute at 81-82% free.
+
+Before step 3b, free memory fell to 71-74% and never held >=80% for a minute
+during the full 600-second wait. The gate exited 75; the affected CLI command
+did not start, and vet/build/shards/wave-close did not run. No threshold was
+relaxed and no test failed in this latest run. The owned failure sentinel
+remains. HEAD and origin/main match the code checkpoint; tracked tree clean.
+
+Resume at step 3b with a fresh qualifying gate if code remains unchanged;
+if independent review requires code changes, restart at formatting after
+those corrections. Review confirmation is still pending. S5 is not accepted.
+
 ## Validation Result — GH #15 S5 D10 cohort retry — 2026-09-09
 
 **Checkpoint**: `1b0399b`
