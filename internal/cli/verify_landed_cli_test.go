@@ -222,6 +222,7 @@ func TestACL3_CommittedRangeReRecordBothBranches(t *testing.T) {
 
 	t.Run("changed-artifacts-are-stale-then-pass-after-re-land", func(t *testing.T) {
 		f := newGH8Fixture(t)
+		gitRun(t, f.Dir, "config", "diff.context", "3")
 		f.Implement()
 		f.Record()
 		f.Land()
@@ -274,7 +275,18 @@ func TestACL3_CommittedRangeReRecordBothBranches(t *testing.T) {
 			t.Fatal("attestation-only land unexpectedly republished coverage evidence")
 		}
 
+		// Use a distinct valid capture representation so the final
+		// attestation does not resurrect the first one's artifact identity.
+		gitRun(t, f.Dir, "config", "diff.context", "1")
 		f.Record("--from", f.Base, "--to", "HEAD")
+		repaired := readArtifact(t, f.Dir, f.Slug, "post-apply.patch")
+		if repaired == string(body) || repaired == string(body)+"\n" {
+			t.Fatal("repair fixture did not produce a distinct valid capture")
+		}
+		source, err := os.ReadFile(filepath.Join(f.Dir, f.Path))
+		if err != nil || string(source) != gh8Feature {
+			t.Fatalf("capture-context change altered feature source: %v", err)
+		}
 		f.Land("--no-record")
 		after, code, stderr = f.VerifyJSON()
 		if code != 0 {

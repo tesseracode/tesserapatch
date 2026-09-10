@@ -1822,6 +1822,9 @@ landing re-attestation from real coverage repair; no production/gate
 weakening or later shard/gate run.
 The one-file correction is authored/formatted, explicitly proving attestation
 alone leaves coverage blocked and real producer repair restores pass.
+Its first targeted run correctly exposed reused-identity history ambiguity.
+Pin distinct valid capture contexts and exact unchanged source in the fixture;
+production ambiguity/coverage rules remain unchanged.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

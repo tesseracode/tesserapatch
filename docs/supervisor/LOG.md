@@ -1,3 +1,21 @@
+## Validation Result — GH #15 S5 landed-CLI correction retry — 2026-09-10
+
+**Checkpoint**: `70bbc41`
+**State**: IN PROGRESS — targeted step 2 stopped on fixture history ambiguity
+
+Formatting and the core targets pass. The new no-record isolation assertions
+also pass, but restoring the first capture's exact raw identity and adding
+another attestation makes the fixture's history ambiguous under existing GH #8
+rules. Coverage itself is repaired and passes; the older landing checks
+correctly refuse the ambiguous history.
+
+Pin initial diff context to 3 and the later real capture to 1. This creates a
+distinct valid raw capture without changing source bytes, so the final
+attestation is unambiguous. Assert the captured bytes differ from both prior
+identities and the source stays exact. No production change or weakened
+ambiguity/binding check; no later validation stage ran. Fresh gates held at
+83% free, load1 <=5.
+
 ## Validation Result — GH #15 S5 full-shard attempt 1 — 2026-09-10
 
 **Code checkpoint**: `a119dca`

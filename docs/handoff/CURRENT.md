@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 landed-CLI fixture refinement (2026-09-10)**: the no-record isolation
+assertions pass, but reusing the original raw identity produced a legitimate
+landing-history ambiguity. The test now pins distinct valid capture contexts,
+asserts different raw bytes and unchanged source, and retains the existing
+ambiguity/binding rules. No production change; targeted revalidation next.
+
 **S5 step 6 stopped on landed-CLI expectations (2026-09-10)**: the first
 shard invocation failed only in verify_landed_cli_test.go (CLI 595.016s);
 other packages passed. Two cases expect eleven rows, and one assumes
@@ -4346,6 +4352,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Landed correction `70bbc41`: formatting/core targets PASS; CLI targeted
+  failure only in final re-attestation due to ambiguous reused artifact
+  identity. Coverage repair and no-record isolation assertions passed.
+  Fresh gates at 83% free/load1 <=5; no later stage ran.
 
 - Exact step 6 attempt 1: first invocation FAIL only CLI (595.016s), with
   three cases in verify_landed_cli_test.go. Every other package passed,
