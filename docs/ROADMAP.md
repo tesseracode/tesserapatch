@@ -1828,6 +1828,9 @@ production ambiguity/coverage rules remain unchanged.
 The corrected `a6fefac` targets now pass, including ACL1/2/3 and exact source/
 capture-identity assertions. Refresh remaining stages and rerun full shards
 from the first invocation; narrow correction review remains pending.
+Refreshed steps 1-5 pass (workflow 103.058s, expanded CLI/ACL 97.224s,
+vet/build). Restart the exact full script while the readonly narrow review
+finishes against the immutable test correction.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

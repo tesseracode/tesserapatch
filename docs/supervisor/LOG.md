@@ -1,3 +1,18 @@
+## Validation Transition — GH #15 S5 exact full-shard retry — 2026-09-10
+
+**Test correction**: `a6fefac`; production remains `a119dca`
+**State**: IN PROGRESS — refreshed steps 1-5 PASS
+
+Full core passes (workflow 103.058s) and expanded affected CLI, including
+the complete ACL family, passes in 97.224s. Vet/build pass. Every command
+had a separate qualifying minute at 83-84% free memory, load1 <=5.
+The corrected targeted/index/golden run also passes.
+
+Restart the exact full shard script at its first invocation. The narrow
+test-correction reviewer remains readonly and can finish against the same
+immutable checkpoint while validation runs. No code changes during the run;
+any review-required correction would stop progression before wave close.
+
 ## Validation Result — GH #15 S5 landed-CLI corrected targets — 2026-09-10
 
 **Checkpoint**: `a6fefac`

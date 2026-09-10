@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 refreshed steps 1-5 PASS (2026-09-10)**: full core (workflow 103.058s),
+expanded CLI including ACL (97.224s), vet/build and all targets pass under
+fresh 83-84%-free gates. Restart the exact full shard script from invocation
+one at immutable test correction `a6fefac`; production remains `a119dca`.
+Narrow test review is readonly in parallel; no code changes during validation.
+
 **S5 landed-CLI targets PASS (2026-09-10)**: corrected `a6fefac` passes
 formatting and all expanded targets, including ACL1/2/3 and source/identity
 assertions, under fresh 83-84%-free gates. Refresh remaining validation
@@ -3081,7 +3087,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — landed-CLI expectation correction after first full-shard failure
+- **Status**: In progress — refreshed stages 1-5 pass; exact full-shard retry
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -4358,6 +4364,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Refreshed steps 3-5 PASS after `a6fefac`: full core patchobs 1.951s,
+  gitutil 7.134s, store 2.770s, workflow 103.058s; expanded CLI/ACL 97.224s;
+  vet/build PASS. Separate fresh windows at 83-84% free/load1 <=5.
+- All refreshed steps 1-5 pass; exact full-shard retry is next.
 
 - Corrected landed fixture `a6fefac`: steps 1-2 PASS. Patchobs 1.262s,
   gitutil 1.081s, workflow 17.700s, CLI 39.281s, including ACL1/2/3.
