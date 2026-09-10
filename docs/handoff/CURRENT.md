@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 steps 1-5 PASS; full shards next (2026-09-10)**: full core (workflow
+102.762s), affected CLI (71.948s), vet/build and targeted/golden/gateway
+families all pass at unchanged code `a119dca`. Every command had a fresh
+qualifying minute at 84% free. All static findings are closed. Checkpoint
+and run the exact 22-shard step 6, then explicit-base step 7 before acceptance.
+
 **S5 resumed steps 1-2 PASS (2026-09-10)**: fresh full gates held at 84%
 free memory and load1 <=5. Formatting and all targeted/index/golden/gateway
 tests pass, including the new gitlink cases. Continue full core, affected
@@ -3053,7 +3059,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — operator-requested fresh validation restart
+- **Status**: In progress — steps 1-5 pass; full shards and wave-close pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3061,6 +3067,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+After resource recovery, S5 passes all steps 1-5 at unchanged code `a119dca`.
+Full core, affected CLI, vet/build and the expanded target/golden/gateway
+families pass under separate 84%-free qualifying windows. All static findings
+are closed. The full 22-shard script and explicit-base gate are next.
+
+### Earlier resource-resumption summary (historical)
 
 Resources are again inside instantaneous thresholds (84% free/load1 3.67,
 no active Go tools). The repository checkpoint is unchanged and pushed.
@@ -3624,8 +3637,8 @@ delta review is approved and the internal unit is accepted. Coverage read
 integration, D13/D17 and D10 compile and passed targeted/index/live-golden
 validation. All six review corrections and the D10 cohort correction now
 passed targeted and full core validation at `a97b4af`. The subsequent
-gitlink correction `a119dca` is statically approved but not Go-validated.
-Resources block a fresh step-1 restart; full S5 validation/close remain.
+gitlink correction `a119dca` is statically approved and passes fresh
+steps 1-5 after resource recovery. Full S5 shard/gate validation and close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -4314,6 +4327,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Resumed steps 3-5 PASS at unchanged `a119dca`: full core patchobs 1.929s,
+  gitutil 7.143s, store 2.671s, workflow 102.762s; affected CLI 71.948s;
+  vet/build PASS. Each command had a separate fresh 84%-free/load1 <=5 window.
+- All steps 1-5 are now complete. Exact step 6 shards and step 7 remain.
 
 - Resumed code `a119dca`: steps 1-2 PASS after separate 60-second windows
   at 84% free/load1 <=5/no Go tools. Patchobs 1.258s, gitutil 1.106s,
@@ -10286,13 +10304,12 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Retrieve independent correction review; correct any new finding without
-   relaxing the existing safety/fixture contracts.
-2. When resources qualify for a fresh minute, clear only the owned failure
-   sentinel and resume step 3b if code remains at `a97b4af`; otherwise restart
-   from formatting after the new code checkpoint.
-3. Finish affected CLI, vet/build, exact shards and explicit-base wave-close,
-   then archive/push terminal S5 tracking. Do not start S6 or GH #24.
+1. Run the exact 22-shard step 6 with fresh per-command resource gates;
+   stop at the first failure.
+2. Record its result, prepare the review-approved close checkpoint and run
+   `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
+3. Archive/push terminal S5 tracking only after validation completes.
+   Do not start S6, release/tag work or GH #24 implementation.
 
 ## Blockers
 
@@ -10304,9 +10321,9 @@ at 471.544s. Formatting, vet and CLI build pass.
   ineligible for validation.
   At 01:22 PDT the operator-requested sample is eligible (84%, load1 3.67);
   a fresh full qualifying minute is still required before each command.
+- The resource blocker is resolved for steps 1-5 by fresh qualifying windows.
 - All consumer/D10 findings, including streamed gitlinks, are statically
-  closed at `a119dca`. Fresh validation after that correction and whole-S5
-  acceptance remain incomplete.
+  closed and steps 1-5 pass. Exact shards, gate and whole-S5 acceptance remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

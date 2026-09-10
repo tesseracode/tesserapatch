@@ -1813,6 +1813,9 @@ formatting with a fresh full gate before every command; all static findings
 are closed but S5 validation/acceptance remain incomplete.
 The resumed steps 1-2 now pass under fresh 84%-free gates, including
 exhausted-budget gitlink controls. Owning suites and final stages remain.
+Resumed steps 1-5 now all pass: full core (workflow 102.762s), affected CLI
+71.948s, vet/build and targeted/goldens. All findings are closed; exact
+22-shard validation and explicit-base gate remain before S5 acceptance.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

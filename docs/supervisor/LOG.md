@@ -1,3 +1,18 @@
+## Validation Transition — GH #15 S5 full shards — 2026-09-10
+
+**Code checkpoint**: `a119dca`
+**State**: IN PROGRESS — steps 1-5 PASS; step 6 next
+
+Full core passes: patchobs 1.929s, gitutil 7.143s, store 2.671s,
+workflow 102.762s. Affected CLI passes in 71.948s; vet and CLI build pass.
+All four commands had separate fresh minutes at 84% free, load1 <=5,
+with no active Go tools. Together with the resumed targeted/golden run,
+steps 1-5 are complete at unchanged code. All static findings are closed.
+
+Checkpoint and run the exact 22-shard script with a fresh resource gate
+before each top-level Go invocation. Step 7 and terminal S5 acceptance
+remain pending. No S6, release/tag or GH #24 implementation is dispatched.
+
 ## Validation Result — GH #15 S5 resumed targeted stages — 2026-09-10
 
 **Code checkpoint**: `a119dca`
