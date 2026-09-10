@@ -1,3 +1,22 @@
+## Review and Decision — GH #15 S5 internal foundation unit — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Delta range**: `3924fff..97ff4ff`
+**Verdict**: APPROVED — exact four-file golden delta
+
+Historical projections, fixture bytes/hash histories, capturers and
+normalizers remain unchanged. The six-fixture E additions use frozen facts
+and exact expected C bytes; mutations exercise the final comparator.
+This review ran no Go commands.
+
+**Decision**: accept the internal foundation/ordered-noop unit. All reported
+static findings are closed and serial resource-gated steps 1-5 pass, including
+actual goldens and owning suites. Dispatch remaining S5 read-time bindings,
+verify/apply classification, doctor D10 and truthful remediation against
+Accepted ADR-041/042. This is neither whole-S5 acceptance nor a wave close;
+WAVE_BASE remains `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`, and final
+full-shard/gate validation follows the remaining implementation.
+
 ## Validation Result — GH #15 S5 foundation/ordered unit steps 1-5 PASS — 2026-09-09
 
 **Code checkpoint**: `97ff4ff` (tracking-only `ed0e0b6` followed)

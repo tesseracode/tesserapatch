@@ -4,6 +4,56 @@
 
 **Cluster state**: IN PROGRESS
 
+**Remaining S5 consumers dispatched (2026-09-09)**: independent golden-delta
+review APPROVED `97ff4ff`; the foundation/ordered internal unit is accepted
+after steps 1-5. Remaining work is read-time content/binding reconstruction,
+the D13 verify row, D17 execute classifier and D10 doctor/remediation.
+This is the same S5 task and WAVE_BASE
+`537ffd9bff153efe37afa3bc6d66f4e00fc55d35`, not a new wave or S6.
+
+### Current consumer implementation ownership
+
+One fresh implementation worker owns the coupled runtime surface:
+- New workflow `recipe_coverage_read.go`, `recipe_coverage_diagnostics.go`,
+  `recipe_coverage_reconstruct.go`, `doctor_d10.go`.
+- If needed for readonly bounded reconstruction, new
+  `internal/patchobs/reconstruct.go`, `reconstruct_s5_test.go`,
+  `internal/gitutil/patch_reconstruct.go`, `patch_reconstruct_s5_test.go`.
+  Reuse existing private grammar/budget/Git helpers; no competing path grammar
+  or temp-index/shadow/object writes in doctor. Report any further path need.
+- Existing workflow `verify.go`, `verify_landed.go`, `verify_gitgate.go`,
+  `doctor.go`; `recipe.go` only for captured-byte recipe loading, preserving
+  accepted ordered execution. CLI `cobra.go`, `reject.go`, `doctor.go`,
+  `verify.go` only where the new behavior requires wiring/help.
+- New workflow `recipe_authority_s5_read_test.go`,
+  `recipe_authority_s5_doctor_test.go`; extend
+  `recipe_authority_s5_verify_test.go`; new CLI
+  `recipe_authority_s5_cli_test.go`.
+- Directly coupled legacy tests: workflow `verify_test.go`,
+  `verify_all_test.go`, `doctor_test.go`; CLI `verify_test.go`,
+  `verify_all_test.go`, `doctor_test.go`.
+- Exact parser/phase/read-only boundary guards:
+  `internal/gitutil/recipe_authority_s0_pi12_test.go`,
+  workflow `recipe_authority_s0_source_guards_test.go` and
+  `recipe_authority_s4_publication_guards_test.go`.
+
+The coordinator retains all tracking, `recipe_authority_s5_contract_test.go`,
+golden expected-delta/provenance files and ADR-index pins. Earlier workers
+are stopped. No same-file parallel edits, Go validation, staging, commits or
+broadcasts by the new worker. Additional production surfaces (including a
+shared default-record feasibility planner if needed) require scoped approval.
+
+Keep C/E schemas, S3 pure semantics, ADR-039/040/041/042 and historical
+goldens intact. Capture C/E/marker alongside existing immutable verify
+inputs, preserving actual absence versus unreadability and same captured
+recipe bytes through execution. Complete records require offline tree/byte
+proof; incomplete records use only ADR-041's explicitly bounded limitations.
+Doctor D10 writes nothing and fixes nothing; regeneration commands require
+actual producer feasibility, not a copied descriptor or optimistic hint.
+S6, GH #24 widening and GH #13 implementation remain out of scope.
+
+### Accepted internal-unit record (historical)
+
 **S5 foundation/ordered unit steps 1-5 PASS (2026-09-09)**: actual goldens,
 targeted/index families, full core (workflow 98.676s), affected CLI (64.139s),
 vet and build all pass at unchanged code `97ff4ff`. Every command had a
@@ -2825,7 +2875,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — internal unit steps 1-5 pass; delta review before consumers
+- **Status**: In progress — internal unit accepted; remaining S5 consumer implementation
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2833,6 +2883,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent review approved the exact golden delta. The internal foundation/
+ordered unit is accepted with all static findings closed and steps 1-5
+passing. A fresh, single owner is assigned the remaining S5 consumer/read/
+doctor surface and its directly coupled tests/guards; coordinator golden
+and tracking ownership stays separate. No new consumer code is claimed yet.
+
+### Earlier internal-unit validation summary (historical)
 
 The foundation/ordered internal unit now passes all steps 1-5, including
 actual historical golden comparison, full core, affected CLI, vet and build.
@@ -3295,9 +3353,10 @@ ADR-041 is Accepted rev-1. The evidence foundation and all three caller
 closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
 guards pass the complete internal-unit steps 1-5: targeted/index/actual
-goldens, all full core packages, affected CLI, vet and build. Exact delta
-review still precedes internal-unit acceptance. Coverage read integration,
-D13/D17 and D10 remain unimplemented; full S5 validation/close remain.
+goldens, all full core packages, affected CLI, vet and build. Independent
+delta review is approved and the internal unit is accepted. Coverage read
+integration, D13/D17 and D10 are now dispatched but remain unimplemented;
+full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -9904,12 +9963,11 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the stable unit's serial resource-gated validation (formatting,
-   targeted S0-S5, affected packages, vet/build), restarting from formatting
-   after the delivered corrections are checkpointed. All workers are stopped.
-2. Independently review the completed evidence foundation; then resume S5
-   read/verify/apply/doctor integration with the accepted pair requirement.
-3. Checkpoint implementation, run serial gated validation and independent
+1. Implement remaining S5 read/verify/apply/doctor behavior under the current
+   single-worker ownership at the top of this file.
+2. Adapt only the coordinator-owned exact expected deltas where new consumer
+   output requires them; preserve historical evidence and prior projection bodies.
+3. Checkpoint implementation, restart serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.
 
 ## Blockers

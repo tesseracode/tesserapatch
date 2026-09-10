@@ -1731,6 +1731,10 @@ The internal unit now passes all steps 1-5, including full core (workflow
 98.676s), affected CLI (64.139s), vet/build and actual goldens. Await the
 independent delta verdict before consumer dispatch; final S5 shards/gate
 remain after that implementation.
+Independent golden-delta review APPROVED `97ff4ff`; the internal foundation/
+ordered unit is accepted. Remaining S5 consumers are dispatched to one fresh
+runtime owner with disjoint coordinator golden/tracking ownership. The same
+WAVE_BASE applies; this is not a wave close or S6 dispatch.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
