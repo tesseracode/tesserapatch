@@ -140,13 +140,13 @@ func TestRGAS5ContractGuidanceAndSensitivities(t *testing.T) {
 	}
 }
 
-func rgaS5ContractHistoricalSection(doc, heading, digest string) error {
+func rgaS5ContractSectionMatches(doc, heading, digest string) error {
 	section, err := rgaS3DocSection(doc, heading)
 	if err != nil {
 		return err
 	}
 	if rgaS3DocHash(section) != digest {
-		return fmt.Errorf("historical ADR-029 decision changed: %s", heading)
+		return fmt.Errorf("accepted decision section changed: %s", heading)
 	}
 	return nil
 }
@@ -162,15 +162,58 @@ func TestRGAS5ContractADR029PreservedAndSensitive(t *testing.T) {
 			"warning-class audit signals", "proof that replay is safe"},
 	} {
 		t.Run(tc.heading, func(t *testing.T) {
-			if err := rgaS5ContractHistoricalSection(doc, tc.heading, tc.digest); err != nil {
+			if err := rgaS5ContractSectionMatches(doc, tc.heading, tc.digest); err != nil {
 				t.Fatal(err)
 			}
 			if !strings.Contains(doc, tc.old) {
 				t.Fatalf("historical mutation anchor missing: %q", tc.old)
 			}
 			wrong := strings.Replace(doc, tc.old, tc.replacement, 1)
-			if err := rgaS5ContractHistoricalSection(wrong, tc.heading, tc.digest); err == nil {
+			if err := rgaS5ContractSectionMatches(wrong, tc.heading, tc.digest); err == nil {
 				t.Fatal("same historical-section validator accepted the mutation")
+			}
+		})
+	}
+}
+
+func TestRGAS5ContractCaptureEvidenceAndSensitivities(t *testing.T) {
+	doc := rgaS0ReadRepoFile(t, "docs/adrs/ADR-041-independent-capture-event-evidence.md")
+	for _, tc := range []struct{ heading, digest, old, replacement string }{
+		{"## 3. E v1: exact typed schema and identity",
+			"8c98bcae96321b4bbe263a7b699c2f0576ae28cb129cbf3fc067ca4a8fd170e7",
+			`"parent_created_paths": [],`, `"parent_created_paths": null,`},
+		{"## 4. Observation and reconstruction boundary",
+			"229e06e68f034477e2a90da40669c2115878de573c9cb8fe2ce89b9b7083fc7d",
+			"A mixed text/binary record does not exempt", "A mixed text/binary record exempts"},
+		{"## 5. Reopened S4 publication contract",
+			"29197e993b8bf9fb7b0e2eb274cb5448412139689c199e5268d5d180ae56e885",
+			"3. Single-file atomic publication of **E**.\n4. Single-file atomic publication of **C last**.",
+			"3. Single-file atomic publication of **C**.\n4. Single-file atomic publication of **E last**."},
+		{"## 6. S5 read integration and diagnostics",
+			"de98fe641eea39cd1f8951be5fd9506a80d2570bd12485eb700e9bed833e4974",
+			"code with **no schema-reason counterpart**.", "code with a schema-reason counterpart."},
+		{"## 7. Migration and GH #13 planning dependency",
+			"6b15a4cc42c73ec47ee4d3dabab648aceda9fb93308b6a8f018c755a12f70c97",
+			"not a legacy exception or an automatic backfill.", "a legacy exception permitting automatic backfill."},
+		{"## 8. Supplementary acceptance plan",
+			"cc6c25f50ab967ea65b618329f220796e08415855a6cf23d480ac5250bc4f5a7",
+			"through the artifact-read seam, not OS permissions.", "through OS permissions alone."},
+	} {
+		t.Run(tc.heading, func(t *testing.T) {
+			if err := rgaS5ContractSectionMatches(doc, tc.heading, tc.digest); err != nil {
+				t.Fatal(err)
+			}
+			section, err := rgaS3DocSection(doc, tc.heading)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(section, tc.old) {
+				t.Fatalf("evidence mutation anchor missing: %q", tc.old)
+			}
+			wrongSection := strings.Replace(section, tc.old, tc.replacement, 1)
+			wrong := strings.Replace(doc, section, wrongSection, 1)
+			if err := rgaS5ContractSectionMatches(wrong, tc.heading, tc.digest); err == nil {
+				t.Fatal("same evidence contract validator accepted its mutation")
 			}
 		})
 	}

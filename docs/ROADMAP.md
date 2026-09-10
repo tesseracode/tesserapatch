@@ -1656,6 +1656,9 @@ is accepted/indexed, primary qualifications are effective, and only its
 required S4 pair-publication surfaces reopen before the S5 reader.
 GH #13's separate gate/identity/acceptance planning dependency is recorded
 in ADR-041 section 7. Runtime implementation/validation/review remain pending.
+Coordinator evidence contract/publication guard extensions are authored and
+formatted with wrong-input controls. The runtime worker owns the same-target
+correction and evidence foundation; no S5 Go validation has run.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

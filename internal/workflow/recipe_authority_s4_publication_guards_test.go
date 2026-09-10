@@ -687,7 +687,8 @@ func rgaS4PublicationSource(rel, src string) error {
 			if publisher {
 				if call, ok := n.(*ast.CallExpr); ok {
 					name := rgaS0CallName(call)
-					if owner != "PublishCoverage" && (name == "BuildRecipeCoverage" || name == "EncodeRecipeCoverage") {
+					eventCodec := strings.Contains(name, "CaptureEvent") && (strings.HasPrefix(name, "Build") || strings.HasPrefix(name, "Encode"))
+					if owner != "PublishCoverage" && (name == "BuildRecipeCoverage" || name == "EncodeRecipeCoverage" || eventCodec) {
 						refusal = fmt.Errorf("coverage derivation/encoding outside the primary publisher: %s", owner)
 					}
 					if selector, ok := call.Fun.(*ast.SelectorExpr); ok && owner != "PublishCoverage" &&
@@ -697,7 +698,7 @@ func rgaS4PublicationSource(rel, src string) error {
 				}
 			}
 			if id, ok := n.(*ast.Ident); ok {
-				coverageSymbol := strings.Contains(id.Name, "Coverage") || id.Name == "coverageFinalizer"
+				coverageSymbol := strings.Contains(id.Name, "Coverage") || strings.Contains(id.Name, "CaptureEvent") || id.Name == "coverageFinalizer"
 				if coverageSymbol && !publisher {
 					// The shared outcome carries exact bytes; it defines no
 					// wire schema and performs no coverage policy itself.
@@ -721,8 +722,8 @@ func rgaS4PublicationSource(rel, src string) error {
 			}
 			if literal, ok := n.(*ast.BasicLit); ok {
 				if value, valid := rgaS0StringLit(literal); valid && !publisher {
-					if value == "recipe-coverage.json" {
-						refusal = fmt.Errorf("producer owns a private coverage artifact")
+					if value == "recipe-coverage.json" || value == "recipe-capture-event.json" {
+						refusal = fmt.Errorf("producer owns a private coverage or capture-event artifact")
 					}
 					if strings.HasPrefix(strings.TrimSpace(strings.ToLower(value)), "recipe coverage:") {
 						refusal = fmt.Errorf("producer owns a private coverage status formatter")
@@ -762,8 +763,13 @@ func rgaS4PublicationSource(rel, src string) error {
 			order = append(order, rgaS0CallName(call))
 		case "s.WriteArtifactAtomic":
 			if len(call.Args) > 1 {
-				if name, ok := rgaS0StringLit(call.Args[1]); ok && name == "recipe-coverage.json" {
-					order = append(order, "coverage-write")
+				if name, ok := rgaS0StringLit(call.Args[1]); ok {
+					switch name {
+					case "recipe-capture-event.json":
+						order = append(order, "capture-event-write")
+					case "recipe-coverage.json":
+						order = append(order, "coverage-write")
+					}
 				}
 			}
 		case "s.WriteArtifact", "os.WriteFile":
@@ -771,7 +777,7 @@ func rgaS4PublicationSource(rel, src string) error {
 		}
 		return true
 	})
-	want := "BuildRecipeCoverage>EncodeRecipeCoverage>publishRecordRecipePlan>AppendPatchGenerationForFeature>coverage-write"
+	want := "BuildRecipeCoverage>EncodeRecipeCoverage>publishRecordRecipePlan>AppendPatchGenerationForFeature>capture-event-write>coverage-write"
 	if strings.Join(order, ">") != want {
 		return fmt.Errorf("publication ordering changed: %v", order)
 	}
@@ -788,11 +794,16 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 		{"copied-publisher", "internal/workflow/record.go", src},
 		{"copied-publisher-in-producer", "internal/workflow/refresh.go", src},
 		{"inline-producer-writer", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){ s.WriteArtifactAtomic(slug,\"recipe-coverage.json\",\"{}\") }"},
+		{"inline-producer-event-writer", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){ s.WriteArtifactAtomic(slug,\"recipe-capture-event.json\",\"{}\") }"},
+		{"unregistered-event-only-writer", "internal/cli/unregistered_event.go", "package cli\nfunc unregistered(){ s.WriteArtifactAtomic(slug,\"recipe-capture-event.json\",\"{}\") }"},
 		{"unregistered-producer-chain", "internal/cli/cobra.go", "package cli\nfunc other(){workflow.PublishCoverage(nil,workflow.CoveragePublicationInput{})}"},
 		{"private-producer-codec", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){workflow.EncodeRecipeCoverage(c)}"},
+		{"private-producer-event-codec", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){workflow.EncodeCaptureEvent(e)}"},
 		{"private-producer-status", "internal/cli/cobra.go", "package cli\nfunc recordCmd(){fmt.Fprintln(w,\"recipe coverage: complete\")}"},
 		{"alternate-publisher-entry", rel, src + "\nfunc alternatePublisher(){ s.WriteArtifactAtomic(slug, \"recipe-coverage.json\", \"{}\") }\n"},
+		{"alternate-publisher-event-entry", rel, src + "\nfunc alternateEventPublisher(){ s.WriteArtifactAtomic(slug, \"recipe-capture-event.json\", \"{}\") }\n"},
 		{"alternate-publisher-encoder", rel, src + "\nfunc alternateEncoder(){ EncodeRecipeCoverage(c) }\n"},
+		{"alternate-publisher-event-encoder", rel, src + "\nfunc alternateEventEncoder(){ EncodeCaptureEvent(e) }\n"},
 		{"non-atomic-publication", rel, strings.Replace(src, `s.WriteArtifactAtomic(`, `s.WriteArtifact(`, 1)},
 		{"publication-before-recipe", rel, strings.Replace(src, "data, err := EncodeRecipeCoverage(c)", "s.WriteArtifactAtomic(in.Observation.Slug, \"recipe-coverage.json\", \"{}\")\n data, err := EncodeRecipeCoverage(c)", 1)},
 	} {
@@ -802,6 +813,32 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 			}
 		})
 	}
+	for _, mutation := range []struct{ name, artifact, replacement string }{
+		{"capture-evidence-omitted", `"recipe-capture-event.json"`, `"unrelated.json"`},
+		{"final-coverage-omitted", `"recipe-coverage.json"`, `"recipe-capture-event.json"`},
+	} {
+		t.Run(mutation.name, func(t *testing.T) {
+			if !strings.Contains(src, mutation.artifact) {
+				t.Fatalf("publication mutation anchor missing: %s", mutation.artifact)
+			}
+			wrong := strings.ReplaceAll(src, mutation.artifact, mutation.replacement)
+			if err := rgaS0CoveragePhaseSource(rel, wrong); err == nil {
+				t.Fatal("same phase validator accepted an invalid E/C publication order")
+			}
+		})
+	}
+	t.Run("coverage-before-evidence", func(t *testing.T) {
+		if !strings.Contains(src, `"recipe-capture-event.json"`) || !strings.Contains(src, `"recipe-coverage.json"`) {
+			t.Fatal("E/C publication mutation anchors missing")
+		}
+		wrong := strings.NewReplacer(
+			`"recipe-capture-event.json"`, `"recipe-coverage.json"`,
+			`"recipe-coverage.json"`, `"recipe-capture-event.json"`,
+		).Replace(src)
+		if err := rgaS0CoveragePhaseSource(rel, wrong); err == nil {
+			t.Fatal("same phase validator accepted C-before-E publication")
+		}
+	})
 }
 
 func TestRGAS4AtomicBoundWriterScanner(t *testing.T) {

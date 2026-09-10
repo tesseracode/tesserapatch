@@ -10,6 +10,12 @@ contract is accepted and indexed; its primary qualifications are effective.
 This is policy acceptance only, not runtime acceptance. The original S5
 WAVE_BASE remains `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 
+The coordinator's accepted-evidence contract/publication guard extension is
+authored and formatted, with missing/reversed/private E/C and document
+mutation controls. Runtime worker `f88dc13c-d461-45f8-a583-b2a9eb806188`
+owns the same-target correction followed by evidence foundation; no Go
+validation has run.
+
 ### Resumed S5 ownership
 
 After the bounded same-target D7 correction, the runtime worker may implement
@@ -2630,6 +2636,15 @@ WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
 
+Coordinator guard extension is authored: six accepted ADR-041 section pins
+with wrong-input fixtures, plus E-before-C publication, missing/reversed
+pair and private/alternate writer/codec controls in the existing S4 guard.
+All original eleven mutations and alias/import/shadow controls remain.
+Formatting caught and corrected one misplaced test declaration before any
+validation run. The runtime worker continues its disjoint foundation work.
+
+### S5 accepted-contract summary (historical)
+
 Independent re-review approved ADR-041 rev-1 with no significant issue.
 The supervisor accepted the concrete contract, graduated both primary
 qualifications and registered the ADR with the exact coupled index pin.
@@ -3017,6 +3032,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
 - Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
+- Coordinator evidence-publication guard extension:
+  `internal/workflow/recipe_authority_s4_publication_guards_test.go`.
 - Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:
@@ -3601,6 +3618,8 @@ remains blocked until that release is implemented, soaked and shipped.
   terminal CI 34368468175 green on all required platform/observer jobs.
 - Partial D7/D14 unit is formatted only. Its runtime behavior, including
   multiple operations on one target, still requires validation/review.
+- Coordinator evidence guards are formatted; a misplaced declaration was
+  corrected during formatting. No Go validation-sequence command has run.
 
 ### Completed S4 results
 

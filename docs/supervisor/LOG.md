@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S5 evidence guards authored — 2026-09-09
+
+**State**: IN PROGRESS — foundation worker active; guards not Go-validated
+
+Coordinator contract tests pin six accepted ADR-041 sections with
+same-validator wrong-input controls for parent evidence, mixed binary/text
+limits, E/C ordering, vocabulary, migration and read-seam requirements.
+The S4 publication guard now requires the E write before final C and rejects
+private/alternate evidence writers/codecs, missing E/C and reversed order.
+Original eleven pure-core mutations and S4 alias/import/shadow controls
+remain unchanged; the worker owns the matching E-only phase-scan extension.
+
+Formatting caught a misplaced test declaration in the coordinator file;
+it was moved to top level and both coordinator files now format cleanly.
+No test, vet, build or validation-sequence command has run. Checkpoint this
+disjoint unit while the worker finishes the same-target correction and
+accepted evidence foundation.
+
 ## Review and Decision — GH #15 S5 ADR-041 rev-1 — 2026-09-09
 
 **Reviewer**: `s5-capture-evidence-rev1-review`
