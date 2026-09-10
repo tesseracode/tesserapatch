@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 ordered no-op draft delivered (2026-09-09)**: initial write permission
+is separated from ordered skip witnesses, with alias-aware prefix proof and
+runtime recheck. ADR-042 and eight new focused test functions are authored.
+The proposed 8 MiB projection bound and fallback behavior need independent
+review; neither this clarification nor the implementation is accepted.
+No Go validation has run. Foundation caller closure remains a separate unit.
+
 **S5 evidence foundation delivered (2026-09-09)**: the strict event codec,
 independent source/pair validation, E-before-C publication and focused tests
 are authored but unvalidated. Three caller closures remain authorized:
@@ -2656,7 +2663,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — evidence caller closure and bounded ordered no-op proof
+- **Status**: In progress — evidence caller closure and ordered no-op static review
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2664,6 +2671,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The ordered no-op implementer delivered its five owned files, retaining the
+existing overlap regressions and adding eight focused functions. The draft
+separates baseline permission from sequential skip witnesses and includes
+bounded alias-aware projection/recheck. ADR-042 is Proposed, not accepted;
+static review must confirm it preserves D7 rather than narrowing valid cases.
+
+### Earlier S5 foundation summary (historical)
 
 The foundation draft is delivered without Go validation. Caller-closure
 extensions are explicitly scoped to the accepted ADR-041 event/error rules.
@@ -2986,8 +3001,8 @@ integration or shipped assets belong to this slice.
 ## Current State
 
 ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
-three caller closures; the bounded D7 ordered no-op proof is assigned to a
-separate disjoint implementer. These units and coordinator guards are not
+three caller closures; the bounded D7 ordered no-op draft is delivered and
+awaits independent review. These units and coordinator guards are not
 Go-validated or approved. Coverage read integration, D13/D17 and D10 remain
 unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
@@ -3083,6 +3098,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Partial worker unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
   `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
   `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
+- Ordered proof extension: new `internal/workflow/recipe_prefix_precheck.go`
+  and Proposed `docs/adrs/ADR-042-ordered-recipe-noop-proof.md`, plus scoped
+  changes to `recipe.go`, `writefile_safety.go` and the S5 apply tests.
 - Three session-owned ignored wrappers under `bin/s5-validation/`; not staged
   or part of the product, and removed at closure.
 

@@ -68,7 +68,13 @@ func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 			result.Messages = append(result.Messages, fmt.Sprintf("[write-file] %s: already present (exact postimage), no write", op.Path))
 			continue
 		}
-		msg, warn, err := dryRunOperation(s, recipe.Feature, op)
+		var msg, warn string
+		var err error
+		if preview, ok := pre.prefixPreview[i]; ok {
+			msg, warn, err = preview.message, preview.warning, preview.err
+		} else {
+			msg, warn, err = dryRunOperation(s, recipe.Feature, op)
+		}
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
 			continue
@@ -94,6 +100,10 @@ func DryRunRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 // Legacy recipes lacking `preimage_hash` route to a warning per
 // ADR-029 D4 and execution proceeds.
 func ExecuteRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
+	return executeRecipeWithOperation(s, recipe, executeOperation)
+}
+
+func executeRecipeWithOperation(s *store.Store, recipe ApplyRecipe, execute func(*store.Store, string, RecipeOperation) error) RecipeExecResult {
 	result := RecipeExecResult{Operations: len(recipe.Operations)}
 
 	pre := runWriteFilePreimagePrecheck(s, recipe)
@@ -108,12 +118,29 @@ func ExecuteRecipe(s *store.Store, recipe ApplyRecipe) RecipeExecResult {
 
 	for i, op := range recipe.Operations {
 		if pre.AlreadyPresent[i] {
-			result.Applied++
-			result.Skipped++
-			result.Messages = append(result.Messages, fmt.Sprintf("[write-file] %s: already present (exact postimage), no write", op.Path))
-			continue
+			present, err := recipeNoopStillPresent(s.Root, op)
+			if err != nil && errors.Is(err, errRecipePrefixPathSafety) {
+				result.Errors = append(result.Errors, fmt.Sprintf("[write-file] %s: %v", op.Path, err))
+				break
+			}
+			if present {
+				result.Applied++
+				result.Skipped++
+				result.Messages = append(result.Messages, fmt.Sprintf("[write-file] %s: already present (exact postimage), no write", op.Path))
+				continue
+			}
+			if !pre.WriteAuthorized[i] {
+				drift := PreimagePrecheckResult{}
+				drift.appendDrift(recipePrefixDrift(recipe.Feature, i, op, "execution no longer matches the ordered no-write witness"),
+					pre.superseded, pre.superseder)
+				result.Errors = append(result.Errors, drift.Errors...)
+				result.Warnings = append(result.Warnings, drift.Warnings...)
+				if len(drift.Errors) != 0 {
+					break
+				}
+			}
 		}
-		if err := executeOperation(s, recipe.Feature, op); err != nil {
+		if err := execute(s, recipe.Feature, op); err != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("[%s] %s: %v", op.Type, op.Path, err))
 		} else {
 			result.Applied++
@@ -175,9 +202,9 @@ func dryRunOperation(s *store.Store, slug string, op RecipeOperation) (string, s
 		if err != nil {
 			return "", "", fmt.Errorf("file not found: %w", err)
 		}
-		idx := strings.Index(string(content), op.Search)
-		if idx < 0 {
-			return "", "", fmt.Errorf("search text not found in %s", op.Path)
+		idx, err := recipeReplacementIndex(string(content), op)
+		if err != nil {
+			return "", "", err
 		}
 		line := strings.Count(string(content[:idx]), "\n") + 1
 		return fmt.Sprintf("[replace-in-file] would replace in %s (match at line %d)", op.Path, line), "", nil
@@ -232,11 +259,10 @@ func executeOperation(s *store.Store, slug string, op RecipeOperation) error {
 		if err != nil {
 			return fmt.Errorf("file not found: %w", err)
 		}
-		text := string(content)
-		if !strings.Contains(text, op.Search) {
-			return fmt.Errorf("search text not found in %s", op.Path)
+		replaced, _, err := replaceRecipeText(string(content), op, 0)
+		if err != nil {
+			return err
 		}
-		replaced := strings.Replace(text, op.Search, op.Replace, 1)
 		return os.WriteFile(target, []byte(replaced), 0o644)
 
 	case "append-file":

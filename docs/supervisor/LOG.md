@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S5 ordered no-op unit delivered — 2026-09-09
+
+**State**: IN PROGRESS — static review next; no Go validation
+**Unit**: `s5-ordered-noop-proof`
+
+The disjoint implementer delivered initial-permission versus ordered-witness
+separation, alias-aware bounded prefix projection and runtime recheck, shared
+replacement semantics, and eight new focused test functions. ADR-042 records
+the interpretation and proposed 8 MiB logical projection bound; it remains
+Proposed pending review, not an accepted narrowing of D7.
+
+Checkpoint the five owned files and request independent review of ordering,
+alias/path safety, baseline authorization, limits/fallback, failure semantics
+and dry-run/accounting. Existing same-target regressions are retained.
+The evidence foundation worker separately owns its three caller closures.
+Neither unit is validated or approved, and S5 consumers remain unimplemented.
+
 ## Implementation Transition — GH #15 S5 foundation delivered — 2026-09-09
 
 **State**: IN PROGRESS — unvalidated draft; caller closure and D7 correction remain

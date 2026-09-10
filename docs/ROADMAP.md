@@ -1664,6 +1664,9 @@ are authorized. D7's cached same-target no-op bug will use a bounded upfront
 prefix proof preserving initial-tree authority, assigned to a separate
 file-disjoint implementer. Both units still need validation and review before
 consumer integration.
+The ordered-proof draft and Proposed ADR-042 are delivered with eight new
+focused test functions. Independent review must confirm ordering, alias,
+resource-limit and legacy-preservation behavior before accepting this unit.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
 func TestRGAS5ExactPostimageAccounting(t *testing.T) {
@@ -307,5 +309,348 @@ func TestRGAS5InvalidatedNoopKeepsSupersessionSeverity(t *testing.T) {
 		!strings.Contains(warnings, `superseded by "newer"`) ||
 		!strings.Contains(warnings, "not a certification that explicit apply, coverage or replay is safe") {
 		t.Fatalf("invalidated witness lost the existing supersession severity: %+v", result)
+	}
+}
+
+func TestRGAS5PostimageOnlyInvalidationRefusesBeforeAnyWrite(t *testing.T) {
+	for _, gate := range []string{"", hashOf([]byte("C"))} {
+		for _, alias := range []string{"target.txt", "./target.txt", "sub/../target.txt", "hardlink.txt", "symlink.txt"} {
+			for _, first := range []RecipeOperation{
+				{Type: "write-file", Content: "A", PreimageHash: ptr(hashOf([]byte("B")))},
+				{Type: "write-file", Content: "A"},
+				{Type: "append-file", Content: "!"},
+				{Type: "replace-in-file", Search: "B", Replace: "A"},
+			} {
+				t.Run(gate+"/"+alias+"/"+first.Type, func(t *testing.T) {
+					s := slice2Store(t)
+					writeRepoFile(t, s, "target.txt", []byte("B"))
+					target := filepath.Join(s.Root, "target.txt")
+					if alias == "hardlink.txt" {
+						if err := os.Link(target, filepath.Join(s.Root, alias)); err != nil {
+							t.Skipf("hard links unavailable: %v", err)
+						}
+					}
+					if alias == "symlink.txt" {
+						if err := os.Symlink("target.txt", filepath.Join(s.Root, alias)); err != nil {
+							t.Skipf("symbolic links unavailable: %v", err)
+						}
+					}
+					first.Path = alias
+					recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+						{Type: "write-file", Path: "unrelated.txt", Content: "must not be written", PreimageHash: ptr("")},
+						first,
+						{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(gate)},
+					}}
+					for _, run := range []func(*store.Store, ApplyRecipe) RecipeExecResult{DryRunRecipe, ExecuteRecipe} {
+						result := run(s, recipe)
+						if result.Success || result.Applied != 0 || result.Skipped != 0 ||
+							!strings.Contains(strings.Join(result.Errors, "\n"), "preceding operations invalidate") {
+							t.Fatalf("invalidated postimage-only authority escaped precheck: %+v", result)
+						}
+						if got, err := os.ReadFile(target); err != nil || string(got) != "B" {
+							t.Fatalf("prefix wrote before refusal: %q %v", got, err)
+						}
+						if _, err := os.Stat(filepath.Join(s.Root, "unrelated.txt")); !os.IsNotExist(err) {
+							t.Fatalf("unrelated prefix operation executed: %v", err)
+						}
+					}
+					pre := runWriteFilePreimagePrecheck(s, recipe)
+					if len(pre.WrappedErrors) != 1 || !errors.Is(pre.WrappedErrors[0], ErrWriteFilePreimageMismatch) {
+						t.Fatalf("ordered drift lost the production sentinel: %+v", pre)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestRGAS5PrefixCannotRescueInitialRefusals(t *testing.T) {
+	for _, refusal := range []string{"missing", "unreadable", "malformed", "uppercase", "unsafe"} {
+		t.Run(refusal, func(t *testing.T) {
+			s := slice2Store(t)
+			op := RecipeOperation{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(hashOf([]byte("B")))}
+			if refusal != "missing" {
+				writeRepoFile(t, s, "target.txt", []byte("B"))
+			}
+			read := os.ReadFile
+			switch refusal {
+			case "unreadable":
+				read = func(path string) ([]byte, error) {
+					if filepath.Base(path) == "target.txt" {
+						return nil, errors.New("injected prefix-precheck read failure")
+					}
+					return os.ReadFile(path)
+				}
+			case "malformed":
+				op.PreimageHash = ptr("not-a-hash")
+			case "uppercase":
+				op.PreimageHash = ptr("sha256:" + strings.Repeat("A", 64))
+			case "unsafe":
+				op.Path = "../outside.txt"
+			}
+			recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+				{Type: "write-file", Path: "target.txt", Content: "B"},
+				op,
+			}}
+			pre := runWriteFilePreimagePrecheckWithReader(s, recipe, read)
+			if len(pre.Errors) == 0 || len(pre.AlreadyPresent) != 0 {
+				t.Fatalf("prefix output rescued an initial %s refusal: %+v", refusal, pre)
+			}
+			if refusal == "unreadable" {
+				if !strings.Contains(strings.Join(pre.Errors, "\n"), "injected prefix-precheck read failure") {
+					t.Fatalf("read failure cause lost: %+v", pre)
+				}
+				return
+			}
+			result := ExecuteRecipe(s, recipe)
+			if result.Success || result.Applied != 0 || result.Skipped != 0 {
+				t.Fatalf("initial refusal occurred after mutation: %+v", result)
+			}
+		})
+	}
+}
+
+func TestRGAS5PrefixModelsKnownErrorsAndCreatedBy(t *testing.T) {
+	for _, first := range []RecipeOperation{
+		{Type: "replace-in-file", Path: "target.txt", Search: "missing", Replace: "A"},
+		{Type: "ensure-directory", Path: "target.txt"},
+		{Type: "append-file", Path: "target.txt", Content: "A", CreatedBy: "undeclared"},
+	} {
+		t.Run(first.Type+"/"+first.CreatedBy+"/"+first.Path, func(t *testing.T) {
+			s := createdByTestEnv(t, true, "parent", "child", store.DependencyKindHard)
+			writeRepoFile(t, s, "target.txt", []byte("B"))
+			recipe := ApplyRecipe{Feature: "child", Operations: []RecipeOperation{
+				first,
+				{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+			}}
+			for _, run := range []func(*store.Store, ApplyRecipe) RecipeExecResult{DryRunRecipe, ExecuteRecipe} {
+				result := run(s, recipe)
+				if result.Success || result.Applied != 1 || result.Skipped != 1 || len(result.Errors) != 1 {
+					t.Fatalf("failed operation was projected as a mutation: %+v", result)
+				}
+			}
+		})
+	}
+	t.Run("non-directory-ancestor", func(t *testing.T) {
+		s := slice2Store(t)
+		writeRepoFile(t, s, "target.txt", []byte("B"))
+		recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+			{Type: "write-file", Path: "target.txt/child", Content: "A"},
+			{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+		}}
+		result := ExecuteRecipe(s, recipe)
+		if result.Success || result.Applied != 1 || result.Skipped != 1 {
+			t.Fatalf("known non-directory failure invalidated the unaffected image: %+v", result)
+		}
+	})
+	s := createdByTestEnv(t, true, "parent", "child", store.DependencyKindHard)
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	recipe := ApplyRecipe{Feature: "child", Operations: []RecipeOperation{
+		{Type: "append-file", Path: "target.txt", Content: "A"},
+		{Type: "replace-in-file", Path: "target.txt", Search: "BA", Replace: "B", CreatedBy: "undeclared"},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+	}}
+	result := ExecuteRecipe(s, recipe)
+	if result.Success || result.Applied != 0 || result.Skipped != 0 {
+		t.Fatalf("a metadata-rejected replacement was assumed to restore the witness: %+v", result)
+	}
+	if got, err := os.ReadFile(filepath.Join(s.Root, "target.txt")); err != nil || string(got) != "B" {
+		t.Fatalf("metadata-invalid restoring prefix mutated: %q %v", got, err)
+	}
+}
+
+func TestRGAS5PrefixFirstReplacementAndAbsentAliases(t *testing.T) {
+	s := slice2Store(t)
+	writeRepoFile(t, s, "target.txt", []byte("BB"))
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "append-file", Path: "target.txt", Content: "BB"},
+		{Type: "replace-in-file", Path: "target.txt", Search: "BB", Replace: "B"},
+		{Type: "write-file", Path: "target.txt", Content: "BB", PreimageHash: ptr("")},
+	}}
+	if result := ExecuteRecipe(s, recipe); result.Success || result.Applied != 0 {
+		t.Fatalf("projection replaced all matches instead of only the first: %+v", result)
+	}
+	for _, alias := range []string{"./new.txt", "sub/../new.txt", "dir-alias/new.txt"} {
+		t.Run(alias, func(t *testing.T) {
+			s := slice2Store(t)
+			if strings.HasPrefix(alias, "dir-alias/") {
+				if err := os.Symlink(".", filepath.Join(s.Root, "dir-alias")); err != nil {
+					t.Skipf("symbolic links unavailable: %v", err)
+				}
+			}
+			recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+				{Type: "write-file", Path: alias, Content: "B", PreimageHash: ptr("")},
+				{Type: "append-file", Path: "new.txt", Content: "A"},
+				{Type: "replace-in-file", Path: "new.txt", Search: "BA", Replace: "B"},
+				{Type: "write-file", Path: "new.txt", Content: "B", PreimageHash: ptr("")},
+			}}
+			preview := DryRunRecipe(s, recipe)
+			if !preview.Success || preview.Applied != 4 || preview.Skipped != 1 {
+				t.Fatalf("absent alias preview ignored sequential creation: %+v", preview)
+			}
+			if _, err := os.Stat(filepath.Join(s.Root, "new.txt")); !os.IsNotExist(err) {
+				t.Fatal("preview created a file")
+			}
+			result := ExecuteRecipe(s, recipe)
+			if !result.Success || result.Applied != 4 || result.Skipped != 1 {
+				t.Fatalf("absent aliases did not share the ordered image: %+v", result)
+			}
+		})
+	}
+}
+
+func TestRGAS5RuntimeWitnessDivergence(t *testing.T) {
+	for _, authorized := range []bool{false, true} {
+		t.Run(fmt.Sprintf("write-authorized=%v", authorized), func(t *testing.T) {
+			s := slice2Store(t)
+			writeRepoFile(t, s, "target.txt", []byte("B"))
+			gate := ""
+			if authorized {
+				gate = hashOf([]byte("B"))
+			}
+			recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+				{Type: "append-file", Path: "target.txt", Content: "A"},
+				{Type: "replace-in-file", Path: "target.txt", Search: "BA", Replace: "B"},
+				{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(gate)},
+				{Type: "write-file", Path: "later.txt", Content: "later", PreimageHash: ptr("")},
+			}}
+			result := executeRecipeWithOperation(s, recipe, func(s *store.Store, slug string, op RecipeOperation) error {
+				if op.Type == "replace-in-file" {
+					op.Replace = "diverged"
+				}
+				return executeOperation(s, slug, op)
+			})
+			wantBody, wantApplied := "diverged", 2
+			if authorized {
+				wantBody, wantApplied = "B", 4
+			}
+			if result.Success != authorized || result.Applied != wantApplied || result.Skipped != 0 {
+				t.Fatalf("runtime divergence silently skipped or gained write permission: %+v", result)
+			}
+			if got, err := os.ReadFile(filepath.Join(s.Root, "target.txt")); err != nil || string(got) != wantBody {
+				t.Fatalf("runtime divergence result: %q %v", got, err)
+			}
+			if !authorized {
+				if !strings.Contains(strings.Join(result.Errors, "\n"), "execution no longer matches") {
+					t.Fatalf("runtime witness refusal not explained: %+v", result)
+				}
+				if _, err := os.Stat(filepath.Join(s.Root, "later.txt")); !os.IsNotExist(err) {
+					t.Fatal("execution continued beyond the runtime witness refusal")
+				}
+			}
+		})
+	}
+}
+
+func TestRGAS5PrefixResourceGuard(t *testing.T) {
+	s := slice2Store(t)
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	growth := strings.Repeat("A", recipePrefixMaxBytes)
+	for _, first := range []RecipeOperation{
+		{Type: "append-file", Path: "target.txt", Content: growth},
+		{Type: "replace-in-file", Path: "target.txt", Search: "", Replace: growth},
+	} {
+		recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+			first,
+			{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+		}}
+		result := ExecuteRecipe(s, recipe)
+		if result.Success || result.Applied != 0 || !strings.Contains(strings.Join(result.Errors, "\n"), "8388608-byte proof limit") {
+			t.Fatalf("oversized prefix escaped the production resource guard: %+v", result)
+		}
+		recipe.Operations[1].PreimageHash = ptr(hashOf([]byte("B")))
+		if result := ExecuteRecipe(s, recipe); !result.Success || result.Applied != 2 || result.Skipped != 0 {
+			t.Fatalf("oversized prefix revoked original initial-tree write permission: %+v", result)
+		}
+	}
+	large := growth + "B"
+	writeRepoFile(t, s, "large.txt", []byte(large))
+	if _, err := readRecipePrefixImage(filepath.Join(s.Root, "large.txt")); !errors.Is(err, errRecipePrefixLimit) {
+		t.Fatalf("oversized input was accepted by the production bounded reader: %v", err)
+	}
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "write-file", Path: "large.txt", Content: large, PreimageHash: ptr("")},
+	}}
+	if result := ExecuteRecipe(s, recipe); result.Success || result.Applied != 0 {
+		t.Fatalf("unproved large postimage-only operation reported success: %+v", result)
+	}
+	recipe.Operations[0].PreimageHash = ptr(hashOf([]byte(large)))
+	if result := ExecuteRecipe(s, recipe); !result.Success || result.Applied != 1 || result.Skipped != 0 {
+		t.Fatalf("optional proof limit revoked original write authority: %+v", result)
+	}
+	if got, _, err := replaceRecipeText("BB", RecipeOperation{Search: "B", Replace: ""}, 1); err != nil || got != "B" {
+		t.Fatalf("bounded first replacement rejected a fitting output: %q %v", got, err)
+	}
+	if _, _, err := replaceRecipeText("BB", RecipeOperation{Search: "B", Replace: "BB"}, 2); !errors.Is(err, errRecipePrefixLimit) {
+		t.Fatalf("production replacement growth guard accepted deliberate overflow: %v", err)
+	}
+}
+
+func TestRGAS5PrefixRejectsUnsafeAndUnprovenAliases(t *testing.T) {
+	outer := slice2Store(t)
+	s, err := store.Init(filepath.Join(outer.Root, "repo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, outer, "outside.txt", []byte("B"))
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	writeRepoFile(t, s, "distinct.txt", []byte("B"))
+	if sameRecipePrefixTarget(resolveRecipePrefixTarget(s.Root, "target.txt"), resolveRecipePrefixTarget(s.Root, "distinct.txt")) {
+		t.Fatal("equal bytes on distinct files were accepted as physical identity")
+	}
+	if err := os.Symlink("../outside.txt", filepath.Join(s.Root, "escape")); err != nil {
+		t.Skipf("symbolic links unavailable: %v", err)
+	}
+	if err := os.Symlink("missing.txt", filepath.Join(s.Root, "dangling")); err != nil {
+		t.Fatal(err)
+	}
+	if got := resolveRecipePrefixTarget(s.Root, "escape"); !errors.Is(got.err, errRecipePrefixPathSafety) {
+		t.Fatalf("physical escape accepted by production alias validator: %+v", got)
+	}
+	if got := resolveRecipePrefixTarget(s.Root, "dangling"); got.err == nil {
+		t.Fatalf("dangling link was treated as a proven absent ordinary path: %+v", got)
+	}
+	for _, superseded := range []bool{false, true} {
+		feature := "demo"
+		if superseded {
+			slice4SeedSupersession(t, s)
+			feature = "historical"
+		}
+		recipe := ApplyRecipe{Feature: feature, Operations: []RecipeOperation{
+			{Type: "append-file", Path: "escape", Content: "!"},
+			{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+		}}
+		result := ExecuteRecipe(s, recipe)
+		if result.Success || result.Applied != 0 || !strings.Contains(strings.Join(result.Errors, "\n"), "path safety") {
+			t.Fatalf("unsafe prefix alias was ignored or downgraded: %+v", result)
+		}
+	}
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "write-file", Path: "dangling", Content: "A"},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+	}}
+	if result := ExecuteRecipe(s, recipe); result.Success || result.Applied != 0 ||
+		!strings.Contains(strings.Join(result.Errors, "\n"), "unproven") {
+		t.Fatalf("unproved prefix alias received success-shaped fallback: %+v", result)
+	}
+}
+
+func TestRGAS5AbsentTopologyUnprovedPreservesOriginalWrites(t *testing.T) {
+	s := slice2Store(t)
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "ensure-directory", Path: "dir"},
+		{Type: "write-file", Path: "dir/new.txt", Content: "B", PreimageHash: ptr("")},
+		{Type: "write-file", Path: "dir/new.txt", Content: "B", PreimageHash: ptr("")},
+	}}
+	pre := runWriteFilePreimagePrecheck(s, recipe)
+	if len(pre.Errors) != 0 || len(pre.AlreadyPresent) != 0 || !pre.WriteAuthorized[1] || !pre.WriteAuthorized[2] {
+		t.Fatalf("unproved absent-target topology gained a skip or lost write permission: %+v", pre)
+	}
+	result := ExecuteRecipe(s, recipe)
+	if !result.Success || result.Applied != 3 || result.Skipped != 0 {
+		t.Fatalf("optional topology proof restricted original writes: %+v", result)
+	}
+	if got, err := os.ReadFile(filepath.Join(s.Root, "dir/new.txt")); err != nil || string(got) != "B" {
+		t.Fatalf("ordinary authorized result changed: %q %v", got, err)
 	}
 }

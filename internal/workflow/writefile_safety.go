@@ -210,8 +210,14 @@ func isLowercaseHex(s string) bool {
 // per-op verdicts so callers can log warnings (legacy path) and hard-reject
 // with all failing reasons in one shot (ADR-029 D3 all-or-nothing).
 type PreimagePrecheckResult struct {
-	// AlreadyPresent records zero-based operation indexes for no-write success.
+	// AlreadyPresent records ordered, not initial-tree, no-write witnesses.
 	AlreadyPresent map[int]bool
+	// WriteAuthorized preserves the original upfront preimage permission.
+	// An exact postimage alone never grants this permission.
+	WriteAuthorized map[int]bool
+	prefixPreview   map[int]recipePrefixPreview
+	superseded      bool
+	superseder      string
 	// Errors are precondition failures that must block execution per
 	// ADR-029 D3. Populated in operation-index order.
 	Errors []string
@@ -270,7 +276,16 @@ type PreimagePrecheckResult struct {
 // proceeds. This matches PRD-feature-supersession §4.5 "downgrade-to-
 // warning for superseded historical drift, not total suppression".
 func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePrecheckResult {
-	var out PreimagePrecheckResult
+	return runWriteFilePreimagePrecheckWithReader(s, recipe, os.ReadFile)
+}
+
+func runWriteFilePreimagePrecheckWithReader(s *store.Store, recipe ApplyRecipe, readFile func(string) ([]byte, error)) PreimagePrecheckResult {
+	out := PreimagePrecheckResult{
+		AlreadyPresent:  make(map[int]bool),
+		WriteAuthorized: make(map[int]bool),
+		prefixPreview:   make(map[int]recipePrefixPreview),
+	}
+	candidates := make(map[int]bool)
 	repoRoot := s.Root
 	laterIdx := loadLaterFeatureTouches(s, recipe.Feature)
 
@@ -284,6 +299,7 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 	// PRD-feature-supersession §4.5 clause 3 which says the graph reports
 	// the stale-superseder problem separately).
 	superseder, superseded := IsFeatureSuperseded(s, recipe.Feature)
+	out.superseder, out.superseded = superseder, superseded
 
 	for i, op := range recipe.Operations {
 		if op.Type != "write-file" {
@@ -298,15 +314,17 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 				recipe.Feature, i, op.Path, err))
 			continue
 		}
-		outcome, msg := checkWriteFilePreimage(repoRoot, recipe.Feature, i, op)
+		outcome, msg := checkWriteFilePreimageWithReader(repoRoot, recipe.Feature, i, op, readFile)
 		switch outcome {
-		case preimageOK, preimageSkip:
-			// nothing to report
+		case preimageOK:
+			out.WriteAuthorized[i] = true
+			candidates[i] = true
 		case preimageAlreadyPresent:
-			if out.AlreadyPresent == nil {
-				out.AlreadyPresent = make(map[int]bool)
-			}
-			out.AlreadyPresent[i] = true
+			candidates[i] = true
+			// Equality supplied the observed bytes; no second tree read
+			// may replace the original preimage authorization.
+			out.WriteAuthorized[i] = *op.PreimageHash != "" &&
+				*op.PreimageHash == PreimageHashPrefix+sha256Hex([]byte(op.Content))
 		case preimageLegacyWarn:
 			if msg != "" {
 				out.Warnings = append(out.Warnings, msg)
@@ -328,6 +346,9 @@ func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePr
 		if lt := checkLaterTouch(recipe.Feature, i, op, laterIdx); lt != "" {
 			out.appendLaterTouchWarn(lt, superseded, superseder)
 		}
+	}
+	if len(out.Errors) == 0 {
+		proveRecipePrefix(s, recipe, candidates, &out)
 	}
 	return out
 }
