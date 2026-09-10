@@ -2,7 +2,15 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
+
+**S5 ADR-041 PROPOSED (2026-09-09)**: the concrete independent capture-event
+evidence proposal and explicit ADR-036/PRD qualifications are authored.
+Independent contract review is next; runtime integration stays paused.
+The proposal defines deterministic companion evidence, evidence-before-
+coverage ordering, read-time comparison, partial-observation limits,
+diagnostic/migration rules and 36 supplemental cases. No acceptance or Go
+validation is claimed.
 
 **S5 adjudication selected (2026-09-09)**: the operator chose
 `independent-evidence`: preserve D9's independent capture-binding promise
@@ -2566,7 +2574,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — planning independent capture evidence; runtime integration paused
+- **Status**: Review — ADR-041 proposed; runtime integration paused
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2574,6 +2582,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Proposed ADR-041 is authored with explicit primary-contract qualifications.
+Its companion evidence, exact publication/read/migration rules and 36
+supplemental cases are entering independent review before implementation.
+No canonical coverage schema, ten-predicate block or original 360-row matrix
+was rewritten. No Go validation has run.
+
+### S5 adjudication summary (historical)
 
 The operator selected `independent-evidence` for the D9 blocker. Plan a
 concrete amending ADR, including the affected S4 publication/checkpoint
@@ -2846,8 +2862,8 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5 is planning independent capture-event evidence, as selected by the
-operator. Concrete contract approval is still required. The partial D7/D14
+S5's independent capture-event evidence proposal is awaiting review.
+Concrete contract approval is still required. The partial D7/D14
 implementation and independent contract controls are authored but not
 Go-validated or approved. The runtime worker is idle; the coverage reader,
 D13/D17 and D10 remain unimplemented.
@@ -2929,6 +2945,8 @@ remains blocked until that release is implemented, soaked and shipped.
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
 - Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
+- Proposed policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
+  plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - Partial worker unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
   `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
   `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
@@ -9393,8 +9411,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Draft and independently review ADR-041 for the selected independent
-   capture-evidence direction, with explicit ADR-036/PRD qualifications.
+1. Independently review Proposed ADR-041 and its ADR-036/PRD qualifications;
+   resolve findings before accepting the concrete capture-evidence contract.
 2. Resume worker `f88dc13c-d461-45f8-a583-b2a9eb806188` after that decision,
    including the same-target accounting review and auto preflight placement.
 3. Checkpoint implementation, run serial gated validation and independent
@@ -9403,7 +9421,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Blockers
 
 - The operator selected independent capture evidence; the concrete carrier,
-  publication/recovery and binding contract is not yet authored or approved.
+  publication/recovery and binding contract is Proposed, not yet approved.
   Runtime integration stays paused until that amendment is accepted.
 - The partial unit is not validated; implementation and review remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the

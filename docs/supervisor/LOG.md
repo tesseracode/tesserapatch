@@ -1,3 +1,23 @@
+## Planning Transition — GH #15 S5 ADR-041 proposed — 2026-09-09
+
+**State**: AWAITING REVIEW — runtime integration paused
+**Proposal**: `ADR-041-independent-capture-event-evidence.md`
+
+The planning worker authored Proposed ADR-041 and explicit ADR-036/PRD
+qualifications. It proposes a deterministic `recipe-capture-event.json`
+companion built from immutable producer inputs, independently compared with
+coverage and current captured artifacts; companion publication precedes
+coverage's final atomic publication. The proposal states its consistency,
+partial-observation and crash limits rather than claiming authenticated
+history. It includes a narrow new surface code, migration rules, an explicit
+GH #13 planning dependency and 36 supplemental acceptance cases.
+
+The original canonical coverage schema, ten-predicate blocks and 360-row
+baseline matrix are unchanged. This is not acceptance of the proposal or
+runtime implementation. Checkpoint the three proposal files plus tracking,
+then obtain independent contract review before any integration resumes.
+No Go validation has run; partial runtime checkpoint `98bd801` remains pending.
+
 ## Operator Adjudication — GH #15 S5 independent capture evidence — 2026-09-09
 
 **Selection**: `independent-evidence`

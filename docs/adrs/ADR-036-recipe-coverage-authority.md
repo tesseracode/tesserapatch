@@ -37,6 +37,73 @@ conditions. A non-D16 formatting mismatch does not invent rewrite reasons;
 origin, explanation and stale-marker status remain distinct. No schema,
 canonical predicate or ADR-039 domain change is made.
 
+**Proposed S5 independent capture-event addendum — not yet accepted**:
+[ADR-041](./ADR-041-independent-capture-event-evidence.md) is the concrete
+proposal for the operator-selected `independent-evidence` direction.
+Its [supersession list](./ADR-041-independent-capture-event-evidence.md#9-exact-supersession-and-preservation-list)
+qualifies D2/D9/D10/D11/D13/D15/D17; the
+[primary-contract addendum below](#proposed-s5-addendum--independent-capture-event-evidence)
+states the affected boundaries. Accepted rev-7 remains the historical
+baseline, not a claim that S4 already supplies independent capture evidence.
+No implementation authority follows until independent review and acceptance.
+
+## Proposed S5 addendum — independent capture-event evidence
+
+**Status: Proposed (2026-09-09), not Accepted.** The operator selected the
+direction, not this concrete contract. ADR-041 owns the proposed companion
+schema and supplementary `ICE-001`–`ICE-036` cases; it does not replace D3.
+
+If accepted, the following explicit qualifications govern the corresponding
+historical sections below:
+
+- **D2/D9:** a new `artifacts/recipe-capture-event.json`, independently
+  projected from the same immutable S1 observation and exact final bound
+  bytes, provides capture/reference consistency evidence. Its one-way raw
+  coverage hash pairs it with coverage, with no self-hash/circular binding or
+  generation dependency. Consumers still independently reconstruct content
+  and trees. Unavailable historical sides in honest incomplete records retain
+  their observation ceiling and explicitly limited proof; they never become
+  observed/complete by trusting a sidecar (ADR-041 §4.2).
+- **D10/D15:** every P1-P7 governed event publishes companion atomically then
+  coverage atomically **last**, including same-byte and incomplete events.
+  P2 category-(c)'s “coverage only” becomes **exactly companion + coverage**;
+  patch/recipe/provenance/generation/marker/state remain untouched. No-events
+  write neither. Preserve P6 state-attempt/error chaining and P7
+  editor-error ordering; all publication errors are nonzero and suppress
+  success-shaped completion status.
+- **Crash claims:** the old universal missing/hash-stale consequence is not
+  true before the first companion write in an interrupted same-byte event.
+  A previous coherent pair can remain, without attesting the interrupted
+  event. Different mixed pairs after companion publication are detectable;
+  only a real producer event can repair them. Single-file atomicity is not
+  a transaction (ADR-041 §5.3).
+- **D13/D17:** coverage-present with companion missing, unreadable,
+  malformed, wrong-owner or mismatched fails at binding rung 2 / apply order
+  1, exit 2, with `recipe-coverage-capture-evidence-invalid`. Seven mapped
+  codes remain; **twelve unmapped / nineteen total** qualify the old
+  eleven/eighteen totals. No D3 reason is added. Six verify rungs and seven
+  apply cases retain their other behavior. Coverage genuinely absent stays
+  warn/legacy even with orphan companion; no missing-produced split returns.
+  The shared read-only preflight also precedes auto prepare, as already
+  coordinator-adjudicated, without changing state-selected reapply.
+- **D11:** doctor remains warning-only, Fixable:false and read-only even with
+  `--fix`; dry remediation must prove the actual named producer can complete
+  derivation **and publish the pair**, never manufacture evidence in a reader.
+- **Migration/downstream:** old unshipped S4 coverage without companion needs
+  honest producer republish, not fabricated backfill. GH #13's gate ordering,
+  identity and acceptance journal require separate planning follow-up
+  (ADR-041 §7); no candidate implementation is authorized here.
+
+This qualifies the affected publication, read and vocabulary statements
+wherever repeated below. D3's canonical schema and ten-predicate block, D16,
+ADR-039 and ADR-040's semantic-reason rules remain unchanged. The PRD's
+accepted 360-row matrix is preserved verbatim as historical baseline and
+qualified by ADR-041 §9 plus its separately named supplementary cases.
+Unkeyed event consistency is not authenticated authorship or history:
+coordinated consistent edits of all local artifacts are not cryptographic
+proof. The proposed addendum must be independently reviewed before code
+resumes.
+
 ## Revision history
 
 | Rev | Date | Change |

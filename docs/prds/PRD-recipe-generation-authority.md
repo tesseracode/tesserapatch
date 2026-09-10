@@ -30,6 +30,50 @@ unchanged D3 semantic condition, not every D16 byte mismatch. Stale-marker
 incompleteness and origin/provenance restrictions remain intact. No broader
 operation class or consumer authority is introduced.
 
+**Proposed S5 independent capture-event addendum — not yet accepted**:
+[ADR-041](../adrs/ADR-041-independent-capture-event-evidence.md) specifies the
+concrete proposal for the operator-selected `independent-evidence` direction.
+See its §9 exact supersession list and the
+[primary-contract addendum below](#proposed-s5-addendum--independent-capture-event-evidence).
+The accepted rev-7 360-row matrix remains historical baseline; the proposal
+adds separately named cases, not a silently revised matrix or runtime claim.
+Independent review and explicit acceptance precede resumed implementation.
+
+## Proposed S5 addendum — independent capture-event evidence
+
+**Status: Proposed (2026-09-09), not Accepted.** ADR-041 is normative for the
+proposed amendment if accepted; until then S5 consumer integration remains
+paused. The selected direction does not itself accept its wire contract.
+
+| Primary-contract section | Proposed explicit qualification |
+|---|---|
+| §6.2, §6.14 | A deterministic `artifacts/recipe-capture-event.json` independently carries the same immutable capture/reference observation plus final raw patch/recipe bindings and one-way raw coverage pairing hash. Generation identity remains advisory. Independently reconstructable bytes/trees are still checked; truthful incomplete/unavailable observations retain their ceiling and explicitly limited proof, never fabricated source bytes (ADR-041 §4.2) |
+| §6.10, §6.15, S4 | All P1-P7 governed events now publish companion atomically **before** final atomic coverage, including same-byte, checkpoint and incomplete events. P2 category-(c) permits **exactly companion + coverage**; all other no-write guarantees remain. No-events write neither |
+| §6.10/§6.15 universal crash/rerun claims | A failed same-byte event before its first companion write can leave the previous coherent pair; it does not attest the failed event. New companion/old coverage with different outputs is detected. No cross-file transaction or reader recovery; all publication failures are nonzero, with P6/P7 primary-error chains preserved and no success-shaped completion status (ADR-041 §5) |
+| §6.11/§6.12, §7, S5 | Coverage-present/companion-invalid is binding rung 2 and D17 order 1, exit 2, before LoadRecipe/mutation. New surface code `recipe-coverage-capture-evidence-invalid` has no schema reason: **seven mapped + twelve unmapped = nineteen total** replaces the eleven/eighteen totals. The six-rung verify ladder and seven-case apply classifier retain other semantics |
+| §6.11/§6.12 legacy and marker rules | Genuinely absent coverage stays uniformly warn/legacy even with orphan, malformed or unreadable companion. No missing-produced split. Marker cannot lower malformed/binding-stale refusal; incomplete reasons stay visible. Shared read-only preflight before auto prepare is the coordinator-adjudicated ordinary placement, preserving canonical state-selected reapply |
+| §6.11/§6.13, S5 remediation | Doctor is warning-only, Fixable:false, read-only under --fix; named regeneration requires a dry proof that the actual producer event can complete derivation **and publish companion then coverage**, not reader backfill |
+| §8 S4/S5 and §10 rollout | Minimally reopen producer publication before reader acceptance; old unshipped S4 coverage requires honest producer republish. No coverage-only compatibility exemption or fabricated event evidence. No S6/public-release authority |
+| §6.14/§13 GH #13 boundary | Separate GH #13 planning follow-up must cover its ordered gates, candidate identity and staged/snapshotted/restored publication set, as listed precisely in ADR-041 §7. No GH #13 modification or implementation here |
+
+**Acceptance baseline qualification:** §9 and its **360 rows remain
+verbatim**, including counts and IDs. They document accepted rev-7, not a
+universal post-amendment contract. ADR-041 §8 adds **36 proposed `ICE-*`
+cases**, separate from `RGA-*`. Its §9 identifies affected historical
+publication/checkpoint/crash, binding, vocabulary and remediation rows.
+Future runtime fixtures need actual producer-created companion evidence and
+mutation-sensitive checks of the amended validators; historical matrix
+rewriting is not the migration.
+
+Neither this addendum nor ADR-041 changes §6.4's canonical D3 schema,
+§6.5's byte-identical ten predicates, ADR-039's complete-operation domain,
+ADR-040's semantic-reason policy or D16's total canonical-byte origin proof.
+The companion supplies unkeyed consistency evidence, not authenticated
+authorship/history; coordinated consistent editing of all local artifacts
+is not cryptographic authentication. No new source-body persistence,
+generation append policy, GH #24 widening, candidate consumer or S6 release
+work is proposed here.
+
 ## 0. Revision history
 
 | Rev | Date | Change |
