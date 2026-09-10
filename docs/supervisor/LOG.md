@@ -1,3 +1,21 @@
+## Review — GH #15 S5 streamed-gitlink correction — 2026-09-10
+
+**Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
+**Checkpoint**: `a119dca`
+**Verdict**: APPROVED — narrow static correction review
+
+The remaining streamed-gitlink finding is closed: bounded pointer scratch,
+pre-streaming error refusal, exact pointer validation, commit-ID-only digest
+and no retained/charged pointer body are confirmed. No significant issue in
+this correction; all reported consumer/D10 findings are statically closed.
+The reviewer ran no Go commands.
+
+Mandatory fresh validation remains outstanding after this code change.
+Resource-blocked status is not whole-S5 acceptance; restart at formatting
+when a qualifying resource window is available.
+Readiness check at 00:12 PDT reports 78% free memory and load1 5.84.
+No Go command was attempted; the resource blocker remains.
+
 ## Implementation Transition — GH #15 S5 bounded gitlink identity correction — 2026-09-10
 
 **State**: BLOCKED — correction authored; resources and re-review pending

@@ -1802,6 +1802,11 @@ The gitlink correction is authored on 2026-09-10 using bounded pointer
 scratch, exact identity validation/digest and real exhausted-budget controls.
 No Go validation ran while resource-blocked; independent confirmation and a
 fresh step-1 restart remain.
+Independent static review APPROVED `a119dca`; all consumer/D10 findings are
+closed. Resource-gated fresh validation and final wave-close still remain;
+S5 is not accepted.
+At 2026-09-10 00:12 PDT the readiness sample remains ineligible (78% free,
+load1 5.84); no Go validation was attempted.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

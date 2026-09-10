@@ -4,6 +4,12 @@
 
 **Cluster state**: BLOCKED
 
+**S5 all static findings closed (2026-09-10)**: independent review APPROVED
+the remaining gitlink correction at `a119dca`. No consumer/D10 finding remains
+open. Fresh Go validation is still outstanding after that code change and
+must restart from formatting under the resource gate. This is not whole-S5
+acceptance.
+
 **S5 gitlink correction authored (2026-09-10)**: the coordinator bounds
 gitlink scratch to its 59-byte textual pointer representation, validates
 identity before accepting proof, hashes only the commit ID and retains no
@@ -3033,7 +3039,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — gitlink correction authored; resource-gated revalidation and review pending
+- **Status**: Blocked — all static findings closed; resource-gated validation pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3041,6 +3047,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent static review approved `a119dca`; all consumer/D10 findings are
+closed. A readiness check at 2026-09-10 00:12 PDT still shows only 78% free
+memory and load1 5.84, so no Go validation was attempted. The new correction
+requires a full restart from formatting once resources meet the gate.
+
+### Earlier gitlink correction summary (historical)
 
 The remaining streamed-gitlink correction and real exhausted-budget
 regressions are authored/formatted. Valid identity is checked in bounded
@@ -3588,8 +3601,9 @@ goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
 integration, D13/D17 and D10 compile and passed targeted/index/live-golden
 validation. All six review corrections and the D10 cohort correction now
-pass targeted and full core validation. The current code is resource-blocked
-before affected CLI; correction re-review and full S5 validation/close remain.
+passed targeted and full core validation at `a97b4af`. The subsequent
+gitlink correction `a119dca` is statically approved but not Go-validated.
+Resources block a fresh step-1 restart; full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -10260,9 +10274,11 @@ at 471.544s. Formatting, vet and CLI build pass.
   internal unit is accepted. Remaining S5 consumers are not accepted.
 - Resource gate: >=80% free memory was unavailable for a continuous minute
   during the 600-second wait before step 3b; latest observed range 71-74%.
-- The streamed-gitlink correction is authored but not revalidated/reviewed.
-  Five original findings and the D10/fixture deltas are statically closed.
-  Remaining validation stages and whole-S5 acceptance are incomplete.
+  Follow-up at 2026-09-10 00:12 PDT: 78% free memory, load1 5.84; still
+  ineligible for validation.
+- All consumer/D10 findings, including streamed gitlinks, are statically
+  closed at `a119dca`. Fresh validation after that correction and whole-S5
+  acceptance remain incomplete.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
