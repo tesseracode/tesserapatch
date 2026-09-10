@@ -68,6 +68,10 @@ func rgaS4ValidateRegistry(registry map[string][]string, producerSource string) 
 	return nil
 }
 
+func rgaS4ArtifactWriterMethod(name string) bool {
+	return name == "WriteArtifact" || name == "WriteArtifactAtomic" || name == "WriteFeatureFile"
+}
+
 // The site inventory is independent of the seven-entry registry. Shared
 // publication/recipe helpers inherit the caller's event, while cycle's
 // RunImplement call starts a separate P6 event instead of becoming a P4 write.
@@ -341,7 +345,7 @@ func rgaS4ValidateMapping(sources map[string]string, registry map[string][]strin
 				expr = node
 			case *ast.SelectorExpr:
 				expr = node
-				artifactMethod = node.Sel.Name == "WriteArtifact" || node.Sel.Name == "WriteArtifactAtomic"
+				artifactMethod = rgaS4ArtifactWriterMethod(node.Sel.Name)
 			default:
 				return true
 			}
@@ -445,6 +449,28 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 	if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("publisher-feature-file-aliases", func(t *testing.T) {
+		const path = "internal/workflow/recipe_coverage_publish.go"
+		before := sources[path]
+		defer func() { sources[path] = before }()
+		for _, artifact := range []string{"recipe-capture-event.json", "recipe-coverage.json"} {
+			for name, addition := range map[string]string{
+				"method-value":      fmt.Sprintf("\nfunc alternate(s *store.Store, slug string) error { write := s.WriteFeatureFile; return write(slug, %q, \"{}\") }\n", "artifacts/"+artifact),
+				"method-expression": fmt.Sprintf("\nfunc alternate(s *store.Store, slug string) error { write := (*store.Store).WriteFeatureFile; return write(s, slug, %q, \"{}\") }\n", "artifacts/"+artifact),
+				"package-alias":     fmt.Sprintf("\nvar alternateWrite = (*store.Store).WriteFeatureFile\nfunc alternate(s *store.Store, slug string) error { return alternateWrite(s, slug, %q, \"{}\") }\n", "artifacts/"+artifact),
+			} {
+				t.Run(artifact+"/"+name, func(t *testing.T) {
+					sources[path] = before + addition
+					if err := rgaS0CoveragePhaseSource(path, sources[path]); err == nil {
+						t.Fatal("same phase validator accepted an alternate artifact-writer reference")
+					}
+					if err := rgaS4ValidateMapping(sources, rgaS4Registry); err == nil {
+						t.Fatal("same mapping validator accepted an escaping WriteFeatureFile reference")
+					}
+				})
+			}
+		}
+	})
 	t.Run("existing-p1-p2-deferred-calls", func(t *testing.T) {
 		for path, name := range map[string]string{
 			"internal/cli/cobra.go":         "recordCmd",
@@ -690,15 +716,15 @@ func rgaS4PublicationSource(rel, src string) error {
 		var refusal error
 		ast.Inspect(decl, func(n ast.Node) bool {
 			if publisher {
+				if selector, ok := n.(*ast.SelectorExpr); ok && owner != "PublishCoverage" &&
+					rgaS4ArtifactWriterMethod(selector.Sel.Name) {
+					refusal = fmt.Errorf("alternate artifact-writer reference in the publisher file: %s", owner)
+				}
 				if call, ok := n.(*ast.CallExpr); ok {
 					name := rgaS0CallName(call)
 					eventCodec := strings.Contains(name, "CaptureEvent") && (strings.HasPrefix(name, "Build") || strings.HasPrefix(name, "Encode"))
 					if owner != "PublishCoverage" && (name == "BuildRecipeCoverage" || name == "EncodeRecipeCoverage" || eventCodec) {
 						refusal = fmt.Errorf("coverage derivation/encoding outside the primary publisher: %s", owner)
-					}
-					if selector, ok := call.Fun.(*ast.SelectorExpr); ok && owner != "PublishCoverage" &&
-						(selector.Sel.Name == "WriteArtifact" || selector.Sel.Name == "WriteArtifactAtomic" || selector.Sel.Name == "WriteFeatureFile") {
-						refusal = fmt.Errorf("alternate artifact writer in the publisher file: %s", owner)
 					}
 				}
 			}

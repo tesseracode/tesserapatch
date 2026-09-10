@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 writer re-review (2026-09-09)**: the registered-file bypass is closed,
+but an alternate function in the publisher file can still alias
+WriteFeatureFile. The coordinator authored shared selector-reference and
+escaping-method checks with actual-source C/E method-value, method-expression
+and package-alias mutations through both validators. This MEDIUM
+guard finding and the binary-pair finding remain open; no revalidation yet.
+
 **S5 compatibility/registered-writer corrections delivered (2026-09-09)**:
 the compatibility agent stopped with six test-only deltas, exact E+C write-
 set/real prior-pair controls and unchanged historical goldens. The coordinator
@@ -2744,6 +2751,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Narrow guard re-review confirmed the registered-file correction and found
+one remaining publisher-file method-value bypass. The same full-source phase
+and mapping validators must reject aliased WriteFeatureFile for both C/E;
+the coordinator is correcting that inventory and adding actual-source cases.
+
+### Earlier compatibility completion summary (historical)
 
 Compatibility corrections and the registered-file writer guard fix are
 authored/formatted. The exact parser site/note/error/write-set expectations

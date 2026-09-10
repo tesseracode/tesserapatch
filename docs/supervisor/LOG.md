@@ -1,3 +1,27 @@
+## Review — GH #15 S5 registered writer correction — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Checkpoint**: `9f66939`
+**Verdict**: NEEDS REVISION — original registered-file bypass closed
+
+One remaining MEDIUM publisher-file alias bypass: `write :=
+s.WriteFeatureFile; return write(slug, "artifacts/recipe-capture-event.json",
+"{}")` in an alternate function escapes direct-call inspection, and the
+mapping method-value audit omits WriteFeatureFile. The same applies to C.
+Reject artifact-writer selector references outside PublishCoverage, not only
+calls, and include WriteFeatureFile in the escaping-method inventory.
+Add actual-publisher-source alias controls to both phase and mapping guards.
+
+The coordinator authored the correction: one shared artifact-writer method
+set includes WriteFeatureFile, the publisher checks selector references
+outside PublishCoverage, and the whole-file mapping audit uses the same set.
+Actual publisher-source method-value, method-expression and package-alias
+mutations target both C/E and must fail both validators. Formatting passes;
+Go revalidation and independent confirmation remain pending.
+
+No Go validation was run by the reviewer. The binary-pair finding remains
+separately open. The coordinator owns this guard-only correction.
+
 ## Implementation Transition — GH #15 S5 compatibility and writer guard delivered — 2026-09-09
 
 **State**: IN PROGRESS — authored/formatted; binary correction/revalidation pending
