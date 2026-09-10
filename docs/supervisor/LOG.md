@@ -1,3 +1,28 @@
+## Validation Result — GH #15 S5 full-shard attempt 1 — 2026-09-10
+
+**Code checkpoint**: `a119dca`
+**State**: IN PROGRESS — step 6 stopped in its first invocation
+
+The first exact-shard invocation failed only in CLI (595.016s); all other
+packages pass, including workflow 106.891s. No later shard or wave-close
+command ran. Its fresh resource window held at 84% free, load1 <=5.
+
+Three failures are confined to verify_landed_cli_test.go: two old eleven-row
+expectations, and a test assuming `land --no-record` repairs coverage after
+an out-of-band canonical patch edit. It re-attests landing evidence but is
+not a coverage producer. Preserve the stale-landing checks, then assert
+re-attestation alone leaves C/E unchanged and the new binding row blocking;
+use a real record event followed by re-land to restore the passing state.
+No coverage deletion, fabricated event or weaker consumer gate is permitted.
+
+Authorize this one test file to the coordinator. Add its ACL1/2/3 selectors
+to the targeted retry, retain historical goldens, request narrow independent
+review and restart validation before rerunning the full shard script.
+The correction is authored/formatted: twelve rows with the original eleven
+unchanged, explicit no-record re-attestation preserving stale C/E and its
+blocking code, then real committed-range record plus re-land restoring pass.
+No production or historical golden changed.
+
 ## Validation Transition — GH #15 S5 full shards — 2026-09-10
 
 **Code checkpoint**: `a119dca`

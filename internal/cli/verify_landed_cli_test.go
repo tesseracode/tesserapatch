@@ -119,8 +119,7 @@ func evidenceState(report map[string]any) string {
 	return s
 }
 
-// AC-L1 — the issue #8 sequence PASSES before `land`: exit 0, exactly
-// eleven check rows in V0–V10 order.
+// AC-L1 preserves the eleven legacy rows in order; S5 appends coverage.
 func TestACL1_IssueSequencePassesBeforeLand(t *testing.T) {
 	f := newGH8Fixture(t)
 	f.Implement()
@@ -130,14 +129,14 @@ func TestACL1_IssueSequencePassesBeforeLand(t *testing.T) {
 		t.Fatalf("verify before land exited %d: %s", code, stderr)
 	}
 	rows, _ := report["checks"].([]any)
-	if len(rows) != 11 {
-		t.Fatalf("checks=%d want 11", len(rows))
+	if len(rows) != 12 {
+		t.Fatalf("checks=%d want 12", len(rows))
 	}
 	want := []string{
 		"status_loaded", "intent_files_present", "recipe_parses",
 		"recipe_op_targets_resolve", "dep_metadata_valid", "satisfied_by_reachable",
 		"dependency_gate_satisfied", "recipe_replay_clean", "post_apply_patch_replay_clean",
-		"reconcile_outcome_consistent", "write_file_preimage_fresh",
+		"reconcile_outcome_consistent", "write_file_preimage_fresh", "recipe_generation_coverage",
 	}
 	for i, id := range want {
 		row, _ := rows[i].(map[string]any)
@@ -151,7 +150,7 @@ func TestACL1_IssueSequencePassesBeforeLand(t *testing.T) {
 }
 
 // AC-L2 — the same feature AFTER `land` passes: target_mode landed,
-// evidence exact, baseline dual-anchor, eleven rows. This is the GH #8
+// evidence exact, baseline dual-anchor, and the appended coverage row. The GH #8
 // defect, closed.
 func TestACL2CLI_LandedFeaturePasses(t *testing.T) {
 	f := newGH8Fixture(t)
@@ -176,8 +175,8 @@ func TestACL2CLI_LandedFeaturePasses(t *testing.T) {
 	if baseline["current_probe"] != "isolated-index" {
 		t.Errorf("baseline.current_probe=%v want isolated-index", baseline["current_probe"])
 	}
-	if rows, _ := report["checks"].([]any); len(rows) != 11 {
-		t.Errorf("checks=%d want 11", len(rows))
+	if rows, _ := report["checks"].([]any); len(rows) != 12 {
+		t.Errorf("checks=%d want 12", len(rows))
 	}
 	v8 := checkRow(t, report, "post_apply_patch_replay_clean")
 	anchors, _ := v8["anchor_results"].(map[string]any)
@@ -251,11 +250,38 @@ func TestACL3_CommittedRangeReRecordBothBranches(t *testing.T) {
 			t.Errorf("expected R6 verbatim; got %q", rem)
 		}
 
-		// Re-land re-attests, and the run passes again.
+		// Re-attestation repairs landing evidence, not externally changed
+		// coverage bindings: --no-record is not a producer event.
+		coverageBefore := readArtifact(t, f.Dir, f.Slug, "recipe-coverage.json")
+		eventBefore := readArtifact(t, f.Dir, f.Slug, "recipe-capture-event.json")
 		f.Land("--no-record")
 		after, code, stderr := f.VerifyJSON()
+		if code != 2 || evidenceState(after) != "exact" {
+			t.Fatalf("re-attestation must repair only landing evidence: code=%d stderr=%s\n%v", code, stderr, after)
+		}
+		if checkRow(t, after, "recipe_replay_clean")["passed"] != true ||
+			checkRow(t, after, "post_apply_patch_replay_clean")["passed"] != true {
+			t.Fatalf("the original landing checks did not recover: %v", after["checks"])
+		}
+		coverage := checkRow(t, after, "recipe_generation_coverage")
+		detail, _ := coverage["remediation"].(string)
+		if coverage["passed"] != false || coverage["severity"] != "block" ||
+			!strings.Contains(detail, "recipe-coverage-patch-changed") {
+			t.Fatalf("landing re-attestation hid stale coverage: %v", coverage)
+		}
+		if readArtifact(t, f.Dir, f.Slug, "recipe-coverage.json") != coverageBefore ||
+			readArtifact(t, f.Dir, f.Slug, "recipe-capture-event.json") != eventBefore {
+			t.Fatal("attestation-only land unexpectedly republished coverage evidence")
+		}
+
+		f.Record("--from", f.Base, "--to", "HEAD")
+		f.Land("--no-record")
+		after, code, stderr = f.VerifyJSON()
 		if code != 0 {
-			t.Fatalf("re-land did not restore a passing run: %s\n%v", stderr, after["checks"])
+			t.Fatalf("real producer repair and re-land did not restore a passing run: %s\n%v", stderr, after["checks"])
+		}
+		if checkRow(t, after, "recipe_generation_coverage")["passed"] != true {
+			t.Fatalf("real record did not re-establish coverage: %v", after["checks"])
 		}
 	})
 }

@@ -1816,6 +1816,12 @@ exhausted-budget gitlink controls. Owning suites and final stages remain.
 Resumed steps 1-5 now all pass: full core (workflow 102.762s), affected CLI
 71.948s, vet/build and targeted/goldens. All findings are closed; exact
 22-shard validation and explicit-base gate remain before S5 acceptance.
+The first exact-shard invocation stops only on three older landed-CLI
+expectations (CLI 595.016s). Correct that file's row counts and distinguish
+landing re-attestation from real coverage repair; no production/gate
+weakening or later shard/gate run.
+The one-file correction is authored/formatted, explicitly proving attestation
+alone leaves coverage blocked and real producer repair restores pass.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

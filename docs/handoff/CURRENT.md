@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 step 6 stopped on landed-CLI expectations (2026-09-10)**: the first
+shard invocation failed only in verify_landed_cli_test.go (CLI 595.016s);
+other packages passed. Two cases expect eleven rows, and one assumes
+attestation-only land repairs stale coverage after an external edit.
+Coordinator owns this one test correction: preserve independent landing/
+coverage evidence, require real producer repair and retain exact blocking
+checks. No later shard/gate ran and no production change is indicated.
+The one-file correction is authored/formatted and awaits targeted validation/
+independent review before the exact full-script retry.
+
 **S5 steps 1-5 PASS; full shards next (2026-09-10)**: full core (workflow
 102.762s), affected CLI (71.948s), vet/build and targeted/golden/gateway
 families all pass at unchanged code `a119dca`. Every command had a fresh
@@ -3059,7 +3069,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — steps 1-5 pass; full shards and wave-close pending
+- **Status**: In progress — landed-CLI expectation correction after first full-shard failure
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3067,6 +3077,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The first full-suite invocation found three legacy expectations in one
+landed-CLI test file. The correction preserves the old landing-evidence
+assertions while recognizing the appended coverage row and its independent
+binding authority. A no-record land cannot repair external patch tampering;
+a real record event and re-attestation must restore the passing state.
+No later shard or step 7 ran.
+
+### Earlier full-shard dispatch summary (historical)
 
 After resource recovery, S5 passes all steps 1-5 at unchanged code `a119dca`.
 Full core, affected CLI, vet/build and the expanded target/golden/gateway
@@ -4327,6 +4346,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Exact step 6 attempt 1: first invocation FAIL only CLI (595.016s), with
+  three cases in verify_landed_cli_test.go. Every other package passed,
+  including workflow 106.891s. Fresh gate at 84% free/load1 <=5. No later
+  shard or wave-close invocation ran.
 
 - Resumed steps 3-5 PASS at unchanged `a119dca`: full core patchobs 1.929s,
   gitutil 7.143s, store 2.671s, workflow 102.762s; affected CLI 71.948s;
