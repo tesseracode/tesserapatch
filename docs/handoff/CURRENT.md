@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 live golden retry PASS (2026-09-09)**: steps 1-2 pass at `97ff4ff`,
+including actual producer/routing goldens, S0-S5 and ADR-index/provenance
+families. Fresh per-command gates held at 84-85% free. Continue owning
+packages/affected CLI, then vet/build on success; independent golden-delta
+review is pending. S5 consumers and final slice validation remain.
+
 **S5 golden correction delivered (2026-09-09)**: the exact four-file delta
 is authored/formatted and the worker stopped. Six producer fixtures gain E;
 only land gains one staged path. Frozen inputs and prior expected raw C bytes
@@ -2812,7 +2818,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — exact golden delta delivered; unit validation restarting
+- **Status**: In progress — live golden retry passes; remaining unit stages next
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2820,6 +2826,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The expanded targeted retry now passes, including the previously failing
+actual producer goldens and all mutation/index/provenance families.
+No historical fixture changed. Continue the remaining unit validation stages
+while the read-only reviewer examines the exact expected delta.
+
+### Earlier golden delivery summary (historical)
 
 The independent S5 golden projection and exact comparator controls are
 delivered in four authorized files. All workers stopped editing. The stable
@@ -3268,7 +3281,8 @@ closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
 guards now pass the corrected targeted retry in all four packages plus the
 coupled index family and all full core packages. Affected CLI validation
-requires revalidation of the delivered exact golden delta;
+now includes a passing targeted actual-golden retry; the remaining unit
+sequence and delta review still precede acceptance.
 neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
 remain unimplemented.
 All evidence-foundation findings are statically closed at `7a737a0`.
@@ -3952,6 +3966,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Golden retry `97ff4ff`: steps 1-2 PASS, including S0-S5, ADR-index,
+  PreparePIB and actual routing/producer goldens. Patchobs 0.810s,
+  gitutil 0.606s, workflow 12.470s, CLI 33.604s. Separate qualifying windows
+  at 84-85% free, load1 <=5 and no active Go tools.
 
 - Step 3a full core PASS: patchobs 1.469s, gitutil 6.548s, store 2.868s,
   workflow 98.559s. Step 3b CLI 67.600s FAIL only in

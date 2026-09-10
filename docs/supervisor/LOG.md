@@ -1,3 +1,18 @@
+## Validation Result — GH #15 S5 live golden retry — 2026-09-09
+
+**Checkpoint**: `97ff4ff`
+**State**: IN PROGRESS — steps 1-2 PASS, including actual golden capture
+
+Formatting and the expanded targeted command pass: patchobs 0.810s,
+gitutil 0.606s, workflow 12.470s, CLI 33.604s. The command includes S0-S5,
+ADR-index, all PreparePIB evidence/provenance families and actual routing/
+producer golden comparisons. No historical fixture was rewritten.
+Fresh separate windows held at 84-85% free memory, load1 <=5, no Go tools.
+
+Continue serial owning-package/affected-CLI validation, vet and build,
+stopping at first failure. Independent test-delta review remains pending.
+Full slice shards/close and consumer integration are not completed.
+
 ## Validation Transition — GH #15 S5 golden correction delivered — 2026-09-09
 
 **State**: IN PROGRESS — stable expected delta; restart unit validation

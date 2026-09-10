@@ -1724,6 +1724,9 @@ precede runtime acceptance; this is not whole-S5 approval.
 The exact four-file golden delta is delivered and the worker stopped.
 Restart gated unit validation with actual golden capture and independently
 review the delta; earlier projections and historical fixtures remain intact.
+The expanded targeted retry at `97ff4ff` now passes actual goldens plus
+S0-S5/index/provenance families under fresh gates. Remaining unit stages and
+independent delta review precede consumer integration.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
