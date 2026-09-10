@@ -23,6 +23,10 @@ only as needed for scoped readonly environment propagation.
 Keep invocation budgets, offline/C-locale guards and legacy warnings intact;
 do not relax thresholds or disable rung-3/doctor proof. Add positive/negative
 controls in the worker's S5 tests, then stop before revalidation.
+The old row-count fixes are committed at `bef41c5`. Consumer review remains
+with `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`; the separate exact row/count
+delta review is with `222308b5-9449-462e-80be-599ccd4dcd1f`. Both are readonly
+and run no Go commands while the worker corrects the gateway/remediation path.
 
 ## Validation Result — GH #15 S5 consumer retry 2 — 2026-09-09
 

@@ -3474,9 +3474,10 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards pass the complete internal-unit steps 1-5: targeted/index/actual
 goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
-integration, D13/D17 and D10 compile and have entered targeted validation,
-with two source-contract corrections now authored. Independent review and
-full S5 validation/close remain.
+integration, D13/D17 and D10 compile and pass targeted/index/live-golden
+validation. Full workflow validation exposed remediation probe-budget and
+readonly Git environment regressions, now with the consumer worker.
+Independent review and full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -10118,12 +10119,15 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- The D9 policy blocker is resolved by Accepted ADR-041 rev-1. The evidence
-  foundation and S5 consumers remain implementation work, not accepted code.
-- The partial unit is not validated; implementation and review remain.
+- D9 policy is resolved by Accepted ADR-041 rev-1; the foundation/ordered
+  internal unit is accepted. Remaining S5 consumers are not accepted.
+- Full workflow validation requires the remediation probe-budget/offline/
+  locale correction; parent-owned old count expectations are corrected.
+  Consumer and exact row-delta reviews remain in progress.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
-- GH #13 implementation is blocked on shipped GH #15 recipe authority.
+- GH #13 implementation is blocked on shipped GH #15 recipe authority and
+  the separate ADR-041 section-7 planning follow-up.
 
 ## Context for Next Agent
 
@@ -10132,13 +10136,24 @@ at 471.544s. Formatting, vet and CLI build pass.
   new review findings/checklist. S4 is already archived; do not duplicate it.
 - S5's runtime ownership and strict resource-gated sequence are at the top
   of this file. Older S4 pending actions below are historical, not dispatches.
-- Worker `f88dc13c-d461-45f8-a583-b2a9eb806188` returned a partial D7/D14
-  unit and is idle. D9 needs a real contract choice, not an undocumented
-  marker. No Go validation has run; do not infer acceptance from checkpoints.
-- Verify must extend its captured inventory and instability detection for
-  coverage/stale-marker inputs. D9 cannot be bolted on as a second live read.
+- Current worker `51ca5679-7631-4492-ae58-7e0fead1b61e` owns only the
+  currently scoped remediation/gateway correction. Earlier implementation
+  workers are stopped; do not resume their historical assignments.
+- Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` reviews immutable
+  `95be8dd` plus the narrow `c27989d` factoring correction. Reviewer
+  `222308b5-9449-462e-80be-599ccd4dcd1f` separately reviews the parent-owned
+  `cf381a1` row/count delta; neither runs Go.
+- Foundation/ordered code and its expected E delta passed internal steps
+  1-5 and independent review. New consumers pass targeted/index/live goldens,
+  but the full owning workflow suite currently fails budget/offline/locale
+  invariants. The owned failure sentinel stays until correction checkpoint.
+- The verify inventory extension is authored; its one-capture/instability
+  contract remains required through correction. No reference-body proof may
+  come from a fresh mutable-worktree read.
 - Preserve ADR-039's narrow complete-operation domain and ADR-040's truthful
   P2 reasons. No GH #13 semantic replay or S6/public asset work is authorized.
+
+### Older prerequisite context (historical)
 
 - S4 is ACCEPTED at gate-validated/pushed `e2c3cc3`; the terminal tracking
   commit is documentation-only. The completion archive is in HISTORY.
