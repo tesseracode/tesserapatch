@@ -47,6 +47,14 @@ states the affected boundaries. Accepted rev-7 remains the historical
 baseline, not a claim that S4 already supplies independent capture evidence.
 Independent contract review is APPROVED; runtime acceptance remains separate.
 
+**S5 ordered-execution clarification**:
+[ADR-042](./ADR-042-ordered-recipe-noop-proof.md) clarifies D7/D14's
+initial-tree write permission versus ordered no-write witnesses. Earlier
+operations cannot leave a cached skip valid after changing its target.
+Bounded prefix materialization is separate from streaming exact equality;
+the bound does not narrow valid large-file no-ops. Path safety, unchanged
+initial refusals, legacy writes and supersession severity remain intact.
+
 ## S5 addendum — independent capture-event evidence
 
 **Status: Accepted rev-1 (2026-09-09), after independent review.**

@@ -1,3 +1,19 @@
+## Review and Decision — GH #15 S5 ordered no-op rev-1 — 2026-09-09
+
+**Reviewer**: `s5-ordered-noop-rev1-review`
+**Correction**: `8459b99..e8d74c5`
+**Verdict**: APPROVED — no significant issues in the correction
+
+All three static findings are closed. This is independent static review,
+not Go validation or whole-S5 acceptance. Accept ADR-042's clarification of
+initial write permission versus ordered no-write witnesses; its materialized
+image bound does not cap streaming exact equality or narrow D7's valid no-ops.
+Register it and its primary pointers with the exact coupled index pin.
+
+The ordered runtime unit still needs the mandatory serial resource-gated
+validation with the completed evidence foundation. No further code changes
+are authorized under the earlier findings without new evidence.
+
 ## Implementation Transition — GH #15 S5 ordered no-op rev-1 authored — 2026-09-09
 
 **State**: IN PROGRESS — corrections not Go-validated or independently confirmed

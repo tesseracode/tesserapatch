@@ -1673,6 +1673,9 @@ metadata dependencies (MEDIUM). Rev-1 stays in the same bounded file scope.
 Rev-1 corrections are authored with streaming equality, bounded-image
 recovery, containment-safe fallback and gate-input tracking, plus five
 regression functions. Validation and independent confirmation remain pending.
+Independent ordered rev-1 correction review is now APPROVED. ADR-042 is
+accepted/indexed with primary pointers; runtime validation is still pending
+alongside the evidence caller closures. No S5 completion is claimed.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

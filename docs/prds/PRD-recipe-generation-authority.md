@@ -39,6 +39,13 @@ The accepted rev-7 360-row matrix remains historical baseline; the amendment
 adds separately named cases, not a silently revised matrix or runtime claim.
 Independent contract review is APPROVED; runtime acceptance remains separate.
 
+**S5 ordered-execution clarification**:
+[ADR-042](../adrs/ADR-042-ordered-recipe-noop-proof.md) clarifies ordered
+no-write witnesses and accounting while preserving initial-tree write
+permission. Prefix materialization has a separate bound from streaming exact
+equality; large valid no-ops, path safety, unchanged initial refusals, legacy
+writes and supersession severity are not weakened.
+
 ## S5 addendum — independent capture-event evidence
 
 **Status: Accepted rev-1 (2026-09-09), after independent review.** ADR-041

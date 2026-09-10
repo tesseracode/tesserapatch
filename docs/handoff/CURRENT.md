@@ -4,6 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 ordered no-op rev-1 static review APPROVED (2026-09-09)**: all three
+findings are closed. ADR-042's clarification is accepted/indexed with primary
+pointers and the exact coupled index pin. This is not runtime acceptance:
+the unit still needs Go validation alongside the completed evidence foundation.
+
 **S5 ordered no-op rev-1 authored (2026-09-09)**: streaming exact comparison
 removes the materialization-limit regression; authorized full overwrites
 restore known images; current-path containment gates runtime fallback; and
@@ -2677,7 +2682,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — evidence caller closure and ordered no-op rev-1
+- **Status**: In progress — ordered unit statically approved; evidence closure before validation
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2685,6 +2690,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent ordered no-op rev-1 review is APPROVED with no significant issue.
+ADR-042 is accepted as a clarification, preserving large-file exact no-ops
+through streaming comparison separate from bounded prefix materialization.
+The index/current pin and primary pointers are updated. Runtime validation
+remains pending, and the foundation worker is finishing its caller closures.
+
+### Earlier ordered-proof correction summary (historical)
 
 The ordered-proof rev-1 corrections are delivered, with streaming equality,
 size-only recovery, containment-safe fallback and gate-input tracking.
@@ -3030,10 +3043,10 @@ integration or shipped assets belong to this slice.
 ## Current State
 
 ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
-three caller closures; the bounded D7 ordered no-op draft is delivered and
-its three review corrections are authored but unconfirmed. These units and coordinator guards are not
-Go-validated or approved. Coverage read integration, D13/D17 and D10 remain
-unimplemented.
+three caller closures. The ordered no-op rev-1 correction is independently
+statically approved and ADR-042 is accepted. These units and coordinator
+guards are not yet Go-validated or runtime-accepted. Coverage read integration,
+D13/D17 and D10 remain unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
@@ -3128,7 +3141,7 @@ remains blocked until that release is implemented, soaked and shipped.
   `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
   `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
 - Ordered proof extension: new `internal/workflow/recipe_prefix_precheck.go`
-  and Proposed `docs/adrs/ADR-042-ordered-recipe-noop-proof.md`, plus scoped
+  and accepted `docs/adrs/ADR-042-ordered-recipe-noop-proof.md`, plus scoped
   changes to `recipe.go`, `writefile_safety.go` and the S5 apply tests.
 - Three session-owned ignored wrappers under `bin/s5-validation/`; not staged
   or part of the product, and removed at closure.
@@ -9595,7 +9608,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 1. Finish the evidence caller closures and separate bounded ordered no-op
    proof under the current file-disjoint ownership at the top of this file.
-   Ordered rev-1 is authored; receive/pause the foundation worker before
+   Ordered rev-1 is statically approved; receive/pause the foundation worker before
    running the serial resource-gated validation sequence.
 2. Checkpoint and validate/review the delivered units, then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.

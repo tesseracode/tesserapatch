@@ -1,6 +1,6 @@
 # ADR-042 — Ordered recipe no-op proof
 
-**Status**: Proposed — implementation clarification pending independent review
+**Status**: Accepted — independent clarification/correction review approved 2026-09-09; runtime validation pending
 
 **Date**: 2026-09-09
 
@@ -146,5 +146,6 @@ predictable failure after mutation, violating ADR-029 D3.
 Implementation: `internal/workflow/recipe.go`, `writefile_safety.go`,
 `recipe_prefix_precheck.go`; focused tests:
 `internal/workflow/recipe_authority_s5_apply_test.go`.
-Formatting only at implementation handoff; Go validation and independent
-review belong to the coordinator. This proposal does not itself accept S5.
+Independent rev-1 review approves the clarification and correction.
+Go validation remains with the coordinator; this acceptance does not itself
+accept the runtime unit or S5.

@@ -996,7 +996,7 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 			label: "ADR index",
 			base:  input.baseIndex, current: input.index,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "2453fe257d0e2ca9b6d3df1040994d8e0bc438c258a57118b1af469a4a195294"},
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "5fe1ffa0647825da595916a32ced00c2a701da7e1c261a354b92e3a884fc688d"},
 			},
 		},
 	}
