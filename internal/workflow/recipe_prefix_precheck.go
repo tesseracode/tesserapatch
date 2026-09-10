@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -14,7 +16,8 @@ import (
 )
 
 // Only one alias group's image is retained at a time. Operation strings are
-// shared; newly read or constructed images are limited before allocation.
+// shared; newly materialized or constructed images are bounded. Exact
+// comparisons stream unchanged files and do not impose a file-size limit.
 const recipePrefixMaxBytes = 8 << 20
 
 var (
@@ -36,9 +39,62 @@ type recipePrefixTarget struct {
 
 type recipePrefixImage struct {
 	text      string
+	diskPath  string
 	exists    bool
 	directory bool
 	unknown   error
+}
+
+// inspectRecipeFile compares exact bytes with fixed-size scratch space. The
+// initial hash gate also needs the whole digest; skip rechecks stop on mismatch.
+func inspectRecipeFile(path, content string, digest bool) (bool, string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	var buf [32 << 10]byte
+	equal, offset := true, 0
+	for {
+		n, err := f.Read(buf[:])
+		if n > 0 {
+			if digest {
+				h.Write(buf[:n])
+			}
+			if equal {
+				if n > len(content)-offset || string(buf[:n]) != content[offset:offset+n] {
+					equal = false
+				} else {
+					offset += n
+				}
+			}
+		}
+		if err != nil && !errors.Is(err, io.EOF) {
+			return false, "", err
+		}
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if !equal && !digest {
+			return false, "", nil
+		}
+	}
+	observed := ""
+	if digest {
+		observed = PreimageHashPrefix + hex.EncodeToString(h.Sum(nil))
+	}
+	return equal && offset == len(content), observed, nil
+}
+
+func recipeContentSHA256(content string) string {
+	h := sha256.New()
+	for len(content) != 0 {
+		n := min(len(content), 32<<10)
+		h.Write([]byte(content[:n]))
+		content = content[n:]
+	}
+	return PreimageHashPrefix + hex.EncodeToString(h.Sum(nil))
 }
 
 func recipePrefixDrift(slug string, index int, op RecipeOperation, reason string) string {
@@ -80,6 +136,9 @@ func resolveRecipePrefixTarget(root, path string) recipePrefixTarget {
 		}
 		if _, lerr := os.Lstat(ancestor); !os.IsNotExist(lerr) {
 			target.err = fmt.Errorf("cannot resolve alias: %w", err)
+			if !errors.Is(err, syscall.ENOTDIR) {
+				target.err = fmt.Errorf("%w: alias containment is unproven: %v", errRecipePrefixPathSafety, err)
+			}
 			return target
 		}
 		parent := filepath.Dir(ancestor)
@@ -153,6 +212,7 @@ func proveRecipePrefix(s *store.Store, recipe ApplyRecipe, candidates map[int]bo
 	if len(out.Errors) != 0 {
 		return
 	}
+	gateChanged := recipePrefixGateChanges(s, recipe, targets)
 	done := make(map[int]bool)
 	failures := make(map[int]string)
 	for anchor := 0; anchor <= last; anchor++ {
@@ -177,7 +237,7 @@ func proveRecipePrefix(s *store.Store, recipe ApplyRecipe, candidates map[int]bo
 		if target.err == nil && target.info != nil {
 			image.exists, image.directory = true, target.info.IsDir()
 			if target.info.Mode().IsRegular() {
-				image.text, image.unknown = readRecipePrefixImage(target.path)
+				image.diskPath = target.path
 			} else {
 				image.unknown = errors.New("target is not a regular file")
 			}
@@ -199,12 +259,12 @@ func proveRecipePrefix(s *store.Store, recipe ApplyRecipe, candidates map[int]bo
 				continue
 			}
 			if topologyUnknown {
-				image.text = ""
+				image.text, image.diskPath = "", ""
 				image.unknown = errors.New("prefix alias or absent-target topology is unproven")
 			}
 			if candidates[i] {
 				done[i] = true
-				if image.unknown == nil && image.exists && !image.directory && image.text == op.Content {
+				if image.matches(op.Content) {
 					out.AlreadyPresent[i] = true
 					continue
 				}
@@ -216,7 +276,12 @@ func proveRecipePrefix(s *store.Store, recipe ApplyRecipe, candidates map[int]bo
 					failures[i] = recipePrefixDrift(recipe.Feature, i, op, reason)
 				}
 			}
-			preview, proved := projectRecipePrefixOperation(s, recipe.Feature, op, &image)
+			if gateChanged[i] {
+				image.text, image.diskPath = "", ""
+				image.unknown = errors.New("prefix changed created_by gate inputs; ordered effect is unproven")
+			}
+			writePermitted := out.WriteAuthorized[i] || op.PreimageHash == nil || out.superseded
+			preview, proved := projectRecipePrefixOperation(s, recipe.Feature, op, &image, writePermitted)
 			if proved && groupSize > 1 {
 				out.prefixPreview[i] = preview
 			}
@@ -230,13 +295,80 @@ func proveRecipePrefix(s *store.Store, recipe ApplyRecipe, candidates map[int]bo
 	}
 }
 
+func (image *recipePrefixImage) matches(content string) bool {
+	if image.unknown != nil || !image.exists || image.directory {
+		return false
+	}
+	if image.diskPath != "" {
+		equal, _, err := inspectRecipeFile(image.diskPath, content, false)
+		image.unknown = err
+		return equal && err == nil
+	}
+	return image.text == content
+}
+
+// Only config.yaml and the owning feature's status.json feed created_by.
+// Track possibly changed inputs, including their physical aliases, rather than
+// consulting initial metadata as if it were the sequential gate input.
+func recipePrefixGateChanges(s *store.Store, recipe ApplyRecipe, targets []recipePrefixTarget) []bool {
+	changed := make([]bool, len(targets))
+	hasGate := false
+	for _, op := range recipe.Operations[:len(targets)] {
+		if op.CreatedBy != "" && (op.Type == "append-file" || op.Type == "replace-in-file") {
+			hasGate = true
+			break
+		}
+	}
+	if !hasGate {
+		return changed
+	}
+	inputs := []recipePrefixTarget{
+		resolveRecipePrefixTarget(s.Root, filepath.Join(".tpatch", "config.yaml")),
+		resolveRecipePrefixTarget(s.Root, filepath.Join(".tpatch", "features", recipe.Feature, "status.json")),
+	}
+	cfg, cfgErr := s.LoadConfig()
+	statusUsed := cfgErr == nil && cfg.DAGEnabled()
+	dirty := [2]bool{}
+	for i, target := range targets {
+		op := recipe.Operations[i]
+		changed[i] = op.CreatedBy != "" && (op.Type == "append-file" || op.Type == "replace-in-file") &&
+			(dirty[0] || (statusUsed && dirty[1]))
+		for j, input := range inputs {
+			if dirty[j] || (input.err == nil && !sameRecipePrefixTarget(input, target)) {
+				continue
+			}
+			if input.err != nil {
+				switch op.Type {
+				case "write-file", "append-file", "replace-in-file", "ensure-directory":
+					dirty[j] = true
+				}
+				continue
+			}
+			switch op.Type {
+			case "write-file":
+				equal, _, err := inspectRecipeFile(input.path, op.Content, false)
+				dirty[j] = err != nil || !equal
+			case "append-file":
+				dirty[j] = op.Content != ""
+			case "replace-in-file":
+				dirty[j] = op.Search != op.Replace
+			case "ensure-directory":
+				dirty[j] = input.info == nil
+			}
+		}
+	}
+	return changed
+}
+
 // Project only the operations that can affect this image. Known operation
 // errors leave it unchanged, just as ExecuteRecipe continues after an error.
 // Missing-target contextual operations use the original dry-run path, retaining
 // its created_by warning behavior without emitting a second advisory here.
-func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperation, image *recipePrefixImage) (recipePrefixPreview, bool) {
+func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperation, image *recipePrefixImage, writePermitted bool) (recipePrefixPreview, bool) {
 	preview := recipePrefixPreview{}
-	if image.unknown != nil {
+	// A full overwrite can recover size-only uncertainty, never unknown
+	// topology, I/O failures or a changed gate's unproved operation outcome.
+	if image.unknown != nil && !(op.Type == "write-file" && writePermitted && errors.Is(image.unknown, errRecipePrefixLimit)) {
 		return preview, false
 	}
 	switch op.Type {
@@ -244,10 +376,6 @@ func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperatio
 		if image.directory {
 			preview.err = fmt.Errorf("target is a directory: %s", op.Path)
 			return preview, true
-		}
-		if len(op.Content) > recipePrefixMaxBytes {
-			image.text, image.unknown = "", errRecipePrefixLimit
-			return preview, false
 		}
 		// MkdirAll cannot turn an existing ancestor file into a directory.
 		for parent := filepath.Dir(filepath.Join(s.Root, op.Path)); ; parent = filepath.Dir(parent) {
@@ -263,7 +391,9 @@ func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperatio
 			}
 		}
 		preview.message = fmt.Sprintf("[write-file] would write %s (%d bytes)", op.Path, len(op.Content))
+		// This is the existing immutable operation string, not a new body.
 		image.text, image.exists = op.Content, true
+		image.diskPath, image.unknown = "", nil
 	case "append-file", "replace-in-file":
 		if !image.exists {
 			return preview, false
@@ -275,6 +405,22 @@ func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperatio
 		if image.directory {
 			preview.err = fmt.Errorf("target is a directory: %s", op.Path)
 			return preview, true
+		}
+		if op.Type == "append-file" && op.Content == "" {
+			preview.message = fmt.Sprintf("[append-file] would append to %s (0 bytes)", op.Path)
+			return preview, true
+		}
+		if op.Type == "replace-in-file" && op.Search == op.Replace && image.diskPath != "" {
+			// Success and search-not-found both leave these unchanged bytes
+			// intact. The ordinary preview still reports the actual search.
+			return preview, false
+		}
+		if image.diskPath != "" {
+			image.text, image.unknown = readRecipePrefixImage(image.diskPath)
+			image.diskPath = ""
+			if image.unknown != nil {
+				return preview, false
+			}
 		}
 		if op.Type == "append-file" {
 			if len(op.Content) > recipePrefixMaxBytes-len(image.text) {
@@ -317,11 +463,13 @@ func projectRecipePrefixOperation(s *store.Store, slug string, op RecipeOperatio
 func recipeNoopStillPresent(root string, op RecipeOperation) (bool, error) {
 	target := resolveRecipePrefixTarget(root, op.Path)
 	if target.err != nil {
-		return false, target.err
+		// Unknown physical containment is never ordinary byte divergence:
+		// neither initial write permission nor supersession can bypass it.
+		return false, fmt.Errorf("%w: current target containment is unproven: %v", errRecipePrefixPathSafety, target.err)
 	}
 	if target.info == nil || !target.info.Mode().IsRegular() {
 		return false, errors.New("ordered no-write target is missing or not a regular file")
 	}
-	text, err := readRecipePrefixImage(target.path)
-	return err == nil && text == op.Content, err
+	equal, _, err := inspectRecipeFile(target.path, op.Content, false)
+	return equal, err
 }

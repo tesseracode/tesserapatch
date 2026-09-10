@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 ordered no-op rev-1 authored (2026-09-09)**: streaming exact comparison
+removes the materialization-limit regression; authorized full overwrites
+restore known images; current-path containment gates runtime fallback; and
+projected created_by config/status dependencies are tracked explicitly.
+Five new regression functions cover the findings. The correction and
+Proposed ADR-042 still need Go validation and independent confirmation.
+
 **S5 ordered no-op rev-0: NEEDS REVISION (2026-09-09)**. Independent review
 found two HIGH issues (8 MiB limit breaks valid no-ops; unresolved runtime
 symlink fallback can escape containment) and one MEDIUM (prefix changes to
@@ -2679,6 +2686,13 @@ WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
 
+The ordered-proof rev-1 corrections are delivered, with streaming equality,
+size-only recovery, containment-safe fallback and gate-input tracking.
+Their regression fixtures and Proposed ADR-042 are updated. Only formatting
+ran; synchronize the foundation worker before the serial validation sequence.
+
+### Ordered no-op rev-0 review summary (historical)
+
 Ordered no-op static review returned NEEDS REVISION on size-limit equality,
 runtime unresolved-alias containment and projected created_by metadata.
 The correction must preserve D7 via bounded-memory comparison, restore known
@@ -3017,7 +3031,7 @@ integration or shipped assets belong to this slice.
 
 ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
 three caller closures; the bounded D7 ordered no-op draft is delivered and
-needs three review corrections. These units and coordinator guards are not
+its three review corrections are authored but unconfirmed. These units and coordinator guards are not
 Go-validated or approved. Coverage read integration, D13/D17 and D10 remain
 unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
@@ -9581,6 +9595,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 1. Finish the evidence caller closures and separate bounded ordered no-op
    proof under the current file-disjoint ownership at the top of this file.
+   Ordered rev-1 is authored; receive/pause the foundation worker before
+   running the serial resource-gated validation sequence.
 2. Checkpoint and validate/review the delivered units, then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent

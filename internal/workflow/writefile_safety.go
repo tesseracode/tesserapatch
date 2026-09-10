@@ -110,9 +110,11 @@ func computeFileSHA256(path string) (string, error) {
 // forbids embedding file bodies in diagnostics; only paths and hashes
 // appear.
 func checkWriteFilePreimage(repoRoot, slug string, opIndex int, op RecipeOperation) (preimageCheckOutcome, string) {
-	return checkWriteFilePreimageWithReader(repoRoot, slug, opIndex, op, os.ReadFile)
+	return checkWriteFilePreimageWithReader(repoRoot, slug, opIndex, op, nil)
 }
 
+// A nil reader selects the bounded-memory production observer; a supplied
+// reader retains the existing read-failure seam without changing classification.
 func checkWriteFilePreimageWithReader(repoRoot, slug string, opIndex int, op RecipeOperation, readFile func(string) ([]byte, error)) (preimageCheckOutcome, string) {
 	if op.Type != "write-file" {
 		return preimageSkip, ""
@@ -141,12 +143,12 @@ func checkWriteFilePreimageWithReader(repoRoot, slug string, opIndex int, op Rec
 			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot stat target for new-file check: %v; verify permissions before replay",
 				slug, opIndex, op.Path, err)
 		}
-		data, readErr := readFile(target)
+		equal, _, readErr := observeRecipePreimage(target, op.Content, false, readFile)
 		if readErr != nil {
 			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: target is unreadable: %v",
 				slug, opIndex, op.Path, readErr)
 		}
-		if string(data) == op.Content {
+		if equal {
 			return preimageAlreadyPresent, ""
 		}
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: new-file collision — target already exists but recipe expected an empty preimage; regenerate the recipe against the current tree or reconcile before replay",
@@ -169,7 +171,7 @@ func checkWriteFilePreimageWithReader(repoRoot, slug string, opIndex int, op Rec
 			slug, opIndex, op.Path, expected)
 	}
 
-	data, err := readFile(target)
+	equal, observed, err := observeRecipePreimage(target, op.Content, true, readFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s but target file is missing; regenerate the recipe or reconcile before replay",
@@ -179,15 +181,29 @@ func checkWriteFilePreimageWithReader(repoRoot, slug string, opIndex int, op Rec
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s but target is unreadable: %v",
 			slug, opIndex, op.Path, expected, err)
 	}
-	if string(data) == op.Content {
+	if equal {
 		return preimageAlreadyPresent, ""
 	}
-	observed := PreimageHashPrefix + sha256Hex(data)
 	if observed != expected {
 		return preimageRejected, fmt.Sprintf("recipe drift: [%s] op %d %s: expected preimage %s, observed %s; regenerate the recipe against the current tree or reconcile before replay",
 			slug, opIndex, op.Path, expected, observed)
 	}
 	return preimageOK, ""
+}
+
+func observeRecipePreimage(path, content string, digest bool, readFile func(string) ([]byte, error)) (bool, string, error) {
+	if readFile == nil {
+		return inspectRecipeFile(path, content, digest)
+	}
+	data, err := readFile(path)
+	if err != nil {
+		return false, "", err
+	}
+	observed := ""
+	if digest {
+		observed = PreimageHashPrefix + sha256Hex(data)
+	}
+	return string(data) == content, observed, nil
 }
 
 // isLowercaseHex reports whether s is a run of lowercase hex nibbles.
@@ -276,7 +292,7 @@ type PreimagePrecheckResult struct {
 // proceeds. This matches PRD-feature-supersession §4.5 "downgrade-to-
 // warning for superseded historical drift, not total suppression".
 func runWriteFilePreimagePrecheck(s *store.Store, recipe ApplyRecipe) PreimagePrecheckResult {
-	return runWriteFilePreimagePrecheckWithReader(s, recipe, os.ReadFile)
+	return runWriteFilePreimagePrecheckWithReader(s, recipe, nil)
 }
 
 func runWriteFilePreimagePrecheckWithReader(s *store.Store, recipe ApplyRecipe, readFile func(string) ([]byte, error)) PreimagePrecheckResult {
@@ -324,7 +340,7 @@ func runWriteFilePreimagePrecheckWithReader(s *store.Store, recipe ApplyRecipe, 
 			// Equality supplied the observed bytes; no second tree read
 			// may replace the original preimage authorization.
 			out.WriteAuthorized[i] = *op.PreimageHash != "" &&
-				*op.PreimageHash == PreimageHashPrefix+sha256Hex([]byte(op.Content))
+				*op.PreimageHash == recipeContentSHA256(op.Content)
 		case preimageLegacyWarn:
 			if msg != "" {
 				out.Warnings = append(out.Warnings, msg)

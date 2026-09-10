@@ -119,7 +119,9 @@ func executeRecipeWithOperation(s *store.Store, recipe ApplyRecipe, execute func
 	for i, op := range recipe.Operations {
 		if pre.AlreadyPresent[i] {
 			present, err := recipeNoopStillPresent(s.Root, op)
-			if err != nil && errors.Is(err, errRecipePrefixPathSafety) {
+			// The recheck tags unresolved containment as path safety too;
+			// original write authority only permits proven-contained fallback.
+			if errors.Is(err, errRecipePrefixPathSafety) {
 				result.Errors = append(result.Errors, fmt.Sprintf("[write-file] %s: %v", op.Path, err))
 				break
 			}

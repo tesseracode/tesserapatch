@@ -1670,6 +1670,9 @@ resource-limit and legacy-preservation behavior before accepting this unit.
 Ordered-proof rev-0 review is NEEDS REVISION: size-limit no-op regression and
 unresolved-runtime-alias containment (HIGH), plus projected created_by
 metadata dependencies (MEDIUM). Rev-1 stays in the same bounded file scope.
+Rev-1 corrections are authored with streaming equality, bounded-image
+recovery, containment-safe fallback and gate-input tracking, plus five
+regression functions. Validation and independent confirmation remain pending.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

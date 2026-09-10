@@ -1,3 +1,20 @@
+## Implementation Transition — GH #15 S5 ordered no-op rev-1 authored — 2026-09-09
+
+**State**: IN PROGRESS — corrections not Go-validated or independently confirmed
+
+The ordered unit now separates streaming exact comparison from bounded
+materialization, permits known authorized full overwrites to recover after
+size-only uncertainty, and corrects the resource fixtures. Runtime fallback
+requires current containment; unresolved aliases are hard refusals. Prefix
+tracking covers the specific config/status inputs of created_by so their
+mutation cannot silently validate a later restoring witness.
+
+Five new table-driven regression functions and updated Proposed ADR-042
+accompany the correction. Only formatting/whitespace inspection ran.
+Checkpoint by the five explicit owned paths and tracking. Receive/pause the
+foundation worker before the first serial resource-gated validation sequence;
+then independently confirm both the unit and its clarification.
+
 ## Review — GH #15 S5 ordered no-op rev-0 — 2026-09-09
 
 **Reviewer**: `s5-ordered-noop-review`

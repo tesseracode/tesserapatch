@@ -43,31 +43,53 @@ predictable failure after mutation, violating ADR-029 D3.
    restoring operation cannot establish a witness. Non-effect and restoring
    prefixes are allowed, not blanket-rejected as overlaps. Legacy omitted
    gates keep their original warning and ordinary writes, never new skips.
+   Track the gate's specific inputs: `.tpatch/config.yaml` and, when the
+   dependency flag is on, the owning feature's `status.json`. If a prefix may
+   change a needed input, the dependent append/replacement effect becomes
+   unproved before execution; initial metadata must not certify its later
+   success. This is conservative dependency tracking, not projected metadata
+   authorization or whole-worktree simulation. Exact unchanged metadata
+   writes and byte-neutral operations do not invalidate the gate; lexical,
+   symlink and hardlink aliases participate in the input tracking.
 4. **Identify aliases safely.** Normalize lexical paths; resolve internal
    symlinks through existing ancestors; use `os.SameFile` for existing
    hardlinks. Equivalent proven absent paths share a group, including paths
    through existing internal directory symlinks. Keep `EnsureSafeRepoPath`;
    additionally check resolved containment for the proof. Physical escapes
    in the examined prefix are hard path-safety errors, never downgraded.
-   Dangling/cyclic/unresolvable aliases are not assumed absent or unrelated.
+   Dangling/cyclic/unresolvable aliases are hard containment refusals, not
+   assumed absent or unrelated, even under initial empty-gate authority.
    Known `ENOTDIR` failures cannot mutate a group. Cross-path structural
    changes for initially absent groups make optional proof unavailable,
    rather than revoking their original write permissions.
 5. **Bound lifetime and bytes.** Process/release one alias group at a time.
    Retain only operation-index verdicts, previews and path/identity metadata
    across groups; do not retain file-body snapshots across groups. Operation
-   strings remain immutable/shared. Each read/projected image has an
-   **8,388,608-byte (8 MiB)** logical limit; bounded reads consume at most
+   strings remain immutable/shared. The **8,388,608-byte (8 MiB)** limit is
+   for newly materialized or constructed projection bodies, **not** an
+   exact-postimage size or eligibility limit. Unchanged files are compared
+   byte-for-byte with 32 KiB scratch space, including initial checks and
+   runtime skip rechecks. Initial hash gates stream the digest independently;
+   hash equality never substitutes for exact bytes or grants authority
+   beyond the original gate. Bounded materialization consumes at most
    limit+1 bytes, and append/replacement growth is checked before allocation.
+   A full overwrite can reference its existing immutable operation string
+   without allocating another body, even when that string exceeds 8 MiB.
    Transient read/string/replacement copies can coexist, so this is not a
    claim that total process memory is 8 MiB. Metadata is linear in recipe
-   size; alias grouping/comparison can be quadratic. Unknown/oversized
-   images remain unproved through that group's remaining prefix. No
+   size; alias grouping/comparison can be quadratic. Size-only projection
+   uncertainty can be recovered by a deterministic originally permitted full
+   overwrite. It cannot erase unresolved aliases, other I/O uncertainty,
+   changed gate inputs or known write failure. No
    success-shaped fallback exists for postimage-only permission; ordinary
    originally authorized writes still execute without the optimization.
 6. **Recheck at use.** Just before a planned skip, resolve/check the target
-   again and compare bounded exact bytes. Divergence never falsely reports
-   a skip. Original write permission permits ordinary execution; without it,
+   again and stream exact bytes. Divergence never falsely reports
+   a skip. Original write permission permits ordinary execution **only after
+   current physical containment is proved**; unresolved/dangling/cyclic
+   topology is a hard path-safety refusal, including when superseded.
+   A proven-contained ordinary missing or different target retains its
+   original fallback behavior. Without original write permission,
    divergence is drift and stops effective execution, with no unauthorized
    fallback write. This is not a filesystem transaction or protection
    against concurrent mutation between a check and use; external changes
@@ -104,9 +126,22 @@ predictable failure after mutation, violating ADR-029 D3.
   empty-gate authority; missing expected targets/read failures/malformed
   gates and unsafe paths cannot be rescued by a prefix.
 - Injected execution divergence cannot silently skip or gain write authority.
-- Deliberately oversized reads/append/replacement outputs are rejected by
-  the same production proof helpers; ordinary authorized large writes remain
-  executable. Unsafe and unprovable alias inputs exercise the real resolver.
+- An exact 8,388,609-byte postimage on a read-only target skips under empty,
+  mismatching and matching gates, preserving D14 accounting and timestamps.
+  Same-length changed bytes, trailing bytes and truncation fail the same
+  streaming comparison and production precheck; equality supplies no new
+  write permission.
+- Deliberately oversized materialization/append/replacement outputs remain
+  bounded by the production proof helpers. An authorized full overwrite
+  restores size-only knowledge; failed restoring operations and unresolved
+  aliases do not. Ordinary authorized large writes remain executable.
+- Runtime dangling external symlinks refuse without creating a destination,
+  irrespective of initial authority or supersession. Ordinary contained
+  missing/different targets retain authorized or warned fallback.
+- Changed config/status inputs, through lexical and physical aliases, cannot
+  certify a restoring `created_by` effect: dry-run and execution refuse
+  before unrelated writes or metadata changes. Unchanged metadata and
+  operations that do not use `created_by` remain positive controls.
 
 Implementation: `internal/workflow/recipe.go`, `writefile_safety.go`,
 `recipe_prefix_precheck.go`; focused tests:
