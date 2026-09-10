@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 landed correction independently APPROVED (2026-09-10)**: review
+approves `70bbc41` plus `a6fefac`, preserving source bytes and independent
+attestation/coverage/ambiguity rules. All static reviews are complete.
+Refreshed steps 1-5 pass; the exact full-shard retry remains in progress
+on unchanged code/tests. Final script/gate completion still precedes acceptance.
+
 **S5 refreshed steps 1-5 PASS (2026-09-10)**: full core (workflow 103.058s),
 expanded CLI including ACL (97.224s), vet/build and all targets pass under
 fresh 83-84%-free gates. Restart the exact full shard script from invocation
@@ -10379,7 +10385,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   a fresh full qualifying minute is still required before each command.
 - The resource blocker is resolved for steps 1-5 by fresh qualifying windows.
 - All consumer/D10 findings, including streamed gitlinks, are statically
-  closed and steps 1-5 pass. Exact shards, gate and whole-S5 acceptance remain.
+  closed, the landed test correction is approved and steps 1-5 pass.
+  Exact shards, gate and whole-S5 acceptance remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

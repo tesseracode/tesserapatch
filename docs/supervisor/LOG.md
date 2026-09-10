@@ -1,3 +1,18 @@
+## Review — GH #15 S5 landed-CLI compatibility correction — 2026-09-10
+
+**Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
+**Checkpoints**: `70bbc41`, refined by `a6fefac`
+**Verdict**: APPROVED — narrow test-only correction
+
+The tests preserve original row ordering, stale/R6 and ambiguity rules,
+attestation-only C/E isolation, coverage blocking and real-producer repair.
+The refinement creates a distinct raw capture while asserting unchanged
+feature bytes. No significant issues; no Go commands ran in review.
+
+All static reviews are complete. Refreshed stages 1-5 pass and the exact
+full-shard retry is running on unchanged code/tests. This tracking update
+changes no runtime input; full script/gate remain required before acceptance.
+
 ## Validation Transition — GH #15 S5 exact full-shard retry — 2026-09-10
 
 **Test correction**: `a6fefac`; production remains `a119dca`
