@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer retry 2 (2026-09-09)**: formatting, patchobs/workflow/CLI
+targets and live goldens pass. The sole failure is the stale inventory entry
+for the duplicate shared display counter removed in `c27989d`. Remove only
+that entry; reintroduction remains an unregistered-reader failure. No later
+stage ran. Both fresh resource windows passed at 83-84% free.
+
 **S5 consumer attempt 1 stopped at step 2 (2026-09-09)**: formatting and
 compilation pass, as do selected patchobs/workflow tests. Two source contracts
 catch refactor residue: duplicated human patch counting outside PI-10 and
@@ -4141,6 +4147,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Consumer retry 2 `c27989d`: step 1 PASS; step 2 FAIL only on the removed
+  duplicate-reader inventory entry. Patchobs 0.815s, workflow 15.009s,
+  CLI 37.897s PASS. Both fresh gates held at 83-84% free, load1 <=5.
+  No affected-suite/vet/build or later stage ran.
 
 - Consumer attempt 1 `cf381a1`: step 1 PASS; step 2 FAIL on exactly two
   source contracts. Patchobs 0.821s/workflow 14.363s PASS; gitutil 0.817s/

@@ -1755,6 +1755,9 @@ projection and legacy error duplication. Fix production factoring without
 weakening the guards, then restart; no later stage ran.
 The correction is authored/formatted: display-free shared collision facts
 with the registered CLI projection, plus one captured-byte legacy loader.
+Retry 2 passes all consumer/live-golden targets except the now-stale entry
+for that removed duplicate reader. Remove only the stale inventory entry,
+then restart; no later validation stage ran.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

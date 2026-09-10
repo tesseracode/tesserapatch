@@ -1,3 +1,15 @@
+## Validation Result — GH #15 S5 consumer retry 2 — 2026-09-09
+
+**Checkpoint**: `c27989d`
+**State**: IN PROGRESS — step 2 stopped on stale duplicate-reader inventory entry
+
+Formatting passes. Patchobs 0.815s, workflow 15.009s and CLI 37.897s pass,
+including all new consumers and live goldens. The sole failure is the
+inventory entry added for the now-removed duplicate shared display counter.
+Remove that one stale entry; the exact remaining inventory still detects
+any reintroduction as an unregistered reader. No later stage ran.
+Both fresh windows passed at 83-84% free memory, load1 <=5, no Go tools.
+
 ## Validation Result — GH #15 S5 consumer attempt 1 — 2026-09-09
 
 **Checkpoint**: `cf381a1`

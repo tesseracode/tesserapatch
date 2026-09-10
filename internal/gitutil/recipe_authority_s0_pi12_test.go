@@ -466,7 +466,6 @@ func TestRGAS0PatchHeaderReaderInventory(t *testing.T) {
 		"internal/gitutil/gitutil.go|stripGitInternalFileStanzas": "PI-9 sanitization",
 		"internal/gitutil/gitutil.go|headerPathIsGitInternal":     "PI-9 sanitization",
 		"internal/cli/cobra.go|countPatchFiles":                   "PI-10 display counter",
-		"internal/workflow/record_plan.go|ScanRecordCollisions":   "PI-10 shared collision display counter",
 	}
 	// Readers S1 removed or demoted out of production. A reappearance is
 	// a regression, not a refactor.
