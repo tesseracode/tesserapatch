@@ -97,8 +97,17 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 		if pre.Mode == gitutil.ModeGitlink {
 			input = []byte("Subproject commit " + entry.objectSHA + "\n")
 		}
-		post, available, err := gitutil.ReconstructPatchPostimage(patch, effect, input, budget.limit-budget.used)
+		postLimit := budget.limit - budget.used
+		gitlinkPost := postExtant && mode == gitutil.ModeGitlink
+		if gitlinkPost {
+			// Gitlink text is bounded scratch, not a retained file image.
+			postLimit = int64(len("Subproject commit ") + 40 + 1)
+		}
+		post, available, err := gitutil.ReconstructPatchPostimage(patch, effect, input, postLimit)
 		if err != nil {
+			if gitlinkPost && errors.Is(err, gitutil.ErrPatchImageBudget) {
+				return nil, fmt.Errorf("%s: invalid gitlink payload", effect.Path)
+			}
 			var proof *gitutil.PatchImageBudgetProof
 			if errors.As(err, &proof) {
 				if !postExtant && proof.Size != 0 {
@@ -124,17 +133,17 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 				row.Post = ReconstructedSide{Limitation: "strict binary representation has no reconstructable postimage payload", PayloadAbsent: true}
 			}
 		} else if postExtant {
-			row.Post = ReconstructedSide{Available: true, Present: true, Mode: mode, Bytes: post, SHA256: sha256Hex(post)}
-			if len(post) != 0 && (len(pre.Bytes) == 0 || &post[0] != &pre.Bytes[0]) {
-				budget.used += int64(len(post))
-			}
-			if mode == gitutil.ModeGitlink {
+			if gitlinkPost {
 				id := strings.TrimSuffix(strings.TrimPrefix(string(post), "Subproject commit "), "\n")
 				if !isFullCommitHex(id) || string(post) != "Subproject commit "+id+"\n" {
 					return nil, fmt.Errorf("%s: invalid gitlink payload", effect.Path)
 				}
-				row.Post.Bytes = nil
-				row.Post.SHA256 = sha256Hex([]byte(id))
+				row.Post = ReconstructedSide{Available: true, Present: true, Mode: mode, SHA256: sha256Hex([]byte(id))}
+			} else {
+				row.Post = ReconstructedSide{Available: true, Present: true, Mode: mode, Bytes: post, SHA256: sha256Hex(post)}
+				if len(post) != 0 && (len(pre.Bytes) == 0 || &post[0] != &pre.Bytes[0]) {
+					budget.used += int64(len(post))
+				}
 			}
 		}
 		result = append(result, row)

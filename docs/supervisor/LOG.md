@@ -1,3 +1,42 @@
+## Implementation Transition — GH #15 S5 bounded gitlink identity correction — 2026-09-10
+
+**State**: BLOCKED — correction authored; resources and re-review pending
+
+The coordinator uses a fixed 59-byte scratch bound for a gitlink postimage,
+independent of remaining retained-file budget. Oversized gitlink results
+cannot enter the generic streamed-digest branch. Every available pointer
+passes the existing exact prefix/full-lowercase-commit/LF check before its
+commit-ID digest is stored; scratch bytes are not retained or charged as a
+file image.
+
+New reconstruct_s5_test.go exercises the real Reconstruct path with free and
+fully exhausted budgets (a 32 MiB addition first), correct commit-ID rather
+than textual-line digest, and missing-prefix/short/uppercase/oversized/
+extra-line payload refusals. Retained bytes stay within the existing bound.
+Only formatting/whitespace inspection ran; resource-blocked Go validation
+was not attempted. Checkpoint and request independent correction review.
+Because code changed after `a97b4af`, future validation restarts at formatting.
+
+## Review — GH #15 S5 rev-1 remaining streamed-gitlink defect — 2026-09-09
+
+**Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
+**Checkpoint**: `a97b4af`
+**Verdict**: NEEDS REVISION — one remaining MEDIUM implementation defect
+
+Original findings 1, 3, 4, 5 and 6 are statically closed. The original
+text-retention case is fixed, but streamed postimages in patchobs/
+reconstruct.go:103-113 bypass gitlink syntax validation and hash the whole
+`Subproject commit <oid>\n` line rather than the canonical commit ID.
+An exhausted-budget legitimate gitlink is therefore falsely stale, and a
+malformed streamed gitlink can acquire DigestProved without validation.
+Normalize/validate gitlink identity before either proof path, using bounded
+scratch, and add valid/invalid exhausted-budget controls.
+
+The P1 early-refusal expectation, D10 cohort and positive-fixture corrections
+are statically approved; no additional findings in those deltas. Resource
+validation remains blocked before step 3b. Correct code without running Go
+until resources qualify, then restart validation from formatting.
+
 ## Validation Blocker — GH #15 S5 resource gate — 2026-09-09
 
 **Code checkpoint**: `a97b4af97ae3a0996b687453d82f815daaecb792`

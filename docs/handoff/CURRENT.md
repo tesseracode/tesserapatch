@@ -4,6 +4,22 @@
 
 **Cluster state**: BLOCKED
 
+**S5 gitlink correction authored (2026-09-10)**: the coordinator bounds
+gitlink scratch to its 59-byte textual pointer representation, validates
+identity before accepting proof, hashes only the commit ID and retains no
+scratch body. Real reconstruction controls cover free/exhausted image
+budgets and malformed pointers. Only formatting ran. Resources and
+independent correction review remain required; restart future validation
+from formatting because code changed after `a97b4af`.
+
+**S5 re-review: one MEDIUM streamed-gitlink defect remains (2026-09-09)**.
+Findings 1/3/4/5/6 and the D10 cohort/fixture fixes are statically closed.
+The original text-retention case is fixed, but an exhausted-budget gitlink
+still skips identity syntax validation and hashes its textual patch line
+instead of the commit ID. Correct that bounded object-kind path and add
+valid/invalid controls. Resource validation remains blocked; code changes
+will require a fresh restart at formatting, not resumption at step 3b.
+
 **S5 resource-blocked before step 3b (2026-09-09 23:52 PDT)**: code
 `a97b4af97ae3a0996b687453d82f815daaecb792` passes formatting, all targets/
 index/goldens/gateway controls and all full core packages (workflow 113.364s).
@@ -3017,7 +3033,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — resource gate before affected CLI; review confirmation pending
+- **Status**: Blocked — gitlink correction authored; resource-gated revalidation and review pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3025,6 +3041,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The remaining streamed-gitlink correction and real exhausted-budget
+regressions are authored/formatted. Valid identity is checked in bounded
+scratch before either generic streamed proof or retained-image accounting
+can accept it. Resource constraints still prohibit Go validation. The new
+code must restart validation at step 1 after independent review/resources.
+
+### Earlier resource-blocked validation summary (historical)
 
 Latest code `a97b4af` passes steps 1-3a, including every targeted/new
 regression and full core suite. Step 3b was not launched: its resource gate
@@ -10236,9 +10260,9 @@ at 471.544s. Formatting, vet and CLI build pass.
   internal unit is accepted. Remaining S5 consumers are not accepted.
 - Resource gate: >=80% free memory was unavailable for a continuous minute
   during the 600-second wait before step 3b; latest observed range 71-74%.
-- Corrections pass targeted/full core suites but independent confirmation
-  and the remaining validation stages are incomplete. Parent-owned old counts
-  and exact row/count deltas are approved.
+- The streamed-gitlink correction is authored but not revalidated/reviewed.
+  Five original findings and the D10/fixture deltas are statically closed.
+  Remaining validation stages and whole-S5 acceptance are incomplete.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

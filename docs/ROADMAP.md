@@ -1794,6 +1794,14 @@ gateway controls and all full core suites (workflow 113.364s). Step 3b never
 started: memory stayed 71-74% through a 600-second gate wait, exiting 75.
 No test failed in that run and no threshold was relaxed. Review confirmation
 and remaining CLI/vet/build/shards/gate stages still precede S5 acceptance.
+Re-review at `a97b4af` closes five original findings and D10 corrections,
+but retains one MEDIUM streamed-gitlink identity/validation defect under
+exhausted image budget. Correct it without Go runs while resource-blocked,
+then restart validation from formatting once resources qualify.
+The gitlink correction is authored on 2026-09-10 using bounded pointer
+scratch, exact identity validation/digest and real exhausted-budget controls.
+No Go validation ran while resource-blocked; independent confirmation and a
+fresh step-1 restart remain.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
