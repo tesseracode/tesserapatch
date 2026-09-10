@@ -4,6 +4,25 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 shared record-planner scope approved (2026-09-09)**: the consumer
+worker stopped without edits to request the actual-producer feasibility
+surface required by ADR-041. The coordinator authorizes pure autogen planning
+extraction and one shared readonly record planner, used by both recordCmd and
+remediation. No guessed planner, mutating "dry" autogen call or gate-bypass
+recommendation is permitted.
+
+Scope extension: workflow `recipe_autogen.go`, new
+`record_plan.go`/`record_plan_test.go`; CLI `record_collision.go` scanner/
+wrapper, `nested_worktree_guard.go`'s diffstat helper, and
+`feature_unapply.go`'s pending-baseline predicate/wrapper ONLY where sharing
+requires it. The already-owned recordCmd may wire the shared plan without
+changing producer output/semantics. Gitutil `gitutil.go` and its directly
+coupled tests may gain readonly/offline capture/reverse-check support.
+Default reverse checking is already `git apply --reverse --check`;
+staged validation's temp index must never leak into doctor D10.
+The consumer worker's original scope remains; coordinator golden/tracking
+files and accepted D7 execution are untouched.
+
 **Remaining S5 consumers dispatched (2026-09-09)**: independent golden-delta
 review APPROVED `97ff4ff`; the foundation/ordered internal unit is accepted
 after steps 1-5. Remaining work is read-time content/binding reconstruction,
@@ -2875,7 +2894,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — internal unit accepted; remaining S5 consumer implementation
+- **Status**: In progress — remaining consumers with shared readonly record planner
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2883,6 +2902,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The fresh consumer worker identified required ownership for truthful actual-
+producer remediation and stopped without edits. The coordinator inspected
+the real record gates and approved a shared readonly planning extraction,
+including pure autogen planning and narrow helper wrappers. Existing default
+round-trip validation is readonly; staged temp-index work remains forbidden
+in doctor. No new consumer code or policy amendment is claimed.
+
+### Internal-unit acceptance summary (historical)
 
 Independent review approved the exact golden delta. The internal foundation/
 ordered unit is accepted with all static findings closed and steps 1-5

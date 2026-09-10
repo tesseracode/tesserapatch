@@ -1735,6 +1735,10 @@ Independent golden-delta review APPROVED `97ff4ff`; the internal foundation/
 ordered unit is accepted. Remaining S5 consumers are dispatched to one fresh
 runtime owner with disjoint coordinator golden/tracking ownership. The same
 WAVE_BASE applies; this is not a wave close or S6 dispatch.
+Consumer scope now includes shared readonly record feasibility and pure
+autogen planning extraction, used by the producer and remediation alike.
+The first fresh worker stopped without edits for this approval; no guessed
+planner or mutating doctor path is authorized.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

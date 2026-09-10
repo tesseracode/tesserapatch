@@ -1,3 +1,31 @@
+## Scope Decision — GH #15 S5 shared record feasibility — 2026-09-09
+
+**State**: IN PROGRESS — consumer scope expanded before implementation
+
+The fresh consumer worker correctly stopped without edits because truthful
+remediation needs a shared actual-producer planner, not guessed duplicate
+logic or calling the deferred autogenerator as "dry".
+
+Authorize `recipe_autogen.go` for pure planning extraction, new workflow
+`record_plan.go`/`record_plan_test.go`, and recordCmd integration in the
+already-owned cobra.go. Narrow shared-helper extraction may touch CLI
+`record_collision.go` (scanner/wrapper), `nested_worktree_guard.go`
+(captureDiffStatFailClosed), and `feature_unapply.go` (pending-baseline read
+predicate/wrapper only). Preserve their existing producer behavior, output,
+failure tolerance and mutating unapply code. The new planner must be used
+by the actual producer as well as diagnostics; no parallel guessed planner.
+
+Inspected source confirms the default round-trip check is already readonly
+`git apply --reverse --check` (gitutil.go:508), not a scratch transaction.
+Staged-index validation does use a temporary index; doctor must not invoke
+that mutating path. Authorize gitutil.go only for shared readonly/offline
+capture/reverse-check support if needed, with directly coupled tests.
+Do not suggest lenient/force/collision overrides to evade failed gates.
+
+This implements Accepted ADR-041's producer-feasibility requirement; it adds
+no schema/policy change or new wave. Consumer implementation remains the
+same bounded S5 assignment, with coordinator golden/tracking ownership.
+
 ## Review and Decision — GH #15 S5 internal foundation unit — 2026-09-09
 
 **Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
