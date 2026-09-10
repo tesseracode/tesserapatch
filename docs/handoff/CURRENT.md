@@ -4,6 +4,26 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 owning core packages PASS; CLI golden delta pending (2026-09-09)**:
+all four full core suites pass, including workflow 98.559s. The affected
+CLI run stopped only on TestPreparePIBPreChangeGoldens, whose frozen expected
+stage lacks E and land's staged E path. No vet/build ran. A separate S5
+expected delta is authorized; never re-record historical goldens.
+
+### Active golden-delta ownership
+
+The bounded golden implementer owns new
+`internal/cli/recipe_authority_s5_golden_test.go`,
+`prepare_pib_golden_test.go` comparator wiring, and test-composition changes
+only in `recipe_authority_s2_golden_test.go` /
+`recipe_authority_s4_golden_test.go`. Their projection functions, original
+fixtures/hash histories, capturers and normalizers remain unchanged.
+The delta covers only the six already-governed fixtures plus land's staged
+E path; expected bytes/hashes derive independently from frozen inputs.
+No Go commands or Git writes by the implementer.
+
+### Prior targeted validation record (historical)
+
 **S5 corrected targeted unit PASS (2026-09-09)**: steps 1-2 pass at
 `7a737a0`, including all S0-S5 targets and coupled ADR-index tests.
 Fresh per-command windows held at 84-85% free memory and load1 <=5.
@@ -2761,7 +2781,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — corrected targeted unit passes; affected packages next
+- **Status**: In progress — owning packages pass; exact S5 golden delta pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2769,6 +2789,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Full owning packages pass under fresh gates. The affected CLI run's only
+failing family is the historical producer golden comparator. Its expected
+S5 stage must add the capture-event artifact and land staging path for the
+same six producer fixtures, with independent bytes/hashes and exact mutation
+controls. No later Go stage ran.
+
+### Earlier targeted-success summary (historical)
 
 The corrected unit passed formatting and targeted S0-S5/ADR-index tests
 under fresh qualifying windows. Patchobs/gitutil/workflow/CLI all pass.
@@ -3194,9 +3222,10 @@ ADR-041 is Accepted rev-1. The evidence foundation and all three caller
 closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
 guards now pass the corrected targeted retry in all four packages plus the
-coupled index family. Owning-package validation and foundation confirmation
-remain; neither unit is runtime-accepted. Coverage read integration, D13/D17
-and D10 remain unimplemented.
+coupled index family and all full core packages. Affected CLI validation
+requires the exact expected golden delta, and foundation confirmation remains;
+neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
+remain unimplemented.
 The evidence foundation's binary correction is authored and awaits static
 confirmation/revalidation. Writer guards are statically approved at
 `fbac9f0`; the ordered unit's separate static approval remains scoped.
@@ -3875,6 +3904,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Step 3a full core PASS: patchobs 1.469s, gitutil 6.548s, store 2.868s,
+  workflow 98.559s. Step 3b CLI 67.600s FAIL only in
+  TestPreparePIBPreChangeGoldens (missing expected E artifact/staging delta).
+  No vet/build or later stage ran. Separate gates at 84-85% free, load1 <=5.
 
 - Corrected unit `7a737a0`: steps 1-2 PASS. Targeted S0-S5 and
   TestS7ARRev16: patchobs 0.800s, gitutil 0.575s, workflow 12.519s,

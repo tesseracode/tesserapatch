@@ -1711,6 +1711,10 @@ still required before foundation acceptance.
 Corrected unit `7a737a0` now passes formatting and all targeted S0-S5/
 ADR-index families under fresh 84-85%-free gates. Owning packages and
 affected CLI/golden families are next, then vet/build if they pass.
+Full core packages now pass (workflow 98.559s). The affected CLI run stops
+only on the frozen producer golden expectations lacking E/staging. Author a
+separate six-fixture S5 expected delta with independent hashes and exact
+sensitivities; historical fixture bytes and S2/S4 projections stay unchanged.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

@@ -1,3 +1,28 @@
+## Validation Result — GH #15 S5 owning packages and golden delta — 2026-09-09
+
+**Code checkpoint**: `7a737a0` (tracking-only `9f8f3ae` followed)
+**State**: IN PROGRESS — step 3a PASS; step 3b stopped on historical expectations
+
+Full core packages pass: patchobs 1.469s, gitutil 6.548s, store 2.868s,
+workflow 98.559s. Affected CLI families ran for 67.600s; their only failing
+family is TestPreparePIBPreChangeGoldens, whose expected snapshots lack the
+new capture-event artifact (and land's staged path). No vet/build ran.
+Each command had a fresh qualifying minute at 84-85% free, load1 <=5.
+
+Authorize a narrow independent expected S5 delta, not re-recording:
+new `internal/cli/recipe_authority_s5_golden_test.go`;
+`prepare_pib_golden_test.go` comparator wiring; TEST COMPOSITION ONLY in
+`recipe_authority_s2_golden_test.go` and `recipe_authority_s4_golden_test.go`.
+The S2/S4 projection functions, all historical fixture bytes/hash histories,
+capturers and normalizers stay unchanged.
+
+Exactly the existing six producer fixtures gain independently derived E
+bytes from frozen inputs and the prior expected C stage; only land gains
+one staged E path. Add exact comparator mutations for pair hashes, event/
+exclusion/observation fields, frame length/placement, extra artifacts and
+unrelated output. Do not use production E builders/validators/hash encoders
+as the expected oracle. Restart the gated sequence after the correction.
+
 ## Validation Result — GH #15 S5 corrected targeted unit — 2026-09-09
 
 **Checkpoint**: `7a737a0`
