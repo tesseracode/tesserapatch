@@ -244,6 +244,9 @@ func TestRGAS5DoctorD10FixWritesNothingAndTruthfulCommand(t *testing.T) {
 	if err := s.WriteArtifact("s5", "post-apply.patch", string(in.Observation.PatchBytes)); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.WriteArtifact("s5", "apply-recipe.json", string(in.Recipe.Bytes)); err != nil {
+		t.Fatal(err)
+	}
 	for _, fix := range []bool{false, true} {
 		before := rgaS5TreeState(t, s.Root)
 		report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D10"}, Fix: fix})

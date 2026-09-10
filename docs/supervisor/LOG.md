@@ -1,3 +1,15 @@
+## Validation Result — GH #15 S5 D10 cohort retry — 2026-09-09
+
+**Checkpoint**: `1b0399b`
+**State**: IN PROGRESS — targeted retry stopped on incomplete positive fixture
+
+Formatting, patchobs/gitutil and CLI targets pass. The sole workflow failure
+is the D10 truthful-command fixture: it held recipe bytes only in memory
+while writing only the patch, so it did not establish the required P+R
+missing-coverage cohort. Seed its exact recipe artifact before the unchanged
+readonly/command assertions. The new negative cohort cases pass.
+No later stage ran; both fresh gates held at 81-83% free, load1 <=5.
+
 ## Validation Result — GH #15 S5 rev-1 owning suites — 2026-09-09
 
 **Checkpoint**: `de7c3ae`

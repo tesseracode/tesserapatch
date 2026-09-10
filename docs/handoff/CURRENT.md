@@ -4,6 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 D10 cohort retry (2026-09-09)**: the negative cohort controls and CLI
+targets pass; the sole failure is a positive doctor fixture that never wrote
+its in-memory recipe. Seed that exact artifact before its unchanged readonly/
+truthful-command assertions. No later stage ran; fresh gates held at 81-83%.
+
 **S5 rev-1 full core PASS (2026-09-09)**: steps 1-3a pass, including workflow
 107.172s and the original gateway/budget guards. Affected CLI stops at two
 post-record recipe-edit fixtures, an obsolete unknown-D10 fixture and a
@@ -4225,6 +4230,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Cohort retry `1b0399b`: formatting PASS; patchobs 0.837s, gitutil 1.106s
+  and CLI 39.303s PASS. Workflow 17.828s FAIL only on the positive D10 fixture
+  missing its recipe artifact. Both fresh gates held at 81-83% free/load1 <=5;
+  no later stage ran.
 
 - Rev-1 retry `de7c3ae`: steps 1-2 PASS (patchobs 0.789s, gitutil 1.124s,
   workflow 18.179s, CLI 39.077s). Full core PASS (patchobs 1.686s,

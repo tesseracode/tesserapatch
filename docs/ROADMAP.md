@@ -1787,6 +1787,8 @@ a real D10 missing-coverage cohort error. Correct those without relaxing
 binding or accepting the extra warning; no vet/build/later stages ran.
 Those corrections are authored/formatted with real checkpoint and cohort
 controls; the original doctor warning expectation is preserved.
+Cohort retry passes negative cases and CLI targets; seed the recipe artifact
+missing from the positive truthful-command fixture before restarting.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
