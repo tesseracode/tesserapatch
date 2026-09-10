@@ -91,16 +91,30 @@ func rgaS5CLIState(t *testing.T, root string) string {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() {
-			return nil
-		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
 		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
+		if entry.IsDir() {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			rows = append(rows, fmt.Sprintf("%s:%s", rel, info.Mode()))
+			return nil
+		}
+		var data []byte
+		if info.Mode()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			data = []byte(target)
+		} else {
+			data, err = os.ReadFile(path)
+			if err != nil {
+				return err
+			}
 		}
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
@@ -209,13 +223,77 @@ func TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply(t *testing.T) {
 	}
 }
 
+func TestRGAS5RecordPublicationPathsRefuseBeforeBoundWrites(t *testing.T) {
+	for _, broken := range []string{"patches-symlink", "patches-file", "coverage-directory", "coverage-directory-with-recipe-error"} {
+		t.Run(broken, func(t *testing.T) {
+			s := rgaS5CLISetup(t, "missing", true)
+			featureDir := filepath.Join(s.Root, ".tpatch", "features", "s5")
+			if err := os.Remove(filepath.Join(featureDir, "artifacts", "post-apply.patch")); err != nil {
+				t.Fatal(err)
+			}
+			patches := filepath.Join(featureDir, "patches")
+			switch broken {
+			case "patches-symlink", "patches-file":
+				if err := os.Remove(patches); err != nil && !errors.Is(err, os.ErrNotExist) {
+					t.Fatal(err)
+				}
+				if broken == "patches-symlink" {
+					destination := filepath.Join(s.Root, ".tpatch", "audit-target")
+					if err := os.MkdirAll(destination, 0755); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(destination, "sentinel"), []byte("untouched"), 0644); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Symlink(destination, patches); err != nil {
+						t.Fatal(err)
+					}
+				} else if err := os.WriteFile(patches, []byte("not a directory"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			default:
+				if err := os.Mkdir(filepath.Join(featureDir, "artifacts", "recipe-coverage.json"), 0755); err != nil {
+					t.Fatal(err)
+				}
+				if broken == "coverage-directory-with-recipe-error" {
+					if err := os.Mkdir(filepath.Join(featureDir, "artifacts", "apply-recipe.json"), 0755); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			before := rgaS5CLIState(t, filepath.Join(s.Root, ".tpatch"))
+			source, err := os.ReadFile(filepath.Join(s.Root, "a.txt"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, overrides := range [][]string{nil, {"--force-amend", "--lenient", "--allow-collision", "intentional duplicate"}} {
+				args := append([]string{"record", "s5", "--path", s.Root, "--regenerate-recipe"}, overrides...)
+				_, _, err := rgaS5CLIRun(args...)
+				if err == nil || !strings.Contains(err.Error(), "publication") {
+					t.Fatalf("known publication failure did not gate actual producer: %v", err)
+				}
+				if after := rgaS5CLIState(t, filepath.Join(s.Root, ".tpatch")); after != before {
+					t.Fatal("refused producer changed bound artifacts, audit files, or feature state")
+				}
+				after, err := os.ReadFile(filepath.Join(s.Root, "a.txt"))
+				if err != nil || !bytes.Equal(after, source) {
+					t.Fatal("refused producer changed source bytes")
+				}
+			}
+		})
+	}
+}
+
 func TestRGAS5CLIActualRecordPublishesDryRecommendedPair(t *testing.T) {
 	s := rgaS5CLISetup(t, "missing", true)
-	if _, _, err := rgaS5CLIRun("record", "s5", "--path", s.Root, "--regenerate-recipe"); err != nil {
-		t.Fatal(err)
-	}
-	snap := workflow.SnapshotRecipeCoverage(s.Root, "s5")
-	if result := workflow.AssessRecipeCoverage(s.Root, "s5", snap, nil); result.Rung != 6 {
-		t.Fatalf("recommended producer did not publish complete independent evidence: %s", result.Diagnostic())
+	for _, scope := range [][]string{nil, {"--files", "a.txt"}} {
+		args := append([]string{"record", "s5", "--path", s.Root, "--regenerate-recipe"}, scope...)
+		if _, _, err := rgaS5CLIRun(args...); err != nil {
+			t.Fatal(err)
+		}
+		snap := workflow.SnapshotRecipeCoverage(s.Root, "s5")
+		if result := workflow.AssessRecipeCoverage(s.Root, "s5", snap, nil); result.Rung != 6 {
+			t.Fatalf("real default/scoped producer did not publish complete independent evidence: %s", result.Diagnostic())
+		}
 	}
 }

@@ -221,12 +221,40 @@ func PlanRecord(s *store.Store, status store.FeatureStatus, obs patchobs.Observa
 	if err := gitutil.ValidatePatchReverse(s.Root, string(obs.PatchBytes)); err != nil {
 		gate("roundtrip", "captured patch does not round-trip against the working tree")
 	}
-	if _, err := CaptureRecordDiffStat(s.Root, obs.Capture.Pathspecs); err != nil {
+	diffStat, diffStatErr := CaptureRecordDiffStat(s.Root, obs.Capture.Pathspecs)
+	if diffStatErr != nil {
 		gate("diffstat", "diffstat nested-worktree discovery failed")
 	}
 	plan.Autogen, plan.RecipeError = PlanRecipeForRecord(obs, autogen, regenerate, publication, now)
+	paths := []string{
+		"status.json", "record.md", "patch-generations.json", "artifacts/post-apply.patch",
+		"artifacts/recipe-capture-event.json", "artifacts/recipe-coverage.json",
+	}
+	if !collision.SameFeature || len(collision.CrossFeature) != 0 {
+		paths = append(paths, "patches")
+	}
+	if diffStat != "" {
+		paths = append(paths, "artifacts/post-apply-diff.txt")
+	}
+	if recipePlan := plan.Autogen.plan; recipePlan != nil {
+		if recipePlan.recipe != nil {
+			paths = append(paths, "artifacts/apply-recipe.json")
+		}
+		if recipePlan.provenance != nil {
+			paths = append(paths, "artifacts/recipe-provenance.json")
+		}
+		if recipePlan.stale != nil || recipePlan.clearStale {
+			paths = append(paths, "artifacts/recipe-stale.json")
+		}
+	}
+	for _, rel := range paths {
+		if err := recordPublicationPath(s.Root, filepath.Join(s.Root, ".tpatch", "features", status.Slug, rel)); err != nil {
+			gate("publication-path", filepath.ToSlash(rel)+": "+err.Error())
+		}
+	}
 	if plan.RecipeError != nil {
 		block("recipe planning failed")
+		plan.Blockers = coverageSortedCopy(plan.Blockers)
 		return plan
 	}
 	core := RecipeCoverageInput{Observation: obs, Recipe: plan.Autogen.Recipe, Events: CoverageEvents{
@@ -254,16 +282,6 @@ func PlanRecord(s *store.Store, status store.FeatureStatus, obs patchobs.Observa
 			}
 		}
 	}
-	for _, rel := range []string{
-		"status.json", "record.md", "patch-generations.json", "patches",
-		"artifacts/post-apply.patch", "artifacts/post-apply-diff.txt", "artifacts/apply-recipe.json",
-		"artifacts/recipe-provenance.json", "artifacts/recipe-stale.json",
-		"artifacts/recipe-capture-event.json", "artifacts/recipe-coverage.json",
-	} {
-		if err := recordPublicationPath(s.Root, filepath.Join(s.Root, ".tpatch", "features", status.Slug, rel)); err != nil {
-			block(filepath.ToSlash(rel) + ": " + err.Error())
-		}
-	}
 	plan.Blockers = coverageSortedCopy(plan.Blockers)
 	return plan
 }
@@ -285,6 +303,9 @@ func recordPublicationPath(root, path string) error {
 		}
 		if p == path && info.IsDir() && filepath.Base(path) != "patches" {
 			return fmt.Errorf("publication artifact is a directory")
+		}
+		if p == path && filepath.Base(path) == "patches" && !info.IsDir() {
+			return fmt.Errorf("publication audit path is not a directory")
 		}
 		if p == path && !info.Mode().IsRegular() && !info.IsDir() {
 			return fmt.Errorf("publication target is not a regular file")

@@ -18,6 +18,8 @@ type ReconstructedSide struct {
 	Bytes         []byte
 	Limitation    string
 	PayloadAbsent bool
+	DigestProved  bool
+	NULPresent    bool
 }
 
 type ReconstructedEffect struct {
@@ -97,6 +99,19 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 		}
 		post, available, err := gitutil.ReconstructPatchPostimage(patch, effect, input, budget.limit-budget.used)
 		if err != nil {
+			var proof *gitutil.PatchImageBudgetProof
+			if errors.As(err, &proof) {
+				if !postExtant && proof.Size != 0 {
+					return nil, fmt.Errorf("%s: deletion leaves reference content", effect.Path)
+				}
+				row.Post = ReconstructedSide{
+					Present: postExtant, Mode: mode, SHA256: proof.SHA256,
+					DigestProved: true, NULPresent: proof.NULPresent,
+					Limitation: "postimage independently verified by streaming; body not retained within image budget",
+				}
+				result = append(result, row)
+				continue
+			}
 			if errors.Is(err, gitutil.ErrPatchImageBudget) {
 				row.Post.Limitation = err.Error()
 				result = append(result, row)
@@ -110,7 +125,9 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 			}
 		} else if postExtant {
 			row.Post = ReconstructedSide{Available: true, Present: true, Mode: mode, Bytes: post, SHA256: sha256Hex(post)}
-			budget.used += int64(len(post))
+			if len(post) != 0 && (len(pre.Bytes) == 0 || &post[0] != &pre.Bytes[0]) {
+				budget.used += int64(len(post))
+			}
 			if mode == gitutil.ModeGitlink {
 				id := strings.TrimSuffix(strings.TrimPrefix(string(post), "Subproject commit "), "\n")
 				if !isFullCommitHex(id) || string(post) != "Subproject commit "+id+"\n" {

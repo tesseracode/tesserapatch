@@ -719,7 +719,67 @@ var rgaS5ReadFunctions = map[string]map[string]bool{
 
 // Every selector reference is inspected, not only calls: a method value,
 // method expression or package alias cannot hide a writer from this boundary.
-func rgaS5ReadFunction(rel string, node ast.Node) error {
+func rgaS5ReadFunction(rel string, node ast.Node, importMaps ...map[string]string) error {
+	imports := map[string]string{}
+	if len(importMaps) != 0 {
+		imports = importMaps[0]
+	}
+	allowedOpens := map[ast.Node]bool{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		if selector, ok := n.(*ast.SelectorExpr); ok && selector.Sel.Name == "Open" {
+			if pkg, ok := selector.X.(*ast.Ident); ok && imports[pkg.Name] == "os" &&
+				(pkg.Obj == nil || pkg.Obj.Kind == ast.Pkg) {
+				allowedOpens[selector], allowedOpens[selector.Sel] = true, true
+			}
+		}
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		fun := call.Fun
+		for {
+			paren, ok := fun.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			fun = paren.X
+		}
+		name := ""
+		switch f := fun.(type) {
+		case *ast.SelectorExpr:
+			name = f.Sel.Name
+		case *ast.Ident:
+			name = f.Name
+		}
+		flagIndex := -1
+		switch name {
+		case "OpenFile":
+			if len(call.Args) == 3 {
+				flagIndex = 1
+			}
+			if len(call.Args) == 4 {
+				flagIndex = 2
+			}
+		case "Openat":
+			if len(call.Args) == 4 {
+				flagIndex = 2
+			}
+		case "Open":
+			if len(call.Args) == 3 {
+				flagIndex = 1
+			}
+		default:
+			return true
+		}
+		if (name == "Open" && len(call.Args) == 1) ||
+			(flagIndex >= 0 && rgaS5ReadOnlyOpenFlags(call.Args[flagIndex], imports, map[ast.Expr]bool{})) {
+			allowedOpens[fun] = true
+			if selector, ok := fun.(*ast.SelectorExpr); ok {
+				allowedOpens[selector.Sel] = true
+			}
+		}
+		return true
+	})
 	var refusal error
 	ast.Inspect(node, func(n ast.Node) bool {
 		name := ""
@@ -730,8 +790,14 @@ func rgaS5ReadFunction(rel string, node ast.Node) error {
 			name = value.Name
 		}
 		switch name {
+		case "OpenFile", "Openat", "Open":
+			if !allowedOpens[n] {
+				refusal = fmt.Errorf("%s: readonly role acquired an open capability without proven readonly flags: %s", rel, name)
+			}
 		case "WriteArtifact", "WriteArtifactAtomic", "WriteFeatureFile", "WriteFile",
 			"Create", "CreateTemp", "Mkdir", "MkdirAll", "Remove", "RemoveAll", "Rename",
+			"Creat", "Truncate", "Ftruncate", "NewFile", "Syscall", "Syscall6", "RawSyscall", "RawSyscall6",
+			"Chmod", "Fchmod", "Chown", "Fchown", "Lchown", "Chtimes", "Utimes", "Futimes", "Link", "Symlink",
 			"MarkFeatureState", "SaveFeatureStatus", "WritePatch", "SnapshotArtifact",
 			"NewTempIndex", "ValidateStagedPatch", "ReverseApplyCheckAtHEAD", "CreateShadow",
 			"PublishCoverage", "publishRecordRecipePlan", "AutogenRecipeForRecord", "writeRecipe", "clearStaleMarker",
@@ -745,26 +811,80 @@ func rgaS5ReadFunction(rel string, node ast.Node) error {
 	return refusal
 }
 
+func rgaS5ReadOnlyOpenFlags(expr ast.Expr, imports map[string]string, visiting map[ast.Expr]bool) bool {
+	if visiting[expr] {
+		return false
+	}
+	visiting[expr] = true
+	defer delete(visiting, expr)
+	switch flag := expr.(type) {
+	case *ast.ParenExpr:
+		return rgaS5ReadOnlyOpenFlags(flag.X, imports, visiting)
+	case *ast.BasicLit:
+		value, err := strconv.ParseUint(flag.Value, 0, 64)
+		return flag.Kind == token.INT && err == nil && value == 0
+	case *ast.BinaryExpr:
+		return flag.Op == token.OR && rgaS5ReadOnlyOpenFlags(flag.X, imports, visiting) &&
+			rgaS5ReadOnlyOpenFlags(flag.Y, imports, visiting)
+	case *ast.Ident:
+		if flag.Obj == nil || flag.Obj.Kind != ast.Con {
+			return false
+		}
+		spec, ok := flag.Obj.Decl.(*ast.ValueSpec)
+		if !ok {
+			return false
+		}
+		for i, name := range spec.Names {
+			if name.Obj == flag.Obj && i < len(spec.Values) {
+				return rgaS5ReadOnlyOpenFlags(spec.Values[i], imports, visiting)
+			}
+		}
+	case *ast.SelectorExpr:
+		pkg, ok := flag.X.(*ast.Ident)
+		if !ok || (pkg.Obj != nil && pkg.Obj.Kind != ast.Pkg) {
+			return false
+		}
+		switch imports[pkg.Name] {
+		case "os", "syscall", "golang.org/x/sys/unix":
+			switch flag.Sel.Name {
+			case "O_RDONLY", "O_CLOEXEC", "O_NOFOLLOW", "O_DIRECTORY", "O_NONBLOCK", "O_NOCTTY", "O_PATH", "O_LARGEFILE":
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func rgaS5ReadSource(rel, src string) error {
 	file, err := rgaS0Parse(rel, src)
 	if err != nil {
 		return err
 	}
+	imports := map[string]string{}
+	for _, imp := range file.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			return err
+		}
+		name := filepath.Base(path)
+		if imp.Name != nil {
+			name = imp.Name.Name
+		}
+		imports[name] = path
+	}
 	legacy := rel == "internal/workflow/verify.go" || rel == "internal/workflow/verify_landed.go"
 	for _, decl := range file.Decls {
 		fn, isFunc := decl.(*ast.FuncDecl)
 		if !isFunc {
-			if !legacy {
-				if err := rgaS5ReadFunction(rel, decl); err != nil {
-					return err
-				}
+			if err := rgaS5ReadFunction(rel, decl, imports); err != nil {
+				return err
 			}
 			continue
 		}
 		owner := rgaS0EnclosingName(fn)
 		registered := rgaS5ReadFunctions[rel][owner]
 		if !legacy || registered {
-			if err := rgaS5ReadFunction(rel, fn); err != nil {
+			if err := rgaS5ReadFunction(rel, fn, imports); err != nil {
 				return err
 			}
 		}

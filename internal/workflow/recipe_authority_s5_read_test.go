@@ -1,12 +1,14 @@
 package workflow
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -135,6 +137,99 @@ func TestRGAS5ReadPresenceOwnerAndCompanionFailures(t *testing.T) {
 	a := AssessRecipeCoverage(s.Root, "s5", rgaS5ReadSnapshot(t, in), nil)
 	if a.Rung != 3 || !strings.Contains(strings.Join(a.Reasons, ","), "recipe-owner-mismatch") {
 		t.Fatal(a.explanation())
+	}
+}
+
+func TestRGAS5ReadRetentionOrderKeepsObservedPostimage(t *testing.T) {
+	s := setupVerifyFeature(t, "s5")
+	target := filepath.Join(s.Root, "large.txt")
+	body := bytes.Repeat([]byte(strings.Repeat("p", 1023)+"\n"), 20*1024)
+	if err := os.WriteFile(target, body, 0644); err != nil {
+		t.Fatal(err)
+	}
+	mustGit(t, s.Root, "add", "large.txt")
+	mustGit(t, s.Root, "commit", "-qm", "large reference")
+	body[0] = 'q'
+	if err := os.WriteFile(target, body, 0644); err != nil {
+		t.Fatal(err)
+	}
+	patch, err := gitutil.CapturePatchScopedReadOnly(s.Root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publish := func(raw string) RecipeCoverageSnapshot {
+		t.Helper()
+		obs := patchobs.Observe(patchobs.Input{
+			Producer: patchobs.ProducerRecord, RepoRoot: s.Root, Slug: "s5",
+			Patch: raw, PatchPresent: true, PreimageRef: "HEAD",
+			Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
+		})
+		if len(obs.Effects) != 1 || obs.Effects[0].Effect.PreimageObserved ||
+			!obs.Effects[0].Effect.PostimageObserved || len(obs.Effects[0].Bytes.Postimage) != 20<<20 {
+			t.Fatal("actual S1 observation did not exercise post-first 20 MiB + 20 MiB retention")
+		}
+		if err := s.WriteArtifact("s5", "post-apply.patch", raw); err != nil {
+			t.Fatal(err)
+		}
+		c, err := PublishCoverage(s, CoveragePublicationInput{Observation: obs, Events: CoverageEvents{PatchRewritten: true}})
+		if err != nil || c.CoverageStatus != CoverageIncomplete {
+			t.Fatalf("real publisher: %s %v", c.CoverageStatus, err)
+		}
+		return SnapshotRecipeCoverage(s.Root, "s5")
+	}
+	good := publish(patch)
+	assessment := AssessRecipeCoverage(s.Root, "s5", good, nil)
+	if assessment.Rung != 3 || !strings.Contains(strings.Join(assessment.Limitations, ";"), "postimage independently verified by streaming") {
+		t.Fatalf("allocation order turned truthful incomplete into binding failure: %s", assessment.explanation())
+	}
+	broken := strings.Replace(patch, "\n-p", "\n-r", 1)
+	if broken == patch {
+		t.Fatal("context mutation did not apply")
+	}
+	if a := AssessRecipeCoverage(s.Root, "s5", publish(broken), nil); a.Code != "recipe-coverage-reference-stale" {
+		t.Fatal("malformed/context-mismatching payload was waived by retention: " + a.explanation())
+	}
+	body[0] = 'r'
+	if err := os.WriteFile(target, body, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if a := AssessRecipeCoverage(s.Root, "s5", publish(patch), nil); a.Code != "recipe-coverage-reference-stale" {
+		t.Fatal("detectable observed postimage mismatch was waived by retention: " + a.explanation())
+	}
+	blob := strings.TrimSpace(mustGit(t, s.Root, "rev-parse", "HEAD:large.txt"))
+	if err := os.Remove(filepath.Join(s.Root, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatal(err)
+	}
+	if a := AssessRecipeCoverage(s.Root, "s5", good, nil); a.Code != "recipe-coverage-reference-stale" {
+		t.Fatal("lost unobserved reference object was waived by retention: " + a.explanation())
+	}
+}
+
+func TestRGAS5ReadRejectsFullyRehashedHunklessModification(t *testing.T) {
+	s, complete := rgaS5ReadFixture(t)
+	if a := AssessRecipeCoverage(s.Root, "s5", rgaS5ReadSnapshot(t, complete), nil); a.Rung != 6 {
+		t.Fatal("positive complete text control failed: " + a.explanation())
+	}
+	if err := os.WriteFile(filepath.Join(s.Root, "a.txt"), []byte("old\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	patch := "diff --git a/a.txt b/a.txt\nindex 3367afd..3367afd 100644\n--- a/a.txt\n+++ b/a.txt\n"
+	obs := patchobs.Observe(patchobs.Input{
+		Producer: patchobs.ProducerRecord, RepoRoot: s.Root, Slug: "s5", Patch: patch,
+		PatchPresent: true, PreimageRef: "HEAD", Capture: patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
+	})
+	in := rgaS3Inputs(t, obs, rgaS3Write("a.txt", "old\n", "old\n", false))
+	snapshot := rgaS5ReadSnapshot(t, in)
+	c, err := DecodeRecipeCoverage(snapshot.Coverage.Bytes)
+	if err != nil || c.CoverageStatus != CoverageComplete {
+		t.Fatalf("counterexample not completely rehashed: %v %s", err, c.CoverageStatus)
+	}
+	if err := gitutil.ValidatePatchReverse(s.Root, patch); err == nil {
+		t.Fatal("Git unexpectedly accepts the payload-free ordinary modification")
+	}
+	a := AssessRecipeCoverage(s.Root, "s5", snapshot, nil)
+	if a.Code != "recipe-coverage-reference-stale" || !strings.Contains(a.Detail, "no hunk") {
+		t.Fatal("garbage patch masqueraded as complete coverage: " + a.explanation())
 	}
 }
 

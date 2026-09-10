@@ -417,7 +417,7 @@ func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, er
 	if err != nil {
 		return "", err
 	}
-	untracked, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, prefixes)
+	untracked, err := listUntrackedFilesWithPrefixes(repoRoot, pathspecs, prefixes, runCaptureGitReadOnly)
 	if err != nil {
 		return "", err
 	}

@@ -1774,6 +1774,9 @@ The worker owns their corrections and regressions; no S5 acceptance yet.
 Partial rung-3/envelope corrections are delivered. Two narrowly authorized
 transitive reader/enumerator paths complete that scope before the worker
 continues all six findings; no revalidation or closure is claimed.
+Consumer rev-1 is delivered for all six findings, with concrete regressions,
+and the worker stopped. Restart gated validation and independent re-review;
+implementation claims alone do not close findings.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

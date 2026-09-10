@@ -89,6 +89,26 @@ exec %q "$@"
 	if !strings.HasPrefix(readLog(), "0\x1ffr_FR.UTF-8\x1f1\x1f") {
 		t.Fatal("readonly discovery policy changed the unrelated ordinary Git runner")
 	}
+	for _, scoped := range []bool{false, true} {
+		if err := os.Remove(logPath); err != nil {
+			t.Fatal(err)
+		}
+		if scoped {
+			_, err = listUntrackedFilesWithPrefixes(root, nil, nil, runCaptureGitReadOnly)
+		} else {
+			_, err = listUntrackedFilesWithPrefixes(root, nil, nil)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "0\x1ffr_FR.UTF-8\x1f1\x1f"
+		if scoped {
+			want = "1\x1fC\x1f0\x1f"
+		}
+		if !strings.HasPrefix(readLog(), want+"-c core.quotePath=false ls-files --others") {
+			t.Fatalf("untracked enumeration did not preserve its scoped runner: %q", readLog())
+		}
+	}
 }
 
 // nestedWTGit runs git in dir and fails the test on error.

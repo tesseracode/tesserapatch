@@ -554,13 +554,17 @@ func listUntrackedFiles(repoRoot string, pathspecs []string) ([]string, error) {
 // discovers EXACTLY ONCE and threads the result through, so a single
 // command cannot observe two different answers, and the number of
 // failure windows before the first artifact write is minimal.
-func listUntrackedFilesWithPrefixes(repoRoot string, pathspecs, nested []string) ([]string, error) {
+func listUntrackedFilesWithPrefixes(repoRoot string, pathspecs, nested []string, readers ...func(string, ...string) (string, error)) ([]string, error) {
+	read := runGit
+	if len(readers) != 0 {
+		read = readers[0]
+	}
 	args := []string{"-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "-z"}
 	if len(pathspecs) > 0 {
 		args = append(args, "--")
 		args = append(args, pathspecs...)
 	}
-	out, err := runGit(repoRoot, args...)
+	out, err := read(repoRoot, args...)
 	if err != nil {
 		return nil, fmt.Errorf("git ls-files --others failed: %w", err)
 	}

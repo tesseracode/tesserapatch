@@ -36,12 +36,13 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 // gitPathspecBudget bounds how many bytes of pathspec arguments one
@@ -76,7 +77,7 @@ func runGit(repoRoot string, stdin []byte, args ...string) ([]byte, error) {
 	countGitProcess()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=1")
+	cmd.Env = gitutil.CaptureReadOnlyEnv()
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -200,7 +201,7 @@ func readBlobs(repoRoot string, objectIDs []string, budget *imageBudget) map[str
 	}
 	cmd := exec.Command("git", "cat-file", "--batch")
 	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=1")
+	cmd.Env = gitutil.CaptureReadOnlyEnv()
 	cmd.Stdin = strings.NewReader(strings.Join(unique, "\n") + "\n")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

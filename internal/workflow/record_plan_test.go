@@ -216,12 +216,15 @@ func TestRGAS5RecordGateFailuresCannotBecomeDryCommands(t *testing.T) {
 		}
 		return nil
 	}
-	for _, kind := range []string{"identity", "amend", "empty", "capture", "generations", "collision-read", "collision", "roundtrip", "diffstat"} {
+	for _, kind := range []string{"identity", "amend", "empty", "capture", "generations", "collision-read", "collision", "roundtrip", "diffstat", "publication-path"} {
 		blocked := base
 		blocked.Blockers = []string{kind}
 		blocked.gateFailures = []recordGateFailure{{kind, kind}}
 		if err := validate(blocked); err != nil {
 			t.Fatal(kind, err)
+		}
+		if kind == "publication-path" && blocked.RecordGateError(true, "explicit duplicate", true, true) == nil {
+			t.Fatal("publication path gate was bypassed by producer override flags")
 		}
 		wrong := blocked
 		wrong.gateFailures = nil

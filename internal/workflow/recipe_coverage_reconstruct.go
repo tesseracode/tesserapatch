@@ -68,16 +68,22 @@ func reconstructRecipeCoverage(root string, c RecipeCoverage, e RecipeCaptureEve
 				full = false
 				dependentBudget := side.post && !observed.PreimageObserved &&
 					actual.Limitation == "preimage unavailable within image retention budget"
-				if side.observed && !actual.PayloadAbsent && !dependentBudget {
+				if side.observed && !actual.PayloadAbsent && !dependentBudget && !actual.DigestProved {
 					return nil, fmt.Errorf("%s: required %s cannot be reconstructed: %s", effect.Path, side.name, actual.Limitation)
 				}
-				limitations = append(limitations, fmt.Sprintf("%s: %s: %s; body hash has pair consistency only", effect.Path, side.name, actual.Limitation))
-				continue
+				detail := actual.Limitation
+				if !actual.DigestProved {
+					detail += "; body hash has pair consistency only"
+				}
+				limitations = append(limitations, fmt.Sprintf("%s: %s: %s", effect.Path, side.name, detail))
+				if !actual.DigestProved {
+					continue
+				}
 			}
 			if side.observed && (side.present != actual.Present || side.mode != actual.Mode || side.hash != actual.SHA256) {
 				return nil, fmt.Errorf("%s: independently reconstructed %s presence/mode/hash differs", effect.Path, side.name)
 			}
-			if side.observed {
+			if side.observed && actual.Available {
 				if side.post {
 					row.Bytes.Postimage = actual.Bytes
 				} else {
@@ -85,8 +91,16 @@ func reconstructRecipeCoverage(root string, c RecipeCoverage, e RecipeCaptureEve
 				}
 			}
 		}
-		if len(reconstructed) != 0 && reconstructed[i].Pre.Available && reconstructed[i].Post.Available {
+		if len(reconstructed) != 0 && reconstructed[i].Pre.Available &&
+			(reconstructed[i].Post.Available || reconstructed[i].Post.DigestProved) {
 			content, object := patchobs.ClassifyEffectObservation(row.Effect, row.Bytes)
+			// Classification only examines NUL presence. A streamed body is
+			// represented by that independent fact, never by fabricated bytes;
+			// the full S3 validator remains unavailable without retained bodies.
+			if observed.PostimageObserved && reconstructed[i].Post.DigestProved &&
+				reconstructed[i].Post.NULPresent && object != gitutil.ObjectKindGitlink {
+				content = gitutil.ContentKindBinary
+			}
 			if content != observed.ContentKind || object != observed.ObjectKind {
 				return nil, fmt.Errorf("%s: independently reconstructed object/content kind differs", effect.Path)
 			}

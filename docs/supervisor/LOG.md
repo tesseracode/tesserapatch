@@ -1,3 +1,22 @@
+## Validation Transition — GH #15 S5 consumer rev-1 delivered — 2026-09-09
+
+**Worker**: `51ca5679-7631-4492-ae58-7e0fead1b61e`
+**State**: IN PROGRESS — six corrections authored; validation/re-review pending
+
+The worker stopped after completing all six correction scopes: publication
+paths are non-overridable producer gates; oversized postimages have validated
+streamed digest proof with historical flags preserved; hunkless ordinary
+modifications refuse; readonly opens/aliases and metadata mutation are guarded;
+verify planning is rung-3-only; the complete readonly Git envelope reaches
+capture, discovery, untracked enumeration and reference reads.
+
+Actual-record no-mutation, real 20 MiB retention, malformed/context/hash/
+object-loss, readonly capability and environment controls accompany the fixes.
+Only formatting/whitespace inspection ran. Save the stable combined revision,
+clear the owned failure sentinel and restart gated validation from step 1.
+Independent correction review must confirm each finding; none is closed
+merely by the implementation report. No S5 acceptance yet.
+
 ## Review — GH #15 S5 consumers rev-0 — 2026-09-09
 
 **Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`

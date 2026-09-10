@@ -3,6 +3,8 @@ package gitutil
 import (
 	"bytes"
 	"compress/zlib"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,10 +14,22 @@ import (
 
 var ErrPatchImageBudget = errors.New("postimage exceeds image retention budget")
 
+// PatchImageBudgetProof is returned only after every text hunk and context
+// matched. It proves the postimage digest without retaining another image.
+type PatchImageBudgetProof struct {
+	SHA256     string
+	Size       int64
+	NULPresent bool
+}
+
+func (e *PatchImageBudgetProof) Error() string { return ErrPatchImageBudget.Error() }
+func (e *PatchImageBudgetProof) Unwrap() error { return ErrPatchImageBudget }
+
 // ReconstructPatchPostimage applies an already normalized effect exactly in
 // memory. False means the strict representation has no executable payload;
 // an invalid payload or context mismatch is an error, never a limitation.
 // limit bounds the newly retained image, independently of the input image.
+// An exactly unchanged result may share the immutable preimage buffer.
 func ReconstructPatchPostimage(patch string, effect PatchEffect, pre []byte, limit int64) ([]byte, bool, error) {
 	effects, err := NormalizePatchEffects(patch)
 	if err != nil {
@@ -28,6 +42,16 @@ func ReconstructPatchPostimage(patch string, effect PatchEffect, pre []byte, lim
 	fragment := patch[effect.FragmentStart:effect.FragmentEnd]
 	lines := splitPatchLines(fragment)
 	starts := patchRecordStarts(lines)
+	if effect.ChangeKind == ChangeKindModify && !effect.BinaryStanza &&
+		(effect.HeaderOldMode == "" || effect.HeaderNewMode == "" || effect.HeaderOldMode == effect.HeaderNewMode) {
+		hasHunk := false
+		for _, line := range lines {
+			hasHunk = hasHunk || strings.HasPrefix(line.text, "@@")
+		}
+		if !hasHunk {
+			return nil, false, fmt.Errorf("ordinary modification has no hunk or metadata transformation")
+		}
+	}
 	if len(starts) == 2 {
 		first, err := normalizeOneRecord(lines, starts[0], starts[1])
 		if err != nil {
@@ -405,7 +429,41 @@ func reconstructTextRecord(fragment string, pre []byte, limit int64) ([]byte, er
 		cursor++
 	}
 	if size > limit {
-		return nil, ErrPatchImageBudget
+		if size == int64(len(pre)) {
+			at, identical := 0, true
+			for _, piece := range pieces {
+				if piece.body != nil {
+					identical = identical && bytes.Equal(piece.body, pre[at:at+len(piece.body)])
+					at += len(piece.body)
+				} else {
+					for i := 0; identical && i < len(piece.text); i++ {
+						identical = pre[at+i] == piece.text[i]
+					}
+					at += len(piece.text)
+				}
+			}
+			if identical {
+				return pre, nil
+			}
+		}
+		digest := sha256.New()
+		proof := &PatchImageBudgetProof{Size: size}
+		var scratch [32768]byte
+		for _, piece := range pieces {
+			if piece.body != nil {
+				_, _ = digest.Write(piece.body)
+				proof.NULPresent = proof.NULPresent || bytes.IndexByte(piece.body, 0) >= 0
+			} else {
+				for at := 0; at < len(piece.text); {
+					n := copy(scratch[:], piece.text[at:])
+					_, _ = digest.Write(scratch[:n])
+					at += n
+				}
+				proof.NULPresent = proof.NULPresent || strings.IndexByte(piece.text, 0) >= 0
+			}
+		}
+		proof.SHA256 = hex.EncodeToString(digest.Sum(nil))
+		return nil, proof
 	}
 	post := make([]byte, int(size))
 	offset := 0

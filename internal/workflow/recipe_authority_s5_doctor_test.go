@@ -107,6 +107,9 @@ func TestRGAS5Rung3AndDoctorCaptureGitEnvelope(t *testing.T) {
 			for _, prefix := range [][]string{
 				{"config", "--get-regexp"}, {"worktree", "list", "--porcelain", "-z"},
 				{"diff", "--no-ext-diff", "--no-textconv"}, {"rev-parse", "--verify", "HEAD"}, {"diff", "--stat"},
+				{"rev-parse", "--verify", in.Observation.Reference.Commit + "^{commit}"},
+				{"--literal-pathspecs", "ls-tree", "-z", "--full-name"}, {"cat-file", "--batch"},
+				{"-c", "core.quotePath=false", "ls-files", "--others"}, {"apply", "--reverse", "--check", "-"},
 			} {
 				found := false
 				for _, call := range calls {
@@ -239,6 +242,75 @@ func TestRGAS5PurePlannerExtractionBoundarySensitivity(t *testing.T) {
 	mutated := strings.Replace(src, "outcome, retErr = PlanRecipeForRecord(", "outcome, retErr = guessedRecipePlan(", 1)
 	if mutated == src || rgaS0CheckAutogenDerivation(mutated) == nil {
 		t.Fatal("compatibility wrapper bypassed pure planner undetected")
+	}
+}
+
+func TestRGAS5ReadonlyOpeningCapabilitiesAndAliases(t *testing.T) {
+	path := "internal/workflow/doctor_d10.go"
+	original := rgaS0ReadRepoFile(t, path)
+	const anchor = "func runDoctorD10(ctx *doctorContext) {"
+	validate := func(source string) error {
+		if err := rgaS5ReadSource(path, source); err != nil {
+			return err
+		}
+		return rgaS0CoveragePhaseSource(path, source)
+	}
+	withImports := strings.Replace(original, `"fmt"`, `"fmt"
+	"os"
+	fs "os"
+	"syscall"
+	"strings"`, 1)
+	if withImports == original {
+		t.Fatal("actual-source import anchor missing")
+	}
+	mutate := func(body, declaration string) string {
+		return strings.Replace(withImports, anchor, anchor+"\n"+body, 1) + "\n" + declaration
+	}
+	if err := validate(original); err != nil {
+		t.Fatal(err)
+	}
+	for _, safe := range []string{
+		`f, _ := os.Open(ctx.root + "/.tpatch/config.yaml"); if f != nil { f.Close() }`,
+		`open := os.Open; f, _ := open(ctx.root + "/.tpatch/config.yaml"); if f != nil { f.Close() }`,
+		`f, _ := os.OpenFile(ctx.root + "/.tpatch/config.yaml", os.O_RDONLY, 0); if f != nil { f.Close() }`,
+		`const flags = os.O_RDONLY | 0; f, _ := os.OpenFile(ctx.root + "/.tpatch/config.yaml", flags, 0); if f != nil { f.Close() }`,
+		`f, _ := fs.OpenFile(ctx.root + "/.tpatch/config.yaml", fs.O_RDONLY, 0); if f != nil { f.Close() }`,
+		`var b strings.Builder; b.WriteString("in-memory"); _ = b.String()`,
+	} {
+		if err := validate(mutate(safe, "")); err != nil {
+			t.Fatalf("legitimate readonly/builder operation refused: %s: %v", safe, err)
+		}
+	}
+	for _, wrong := range []struct{ name, body, declaration string }{
+		{"direct-truncate", `_, _ = os.OpenFile(ctx.root+"/.tpatch/features/s5/artifacts/recipe-coverage.json", os.O_WRONLY|os.O_TRUNC, 0600)`, ""},
+		{"read-mode-but-truncate", `_, _ = os.OpenFile(ctx.root+"/.tpatch/features/s5/artifacts/recipe-coverage.json", os.O_RDONLY|os.O_TRUNC, 0600)`, ""},
+		{"local-function-alias", `open := os.OpenFile; _, _ = open(ctx.root+"/.tpatch/features/s5/artifacts/recipe-coverage.json", os.O_RDWR|os.O_TRUNC, 0600)`, ""},
+		{"package-function-alias", `_, _ = s5WriteOpen(ctx.root+"/.tpatch/features/s5/artifacts/recipe-coverage.json", os.O_TRUNC, 0600)`, `var s5WriteOpen = os.OpenFile`},
+		{"package-import-alias", `_, _ = fs.OpenFile(ctx.root+"/.tpatch/features/s5/artifacts/recipe-coverage.json", fs.O_CREATE|fs.O_RDWR, 0600)`, ""},
+		{"unknown-flags", `flags := os.O_RDONLY; _, _ = os.OpenFile(ctx.root+"/.tpatch/config.yaml", flags, 0)`, ""},
+		{"numeric-unproved-flags", `_, _ = os.OpenFile(ctx.root+"/.tpatch/config.yaml", 512, 0600)`, ""},
+		{"shadowed-readonly-name", `os := struct{ O_RDONLY int }{fs.O_TRUNC}; _, _ = fs.OpenFile(ctx.root+"/.tpatch/config.yaml", os.O_RDONLY, 0600)`, ""},
+		{"root-method-value", `root, _ := os.OpenRoot(ctx.root); opening := root.OpenFile; _, _ = opening(".tpatch/config.yaml", os.O_TRUNC, 0600)`, ""},
+		{"root-method-expression", `opening := (*os.Root).OpenFile; _ = opening`, ""},
+		{"syscall-open", `_, _ = syscall.Open(ctx.root+"/.tpatch/config.yaml", syscall.O_RDWR|syscall.O_TRUNC, 0600)`, ""},
+		{"syscall-openat", `_, _ = syscall.Openat(0, ".tpatch/config.yaml", syscall.O_CREAT, 0600)`, ""},
+		{"truncate-existing-handle", `f, _ := os.Open(ctx.root+"/.tpatch/config.yaml"); if f != nil { _ = f.Truncate(0) }`, ""},
+		{"mutate-readonly-handle-metadata", `f, _ := os.Open(ctx.root+"/.tpatch/config.yaml"); if f != nil { _ = f.Chmod(0600) }`, ""},
+		{"unknown-descriptor", `f := os.NewFile(7, ".tpatch/config.yaml"); _ = f`, ""},
+		{"creat-constructor", `_, _ = syscall.Creat(ctx.root+"/.tpatch/config.yaml", 0600)`, ""},
+	} {
+		t.Run(wrong.name, func(t *testing.T) {
+			source := mutate(wrong.body, wrong.declaration)
+			if source == withImports {
+				t.Fatal("actual-source capability mutation did not apply")
+			}
+			if rgaS5ReadSource(path, source) == nil {
+				t.Fatal("readonly validator accepted write-opening capability")
+			}
+			if rgaS0CoveragePhaseSource(path, source) == nil {
+				t.Fatal("phase validator accepted write-opening capability")
+			}
+		})
 	}
 }
 

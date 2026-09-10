@@ -2,6 +2,9 @@ package gitutil
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,6 +63,27 @@ func TestRGAS5BinaryPayloadIsCheckedRatherThanCalledLimited(t *testing.T) {
 	}
 }
 
+func TestRGAS5BudgetProofRequiresExactValidPayload(t *testing.T) {
+	patch := "diff --git a/a b/a\nindex 1..2 100644\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-old\n+new\n"
+	effects, err := NormalizePatchEffects(patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = ReconstructPatchPostimage(patch, effects[0], []byte("old\n"), 0)
+	var proof *PatchImageBudgetProof
+	if !errors.As(err, &proof) {
+		t.Fatalf("validated over-budget text omitted its streamed proof: %v", err)
+	}
+	sum := sha256.Sum256([]byte("new\n"))
+	if proof.SHA256 != hex.EncodeToString(sum[:]) || proof.Size != 4 || proof.NULPresent {
+		t.Fatalf("incorrect independent proof: %+v", proof)
+	}
+	_, _, err = ReconstructPatchPostimage(patch, effects[0], []byte("wrong\n"), 0)
+	if err == nil || errors.As(err, &proof) {
+		t.Fatal("invalid context was converted into a budget limitation")
+	}
+}
+
 func TestRGAS5ExactMemoryReconstruction(t *testing.T) {
 	header := "diff --git a/a b/a\nindex 123..456 100644\n--- a/a\n+++ b/a\n"
 	for _, tc := range []struct {
@@ -71,6 +95,11 @@ func TestRGAS5ExactMemoryReconstruction(t *testing.T) {
 		{"no-newline", header + "@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file\n", "old", "new", false, false},
 		{"multiple", header + "@@ -1 +1 @@\n-a\n+A\n@@ -3 +3 @@\n-c\n+C\n", "a\nb\nc\n", "A\nb\nC\n", false, false},
 		{"empty-add", "diff --git a/a b/a\nnew file mode 100644\nindex 0000000..e69de29\n", "", "", false, false},
+		{"empty-delete", "diff --git a/a b/a\ndeleted file mode 100644\nindex e69de29..0000000\n", "", "", false, false},
+		{"rename-only", "diff --git a/old b/a\nsimilarity index 100%\nrename from old\nrename to a\n", "old\n", "old\n", false, false},
+		{"copy-only", "diff --git a/old b/a\nsimilarity index 100%\ncopy from old\ncopy to a\n", "old\n", "old\n", false, false},
+		{"mode-only", "diff --git a/a b/a\nold mode 100644\nnew mode 100755\n", "old\n", "old\n", false, false},
+		{"hunkless-modification", header, "old\n", "", true, false},
 		{"delete", "diff --git a/a b/a\ndeleted file mode 100644\n--- a/a\n+++ /dev/null\n@@ -1 +0,0 @@\n-old\n", "old\n", "", false, false},
 		{"wrong-context", header + "@@ -1 +1 @@\n-old\n+new\n", "different\n", "", true, false},
 		{"no-fuzz", header + "@@ -1 +1 @@\n-old\n+new\n", "prefix\nold\n", "", true, false},
@@ -90,9 +119,16 @@ func TestRGAS5ExactMemoryReconstruction(t *testing.T) {
 				(err == nil && available && !bytes.Equal(post, []byte(tc.post))) {
 				t.Fatalf("available=%v error=%v length=%d", available, err, len(post))
 			}
-			if err == nil && available && len(post) > 0 {
+			if err == nil && available && len(post) > 0 && !bytes.Equal(post, []byte(tc.pre)) {
 				if _, _, err := ReconstructPatchPostimage(tc.patch, effects[0], []byte(tc.pre), int64(len(post)-1)); err == nil {
 					t.Fatal("same transformation accepted insufficient retention budget")
+				}
+			}
+			if err == nil && available && len(post) > 0 && bytes.Equal(post, []byte(tc.pre)) {
+				pre := []byte(tc.pre)
+				shared, _, err := ReconstructPatchPostimage(tc.patch, effects[0], pre, 0)
+				if err != nil || len(shared) != len(pre) || &shared[0] != &pre[0] {
+					t.Fatal("exact metadata-only identity did not share its immutable preimage")
 				}
 			}
 			wrong := effects[0]

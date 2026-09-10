@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer rev-1 delivered (2026-09-09)**: all six correction scopes and
+their concrete regressions are authored/formatted. The worker stopped.
+Checkpoint, reset only the owned failure sentinel and restart gated
+validation; independent re-review must confirm each closure. No finding
+is accepted solely from the worker's report, and S5 remains in progress.
+
 **S5 correction scope extended (2026-09-09)**: partial rung-3/envelope work
 is delivered but incomplete. The worker may update patchobs/gitread.go's
 runGit/readBlobs and gitutil/capture_modes.go's untracked enumeration with
@@ -2973,7 +2979,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — consumer rev-1 correcting six review findings
+- **Status**: In progress — consumer rev-1 delivered; gated validation/re-review next
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2981,6 +2987,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The worker delivered all six corrections and stopped. Production path gates,
+bounded streamed retention proof, hunkless-payload refusal, readonly capability
+guards and complete scoped Git environment propagation now have regression
+fixtures. Only formatting ran. The stable combined revision is ready for
+fresh validation and independent correction review.
+
+### Earlier consumer review summary (historical)
 
 Independent consumer review returned six findings. The worker must make
 publication-path safety a real non-overridable producer gate, preserve honest
@@ -3502,10 +3516,9 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards pass the complete internal-unit steps 1-5: targeted/index/actual
 goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
-integration, D13/D17 and D10 compile and pass targeted/index/live-golden
-validation. Full workflow validation exposed remediation probe-budget and
-readonly Git environment regressions, now with the consumer worker.
-Independent review and full S5 validation/close remain.
+integration, D13/D17 and D10 compile and passed targeted/index/live-golden
+validation before review. All six review/runtime corrections are now authored
+and await revalidation/re-review. Full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
 approval remains scoped. Runtime acceptance still needs the remaining stages.
@@ -10149,9 +10162,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - D9 policy is resolved by Accepted ADR-041 rev-1; the foundation/ordered
   internal unit is accepted. Remaining S5 consumers are not accepted.
-- Full workflow validation requires the remediation probe-budget/offline/
-  locale correction; parent-owned old count expectations are corrected.
-  Consumer rev-0 has six open findings; exact row/count deltas are approved.
+- All six consumer corrections are authored, not yet validated or confirmed.
+  Parent-owned old counts and exact row/count deltas are approved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
