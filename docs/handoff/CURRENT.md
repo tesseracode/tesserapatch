@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer retry 3 stopped in workflow owning suite (2026-09-09)**:
+steps 1-2 and full patchobs/gitutil/store pass. Workflow catches two old
+row-count expectations plus real extra-probe/offline/C-locale regressions
+from verify remediation. No later stage ran; fresh gates held at 84% free.
+Coordinator fixes only verify_landed_groupabc_test.go's row expectations.
+Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` owns rung-3-only verify
+regeneration planning and complete readonly Git environment propagation,
+including newly authorized worktrees.go discovery helpers/tests. Existing
+budget/offline/locale guard thresholds stay unchanged.
+
 **S5 consumer retry 2 (2026-09-09)**: formatting, patchobs/workflow/CLI
 targets and live goldens pass. The sole failure is the stale inventory entry
 for the duplicate shared display counter removed in `c27989d`. Remove only
@@ -2944,7 +2954,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — consumer step-2 source-contract corrections
+- **Status**: In progress — owning-suite remediation/gateway corrections
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2952,6 +2962,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The full targeted/index/golden retry passes. Owning workflow tests expose
+legacy verify probe-budget and readonly Git environment regressions, plus
+two stale count expectations. Production correction is assigned to the
+consumer worker; the coordinator preserves the original eleven check rows
+and appends the twelfth in the old ordered-count tests. No guard relaxation.
+
+### Earlier source-contract correction summary (historical)
 
 The first consumer run passes formatting/compilation and selected patchobs/
 workflow tests, then stops on two source guards. Restore PI-10's registered
@@ -4147,6 +4165,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Consumer retry 3 `1b16550`: steps 1-2 PASS (patchobs 0.823s,
+  gitutil 0.827s, workflow 14.239s, CLI 34.595s). Step 3 full patchobs
+  1.452s/gitutil 6.932s/store 2.708s PASS; workflow 112.102s FAIL on
+  two count expectations, invocation budget, offline discovery and C locale.
+  Fresh gates at 84% free/load1 <=5; no later stage ran.
 
 - Consumer retry 2 `c27989d`: step 1 PASS; step 2 FAIL only on the removed
   duplicate-reader inventory entry. Patchobs 0.815s, workflow 15.009s,

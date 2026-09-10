@@ -80,8 +80,8 @@ func TestACL2_LandedFeaturePassesWithExactEvidence(t *testing.T) {
 	if r.Baseline.Mode != BaselineModeDual {
 		t.Errorf("baseline.mode=%q want dual-anchor", r.Baseline.Mode)
 	}
-	if len(r.Checks) != 11 {
-		t.Errorf("checks=%d want 11", len(r.Checks))
+	if len(r.Checks) != 12 {
+		t.Errorf("checks=%d want 12", len(r.Checks))
 	}
 }
 
@@ -102,14 +102,13 @@ func TestACL4_LandedLeafPasses(t *testing.T) {
 	}
 }
 
-// AC-L5 — every report emits exactly eleven check rows whose ids equal
-// the shipped constants, in order. Golden assertion.
+// AC-L5 preserves the eleven historical rows in order; S5 appends coverage.
 func TestACL5_ElevenCheckRowsInOrder(t *testing.T) {
 	want := []string{
 		CheckStatusLoaded, CheckIntentFilesPresent, CheckRecipeParses,
 		CheckRecipeOpTargetsResolve, CheckDepMetadataValid, CheckSatisfiedByReachable,
 		CheckDependencyGateSatisfied, CheckRecipeReplayClean, CheckPostApplyPatchReplayClean,
-		CheckReconcileOutcomeConsistent, CheckWriteFilePreimageFresh,
+		CheckReconcileOutcomeConsistent, CheckWriteFilePreimageFresh, CheckRecipeGenerationCoverage,
 	}
 	f := newLadderFixture(t)
 	for _, phase := range []string{"landed-pass", "landed-fail"} {
@@ -118,7 +117,7 @@ func TestACL5_ElevenCheckRowsInOrder(t *testing.T) {
 		}
 		r := f.Verify()
 		if len(r.Checks) != len(want) {
-			t.Fatalf("%s: %d checks, want 11", phase, len(r.Checks))
+			t.Fatalf("%s: %d checks, want %d", phase, len(r.Checks), len(want))
 		}
 		for i, id := range want {
 			if r.Checks[i].ID != id {

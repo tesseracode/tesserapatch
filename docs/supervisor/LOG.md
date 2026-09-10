@@ -1,3 +1,29 @@
+## Validation Result — GH #15 S5 consumer retry 3 — 2026-09-09
+
+**Checkpoint**: `1b16550`
+**State**: IN PROGRESS — steps 1-2 PASS; stopped at workflow owning suite
+
+All targeted/index/live-golden tests pass. Full patchobs/gitutil/store pass;
+workflow (112.102s) fails two old row-count expectations and exposes real
+remediation regressions: legacy verify now issues extra config/diff probes,
+and readonly capture's transitive worktree discovery/commands lose the
+offline/C-locale envelope. No affected CLI, vet/build or later stage ran.
+All three command gates passed at 84% free, load1 <=5, no Go tools.
+
+Coordinator owns the two count/order expectations in
+verify_landed_groupabc_test.go, preserving the original eleven rows plus
+the appended coverage row. Consumer worker owns the production correction:
+verify regeneration planning belongs to the contracted rung-3 remediation,
+not unsolicited legacy/missing-coverage probing; all readonly capture
+commands, including nested-worktree discovery, retain NO_LAZY_FETCH,
+GIT_OPTIONAL_LOCKS=0 and C locale. No global environment mutation.
+Authorize internal/gitutil/worktrees.go's discovery helpers and their tests
+only as needed for scoped readonly environment propagation.
+
+Keep invocation budgets, offline/C-locale guards and legacy warnings intact;
+do not relax thresholds or disable rung-3/doctor proof. Add positive/negative
+controls in the worker's S5 tests, then stop before revalidation.
+
 ## Validation Result — GH #15 S5 consumer retry 2 — 2026-09-09
 
 **Checkpoint**: `c27989d`
