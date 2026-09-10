@@ -4,6 +4,29 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 unit attempt 1 stopped at step 2 (2026-09-09)**: formatting passed;
+all selected packages compiled, patchobs passed, and remaining failures
+identify parser/note inventories, amended S4 fixture expectations and two
+new S5 fixture issues. No later validation stage ran. Each command had a
+fresh 85%-free qualifying minute. The failure sentinel remains until the
+correction is checkpointed; do not continue to later stages.
+
+### Active correction ownership
+
+A test-only compatibility implementer owns
+`internal/gitutil/recipe_authority_s0_pi12_test.go`,
+`internal/workflow/recipe_authority_s0_source_guards_test.go`,
+`recipe_authority_s4_producer_test.go`, `recipe_authority_s4_publish_test.go`,
+`internal/cli/recipe_authority_s4_cli_test.go`,
+`recipe_authority_s4_event_test.go`, limited to explicit ADR-041/D7 deltas
+and exact parser inventory. No production or historical golden edits.
+The coordinator owns `recipe_authority_s5_capture_publish_test.go`'s missing
+generation upper descriptor and `recipe_authority_s5_verify_test.go`'s
+read-error fixture investigation, plus tracking. Independent foundation
+review uses immutable `fc519fd`; neither sub-agent may run Go commands.
+
+### Prior validation dispatch (historical)
+
 **S5 unit validation starting (2026-09-09)**: all foundation caller closures
 and ordered no-op corrections are delivered. The worker has stopped editing.
 Completion guards now admit the actual joined-error return/deferred shapes
@@ -2690,7 +2713,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — stable foundation/ordered unit entering gated validation
+- **Status**: In progress — targeted unit corrections after step-2 failure
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2698,6 +2721,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The first gated unit run passed formatting and compiled all selected packages.
+Targeted failures are partitioned into exact inventory/amended S4 fixture
+updates and two coordinator-owned S5 fixture investigations. No later stage
+ran. Historical goldens are untouched; independent foundation review will
+use the immutable checkpoint while test-only corrections proceed.
+
+### Initial validation dispatch summary (historical)
 
 Foundation caller closures are delivered, including P7 pre-editor frozen
 context and primary-aware reporting for P3/P6/P7. The worker is idle and
@@ -3061,8 +3092,9 @@ integration or shipped assets belong to this slice.
 ADR-041 is Accepted rev-1. The evidence foundation and all three caller
 closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
-guards are not yet Go-validated or runtime-accepted. Coverage read integration,
-D13/D17 and D10 remain unimplemented.
+guards compiled in the first gated run but still have targeted failures;
+neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
+remain unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
@@ -3734,6 +3766,15 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Unit attempt 1 at `fc519fd`: step 1 PASS; step 2 FAIL, stopping the
+  sequence. All packages compiled; patchobs 0.794s PASS, gitutil 0.566s,
+  workflow 11.580s and CLI 12.920s reported targeted failures.
+- Fresh gates: 60 continuous seconds at 85% free memory before each command;
+  observed completion load1 3.64 and 3.01, no active Go tools. No later Go
+  stage ran and no threshold was relaxed.
+- Failure details and explicit correction ownership are in the newest LOG
+  entry and at the top of this file.
 
 - First S5 unit validation sequence is starting; no Go result yet. All
   implementation workers are stopped. Every command needs its own fresh
@@ -9630,7 +9671,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Next Steps
 
 1. Run the stable unit's serial resource-gated validation (formatting,
-   targeted S0-S5, affected packages, vet/build), stopping at first failure.
+   targeted S0-S5, affected packages, vet/build), restarting from formatting
+   only after the current step-2 corrections are checkpointed.
 2. Independently review the completed evidence foundation; then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent

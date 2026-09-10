@@ -1,3 +1,35 @@
+## Validation Result — GH #15 S5 unit attempt 1 — 2026-09-09
+
+**Checkpoint**: `fc519fd`
+**State**: IN PROGRESS — targeted correction; stopped at step 2
+
+Step 1 PASS. Step 2 compiled all four selected packages; patchobs passed
+(0.794s), while gitutil/workflow/CLI reported failures. No affected-package,
+vet/build, shard or wave-close stage ran. Both commands had a fresh minute
+at 85% free memory, load1 <=5 and no active Go tools.
+
+Failures are partitioned before correction:
+- Exact parser inventory needs the new authoritative
+  `ValidateRecipeCaptureEventPair` NormalizePatchEffects call registered.
+- S0's frozen downgrade note needs the explicit D7 audit disclaimer delta.
+- S4 fixtures expect C-only checkpoints, unproved no-capture commit inputs,
+  old error wording, and status despite primary failures; ADR-041 explicitly
+  changes those expectations, not their underlying safety assertions.
+- New S5 same-patch fixture omits required generation `upper.kind`.
+- New anchored-preimage fixture treats an invalid tree ref as a read-error
+  injection; investigate the helper's established preconditions before
+  changing production semantics or weakening the unreadable-side obligation.
+
+Authorize a disjoint test-only compatibility implementer for
+`internal/gitutil/recipe_authority_s0_pi12_test.go`,
+`internal/workflow/recipe_authority_s0_source_guards_test.go`,
+`recipe_authority_s4_producer_test.go`, `recipe_authority_s4_publish_test.go`,
+`internal/cli/recipe_authority_s4_cli_test.go`,
+`recipe_authority_s4_event_test.go`. Historical goldens remain untouched.
+The coordinator owns the two S5 fixture investigations and tracking.
+Request independent foundation review against immutable `fc519fd`; no Go
+commands from either sub-agent. Restart at formatting after corrections.
+
 ## Validation Transition — GH #15 S5 foundation and ordered unit — 2026-09-09
 
 **State**: IN PROGRESS — first Go validation sequence pending

@@ -1679,6 +1679,10 @@ alongside the evidence caller closures. No S5 completion is claimed.
 All foundation caller closures are now delivered and the worker stopped.
 The stable combined unit enters gated formatting/targeted/affected/vet/build
 validation; full slice shards/close wait for consumer integration.
+Unit attempt 1 passed formatting and compiled all selected packages, then
+stopped at targeted step 2 on exact inventories/amended S4 expectations and
+two new S5 fixtures. Fresh 85%-free gates passed; no later stage ran.
+Test-only compatibility corrections and immutable foundation review are next.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
