@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 )
 
@@ -306,6 +307,122 @@ func TestRGAS5CaptureEventShapeAndPairMutations(t *testing.T) {
 	whitespaceC := append(append([]byte{}, c...), '\n')
 	if err := ValidateRecipeCaptureEventPair(e, whitespaceC, bindings); err == nil {
 		t.Fatal("pair validator hashed reserialized C rather than its actual bytes")
+	}
+}
+
+func TestRGAS5CaptureEventPairRejectsRehashedBinaryGrammar(t *testing.T) {
+	binary := "diff --git a/a.txt b/a.txt\nindex 1111111..2222222 100644\nBinary files a/a.txt and b/a.txt differ\n"
+	for _, tc := range []struct {
+		name       string
+		input      RecipeCoverageInput
+		patch      string
+		wantStatus string
+	}{
+		{
+			name:       "complete-text",
+			input:      rgaS5EventInput(t),
+			patch:      binary,
+			wantStatus: CoverageComplete,
+		},
+		{
+			name:       "unobserved-regular",
+			input:      rgaS3Inputs(t, rgaS3Observe(t, rgaS3ModifyPatch)),
+			patch:      binary,
+			wantStatus: CoverageIncomplete,
+		},
+		{
+			name:       "unobserved-gitlink-header",
+			input:      rgaS3Inputs(t, rgaS3Observe(t, strings.Replace(rgaS3ModifyPatch, "100644", "160000", 1))),
+			patch:      strings.Replace(binary, "100644", "160000", 1),
+			wantStatus: CoverageIncomplete,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			event, rawC, bindings := rgaS5EventPair(t, tc.input)
+			coverage, err := DecodeRecipeCoverage(rawC)
+			if err != nil || coverage.CoverageStatus != tc.wantStatus {
+				t.Fatalf("invalid positive-control coverage: %+v %v", coverage, err)
+			}
+			effects, err := gitutil.NormalizePatchEffects(tc.patch)
+			if err != nil || len(effects) != 1 || !effects[0].BinaryStanza {
+				t.Fatalf("mutation must establish binary grammar: %+v %v", effects, err)
+			}
+			bindings.Patch.Bytes = []byte(tc.patch)
+			event.PatchSHA256 = CoverageSHA256(bindings.Patch.Bytes)
+			coverage.PatchSHA256 = event.PatchSHA256
+			event.Observations[0].PatchFragmentSHA256 = effects[0].FragmentSHA256
+			coverage.Effects[0].PatchFragmentSHA256 = effects[0].FragmentSHA256
+			coverage.Effects[0].EffectSHA256, err = CoverageEffectSHA256(coverage.Effects[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			rawC, err = EncodeRecipeCoverage(coverage)
+			if err != nil {
+				t.Fatalf("counterexample must remain strict-schema valid: %v", err)
+			}
+			event.CoverageSHA256 = CoverageSHA256(rawC)
+			if err := ValidateRecipeCaptureEventSchema(event); err != nil {
+				t.Fatalf("rehashed evidence must remain strict-schema valid: %v", err)
+			}
+			if err := ValidateRecipeCaptureEventPair(event, rawC, bindings); err == nil ||
+				!strings.Contains(err.Error(), "binary patch grammar") {
+				t.Fatalf("actual pair validator did not reject grammar-proven binary: %v", err)
+			}
+		})
+	}
+}
+
+func TestRGAS5CaptureEventPairContentPrecedenceControls(t *testing.T) {
+	binary := "diff --git a/a.txt b/a.txt\nindex 1111111..2222222 100644\nBinary files a/a.txt and b/a.txt differ\n"
+	gitlinkBinary := strings.Replace(binary, "100644", "160000", 1)
+	for _, tc := range []struct {
+		name        string
+		observation patchobs.Observation
+		content     gitutil.ContentKind
+		object      gitutil.ObjectKind
+		stanza      bool
+	}{
+		{
+			name:        "marker-proves-binary-without-nul",
+			observation: rgaS3Observe(t, binary, rgaS3Image{pre: "old\n", post: "new\n"}),
+			content:     gitutil.ContentKindBinary, object: gitutil.ObjectKindRegular, stanza: true,
+		},
+		{
+			name:        "marker-proves-binary-without-observed-sides",
+			observation: rgaS3Observe(t, binary),
+			content:     gitutil.ContentKindBinary, object: gitutil.ObjectKindUnknown, stanza: true,
+		},
+		{
+			name:        "captured-nul-without-binary-marker",
+			observation: rgaS3Observe(t, rgaS3ModifyPatch, rgaS3Image{pre: "old\x00", post: "new\x00"}),
+			content:     gitutil.ContentKindBinary, object: gitutil.ObjectKindRegular, stanza: false,
+		},
+		{
+			name: "observed-gitlink-none-precedes-marker",
+			observation: rgaS3Observe(t, gitlinkBinary, rgaS3Image{
+				pre: strings.Repeat("1", 40), post: strings.Repeat("2", 40), oldMode: "160000", newMode: "160000",
+			}),
+			content: gitutil.ContentKindNone, object: gitutil.ObjectKindGitlink, stanza: true,
+		},
+		{
+			name:        "unobserved-gitlink-header-does-not-prove-none",
+			observation: rgaS3Observe(t, gitlinkBinary),
+			content:     gitutil.ContentKindBinary, object: gitutil.ObjectKindUnknown, stanza: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.observation.ParseRefusal != "" || len(tc.observation.Effects) != 1 ||
+				tc.observation.Effects[0].Effect.BinaryStanza != tc.stanza {
+				t.Fatal("positive control does not carry its intended grammar evidence")
+			}
+			event, rawC, bindings := rgaS5EventPair(t, rgaS3Inputs(t, tc.observation))
+			if event.Observations[0].ContentKind != tc.content || event.Observations[0].ObjectKind != tc.object {
+				t.Fatalf("S1 content/object precedence changed: %+v", event.Observations[0])
+			}
+			if err := ValidateRecipeCaptureEventPair(event, rawC, bindings); err != nil {
+				t.Fatalf("actual pair validator rejected valid content evidence: %v", err)
+			}
+		})
 	}
 }
 

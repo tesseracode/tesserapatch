@@ -1701,6 +1701,13 @@ WriteFeatureFile method-value alias (MEDIUM). Selector-reference and mapping
 inventory corrections are in progress; binary validation remains separate.
 Those guard corrections are authored/formatted with three reference forms
 for both C/E through the actual phase and mapping validators.
+Independent static review now closes both writer-guard findings at `fbac9f0`.
+Only the binary-pair foundation finding remains open; no Go revalidation or
+whole-foundation acceptance has occurred.
+The binary pair correction is now delivered with actual-validator rehashed
+counterexamples and positive precedence controls. All workers stopped;
+checkpoint and restart gated unit validation, with independent confirmation
+still required before foundation acceptance.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

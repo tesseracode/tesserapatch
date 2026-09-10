@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 corrected unit retry ready (2026-09-09)**: the binary pair fix is
+delivered with three rehashed counterexamples and five positive controls,
+preserving gitlink precedence and NUL-derived binary observations. All
+workers stopped. Writer guards are statically approved; binary confirmation
+and Go revalidation remain. Checkpoint, clear only the owned failure
+sentinel, and restart formatting/targeted S0-S5 plus the coupled index family.
+
+**S5 writer guards statically APPROVED (2026-09-09)**: independent review
+closes both registered-file and publisher-alias findings at `fbac9f0`.
+The binary-pair finding remains open with the foundation worker. No Go
+revalidation or foundation/S5 acceptance is implied by this narrow verdict.
+
 **S5 writer re-review (2026-09-09)**: the registered-file bypass is closed,
 but an alternate function in the publisher file can still alias
 WriteFeatureFile. The coordinator authored shared selector-reference and
@@ -2743,7 +2755,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — foundation review corrections plus targeted compatibility fixes
+- **Status**: In progress — corrected unit restarting gated validation
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2751,6 +2763,20 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The binary pair correction is delivered and formatted. All first-run fixture/
+compatibility fixes and review corrections are authored; every worker has
+stopped editing. The corrected unit will restart the gated sequence from
+formatting, with the coupled ADR-index family added to targeted selection.
+Binary correction confirmation remains before foundation acceptance.
+
+### Earlier guard-approval summary (historical)
+
+Independent static review approved the writer-guard corrections at `fbac9f0`;
+both guard findings are closed. The grammar-proven binary pair correction is
+the remaining foundation finding before combined revalidation/re-review.
+
+### Earlier writer-guard correction summary (historical)
 
 Narrow guard re-review confirmed the registered-file correction and found
 one remaining publisher-file method-value bypass. The same full-source phase
@@ -3157,8 +3183,9 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards compiled in the first gated run but still have targeted failures;
 neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
 remain unimplemented.
-The evidence foundation has two open MEDIUM independent review findings;
-the ordered unit's separate static approval remains scoped to that unit.
+The evidence foundation's binary correction is authored and awaits static
+confirmation/revalidation. Writer guards are statically approved at
+`fbac9f0`; the ordered unit's separate static approval remains scoped.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
@@ -9740,7 +9767,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 1. Run the stable unit's serial resource-gated validation (formatting,
    targeted S0-S5, affected packages, vet/build), restarting from formatting
-   only after the current step-2 corrections are checkpointed.
+   after the delivered corrections are checkpointed. All workers are stopped.
 2. Independently review the completed evidence foundation; then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent

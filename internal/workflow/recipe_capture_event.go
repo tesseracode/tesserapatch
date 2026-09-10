@@ -266,6 +266,12 @@ func ValidateRecipeCaptureEventPair(e RecipeCaptureEvent, coverageBytes []byte, 
 				(o.PostimageObserved && o.PostimagePresent && p.HeaderNewMode != "" && p.HeaderNewMode != o.NewMode) {
 				return fmt.Errorf("capture event: observation %d differs from the strict patch", i+1)
 			}
+			// S1 gives observed gitlinks precedence over positive binary
+			// grammar evidence. Without that evidence, bodies may still
+			// have proved binary at capture; absence never proves text.
+			if p.BinaryStanza && o.ObjectKind != gitutil.ObjectKindGitlink && o.ContentKind != gitutil.ContentKindBinary {
+				return fmt.Errorf("capture event: observation %d content kind contradicts binary patch grammar", i+1)
+			}
 		}
 	}
 	has := func(reason string) bool { return slices.Contains(c.Reasons, reason) }

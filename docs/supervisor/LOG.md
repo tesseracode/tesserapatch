@@ -1,3 +1,34 @@
+## Validation Transition — GH #15 S5 corrected unit retry — 2026-09-09
+
+**State**: IN PROGRESS — all corrections authored; workers stopped
+
+The foundation worker delivered the binary pair correction in exactly two
+files. Grammar-proven binary content must agree with the projection, with
+S1's observed-gitlink `none` precedence preserved; absence of a marker does
+not prove text. Three fully rehashed counterexamples and five positive
+controls cover the actual pair validator. The coordinator formatted them.
+
+Writer-guard corrections are statically approved at `fbac9f0`; compatibility
+and fixture fixes are checkpointed. No worker is editing. Save the combined
+correction, clear only the owned failure sentinel, then restart from gated
+formatting and targeted S0-S5 plus the coupled ADR-index family. Independent
+binary correction confirmation is required before accepting the foundation.
+Affected packages/vet/build follow only if the targeted command succeeds.
+Full slice shards/close still wait for consumer integration.
+
+## Review — GH #15 S5 writer-guard closure — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Checkpoint**: `fbac9f0`
+**Verdict**: APPROVED — guard corrections only
+
+The original registered-file finding and publisher-alias follow-up are
+closed by static review. No remaining high-confidence bypass was found in
+this correction. No Go commands ran.
+
+The binary-pair finding remains open with the foundation worker. No whole
+foundation or S5 acceptance is implied; revalidation remains pending.
+
 ## Review — GH #15 S5 registered writer correction — 2026-09-09
 
 **Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
