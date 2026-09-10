@@ -22,6 +22,10 @@ one staged E path. Add exact comparator mutations for pair hashes, event/
 exclusion/observation fields, frame length/placement, extra artifacts and
 unrelated output. Do not use production E builders/validators/hash encoders
 as the expected oracle. Restart the gated sequence after the correction.
+Golden work is with `576d2e6a-628b-4e6b-bf16-6b4869d2349b`.
+While it runs, read-only consumer scouting recorded the immutable-inventory
+extension and strict-grammar/read-only postimage reconstruction constraints
+in CURRENT. Consumer code is still not dispatched.
 
 ## Validation Result — GH #15 S5 corrected targeted unit — 2026-09-09
 

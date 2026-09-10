@@ -12,7 +12,7 @@ expected delta is authorized; never re-record historical goldens.
 
 ### Active golden-delta ownership
 
-The bounded golden implementer owns new
+Golden worker `576d2e6a-628b-4e6b-bf16-6b4869d2349b` owns new
 `internal/cli/recipe_authority_s5_golden_test.go`,
 `prepare_pib_golden_test.go` comparator wiring, and test-composition changes
 only in `recipe_authority_s2_golden_test.go` /
@@ -21,6 +21,24 @@ fixtures/hash histories, capturers and normalizers remain unchanged.
 The delta covers only the six already-governed fixtures plus land's staged
 E path; expected bytes/hashes derive independently from frozen inputs.
 No Go commands or Git writes by the implementer.
+
+### Consumer integration scouting (read-only; not dispatched)
+
+Verify's `inventoryEntry`/`buildInventory` in `verify_landed.go` currently
+capture recipe, patch, provenance and generations. C/E/marker snapshots must
+join that immutable capture and instability restatement without folding
+their errors into the legacy `ReadErr` short-circuit that would bypass the
+coverage ladder. The existing `ctx.blobAtTree` is floor-gated/offline; named
+reference existence must be validated separately from a missing path answer.
+
+`gitutil.PatchEffect` exposes strict normalized effects and fragment offsets,
+not a public hunk-body transformation API. No existing pure patch-to-postimage
+applier was found in gitutil/workflow/patchobs. Any necessary payload
+projection must stay downstream of the one strict grammar and be registered
+in its exact call-site inventory, not become another path parser. Doctor D10
+cannot gain temp-index, shadow or Git-object writes to reconstruct bodies.
+The future consumer worker must resolve these within the accepted read-only,
+bounded reconstruction contract; no implementation choice is dispatched here.
 
 ### Prior targeted validation record (historical)
 

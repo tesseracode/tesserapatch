@@ -1715,6 +1715,9 @@ Full core packages now pass (workflow 98.559s). The affected CLI run stops
 only on the frozen producer golden expectations lacking E/staging. Author a
 separate six-fixture S5 expected delta with independent hashes and exact
 sensitivities; historical fixture bytes and S2/S4 projections stay unchanged.
+The golden worker is active. Read-only consumer scouting preserves the
+inventory/strict-grammar/zero-write reconstruction constraints in CURRENT;
+consumer implementation still waits for the foundation checkpoint.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
