@@ -849,10 +849,12 @@ func TestRGAS4PublicationBoundaryAndSensitivity(t *testing.T) {
 		const registered = "internal/cli/c1.go"
 		original := rgaS0ReadRepoFile(t, registered)
 		for name, addition := range map[string]string{
-			"full-path":      "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-capture-event.json\", \"{}\") }\n",
-			"concatenated":   "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/\" + \"recipe-\" + \"capture-event.json\", \"{}\") }\n",
-			"constant-alias": "\nconst eventName = \"recipe-\" + \"capture-\" + \"event.json\"\nconst eventPath = \"artifacts/\" + eventName\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, eventPath, \"{}\") }\n",
-			"escaped-path":   "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-\\x63apture-event.json\", \"{}\") }\n",
+			"full-path":               "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-capture-event.json\", \"{}\") }\n",
+			"concatenated":            "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/\" + \"recipe-\" + \"capture-event.json\", \"{}\") }\n",
+			"constant-alias":          "\nconst eventName = \"recipe-\" + \"capture-\" + \"event.json\"\nconst eventPath = \"artifacts/\" + eventName\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, eventPath, \"{}\") }\n",
+			"escaped-path":            "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-\\x63apture-event.json\", \"{}\") }\n",
+			"coverage-full-path":      "\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, \"artifacts/recipe-coverage.json\", \"{}\") }\n",
+			"coverage-constant-alias": "\nconst recordName = \"recipe-\" + \"coverage.json\"\nconst recordPath = \"artifacts/\" + recordName\nfunc unregistered(s *store.Store, slug string) error { return s.WriteFeatureFile(slug, recordPath, \"{}\") }\n",
 		} {
 			t.Run(name, func(t *testing.T) {
 				if err := rgaS0CoveragePhaseSource(registered, original+addition); err == nil {

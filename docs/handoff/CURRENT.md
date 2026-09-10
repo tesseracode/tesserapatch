@@ -8,9 +8,11 @@
 the compatibility agent stopped with six test-only deltas, exact E+C write-
 set/real prior-pair controls and unchanged historical goldens. The coordinator
 reuses the full-path/constant detector in registered producer files too, with
-four same-phase-validator writer mutations and an unrelated-writer positive
+six same-phase-validator C/E writer mutations and an unrelated-writer positive
 control. The binary pair correction remains with the foundation worker;
 no Go revalidation yet.
+The coordinator now owns the completed compatibility helper only for this
+shared C/E constant-detector correction; the compatibility agent is stopped.
 
 **S5 foundation rev-0: NEEDS REVISION (2026-09-09)**. Two MEDIUM findings:
 the pair validator misses grammar-proven binary content, and registered

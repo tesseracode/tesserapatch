@@ -16,6 +16,10 @@ designated publisher exemption. Controls place full-path, concatenated,
 constant-aliased and escaped E-only writers in an unregistered function of
 the actual c1 source; an unrelated feature-file writer remains a positive
 control. The publisher guard also rejects alternate WriteFeatureFile paths.
+After the compatibility agent stopped, the coordinator extended the shared
+constant detector to both C and E; the same full-path bypass must not remain
+for C. Two C full-path/constant-alias controls join the four E mutations.
+No production change or Go revalidation is included in that guard follow-up.
 
 Checkpoint these disjoint tests. The foundation worker still owns only the
 grammar-proven binary pair correction and its capture-event tests. No Go

@@ -1694,6 +1694,8 @@ the compatibility agent's files. No revalidation or acceptance yet.
 Compatibility deltas and registered-file writer detection are now authored/
 formatted with exact write-set and full-path/alias mutation controls; that
 agent stopped. The foundation worker is completing the binary pair fix.
+The shared registered-file detector also covers C, with two additional
+full-path/constant-alias controls, so the same bypass is closed for both files.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

@@ -441,8 +441,8 @@ func rgaS0UnregisteredEvidenceLiteral(rel, src string) error {
 			return true
 		}
 		value, constant := rgaS0ConstantString(expr)
-		if constant && strings.Contains(value, "recipe-capture-event.json") {
-			refusal = fmt.Errorf("capture-event artifact outside its designated production surfaces")
+		if constant && (strings.Contains(value, "recipe-capture-event.json") || strings.Contains(value, "recipe-coverage.json")) {
+			refusal = fmt.Errorf("coverage/capture-event artifact outside its designated production surfaces")
 		}
 		return refusal == nil
 	})
