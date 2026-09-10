@@ -4,6 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 resumed steps 1-2 PASS (2026-09-10)**: fresh full gates held at 84%
+free memory and load1 <=5. Formatting and all targeted/index/golden/gateway
+tests pass, including the new gitlink cases. Continue full core, affected
+CLI and vet/build before final shards/gate. Code remains `a119dca`.
+
 **S5 validation resuming (2026-09-10 01:22 PDT)**: operator requested another
 resource check. Snapshot: 84% free, load1 3.67, no active Go tools. Fetch
 confirms unchanged/pushed `b2060f6`, clean tracked state and all 13 research
@@ -4309,6 +4314,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Resumed code `a119dca`: steps 1-2 PASS after separate 60-second windows
+  at 84% free/load1 <=5/no Go tools. Patchobs 1.258s, gitutil 1.106s,
+  workflow 17.951s, CLI 39.052s; new gitlink cases included.
 
 - Latest retry `a97b4af`: steps 1-3a PASS. Targeted patchobs 0.783s,
   gitutil 1.091s, workflow 18.625s, CLI 38.747s; full core patchobs 1.702s,

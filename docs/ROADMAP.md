@@ -1811,6 +1811,8 @@ At 01:22 PDT the operator requested a retry: 84% free/load1 3.67/no active
 Go tools. The code/checkpoint is unchanged and pushed. Restart from
 formatting with a fresh full gate before every command; all static findings
 are closed but S5 validation/acceptance remain incomplete.
+The resumed steps 1-2 now pass under fresh 84%-free gates, including
+exhausted-budget gitlink controls. Owning suites and final stages remain.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

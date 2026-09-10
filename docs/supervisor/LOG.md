@@ -1,3 +1,14 @@
+## Validation Result — GH #15 S5 resumed targeted stages — 2026-09-10
+
+**Code checkpoint**: `a119dca`
+**State**: IN PROGRESS — steps 1-2 PASS after resource recovery
+
+Both fresh 60-second gates held at 84% free memory, load1 <=5 and no Go
+tools. Formatting passes. Targeted/index/golden/gateway tests, including
+the new exhausted-budget gitlink cases, pass: patchobs 1.258s, gitutil
+1.106s, workflow 17.951s, CLI 39.052s. No code changed during the run.
+Continue owning packages, affected CLI, vet/build, then final validation.
+
 ## Validation Resumption — GH #15 S5 — 2026-09-10
 
 **Code checkpoint**: `a119dca` (tracking tip `b2060f6`)
