@@ -1749,6 +1749,12 @@ The seven parent-owned count/golden files are updated, preserving original
 V8 failure and artifact bytes with comparator mutations. The stable consumer
 draft now enters fresh gated validation; independent review is read-only at
 `95be8dd`.
+Consumer attempt 1 passes formatting/compilation and patchobs/workflow
+targets, then stops at two source-contract refactor residues: human count
+projection and legacy error duplication. Fix production factoring without
+weakening the guards, then restart; no later stage ran.
+The correction is authored/formatted: display-free shared collision facts
+with the registered CLI projection, plus one captured-byte legacy loader.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

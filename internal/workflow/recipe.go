@@ -156,10 +156,7 @@ func executeRecipeWithOperation(s *store.Store, recipe ApplyRecipe, execute func
 // LoadRecipe reads and parses apply-recipe.json for a feature.
 func LoadRecipe(s *store.Store, slug string) (ApplyRecipe, error) {
 	data, err := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
-	if err != nil {
-		return ApplyRecipe{}, fmt.Errorf("no recipe found — run 'tpatch implement %s' first", slug)
-	}
-	return LoadRecipeBytes(slug, []byte(data), nil)
+	return LoadRecipeBytes(slug, []byte(data), err)
 }
 
 // LoadRecipeBytes preserves legacy decoding/errors over an immutable capture.

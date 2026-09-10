@@ -1,3 +1,27 @@
+## Validation Result — GH #15 S5 consumer attempt 1 — 2026-09-09
+
+**Checkpoint**: `cf381a1`
+**State**: IN PROGRESS — step 1 PASS; step 2 stopped on two source contracts
+
+Both fresh 60-second windows passed at 85% free memory, load1 <=5.
+Formatting passes and all selected packages compile. Patchobs 0.821s and
+workflow 14.363s pass; gitutil/CLI report exactly two source-contract failures:
+the shared collision scan duplicated PI-10's human counter outside its
+registered CLI projection, and LoadRecipe/LoadRecipeBytes duplicated the
+frozen legacy no-recipe literal. No later validation stage ran.
+
+The coordinator will fix the refactor, not weaken the guards: keep shared
+collision facts free of display counts, project Files through the existing
+CLI counter/wrapper, and delegate LoadRecipe's read result to the one
+captured-byte loader. Preserve old output/error behavior and the exact
+inventory. Independent consumer review remains read-only at `95be8dd`.
+
+The correction is authored/formatted: shared collision facts contain no
+display Files field or duplicate patch scanner; the existing CLI wrapper
+projects each byte-identical match through its registered countPatchFiles
+call. LoadRecipe forwards both bytes and read error to LoadRecipeBytes,
+leaving exactly one legacy error home. No guard was weakened.
+
 ## Validation Transition — GH #15 S5 full consumer draft — 2026-09-09
 
 **Runtime checkpoint**: `95be8dd`

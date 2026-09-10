@@ -19,7 +19,7 @@ import (
 
 type RecordCollisionMatch struct {
 	Slug, Path, SHA256 string
-	Bytes, Files       int
+	Bytes              int
 }
 
 type RecordCollisionScan struct {
@@ -76,15 +76,9 @@ func ScanRecordCollisions(s *store.Store, currentSlug, patch string, inventories
 			result.SameFeature = true
 			continue
 		}
-		files := 0
-		for _, line := range strings.Split(string(raw), "\n") {
-			if strings.HasPrefix(line, "diff --git") {
-				files++
-			}
-		}
 		result.CrossFeature = append(result.CrossFeature, RecordCollisionMatch{
 			Slug: feature.Slug, Path: filepath.Join(".tpatch", "features", feature.Slug, "artifacts", "post-apply.patch"),
-			SHA256: hash, Bytes: len(raw), Files: files,
+			SHA256: hash, Bytes: len(raw),
 		})
 	}
 	return result, nil

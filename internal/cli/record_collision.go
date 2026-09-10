@@ -11,11 +11,19 @@ import (
 
 // collisionMatch describes a single byte-identical existing
 // post-apply.patch found by the record-time collision scan.
-type collisionMatch = workflow.RecordCollisionMatch
+type collisionMatch struct {
+	Slug, Path, SHA256 string
+	Bytes, Files       int
+}
 
 // collisionScanResult bundles the matches found and the
 // classification per PRD-record-collision-detection §4 steps 5–6.
-type collisionScanResult = workflow.RecordCollisionScan
+type collisionScanResult struct {
+	NewSHA256    string
+	NewBytes     int
+	SameFeature  bool
+	CrossFeature []collisionMatch
+}
 
 // scanCanonicalPatchCollisions enumerates every feature's
 // artifacts/post-apply.patch (skipping missing files) and reports
@@ -31,7 +39,15 @@ type collisionScanResult = workflow.RecordCollisionScan
 // Numbered audit snapshots under patches/ are intentionally NOT scanned:
 // they may legitimately repeat (PRD §7).
 func scanCanonicalPatchCollisions(s *store.Store, currentSlug, newPatch string) (collisionScanResult, error) {
-	return workflow.ScanRecordCollisions(s, currentSlug, newPatch)
+	facts, err := workflow.ScanRecordCollisions(s, currentSlug, newPatch)
+	result := collisionScanResult{NewSHA256: facts.NewSHA256, NewBytes: facts.NewBytes, SameFeature: facts.SameFeature}
+	for _, match := range facts.CrossFeature {
+		result.CrossFeature = append(result.CrossFeature, collisionMatch{
+			Slug: match.Slug, Path: match.Path, SHA256: match.SHA256,
+			Bytes: match.Bytes, Files: countPatchFiles(newPatch),
+		})
+	}
+	return result, err
 }
 
 // printCollisionRefusal writes the cross-feature refusal diagnostic to

@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer attempt 1 stopped at step 2 (2026-09-09)**: formatting and
+compilation pass, as do selected patchobs/workflow tests. Two source contracts
+catch refactor residue: duplicated human patch counting outside PI-10 and
+duplicated legacy no-recipe text. The coordinator fixes the production
+separation/delegation rather than weakening either guard. No later stage ran;
+both fresh resource windows held at 85% free memory.
+The correction is authored/formatted in `record_plan.go`,
+`record_collision.go` and the recipe loader: shared facts stay display-free,
+the registered CLI counter is restored, and one loader owns legacy errors.
+
 **S5 consumer validation ready (2026-09-09)**: coordinator counts and the
 isolated expected verify-row delta are authored/formatted. The delta preserves
 all original rows, V8 failure/exit 2 and artifact bytes, with exact comparator
@@ -2928,7 +2938,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — full consumer draft entering gated validation/review
+- **Status**: In progress — consumer step-2 source-contract corrections
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2936,6 +2946,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The first consumer run passes formatting/compilation and selected patchobs/
+workflow tests, then stops on two source guards. Restore PI-10's registered
+CLI-only display projection and one legacy no-recipe error home through
+shared captured-byte loading. New consumer/golden tests otherwise reported
+no failure in this command; independent review remains in progress.
+
+### Earlier consumer validation readiness (historical)
 
 Coordinator legacy counts and the separate expected compat-verify row are
 authored/formatted. Original row IDs, V8 failure/exit 2 and artifact bytes stay
@@ -3432,7 +3450,8 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards pass the complete internal-unit steps 1-5: targeted/index/actual
 goldens, all full core packages, affected CLI, vet and build. Independent
 delta review is approved and the internal unit is accepted. Coverage read
-integration, D13/D17 and D10 are now authored but unvalidated/unreviewed;
+integration, D13/D17 and D10 compile and have entered targeted validation,
+with two source-contract corrections now authored. Independent review and
 full S5 validation/close remain.
 All evidence-foundation findings are statically closed at `7a737a0`.
 Writer guards are approved at `fbac9f0`; the ordered unit's separate static
@@ -4122,6 +4141,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Consumer attempt 1 `cf381a1`: step 1 PASS; step 2 FAIL on exactly two
+  source contracts. Patchobs 0.821s/workflow 14.363s PASS; gitutil 0.817s/
+  CLI 38.315s report the inventory/literal failures. All packages compile.
+  Both gates passed at 85% free, load1 <=5, no Go tools; no later stage ran.
 
 - Consumer draft `95be8dd` and coordinator row/count deltas have not yet run
   Go validation. The passing foundation-unit results below are prerequisites,
