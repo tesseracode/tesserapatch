@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 ordered no-op rev-0: NEEDS REVISION (2026-09-09)**. Independent review
+found two HIGH issues (8 MiB limit breaks valid no-ops; unresolved runtime
+symlink fallback can escape containment) and one MEDIUM (prefix changes to
+created_by config/status inputs invalidate the projected gate). The ordered
+unit is being corrected within its existing file ownership. ADR-042 remains
+Proposed, and no Go validation or S5 acceptance has occurred.
+
 **S5 ordered no-op draft delivered (2026-09-09)**: initial write permission
 is separated from ordered skip witnesses, with alias-aware prefix proof and
 runtime recheck. ADR-042 and eight new focused test functions are authored.
@@ -2663,7 +2670,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — evidence caller closure and ordered no-op static review
+- **Status**: In progress — evidence caller closure and ordered no-op rev-1
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2671,6 +2678,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Ordered no-op static review returned NEEDS REVISION on size-limit equality,
+runtime unresolved-alias containment and projected created_by metadata.
+The correction must preserve D7 via bounded-memory comparison, restore known
+images after full overwrites, hard-stop unresolved topology and account for
+specific gate-input mutations before any writes. Detailed findings are in LOG.
+
+### Ordered no-op draft summary (historical)
 
 The ordered no-op implementer delivered its five owned files, retaining the
 existing overlap regressions and adding eight focused functions. The draft
@@ -3002,7 +3017,7 @@ integration or shipped assets belong to this slice.
 
 ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
 three caller closures; the bounded D7 ordered no-op draft is delivered and
-awaits independent review. These units and coordinator guards are not
+needs three review corrections. These units and coordinator guards are not
 Go-validated or approved. Coverage read integration, D13/D17 and D10 remain
 unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.

@@ -1667,6 +1667,9 @@ consumer integration.
 The ordered-proof draft and Proposed ADR-042 are delivered with eight new
 focused test functions. Independent review must confirm ordering, alias,
 resource-limit and legacy-preservation behavior before accepting this unit.
+Ordered-proof rev-0 review is NEEDS REVISION: size-limit no-op regression and
+unresolved-runtime-alias containment (HIGH), plus projected created_by
+metadata dependencies (MEDIUM). Rev-1 stays in the same bounded file scope.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

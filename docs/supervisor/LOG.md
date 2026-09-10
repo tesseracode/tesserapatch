@@ -1,3 +1,28 @@
+## Review — GH #15 S5 ordered no-op rev-0 — 2026-09-09
+
+**Reviewer**: `s5-ordered-noop-review`
+**Range**: `994a347..e66bb20`
+**Verdict**: NEEDS REVISION — no Go validation performed
+
+1. HIGH — `recipe_prefix_precheck.go:180`: the 8 MiB materialization cap
+   rejects or rewrites a valid exact-postimage operation even with no prefix.
+   It also leaves size-only uncertainty permanent after a known authorized
+   full overwrite. Use bounded-memory exact comparison for unchanged/runtime
+   targets and allow known full overwrites to restore projection knowledge;
+   fix tests that currently assert the regression.
+2. HIGH — `recipe.go:122`: an unresolved dangling external symlink returns
+   an untagged alias error, and initial write authority incorrectly bypasses
+   it into an outside-repository write. Fallback requires successful current
+   containment proof; unresolved topology is a hard non-downgradable stop.
+3. MEDIUM — `recipe_prefix_precheck.go:271`: a prior operation can change
+   config/status metadata read by `created_by`, so an initially valid restoring
+   operation can predictably fail later. Track those specific prefix inputs
+   or invalidate their dependent witness before any writes.
+
+Revise only the ordered-proof unit and its Proposed ADR-042/tests. Preserve
+the evidence worker's file ownership. The 8 MiB proposal is not authority to
+narrow D7; no implementation or clarification acceptance is implied.
+
 ## Implementation Transition — GH #15 S5 ordered no-op unit delivered — 2026-09-09
 
 **State**: IN PROGRESS — static review next; no Go validation
