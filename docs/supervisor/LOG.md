@@ -1,3 +1,26 @@
+## Review — GH #15 S5 capture-evidence foundation rev-0 — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Checkpoint**: `fc519fd`
+**Verdict**: NEEDS REVISION — no Go validation performed by reviewer
+
+1. MEDIUM — `recipe_capture_event.go:263-268`: pair validation ignores
+   grammar-proven BinaryStanza content. A coherently rehashed binary-stub
+   patch can retain claimed text/complete E/C observations. Check S1's
+   grammar-established content constraints/precedence and add the actual
+   pair-validator counterexample without inventing body reconstruction.
+2. MEDIUM — `recipe_authority_s4_publication_guards_test.go:723-727`:
+   registered producer files bypass decoded constant/full-path E detection.
+   An unregistered function in `c1.go` can call WriteFeatureFile with
+   `artifacts/recipe-capture-event.json` (including alias/concatenation)
+   outside the publisher. Reuse the existing detector in registered files
+   too and add same-phase-validator controls.
+
+The foundation worker owns the production pair correction and its capture-
+event tests. The coordinator owns the registered-file guard correction.
+The compatibility agent retains its separate six test files; nobody runs Go
+while these corrections are in flight. No evidence foundation acceptance.
+
 ## Implementation Transition — GH #15 S5 fixture/seam corrections — 2026-09-09
 
 **State**: IN PROGRESS — authored/formatted; revalidation pending

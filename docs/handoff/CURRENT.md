@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 foundation rev-0: NEEDS REVISION (2026-09-09)**. Two MEDIUM findings:
+the pair validator misses grammar-proven binary content, and registered
+producer files bypass full-path/constant-expression E writer detection.
+The foundation worker owns the pair/runtime-test fix; coordinator owns the
+registered-file guard fix. Compatibility edits remain disjoint. No Go
+revalidation until all writers stop and corrections are checkpointed.
+
 **S5 coordinator corrections authored (2026-09-09)**: the generation fixture
 now supplies valid upper descriptors. The anchored read-error fixture uses
 an injected actual failure through a narrow extracted reader seam, with the
@@ -2719,7 +2726,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — targeted unit corrections after step-2 failure
+- **Status**: In progress — foundation review corrections plus targeted compatibility fixes
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2727,6 +2734,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent foundation review returned NEEDS REVISION on grammar-proven
+binary/projection inconsistency and registered-file E-only writer detection.
+Production pair validation and its runtime mutation fix are assigned to the
+foundation worker; the coordinator will reuse the existing full-path detector
+inside registered producer files. Compatibility work stays file-disjoint.
+
+### Earlier coordinator fixture summary (historical)
 
 Coordinator fixes supply the missing generation upper descriptor and replace
 the invalid-ref-as-I/O-error assumption with an explicit immutable-read
@@ -3109,6 +3124,8 @@ statically approved and ADR-042 is accepted. These units and coordinator
 guards compiled in the first gated run but still have targeted failures;
 neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
 remain unimplemented.
+The evidence foundation has two open MEDIUM independent review findings;
+the ordered unit's separate static approval remains scoped to that unit.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
