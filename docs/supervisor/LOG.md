@@ -1,3 +1,47 @@
+## Planning Transition — GH #15 S5 ADR-041 rev-1 — 2026-09-09
+
+**State**: AWAITING REVIEW — both rev-0 corrections authored
+
+E now carries the effective captured `parent_created_paths` set independently
+of C, normalized with the existing execution-equivalent lexical rules and
+supplied unchanged to S3's exclusion logic. It includes frozen discovery and
+the final recipe's deterministic augmentation; no parent state or C reason
+is reread to invent the input.
+
+The limited-proof rule now includes fully observed unsupported effects whose
+stored patch inherently omits reconstructable payload, notably binary stubs.
+Observation flags remain true; independently available facts and mixed text
+effects still validate. Lost required objects, malformed/apply-failing text
+and actual hash mismatches remain binding failures. No fake bytes, complete
+authority or truthful-regeneration claim comes from the limited result.
+
+ICE-037 through ICE-042 add actual-reader binary/mixed/parent cohorts and
+negative controls; the supplemental count is now 42. Primary qualifications
+are updated without changing the canonical schema/predicates or 360-row
+baseline. Request independent re-review; runtime integration remains paused.
+
+## Review — GH #15 S5 ADR-041 rev-0 — 2026-09-09
+
+**Reviewer**: `s5-capture-evidence-review`
+**Range**: `c2f0581..cec05c2`
+**Verdict**: NEEDS REVISION
+
+Two MEDIUM contract findings:
+1. ADR-041 `287-319`: a durable reference with fully observed binary sides
+   may still have only a `Binary files ... differ` patch stub. The proposed
+   limited-proof rule omits this honest incomplete cohort. Define observed-
+   but-not-reconstructable payload handling separately from subsequently
+   lost objects; preserve flags and add binary/mixed reader cases.
+2. ADR-041 `282-293`: reconstruction omits the independently captured
+   `Observation.ParentCreatedPaths` exclusion set. The accepted S3 cohort
+   with a gated addition, parent exclusion and no recipe `created_by` would
+   falsely reclassify as complete. Carry that input independently, never
+   infer it from C's reason, and add omission/reason-removal controls.
+
+No Go validation was performed. The coordinator is revising the proposal
+and supplemental cases; the original runtime worker remains paused.
+Concrete contract acceptance and S5 implementation remain pending.
+
 ## Planning Transition — GH #15 S5 ADR-041 proposed — 2026-09-09
 
 **State**: AWAITING REVIEW — runtime integration paused

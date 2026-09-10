@@ -47,7 +47,7 @@ paused. The selected direction does not itself accept its wire contract.
 
 | Primary-contract section | Proposed explicit qualification |
 |---|---|
-| §6.2, §6.14 | A deterministic `artifacts/recipe-capture-event.json` independently carries the same immutable capture/reference observation plus final raw patch/recipe bindings and one-way raw coverage pairing hash. Generation identity remains advisory. Independently reconstructable bytes/trees are still checked; truthful incomplete/unavailable observations retain their ceiling and explicitly limited proof, never fabricated source bytes (ADR-041 §4.2) |
+| §6.2, §6.14 | A deterministic `artifacts/recipe-capture-event.json` independently carries the same immutable capture/reference observation and effective parent-exclusion set, plus final raw patch/recipe bindings and one-way raw coverage pairing hash. Generation identity remains advisory. Independently reconstructable bytes/trees are still checked; unavailable historical sides and inherently omitted unsupported payloads (including observed binary stubs) retain their publication flags and explicitly limited proof, never fabricated source bytes (ADR-041 §4.2) |
 | §6.10, §6.15, S4 | All P1-P7 governed events now publish companion atomically **before** final atomic coverage, including same-byte, checkpoint and incomplete events. P2 category-(c) permits **exactly companion + coverage**; all other no-write guarantees remain. No-events write neither |
 | §6.10/§6.15 universal crash/rerun claims | A failed same-byte event before its first companion write can leave the previous coherent pair; it does not attest the failed event. New companion/old coverage with different outputs is detected. No cross-file transaction or reader recovery; all publication failures are nonzero, with P6/P7 primary-error chains preserved and no success-shaped completion status (ADR-041 §5) |
 | §6.11/§6.12, §7, S5 | Coverage-present/companion-invalid is binding rung 2 and D17 order 1, exit 2, before LoadRecipe/mutation. New surface code `recipe-coverage-capture-evidence-invalid` has no schema reason: **seven mapped + twelve unmapped = nineteen total** replaces the eleven/eighteen totals. The six-rung verify ladder and seven-case apply classifier retain other semantics |
@@ -58,7 +58,7 @@ paused. The selected direction does not itself accept its wire contract.
 
 **Acceptance baseline qualification:** §9 and its **360 rows remain
 verbatim**, including counts and IDs. They document accepted rev-7, not a
-universal post-amendment contract. ADR-041 §8 adds **36 proposed `ICE-*`
+universal post-amendment contract. ADR-041 §8 adds **42 proposed `ICE-*`
 cases**, separate from `RGA-*`. Its §9 identifies affected historical
 publication/checkpoint/crash, binding, vocabulary and remediation rows.
 Future runtime fixtures need actual producer-created companion evidence and

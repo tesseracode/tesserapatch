@@ -51,7 +51,7 @@ No implementation authority follows until independent review and acceptance.
 
 **Status: Proposed (2026-09-09), not Accepted.** The operator selected the
 direction, not this concrete contract. ADR-041 owns the proposed companion
-schema and supplementary `ICE-001`–`ICE-036` cases; it does not replace D3.
+schema and supplementary `ICE-001`–`ICE-042` cases; it does not replace D3.
 
 If accepted, the following explicit qualifications govern the corresponding
 historical sections below:
@@ -61,9 +61,11 @@ historical sections below:
   bytes, provides capture/reference consistency evidence. Its one-way raw
   coverage hash pairs it with coverage, with no self-hash/circular binding or
   generation dependency. Consumers still independently reconstruct content
-  and trees. Unavailable historical sides in honest incomplete records retain
-  their observation ceiling and explicitly limited proof; they never become
-  observed/complete by trusting a sidecar (ADR-041 §4.2).
+  and trees. The captured parent-exclusion set is an independent input too,
+  not inferred from coverage reasons. Unavailable historical sides and
+  inherently omitted unsupported payloads (including observed binary stubs)
+  retain their publication flags and explicitly limited proof; they never
+  become observed/complete by trusting a sidecar (ADR-041 §4.2).
 - **D10/D15:** every P1-P7 governed event publishes companion atomically then
   coverage atomically **last**, including same-byte and incomplete events.
   P2 category-(c)'s “coverage only” becomes **exactly companion + coverage**;

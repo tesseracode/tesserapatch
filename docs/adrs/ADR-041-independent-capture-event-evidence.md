@@ -1,6 +1,6 @@
 # ADR-041 - Independent Capture-Event Consistency Evidence
 
-**Status**: Proposed — concrete contract awaiting independent review
+**Status**: Proposed rev-1 — concrete contract awaiting independent review
 **Date**: 2026-09-09
 **Owner**: Core
 **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15), S5
@@ -119,6 +119,7 @@ not literal accepted values. The example is a P1 existing-file write.
     "bound_artifact_edited": false,
     "stale_marker_present": false
   },
+  "parent_created_paths": [],
   "observations": [
     {
       "ordinal": 1,
@@ -146,8 +147,8 @@ not literal accepted values. The example is a P1 existing-file write.
 
 All fields shown are required, in exactly these types: `schema_version` and
 `ordinal` are JSON integers; `*_present`, `*_observed` and the four `event`
-members are booleans; all other leaves are strings; `pathspecs`, `claim_ids`
-and `observations` are arrays, never null. No optional fields, duplicate
+members are booleans; all other leaves are strings; `pathspecs`, `claim_ids`,
+`parent_created_paths` and `observations` are arrays, never null. No optional fields, duplicate
 members, unknown fields, trailing JSON value, invalid UTF-8 or lone surrogate
 escapes. Unknown schema versions refuse. No permissive fallback decoder.
 
@@ -188,6 +189,27 @@ escapes. Unknown schema versions refuse. No permissive fallback decoder.
   no effect on any applicable condition is not independently authenticated
   history; this contract does not promise to detect it merely from a changed
   event identity.
+- **Parent exclusion input:** `parent_created_paths` is the effective
+  `Observation.ParentCreatedPaths` set supplied to S3, independently sourced
+  from frozen producer discovery plus S4's deterministic augmentation from
+  `created_by` operations in the exact final recipe. It is not inferred from
+  C's reasons, effect dispositions or status, and not reloaded from current
+  parent state at read time. A captured exclusion without recipe `created_by`
+  is valid and must survive; see the accepted cohort in
+  `recipe_authority_s3_test.go:598-615`.
+  Producers normalize lexical targets through the same root-relative
+  execution semantics as `coverageParents`/`coveragePath`, then persist
+  slash-separated repository-relative paths in ascending bytewise,
+  deduplicated order. Equivalent spellings such as `./a.txt` and
+  `folder/../a.txt` produce `a.txt`; normalization requires no live filesystem
+  lookup. Empty, escaping, absolute or otherwise unsafe targets refuse.
+  Decoders require that canonical representation and never repair it.
+  Preserve the whole effective set, including paths outside this patch.
+  Readers feed this independently captured set into the unchanged S3
+  exclusion rule; they do not reconstruct it from C's claimed exclusion.
+  E's content identity includes the field; S1's existing preimage-set digest
+  definition is unchanged. As with inert event facts, a coordinated or
+  semantically inert exclusion edit is not authenticated historical truth.
 - **Observation projection:** one entry per normalized S1 effect in gapless
   one-based order, exactly matching C's corresponding observation fields.
   Field grammar is D3's: `change_kind` = `add|modify|delete|rename|copy`;
@@ -246,6 +268,11 @@ observations are projected directly from that input; only the one-way pairing
 hash comes from C. Changes to observed bytes after planning cause a refusal,
 not silent re-observation or rewriting of the descriptor to fit C.
 
+The projection also preserves the effective parent-exclusion input used by
+the S3 build. Both E and C consume the same frozen discovery set and the same
+deterministic final-recipe augmentation. C's reason arrays are never a source
+for that set, even when they happen to reveal an exclusion.
+
 P7 retains D2's necessary before/after exception: freeze the before snapshot
 and any permitted reference reconstruction before starting the editor; take
 the after snapshot on its return, including error return. The final immutable
@@ -283,7 +310,9 @@ and cannot replace any of them. The same inputs are used throughout a read:
    observation projection with C, rather than copying C into an expected
    observation. Recompute the S1 digest over E's validated projection and
    compare both reference digests. This is a consistency check, **not a tree
-   proof**.
+   proof**. Supply E's independently captured `parent_created_paths` to S3's
+   existing parent-exclusion logic; compare the resulting applicable reasons
+   with C. An empty final-recipe `created_by` field does not erase that input.
 3. For a `commit` reference, reconstruct its objects offline from the named
    local commit, not from a generation ID or the current worktree. Obtain
    preimage existence, modes and bytes independently; derive postimages from
@@ -298,8 +327,10 @@ and cannot replace any of them. The same inputs are used throughout a read:
    persisted event. True never licenses synthetic bytes: an expected-present
    hash without independently available matching bytes is not a content proof.
 
-**Incomplete/unavailable records need an explicit limit, not an invented
-proof.** If the event itself had no durable reference or an unobserved side,
+**Incomplete records need an explicit limit, not an invented proof.** If
+the event itself had no durable reference, an unobserved side, or an observed
+side whose body the persisted unsupported patch representation cannot
+reconstruct,
 the reader can establish raw-artifact/pair/descriptor consistency and the
 strict D3 incomplete shape, but cannot reconstruct unavailable historical
 source bodies. It reports that limitation and retains the exact incomplete
@@ -308,8 +339,44 @@ call the full S3 validator with hash-only or coverage-derived fake bodies,
 claim full reconstruction succeeded, or waive a failed strict validation.
 This is the limited meaning of *valid incomplete* in D13 rung 3 / D17
 orders 2-4, not replay authority. It is essential for truthful no-capture P6/P7
-and ADR-038 retention-limited observations to stay incomplete rather than
-become fabricated observations or universal binding failures.
+and ADR-038 retention-limited observations, as well as fully observed binary
+stubs, to stay incomplete rather than become fabricated observations or
+universal binding failures.
+
+**Observed at publication does not imply reconstructable from the stored
+patch.** Ordinary capture uses `git diff` without `--binary`
+(`internal/gitutil/gitutil.go:354`); a binary modification can therefore
+publish two observed sides but persist only `Binary files ... differ`.
+The local reference reconstructs the preimage; neither E nor that marker
+contains the postimage bytes. This is an inherent payload limitation, not
+evidence of a subsequently lost object. The existing S3 observed binary
+cohort is legitimate incomplete coverage (`recipe_authority_s3_test.go:268`).
+
+For this cohort, and a strict-grammar unsupported effect that likewise has
+no executable postimage payload, the reader must:
+
+- retain the true publication-time observation flags, modes and hashes;
+  never change them to unobserved, invent bytes, or add availability reasons
+  that were not true at publication;
+- require valid paired incomplete C with `cross_base_status: unsupported`
+  and the applicable existing capability exclusions; independently check
+  the grammar/fragment/axes facts that establish the unsupported shape;
+- validate every independently available side, preimage object, mode, hash
+  and representable text effect. A mixed text/binary record does not exempt
+  the text portion from exact reconstruction or excuse a text-side mismatch;
+- report exactly which sides lack reconstructable payload. Their body
+  hashes have only E/C consistency verification, not independent body proof.
+  Verify's coverage row remains rung-3 warning, explicit apply retains D17
+  orders 2-4, and doctor remains warning-only; no complete authority or
+  automatic complete-regeneration claim follows from this limited result.
+
+The limitation must be established from the bound strict patch shape, never
+from an arbitrary reconstruction error or C's label alone. A malformed hunk,
+failed application of an otherwise reconstructable text effect, hash/mode
+mismatch, or missing local object required by the declared durable reference
+remains a binding failure. Do not use today's worktree, recipe output or an
+unbound cached blob to fill an omitted historical binary payload. Optional
+cache contents cannot change this deterministic validation classification.
 
 Conversely, losing a reference object needed by a record that claims a
 durable reconstructed binding, or finding different bytes for an observed
@@ -582,7 +649,7 @@ unchanged; GH #24 and S6/release stay outside this proposal.
 
 ## 8. Supplementary acceptance plan
 
-These **36 proposed cases** are separate from the accepted rev-7
+These **42 proposed cases** are separate from the accepted rev-7
 `RGA-001`–`RGA-360` matrix. Do not renumber, rewrite or recount its 360 rows.
 Current producer/consumer fixtures gain honest E inputs where required; the
 historical matrix remains the accepted baseline with §9's explicit
@@ -632,6 +699,12 @@ through the artifact-read seam, not OS permissions.
 | ICE-034 | Missing E never causes reader backfill; dry-proof execution leaves all artifacts unchanged; an actual later producer invocation creates the pair from a new observation |
 | ICE-035 | Vocabulary validator accepts exactly seven mapped/twelve unmapped disjoint surface codes; missing-new-code, invented schema reason, old eleven-count and warning-demotion mutations fail |
 | ICE-036 | Coordinated consistent E/C/artifact edits and full-set rollback are explicitly not authentication tests; privacy/no-source-body and unchanged D16 raw-byte near-match controls prevent an origin claim from a valid pair |
+| ICE-037 | Actual reader accepts a producer-created durable-reference binary-stub pair with both sides observed as limited-proof incomplete; preserves flags/hashes/reasons, validates the preimage, reports unavailable postimage payload and stays rung-3 warning rather than binding-stale |
+| ICE-038 | Actual reader on mixed reconstructable text plus observed binary stub validates the text exactly and limits only the omitted binary payload; text-byte/fragment/preimage tamper still refuses instead of gaining a whole-record incomplete exemption |
+| ICE-039 | Same-reader controls reject missing required reference objects, malformed/apply-failing reconstructable text and complete-authority promotion; mutations treating a binary stub as a lost object, inventing a body, or clearing observed flags fail the positive binary/mixed controls |
+| ICE-040 | Actual reader reproduces the accepted gated-addition parent-exclusion cohort with nonempty captured parent set and no final recipe created_by; remains incomplete with parent-created-target-unsupported, with equivalent lexical input spellings normalized identically |
+| ICE-041 | Omitting the effective exclusion from E while retaining C, or removing C's parent reason/claiming complete while retaining E's set (even if its C pairing hash is refreshed), fails the actual independent-input validator; inferring exclusions from C's reasons fails the same control |
+| ICE-042 | E parent_created_paths is required/non-null, sorted, unique and root-relative; null/missing/duplicate/escaping/absolute/noncanonical wire mutations refuse, and current-parent mutation cannot silently replace the captured exclusion set |
 
 After acceptance, coordinator-owned work must extend actual publication and
 source-derived site-mapping guards to E, preserve all existing eleven
@@ -650,14 +723,14 @@ silently universal.
 | Existing statement/surface | Proposed qualification |
 |---|---|
 | ADR-036 D2; PRD §6.2: immutable capture used for coverage | Same input also constructs E; P7 retains its before/after exception; new commit carry-forward requires a valid prior pair plus independent reconstruction (§4) |
-| D9; PRD §6.14: reference/capture independently recomputed without a persisted event carrier | E is required independent capture/reference consistency input; generation never substitutes. Actual content/tree proofs remain mandatory for complete authority; unavailable historical sides in truthful incomplete records have only explicitly limited consistency validation (§4.2) |
+| D9; PRD §6.14: reference/capture independently recomputed without a persisted event carrier | E is required independent capture/reference/event/parent-exclusion consistency input; generation never substitutes. Actual content/tree proofs remain mandatory for complete authority; unavailable historical sides and inherently omitted unsupported payloads in truthful incomplete records have only explicitly limited consistency validation (§4.2), without changing publication-time observation flags |
 | D10 and D15; PRD §6.10/§6.15 and S4: coverage-only finalization and publication failures | E atomically precedes C last on every existing event; both publication failures are nonzero; no success status after combined failure (§5) |
 | D10/D15 universal crash/hash-stale and rerun-repairs wording; RGA-048, RGA-307–309 | Mixed differing pair after E is detectable, but an interrupted identical-byte event before first E write can retain the previous coherent pair; absent C still warns. Only a real event can repair (§5.3) |
 | D15 P2 category-(c); PRD §6.15; RGA-013/014 and “every other artifact untouched” statements | “Coverage only” becomes exactly **E + C only**, with all other no-write guarantees and semantic reasons preserved. ADR-040's checkpoint-only phrase is qualified solely in this write-set respect, not its accepted reason policy (§5.2) |
 | D13; PRD §6.12/§7: seven mapped/eleven unmapped/eighteen total, old binding ladder | Seven mapped/**twelve** unmapped/**nineteen** total; required E failure joins binding rung 2 with one new code. Six rungs, marker precedence, absence warning and schema vocabulary unchanged (§6.2) |
 | D17; PRD §6.11 and S5: coverage-present “valid” cases | Valid now includes E; order 1 refuses E failures before LoadRecipe/mutation, also before auto prepare on its ordinary non-reapply route. Seven cases and state-aware/legacy behavior retained (§6.3) |
 | D11; PRD §6.11/§6.13 and S5: complete dry derivation sufficient for command recommendation | Prove actual named producer event and E/C publication feasibility as well; no reader repair. Doctor stays warning-only/read-only (§6.4) |
-| PRD §9 accepted matrix and counts | Keep all 360 rows verbatim as historical baseline. Add ICE-001–036 separately; add pair prerequisites to runtime fixtures, not to historical row text. In particular publication rows RGA-003–062/303–313, binding RGA-220/319, vocabulary RGA-331/334–336 and remediation RGA-341–345 now need this qualification |
+| PRD §9 accepted matrix and counts | Keep all 360 rows verbatim as historical baseline. Add ICE-001–042 separately; add pair prerequisites to runtime fixtures, not to historical row text. In particular publication rows RGA-003–062/303–313, binding RGA-220/319, vocabulary RGA-331/334–336 and remediation RGA-341–345 now need this qualification |
 | ADR-036 D12 and PRD §6.14/§13 downstream assumptions | GH #13 needs its own accepted planning follow-up for ordered gates, identity and journal publication/recovery dependencies (§7); no change to its code or planning documents here |
 
 **Unchanged:** D3's exact schema/reason sets and byte-identical canonical

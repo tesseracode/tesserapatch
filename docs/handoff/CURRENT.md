@@ -4,6 +4,20 @@
 
 **Cluster state**: AWAITING REVIEW
 
+**S5 ADR-041 rev-1 authored (2026-09-09)**: effective captured
+`parent_created_paths` is now independent evidence input; observed binary-
+stub/unsupported omitted payload has an explicit limited-proof outcome.
+Available/mixed text facts still validate and lost required objects still
+refuse. Six added reader/mutation cases bring the supplemental plan to 42.
+Independent re-review is next; runtime integration remains paused.
+
+**S5 ADR-041 rev-0 review: NEEDS REVISION (2026-09-09)**. Two MEDIUM
+findings: limited-proof handling omits fully observed binary-stub postimages
+that cannot be reconstructed from patch payload; reconstruction omits the
+captured `ParentCreatedPaths` exclusion input. The coordinator is correcting
+the proposed evidence schema/rules and reader cases before re-review.
+No runtime integration or Go validation resumes on an unaccepted proposal.
+
 **S5 ADR-041 PROPOSED (2026-09-09)**: the concrete independent capture-event
 evidence proposal and explicit ADR-036/PRD qualifications are authored.
 Independent contract review is next; runtime integration stays paused.
@@ -2574,7 +2588,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Review — ADR-041 proposed; runtime integration paused
+- **Status**: Review — ADR-041 rev-1 corrections authored; runtime integration paused
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2582,6 +2596,21 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+ADR-041 rev-1 and primary qualifications now address the two rev-0 findings,
+with independent parent-exclusion inputs and bounded observed-binary-stub
+handling. Supplemental cases ICE-037–042 cover the actual reader and wrong
+inputs. The concrete contract remains Proposed pending re-review.
+
+### S5 rev-0 review summary (historical)
+
+Independent ADR-041 rev-0 review returned NEEDS REVISION on two missing
+input classes: fully observed binary-stub postimages and S3's captured
+parent-exclusion set. Both need explicit evidence/reconstruction rules and
+same-reader acceptance controls. The coordinator is revising the proposal;
+no concrete contract or runtime acceptance is claimed.
+
+### S5 proposal summary (historical)
 
 Proposed ADR-041 is authored with explicit primary-contract qualifications.
 Its companion evidence, exact publication/read/migration rules and 36
@@ -2862,7 +2891,7 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5's independent capture-event evidence proposal is awaiting review.
+S5's independent capture-event evidence proposal awaits rev-1 re-review.
 Concrete contract approval is still required. The partial D7/D14
 implementation and independent contract controls are authored but not
 Go-validated or approved. The runtime worker is idle; the coverage reader,
@@ -9411,8 +9440,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Independently review Proposed ADR-041 and its ADR-036/PRD qualifications;
-   resolve findings before accepting the concrete capture-evidence contract.
+1. Obtain independent ADR-041 rev-1 re-review before accepting the concrete
+   capture-evidence contract; both rev-0 corrections are authored.
 2. Resume worker `f88dc13c-d461-45f8-a583-b2a9eb806188` after that decision,
    including the same-target accounting review and auto preflight placement.
 3. Checkpoint implementation, run serial gated validation and independent
