@@ -1,3 +1,21 @@
+## Validation Blocker — GH #15 S5 full-shard retry resources — 2026-09-10
+
+**Code/test checkpoint**: production `a119dca`, tests `a6fefac`
+**Tracking tip at block**: `44b86b7`
+**State**: BLOCKED — gate before invocation 2 of 22; no test failure
+
+The complete first invocation passes every package, including main CLI
+573.939s and workflow 102.634s. It started after a fresh qualifying window
+at 83% free. Before the first isolated CLI shard, memory stayed at 76% for
+the full 600-second wait, so the gate exited 75 and that command never ran.
+The remaining 21 invocations and step 7 have not run.
+
+At 02:51 PDT memory remains 76%, load1 3.46. HEAD equals origin/main,
+tracked state is clean, and no code/tests changed during the run. All static
+reviews and steps 1-5 remain complete. Preserve the sentinel and resume the
+exact script only when fresh gates can qualify; this partial run is not
+recorded as step-6 PASS or whole-S5 acceptance.
+
 ## Review — GH #15 S5 landed-CLI compatibility correction — 2026-09-10
 
 **Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`

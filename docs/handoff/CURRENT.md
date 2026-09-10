@@ -2,7 +2,20 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: BLOCKED
+
+**S5 full-shard retry resource-blocked (2026-09-10 02:51 PDT)**: invocation
+1 of 22 passes every package (main CLI 573.939s, workflow 102.634s).
+Memory then stayed at 76% for 600 seconds, so the next command never ran;
+gate exit 75. No test failed. The remaining 21 invocations and step 7 are
+still outstanding. Current load1 is 3.46 and free memory remains 76%.
+
+All static reviews and steps 1-5 pass. Code/tests stayed unchanged
+(`a119dca` / `a6fefac`); tracking tip `44b86b7` is pushed and tracked state
+was clean. Keep the owned failure sentinel until an authorized fresh retry.
+Do not treat the one passing invocation as the complete step-6 script.
+
+### Earlier full-suite retry record (historical)
 
 **S5 landed correction independently APPROVED (2026-09-10)**: review
 approves `70bbc41` plus `a6fefac`, preserving source bytes and independent
@@ -3093,7 +3106,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — refreshed stages 1-5 pass; exact full-shard retry
+- **Status**: Blocked — resource gate before full-shard invocation 2 of 22
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3101,6 +3114,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The full-shard retry's first invocation passes every package. The resource
+gate then stopped before invocation 2 after ten minutes at 76% free memory.
+No test failed and no later shard/gate ran. All static reviews and steps
+1-5 remain complete on unchanged code/tests; the partial script is not a pass.
+
+### Earlier full-suite correction summary (historical)
 
 The first full-suite invocation found three legacy expectations in one
 landed-CLI test file. The correction preserves the old landing-evidence
@@ -3671,22 +3691,16 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-ADR-041 is Accepted rev-1. The evidence foundation and all three caller
-closures are delivered. The ordered no-op rev-1 correction is independently
-statically approved and ADR-042 is accepted. These units and coordinator
-guards pass the complete internal-unit steps 1-5: targeted/index/actual
-goldens, all full core packages, affected CLI, vet and build. Independent
-delta review is approved and the internal unit is accepted. Coverage read
-integration, D13/D17 and D10 compile and passed targeted/index/live-golden
-validation. All six review corrections and the D10 cohort correction now
-passed targeted and full core validation at `a97b4af`. The subsequent
-gitlink correction `a119dca` is statically approved and passes fresh
-steps 1-5 after resource recovery. Full S5 shard/gate validation and close remain.
-All evidence-foundation findings are statically closed at `7a737a0`.
-Writer guards are approved at `fbac9f0`; the ordered unit's separate static
-approval remains scoped. Runtime acceptance still needs the remaining stages.
-S4 stays internally accepted, externally approved and durably pushed.
-ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
+S5 is implemented and every static finding/test correction is independently
+approved. ADR-041/042 are accepted; ADR-039/040 remain in force. Production
+is unchanged since `a119dca`, with the landed-CLI test refinement at `a6fefac`.
+Fresh steps 1-5 pass. The full-script retry's first invocation passes every
+package, but the resource gate stopped before invocation 2 at 76% free.
+The remaining 21 invocations and final wave-close gate are unrun, so S5 is
+not accepted. No implementation/review agent remains active.
+
+S4 remains internally accepted, externally approved and durably pushed.
+No S6, release/tag or GH #24 implementation is authorized.
 
 ### Accepted prerequisite state (historical)
 
@@ -4370,6 +4384,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Exact full-shard retry: invocation 1 PASS for every package, including
+  main CLI 573.939s/workflow 102.634s. Fresh initial window at 83% free.
+- Before invocation 2: resource gate BLOCKED/exit 75 after 600 seconds
+  continuously at 76% free; command not started. Remaining 21 invocations
+  and step 7 unrun. No test failure in this retry.
 
 - Refreshed steps 3-5 PASS after `a6fefac`: full core patchobs 1.951s,
   gitutil 7.134s, store 2.770s, workflow 103.058s; expanded CLI/ACL 97.224s;
@@ -10366,8 +10386,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the exact 22-shard step 6 with fresh per-command resource gates;
-   stop at the first failure.
+1. Wait for resources to meet the full gate, clear only the owned failure
+   sentinel, and rerun exact step 6 with a fresh gate before each command.
+   Steps 1-5 need no repetition unless code/tests change. Stop on failure.
 2. Record its result, prepare the review-approved close checkpoint and run
    `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 3. Archive/push terminal S5 tracking only after validation completes.
@@ -10384,6 +10405,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   At 01:22 PDT the operator-requested sample is eligible (84%, load1 3.67);
   a fresh full qualifying minute is still required before each command.
 - The resource blocker is resolved for steps 1-5 by fresh qualifying windows.
+- Step 6 is resource-blocked before invocation 2: 76% free memory for the
+  full 600-second wait, still 76% at 02:51 PDT. The 80% threshold is not waived.
 - All consumer/D10 findings, including streamed gitlinks, are statically
   closed, the landed test correction is approved and steps 1-5 pass.
   Exact shards, gate and whole-S5 acceptance remain.
@@ -10402,16 +10425,15 @@ at 471.544s. Formatting, vet and CLI build pass.
 - Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` delivered all six corrections
   and stopped. All implementation workers are idle; do not resume historical
   assignments while validation is resource-blocked.
-- Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` reviews immutable
-  rev-1 `8d35559` plus D10 correction `1b0399b` and scoped fixture updates.
+- Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` closed all
+  findings through `a119dca` and approved the final `a6fefac` test correction.
   Reviewer
   `222308b5-9449-462e-80be-599ccd4dcd1f` approved the parent-owned
   `cf381a1`/`bef41c5` row/count deltas; neither reviewer runs Go.
-- Foundation/ordered code and its expected E delta passed internal steps
-  1-5 and independent review. New consumers at `a97b4af` pass targeted/index/
-  live goldens and all full core suites. No current test failure remains;
-  resources block step 3b and independent correction review remains pending.
-  The owned failure sentinel prevents accidental later-stage execution.
+- All current steps 1-5 and independent reviews pass. Full-script invocation
+  1 passes every package; resources block invocation 2, leaving 21 invocations
+  and step 7 outstanding. The owned failure sentinel prevents accidental
+  later-stage execution. Do not reuse old partial-run or pending-review notes.
 - The verify inventory extension is authored; its one-capture/instability
   contract remains required through correction. No reference-body proof may
   come from a fresh mutable-worktree read.
