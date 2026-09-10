@@ -1683,6 +1683,10 @@ Unit attempt 1 passed formatting and compiled all selected packages, then
 stopped at targeted step 2 on exact inventories/amended S4 expectations and
 two new S5 fixtures. Fresh 85%-free gates passed; no later stage ran.
 Test-only compatibility corrections and immutable foundation review are next.
+Coordinator fixture fixes are authored: valid generation upper descriptors
+and an actual injected immutable-read error instead of an invalid-ref
+assumption. The production reader remains floor-gated/offline; revalidation
+waits for the disjoint compatibility correction.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

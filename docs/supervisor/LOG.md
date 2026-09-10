@@ -1,3 +1,25 @@
+## Implementation Transition — GH #15 S5 fixture/seam corrections — 2026-09-09
+
+**State**: IN PROGRESS — authored/formatted; revalidation pending
+
+The coordinator supplied valid working-tree/index generation upper
+descriptors in the same-patch fixture. Its no-generation-append assertion
+is unchanged.
+
+The anchored fixture's invalid ref did not guarantee an I/O error: the
+existing object gateway can return not-found for it. Extracted the existing
+preimage classification body behind `preimageAtTreeWithReader`, with the
+production method still supplying the same floor-gated offline blob reader.
+The fixture now injects an actual read error for both gate forms and checks
+its cause/no-body diagnostic; a swallowed-error control fails the same
+validator. This is a narrow test seam, not changed invalid-ref or missing-path
+semantics and not a new Git bypass.
+
+The coordinator owns this small `verify_anchored.go` seam in addition to its
+two S5 fixture files; no other implementer touches it. Compatibility and
+independent foundation review remain active on disjoint scopes. No later Go
+stage or revalidation has run; the failure sentinel stays in place.
+
 ## Validation Result — GH #15 S5 unit attempt 1 — 2026-09-09
 
 **Checkpoint**: `fc519fd`

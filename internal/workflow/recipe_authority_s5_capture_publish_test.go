@@ -228,6 +228,7 @@ func TestRGAS5SamePatchCaptureChangeWithoutGenerationAppend(t *testing.T) {
 	in.Generation = &PatchGenerationInput{
 		Kind: store.PatchGenerationKindRecord, Patch: string(in.Observation.PatchBytes),
 		BaseCommit: in.Observation.Reference.Commit,
+		Upper:      store.GenerationUpper{Kind: "working-tree", Ref: "working-tree"},
 		Capture:    store.GenerationCapture{Mode: "working-tree-all", Pathspecs: []string{}, ClaimIDs: []string{}},
 	}
 	if _, err := PublishCoverage(s, in); err != nil {
@@ -240,6 +241,7 @@ func TestRGAS5SamePatchCaptureChangeWithoutGenerationAppend(t *testing.T) {
 	}
 	in.Observation.Capture.Mode = patchobs.CaptureModeStagedIndex
 	in.Generation.Capture.Mode = "staged-index"
+	in.Generation.Upper = store.GenerationUpper{Kind: "index", Ref: "index"}
 	if _, err := PublishCoverage(s, in); err != nil {
 		t.Fatal(err)
 	}

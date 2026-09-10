@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 coordinator corrections authored (2026-09-09)**: the generation fixture
+now supplies valid upper descriptors. The anchored read-error fixture uses
+an injected actual failure through a narrow extracted reader seam, with the
+production method retaining the same floor-gated offline reader. Both gate
+forms and a swallowed-error mutation are covered. No revalidation has run.
+
 **S5 unit attempt 1 stopped at step 2 (2026-09-09)**: formatting passed;
 all selected packages compiled, patchobs passed, and remaining failures
 identify parser/note inventories, amended S4 fixture expectations and two
@@ -2722,6 +2728,14 @@ WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
 
+Coordinator fixes supply the missing generation upper descriptor and replace
+the invalid-ref-as-I/O-error assumption with an explicit immutable-read
+failure seam. Production classification logic and offline/floor gateway stay
+unchanged; both gate forms and the swallowed-error control exercise the same
+validator. These three files are authored/formatted, not revalidated.
+
+### Initial targeted-failure summary (historical)
+
 The first gated unit run passed formatting and compiled all selected packages.
 Targeted failures are partitioned into exact inventory/amended S4 fixture
 updates and two coordinator-owned S5 fixture investigations. No later stage
@@ -3184,6 +3198,10 @@ remains blocked until that release is implemented, soaked and shipped.
 - Foundation caller closures: `internal/cli/c1.go`,
   `internal/workflow/implement.go`, `refresh.go`, with regression additions
   in `recipe_authority_s5_capture_publish_test.go`.
+- Coordinator fixture fixes: valid generation upper descriptors in
+  `recipe_authority_s5_capture_publish_test.go`; read-error seam in
+  `verify_anchored.go` and its actual failure/mutation fixture in
+  `recipe_authority_s5_verify_test.go`.
 - Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:

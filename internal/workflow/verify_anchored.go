@@ -962,10 +962,14 @@ func evaluateMemberV10(ctx *verifyRunContext, member string, entry *inventoryEnt
 // preimageAtTree evaluates one write-file op's preimage_hash against a
 // TREE, never the live working tree (the measured E11/E12 false block).
 func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, op RecipeOperation) (ok bool, msg string, observed string) {
+	return preimageAtTreeWithReader(treeish, slug, opIndex, op, ctx.blobAtTree)
+}
+
+func preimageAtTreeWithReader(treeish, slug string, opIndex int, op RecipeOperation, readBlob func(string, string) ([]byte, bool, error)) (ok bool, msg string, observed string) {
 	expected := *op.PreimageHash
 
 	if expected == "" {
-		data, found, err := ctx.blobAtTree(treeish, op.Path)
+		data, found, err := readBlob(treeish, op.Path)
 		if err != nil {
 			return false, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot read the baseline tree %s: %v", slug, opIndex, op.Path, treeish, err), ""
 		}
@@ -984,7 +988,7 @@ func (ctx *verifyRunContext) preimageAtTree(treeish, slug string, opIndex int, o
 			slug, opIndex, op.Path, expected), ""
 	}
 
-	data, found, err := ctx.blobAtTree(treeish, op.Path)
+	data, found, err := readBlob(treeish, op.Path)
 	if err != nil {
 		return false, fmt.Sprintf("recipe drift: [%s] op %d %s: cannot read the baseline tree %s: %v", slug, opIndex, op.Path, treeish, err), ""
 	}

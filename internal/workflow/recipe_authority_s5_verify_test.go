@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,8 +54,32 @@ func TestRGAS5PreimageAtTreeExactPostimage(t *testing.T) {
 			}
 		})
 	}
-	op := RecipeOperation{Type: "write-file", Path: "target.txt", Content: "post\n", PreimageHash: ptr("")}
-	if ok, msg, _ := ctx.preimageAtTree(strings.Repeat("0", 40), "demo", 1, op); ok || !strings.Contains(msg, "cannot read the baseline tree") {
-		t.Fatalf("unreadable baseline passed exact-postimage recognition: %v %s", ok, msg)
+}
+
+func TestRGAS5PreimageTreeReadErrorSeamAndSensitivity(t *testing.T) {
+	readFailure := errors.New("injected immutable blob read failure")
+	validate := func(readBlob func(string, string) ([]byte, bool, error)) error {
+		for _, gate := range []string{"", hashOf([]byte("pre\n"))} {
+			op := RecipeOperation{Type: "write-file", Path: "target.txt", Content: "post\n", PreimageHash: ptr(gate)}
+			ok, msg, observed := preimageAtTreeWithReader("captured-tree", "demo", 1, op, readBlob)
+			if ok || observed != "" || !strings.Contains(msg, readFailure.Error()) ||
+				!strings.Contains(msg, "cannot read the baseline tree captured-tree") || strings.Contains(msg, "post\n") {
+				return fmt.Errorf("read failure became absence, success or source bytes: ok=%v msg=%q observed=%q", ok, msg, observed)
+			}
+		}
+		return nil
+	}
+	if err := validate(func(tree, path string) ([]byte, bool, error) {
+		if tree != "captured-tree" || path != "target.txt" {
+			t.Fatalf("reader received the wrong immutable target: %s:%s", tree, path)
+		}
+		return nil, false, readFailure
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate(func(string, string) ([]byte, bool, error) {
+		return nil, false, nil
+	}); err == nil {
+		t.Fatal("the same read-error validator accepted a swallowed failure")
 	}
 }
