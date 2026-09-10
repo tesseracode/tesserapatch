@@ -4,6 +4,20 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 correction scope extended (2026-09-09)**: partial rung-3/envelope work
+is delivered but incomplete. The worker may update patchobs/gitread.go's
+runGit/readBlobs and gitutil/capture_modes.go's untracked enumeration with
+scoped readonly runner/environment propagation, preserving ordinary callers.
+All six review findings remain assigned; no Go revalidation or closure yet.
+
+**S5 consumer rev-0 review: NEEDS REVISION (2026-09-09)**. Six findings:
+HIGH known publication-path blockers do not gate the actual producer;
+MEDIUM retention-order false refusal, hunkless ordinary modification accepted,
+readonly OpenFile truncation guard gap, legacy planning probe inflation and
+transitive offline/C-locale loss. The last two were already exposed by
+owning tests. Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` owns all six
+corrections and concrete regressions. No S5 acceptance or later validation.
+
 **S5 consumer row/count deltas APPROVED (2026-09-09)**: independent static
 review approves `cf381a1` and `bef41c5`, preserving original rows, V8 failure/
 exit 2 and artifact bytes. Production consumer review and the remediation/
@@ -2959,7 +2973,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — owning-suite remediation/gateway corrections
+- **Status**: In progress — consumer rev-1 correcting six review findings
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2967,6 +2981,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+Independent consumer review returned six findings. The worker must make
+publication-path safety a real non-overridable producer gate, preserve honest
+retention-limited evidence, reject malformed hunkless modifications, close
+write-capable readonly opens, and finish the already-assigned probe/environment
+corrections. Each needs a concrete same-validator/runtime regression; no
+existing safety guard is relaxed.
+
+### Earlier owning-suite correction summary (historical)
 
 The full targeted/index/golden retry passes. Owning workflow tests expose
 legacy verify probe-budget and readonly Git environment regressions, plus
@@ -10128,7 +10151,7 @@ at 471.544s. Formatting, vet and CLI build pass.
   internal unit is accepted. Remaining S5 consumers are not accepted.
 - Full workflow validation requires the remediation probe-budget/offline/
   locale correction; parent-owned old count expectations are corrected.
-  Consumer review remains in progress; exact row/count deltas are approved.
+  Consumer rev-0 has six open findings; exact row/count deltas are approved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

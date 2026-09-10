@@ -23,6 +23,74 @@ import (
 	"testing"
 )
 
+func TestRGAS5NestedDiscoveryReadOnlyGitEnvelope(t *testing.T) {
+	root := nestedWTRepo(t)
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shimDir := t.TempDir()
+	logPath := filepath.Join(shimDir, "environment.log")
+	script := fmt.Sprintf(`#!/bin/sh
+printf '%%s\037%%s\037%%s\037%%s\n' "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_OPTIONAL_LOCKS-}" "$*" >> %q
+exec %q "$@"
+`, logPath, realGit)
+	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("GIT_NO_LAZY_FETCH", "0")
+	t.Setenv("GIT_OPTIONAL_LOCKS", "1")
+	readLog := func() string {
+		t.Helper()
+		raw, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.TrimSuffix(string(raw), "\n")
+	}
+	validate := func(log string) error {
+		fields := strings.Split(log, "\x1f")
+		if len(fields) != 4 || fields[0] != "1" || fields[1] != "C" || fields[2] != "0" ||
+			fields[3] != "worktree list --porcelain -z" {
+			return fmt.Errorf("discovery command escaped its readonly envelope: %q", log)
+		}
+		return nil
+	}
+	if prefixes, err := NestedWorktreePrefixes(root); err != nil || len(prefixes) != 0 {
+		t.Fatalf("actual discovery failed: %v %v", prefixes, err)
+	}
+	if err := validate(readLog()); err != nil {
+		t.Fatal(err)
+	}
+	for key, bad := range map[string]string{
+		"GIT_NO_LAZY_FETCH": "0", "LC_ALL": "fr_FR.UTF-8", "GIT_OPTIONAL_LOCKS": "1",
+	} {
+		if err := os.Remove(logPath); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command("git", "worktree", "list", "--porcelain", "-z")
+		cmd.Dir = root
+		cmd.Env = append(CaptureReadOnlyEnv(), key+"="+bad)
+		if _, err := cmd.Output(); err != nil {
+			t.Fatal(err)
+		}
+		if err := validate(readLog()); err == nil {
+			t.Fatalf("same real-command validator accepted bad %s", key)
+		}
+	}
+	if err := os.Remove(logPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runGit(root, "rev-parse", "HEAD"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(readLog(), "0\x1ffr_FR.UTF-8\x1f1\x1f") {
+		t.Fatal("readonly discovery policy changed the unrelated ordinary Git runner")
+	}
+}
+
 // nestedWTGit runs git in dir and fails the test on error.
 func nestedWTGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()

@@ -54,6 +54,8 @@ func checkRecipeGenerationCoverage(ctx *verifyRunContext, s *store.Store, slug s
 	}
 	if !row.Passed {
 		row.Remediation = a.explanation()
+	}
+	if a.Rung == 3 {
 		if entry.Status != nil && ctx.gitGate() == nil {
 			plan := PlanDefaultRecord(s, *entry.Status, snapshot, time.Now().UTC(), ctx.inv)
 			row.Remediation += "; " + plan.Remediation(slug)

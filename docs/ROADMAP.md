@@ -1768,6 +1768,12 @@ reviews continue. Foundation acceptance is not whole-S5 acceptance.
 The exact consumer row/count deltas `cf381a1`/`bef41c5` are independently
 APPROVED. Production review and the remediation/gateway correction still
 precede full S5 validation and acceptance.
+Consumer rev-0 review is NEEDS REVISION on six findings (one HIGH publication
+gate, five MEDIUM reconstruction/read-only/probe/environment issues).
+The worker owns their corrections and regressions; no S5 acceptance yet.
+Partial rung-3/envelope corrections are delivered. Two narrowly authorized
+transitive reader/enumerator paths complete that scope before the worker
+continues all six findings; no revalidation or closure is claimed.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

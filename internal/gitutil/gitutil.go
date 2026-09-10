@@ -463,7 +463,7 @@ func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, er
 	for _, path := range untracked {
 		cmd := exec.Command("git", "diff", "--no-index", "--no-ext-diff", "--no-textconv", "--", os.DevNull, path)
 		cmd.Dir = repoRoot
-		cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
+		cmd.Env = CaptureReadOnlyEnv()
 		out, diffErr := cmd.Output()
 		if diffErr != nil {
 			exit, ok := diffErr.(*exec.ExitError)
@@ -484,9 +484,21 @@ func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, er
 }
 
 func runCaptureGitReadOnly(root string, args ...string) (string, error) {
+	return RunCaptureGitReadOnly(root, args...)
+}
+
+// CaptureReadOnlyEnv is the invocation-local envelope for capture and
+// discovery reads. It must not be used by fetch or other Git mutators.
+func CaptureReadOnlyEnv() []string {
+	return append(os.Environ(), NoLazyFetchEnv, CLocaleEnv, "GIT_OPTIONAL_LOCKS=0")
+}
+
+// RunCaptureGitReadOnly runs local capture plumbing without changing ambient
+// process state, fetching missing objects, or taking optional index locks.
+func RunCaptureGitReadOnly(root string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
+	cmd.Env = CaptureReadOnlyEnv()
 	out, err := cmd.Output()
 	return string(out), err
 }
@@ -618,7 +630,7 @@ func ValidatePatchReverse(repoRoot, patch string) error {
 	}
 	cmd := exec.Command("git", "apply", "--reverse", "--check", "-")
 	cmd.Dir = repoRoot
-	cmd.Env = append(os.Environ(), NoLazyFetchEnv, "GIT_OPTIONAL_LOCKS=0")
+	cmd.Env = CaptureReadOnlyEnv()
 	cmd.Stdin = strings.NewReader(patch)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

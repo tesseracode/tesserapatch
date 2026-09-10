@@ -174,6 +174,7 @@ func NestedWorktreeDiscoveryError(repoRoot string, err error) error {
 func runGitStreams(dir string, args ...string) (stdout, stderr string, err error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
+	cmd.Env = CaptureReadOnlyEnv()
 	var outBuf, errBuf bytes.Buffer
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf

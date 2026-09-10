@@ -5,11 +5,136 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
+
+func rgaS5ReadOnlyGitWrapper(t *testing.T) *gitWrapper {
+	t.Helper()
+	wrapper := installGitWrapper(t)
+	path := filepath.Join(wrapper.dir, "git")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const field = `\037GIT_INDEX_FILE=%s\n`
+	const argument = `"${GIT_INDEX_FILE-}"`
+	if strings.Count(string(raw), field) != 1 || strings.Count(string(raw), argument) != 1 {
+		t.Fatal("readonly envelope instrumentation no longer matches the real Git wrapper")
+	}
+	script := strings.Replace(string(raw), field, `\037GIT_INDEX_FILE=%s\037GIT_OPTIONAL_LOCKS=%s\n`, 1)
+	script = strings.Replace(script, argument, argument+` "${GIT_OPTIONAL_LOCKS-}"`, 1)
+	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	return wrapper
+}
+
+func rgaS5GitCallPrefix(call gitCall, prefix ...string) bool {
+	if len(call.Args) < len(prefix) {
+		return false
+	}
+	for i, argument := range prefix {
+		if call.Args[i] != argument {
+			return false
+		}
+	}
+	return true
+}
+
+func rgaS5ReadOnlyGitCalls(calls []gitCall) error {
+	if len(calls) == 0 {
+		return fmt.Errorf("readonly capture issued no observed Git calls")
+	}
+	for _, call := range calls {
+		for key, value := range map[string]string{
+			"GIT_NO_LAZY_FETCH": "1", "LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0",
+		} {
+			if call.Env[key] != value {
+				return fmt.Errorf("git %s received %s=%q, want %q", call.Joined(), key, call.Env[key], value)
+			}
+		}
+	}
+	return nil
+}
+
+func TestRGAS5Rung3AndDoctorCaptureGitEnvelope(t *testing.T) {
+	s, in := rgaS5ReadFixture(t)
+	in.Events.StaleMarkerPresent = true
+	snapshot := rgaS5ReadSnapshot(t, in)
+	for name, artifact := range map[string]RecipeArtifactRead{
+		"post-apply.patch": snapshot.Patch, "apply-recipe.json": snapshot.Recipe,
+		"recipe-coverage.json": snapshot.Coverage, "recipe-capture-event.json": snapshot.Event,
+	} {
+		if err := s.WriteArtifact("s5", name, string(artifact.Bytes)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inventory, err := buildInventory(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("GIT_NO_LAZY_FETCH", "0")
+	t.Setenv("GIT_OPTIONAL_LOCKS", "1")
+	wrapper := rgaS5ReadOnlyGitWrapper(t)
+	for _, consumer := range []string{"verify-rung3", "doctor-d10-fix"} {
+		t.Run(consumer, func(t *testing.T) {
+			wrapper.Reset()
+			if consumer == "verify-rung3" {
+				ctx := &verifyRunContext{root: s.Root, floorOK: true, inv: inventory}
+				row := checkRecipeGenerationCoverage(ctx, s, "s5")
+				if row.Passed || row.Severity != SeverityWarn ||
+					!strings.Contains(row.Remediation, "tpatch record s5 --regenerate-recipe") {
+					t.Fatalf("genuine rung-3 planning was suppressed: %+v", row)
+				}
+			} else {
+				report, err := RunDoctor(s, DoctorOptions{Checks: []string{"D10"}, Fix: true})
+				if err != nil || len(report.Findings) != 1 || report.Findings[0].Fixable ||
+					report.Findings[0].Remediation != "tpatch record s5 --regenerate-recipe" {
+					t.Fatalf("genuine doctor planning was suppressed: %+v %v", report, err)
+				}
+			}
+			calls := wrapper.Calls()
+			if err := rgaS5ReadOnlyGitCalls(calls); err != nil {
+				t.Fatal(err)
+			}
+			for _, prefix := range [][]string{
+				{"config", "--get-regexp"}, {"worktree", "list", "--porcelain", "-z"},
+				{"diff", "--no-ext-diff", "--no-textconv"}, {"rev-parse", "--verify", "HEAD"}, {"diff", "--stat"},
+			} {
+				found := false
+				for _, call := range calls {
+					found = found || rgaS5GitCallPrefix(call, prefix...)
+				}
+				if !found {
+					t.Fatalf("actual readonly capture missed %v", prefix)
+				}
+			}
+		})
+	}
+	for key, bad := range map[string]string{
+		"GIT_NO_LAZY_FETCH": "0", "LC_ALL": "fr_FR.UTF-8", "GIT_OPTIONAL_LOCKS": "1",
+	} {
+		t.Run("bad-"+key, func(t *testing.T) {
+			wrapper.Reset()
+			command := exec.Command("git", "rev-parse", "--verify", "HEAD")
+			command.Dir = s.Root
+			command.Env = append(gitutil.CaptureReadOnlyEnv(), key+"="+bad)
+			if _, err := command.Output(); err != nil {
+				t.Fatal(err)
+			}
+			if err := rgaS5ReadOnlyGitCalls(wrapper.Calls()); err == nil {
+				t.Fatalf("same actual-call validator accepted bad %s", key)
+			}
+		})
+	}
+}
 
 func rgaS5TreeState(t *testing.T, root string) string {
 	t.Helper()

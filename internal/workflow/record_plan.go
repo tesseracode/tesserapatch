@@ -100,7 +100,7 @@ func RecordPendingBaselineCandidate(status store.FeatureStatus) bool {
 // DetectRecordAmendOrphans preserves the real producer's missing-signal policy.
 func DetectRecordAmendOrphans(s *store.Store, inventories ...*featureInventory) ([]store.FeatureRef, string, bool) {
 	read := func(ref string) (string, error) {
-		out, _, err := gitutil.RunOfflineGitIn(s.Root, "rev-parse", ref)
+		out, err := gitutil.RunCaptureGitReadOnly(s.Root, "rev-parse", ref)
 		return strings.TrimSpace(out), err
 	}
 	prev, err := read("HEAD@{1}")

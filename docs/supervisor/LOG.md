@@ -1,3 +1,45 @@
+## Review — GH #15 S5 consumers rev-0 — 2026-09-09
+
+**Reviewer**: `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8`
+**Checkpoint**: `95be8dd` plus narrow `c27989d` factoring correction
+**Verdict**: NEEDS REVISION — six substantive findings
+
+1. HIGH — record_plan.go:269-270: known publication-path failures enter
+   diagnostic Blockers but not producer gateFailures, so record can proceed
+   into a symlinked patches directory or write earlier artifacts before a
+   known unusable coverage path fails. Make these non-overridable gates.
+2. MEDIUM — recipe_coverage_reconstruct.go:67-72: reversed image-allocation
+   order falsely rejects a legitimate 32 MiB retention-limited event (20 MiB
+   pre/post, producer retained post first). Respect the historical ceiling/
+   budget without waiving malformed payloads or genuine object loss.
+3. MEDIUM — patch_reconstruct.go:319-323: ordinary header-only modification
+   with no hunk/metadata change is treated as an identity transformation and
+   can gain complete coverage, though Git rejects it as garbage. Refuse it
+   while preserving valid empty-file and metadata-only transformations.
+4. MEDIUM — recipe_authority_s0_source_guards_test.go:732-740: readonly
+   roles permit write-capable os.OpenFile truncation. Reject write-capable
+   opens and aliases with same-validator negative controls.
+5. MEDIUM — recipe_coverage_diagnostics.go:57-59: unconditional missing-C
+   regeneration planning breaks preserved legacy invocation budgets.
+6. MEDIUM — gitutil.go:416-420,489 and reconstruction command chains:
+   readonly commands lose offline/C-locale settings transitively. Cover
+   discovery, untracked enumeration and C-present reference reconstruction,
+   not just direct capture commands or the missing-C path.
+
+Items 5-6 match the owning-suite regressions already assigned. The consumer
+worker owns all six corrections in its existing scope plus the authorized
+worktree discovery helpers; do not weaken budget/environment/read-only
+guards. Add concrete runtime/validator regressions for every finding and stop
+before Go revalidation. The reviewer ran no Go validation.
+
+The worker delivered a partial fix for items 5-6 (rung-3-only planning and
+the authorized capture/discovery envelope), then stopped for two transitive
+paths. Authorize `internal/patchobs/gitread.go` runGit/readBlobs and
+`internal/gitutil/capture_modes.go` listUntrackedFilesWithPrefixes for scoped
+readonly runner/environment propagation, preserving ordinary callers.
+Checkpoint the partial work before the worker continues all six findings.
+No Go revalidation or finding closure is claimed.
+
 ## Review — GH #15 S5 consumer expected-row/count deltas — 2026-09-09
 
 **Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`

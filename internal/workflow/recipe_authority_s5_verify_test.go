@@ -55,7 +55,17 @@ func TestRGAS5VerifyCoverageLadderRowsAndInstability(t *testing.T) {
 			if _, err := entry.ReadErr(); err != nil {
 				t.Fatal("coverage errors escaped through the legacy inventory shortcut")
 			}
+			wrapper := installGitWrapper(t)
 			row := checkRecipeGenerationCoverage(ctx, s, "s5")
+			captureProbes := 0
+			for _, call := range wrapper.Calls() {
+				if rgaS5GitCallPrefix(call, "config", "--get-regexp") || rgaS5GitCallPrefix(call, "diff") || rgaS5GitCallPrefix(call, "worktree", "list") {
+					captureProbes++
+				}
+			}
+			if (captureProbes != 0) != (tc.rung == 3) {
+				t.Fatalf("rung %d issued %d unsolicited capture probes", tc.rung, captureProbes)
+			}
 			validate := func(row store.VerifyCheckResult) error {
 				severity := SeverityWarn
 				if tc.rung < 3 || tc.rung == 6 {
