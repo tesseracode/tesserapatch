@@ -1765,6 +1765,9 @@ without weakening the old guards; no later validation stage ran.
 The old count expectations are corrected at `bef41c5`; the consumer worker
 owns gateway/remediation fixes while independent runtime and exact-delta
 reviews continue. Foundation acceptance is not whole-S5 acceptance.
+The exact consumer row/count deltas `cf381a1`/`bef41c5` are independently
+APPROVED. Production review and the remediation/gateway correction still
+precede full S5 validation and acceptance.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

@@ -1,3 +1,18 @@
+## Review — GH #15 S5 consumer expected-row/count deltas — 2026-09-09
+
+**Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`
+**Checkpoints**: `cf381a1` and `bef41c5`
+**Verdict**: APPROVED — narrow test-delta review
+
+The new passing coverage row preserves the original eleven rows, V8 failure,
+failed verdict/exit 2, error count and all artifact bytes. Comparator
+mutations remain meaningful; historical projections/fixtures/hash histories/
+capturers are unchanged. Doctor and landed-verify count/order changes are
+additive. No Go commands ran in this review.
+
+Production consumer review and the remediation/gateway runtime correction
+remain pending; no production or whole-S5 approval is implied.
+
 ## Validation Result — GH #15 S5 consumer retry 3 — 2026-09-09
 
 **Checkpoint**: `1b16550`

@@ -4,6 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 consumer row/count deltas APPROVED (2026-09-09)**: independent static
+review approves `cf381a1` and `bef41c5`, preserving original rows, V8 failure/
+exit 2 and artifact bytes. Production consumer review and the remediation/
+gateway correction remain pending; this is not whole-S5 approval.
+
 **S5 consumer retry 3 stopped in workflow owning suite (2026-09-09)**:
 steps 1-2 and full patchobs/gitutil/store pass. Workflow catches two old
 row-count expectations plus real extra-probe/offline/C-locale regressions
@@ -10123,7 +10128,7 @@ at 471.544s. Formatting, vet and CLI build pass.
   internal unit is accepted. Remaining S5 consumers are not accepted.
 - Full workflow validation requires the remediation probe-budget/offline/
   locale correction; parent-owned old count expectations are corrected.
-  Consumer and exact row-delta reviews remain in progress.
+  Consumer review remains in progress; exact row/count deltas are approved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10141,8 +10146,8 @@ at 471.544s. Formatting, vet and CLI build pass.
   workers are stopped; do not resume their historical assignments.
 - Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` reviews immutable
   `95be8dd` plus the narrow `c27989d` factoring correction. Reviewer
-  `222308b5-9449-462e-80be-599ccd4dcd1f` separately reviews the parent-owned
-  `cf381a1` row/count delta; neither runs Go.
+  `222308b5-9449-462e-80be-599ccd4dcd1f` approved the parent-owned
+  `cf381a1`/`bef41c5` row/count deltas; neither reviewer runs Go.
 - Foundation/ordered code and its expected E delta passed internal steps
   1-5 and independent review. New consumers pass targeted/index/live goldens,
   but the full owning workflow suite currently fails budget/offline/locale
