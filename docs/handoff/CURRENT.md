@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 landed-CLI targets PASS (2026-09-10)**: corrected `a6fefac` passes
+formatting and all expanded targets, including ACL1/2/3 and source/identity
+assertions, under fresh 83-84%-free gates. Refresh remaining validation
+with ACL tests included, then rerun full shards from the beginning.
+No production change or S5 acceptance; test-correction review remains.
+
 **S5 landed-CLI fixture refinement (2026-09-10)**: the no-record isolation
 assertions pass, but reusing the original raw identity produced a legitimate
 landing-history ambiguity. The test now pins distinct valid capture contexts,
@@ -4352,6 +4358,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Corrected landed fixture `a6fefac`: steps 1-2 PASS. Patchobs 1.262s,
+  gitutil 1.081s, workflow 17.700s, CLI 39.281s, including ACL1/2/3.
+  Fresh separate windows at 83-84% free/load1 <=5.
 
 - Landed correction `70bbc41`: formatting/core targets PASS; CLI targeted
   failure only in final re-attestation due to ambiguous reused artifact

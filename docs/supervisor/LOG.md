@@ -1,3 +1,17 @@
+## Validation Result — GH #15 S5 landed-CLI corrected targets — 2026-09-10
+
+**Checkpoint**: `a6fefac`
+**State**: IN PROGRESS — steps 1-2 PASS
+
+The expanded targeted command now passes, including ACL1/2/3 and the exact
+capture-identity/source-preservation assertions: patchobs 1.262s, gitutil
+1.081s, workflow 17.700s, CLI 39.281s. Separate resource gates held at
+83-84% free memory, load1 <=5. No production code changed.
+
+Refresh the remaining validation stages with the ACL family included in
+affected CLI selection, then rerun the exact full shard script from its
+first invocation. Independent test-correction review remains pending.
+
 ## Validation Result — GH #15 S5 landed-CLI correction retry — 2026-09-10
 
 **Checkpoint**: `70bbc41`
