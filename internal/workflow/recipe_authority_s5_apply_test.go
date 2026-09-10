@@ -172,3 +172,140 @@ func TestRGAS5SupersededDriftIsAuditNotSafety(t *testing.T) {
 		t.Fatalf("supersession severity or safety boundary changed: %+v", got)
 	}
 }
+
+func TestRGAS5EarlierMutationInvalidatesCachedNoop(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		first RecipeOperation
+	}{
+		{"gated-write", RecipeOperation{Type: "write-file", Content: "A", PreimageHash: ptr(hashOf([]byte("B")))}},
+		{"legacy-write", RecipeOperation{Type: "write-file", Content: "A"}},
+		{"append", RecipeOperation{Type: "append-file", Content: "!"}},
+		{"replace", RecipeOperation{Type: "replace-in-file", Search: "B", Replace: "A"}},
+	} {
+		for _, alias := range []string{"target.txt", "./target.txt", "sub/../target.txt", "hardlink.txt", "symlink.txt"} {
+			t.Run(tc.name+"/"+alias, func(t *testing.T) {
+				s := slice2Store(t)
+				writeRepoFile(t, s, "target.txt", []byte("B"))
+				target := filepath.Join(s.Root, "target.txt")
+				switch alias {
+				case "hardlink.txt":
+					if err := os.Link(target, filepath.Join(s.Root, alias)); err != nil {
+						t.Skipf("hard links unavailable: %v", err)
+					}
+				case "symlink.txt":
+					if err := os.Symlink("target.txt", filepath.Join(s.Root, alias)); err != nil {
+						t.Skipf("symbolic links unavailable: %v", err)
+					}
+				}
+				first := tc.first
+				first.Path = alias
+				recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+					first,
+					{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(hashOf([]byte("B")))},
+				}}
+				preview := DryRunRecipe(s, recipe)
+				if !preview.Success || preview.Applied != 2 || preview.Skipped != 0 {
+					t.Errorf("preview retained an invalidated no-write witness: %+v", preview)
+				}
+				before, err := os.ReadFile(target)
+				if err != nil || string(before) != "B" {
+					t.Fatal("preview changed the target")
+				}
+				result := ExecuteRecipe(s, recipe)
+				got, err := os.ReadFile(target)
+				if err != nil || !result.Success || result.Applied != 2 || result.Skipped != 0 || string(got) != "B" {
+					t.Fatalf("later write was skipped after an earlier mutation: %+v final=%q err=%v", result, got, err)
+				}
+				if result.Messages[1] != "[write-file] target.txt: OK" {
+					t.Fatalf("later write falsely reported no write: %v", result.Messages)
+				}
+			})
+		}
+	}
+}
+
+func TestRGAS5NoopRecheckUsesSequentialBytes(t *testing.T) {
+	s := slice2Store(t)
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "write-file", Path: "target.txt", Content: "A", PreimageHash: ptr(hashOf([]byte("B")))},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(hashOf([]byte("B")))},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(hashOf([]byte("B")))},
+	}}
+	result := ExecuteRecipe(s, recipe)
+	if !result.Success || result.Applied != 3 || result.Skipped != 1 ||
+		result.Messages[2] != "[write-file] target.txt: already present (exact postimage), no write" {
+		t.Fatalf("no-write accounting ignored the actual sequential bytes: %+v", result)
+	}
+	got, err := os.ReadFile(filepath.Join(s.Root, "target.txt"))
+	if err != nil || string(got) != "B" {
+		t.Fatalf("sequential writes did not end in the declared final value: %q %v", got, err)
+	}
+}
+
+func TestRGAS5NoopWitnessPreservedByNonmutatingPrefix(t *testing.T) {
+	for _, first := range []RecipeOperation{
+		{Type: "write-file", Content: "B", PreimageHash: ptr("")},
+		{Type: "write-file", Content: "B"},
+		{Type: "append-file", Content: ""},
+		{Type: "replace-in-file", Search: "B", Replace: "B"},
+		{Type: "ensure-directory", Path: "unrelated"},
+		{Type: "write-file", Path: "unrelated.txt", Content: "unrelated", PreimageHash: ptr("")},
+	} {
+		t.Run(first.Type+"/"+first.Path, func(t *testing.T) {
+			s := slice2Store(t)
+			writeRepoFile(t, s, "target.txt", []byte("B"))
+			wantSkipped := 1
+			if first.Type == "write-file" && first.Path == "" && first.PreimageHash != nil {
+				wantSkipped++
+			}
+			if first.Path == "" {
+				first.Path = "target.txt"
+			}
+			recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+				first,
+				{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr(hashOf([]byte("C")))},
+			}}
+			result := ExecuteRecipe(s, recipe)
+			if !result.Success || result.Applied != 2 || result.Skipped != wantSkipped {
+				t.Fatalf("an unchanged postimage was treated as invalidated: %+v", result)
+			}
+		})
+	}
+}
+
+func TestRGAS5PostimageOnlyWitnessSurvivesRestoringPrefix(t *testing.T) {
+	s := slice2Store(t)
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	recipe := ApplyRecipe{Feature: "demo", Operations: []RecipeOperation{
+		{Type: "append-file", Path: "target.txt", Content: "A"},
+		{Type: "replace-in-file", Path: "target.txt", Search: "BA", Replace: "B"},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+	}}
+	result := ExecuteRecipe(s, recipe)
+	if !result.Success || result.Applied != 3 || result.Skipped != 1 {
+		t.Fatalf("an overlapping prefix that restores the postimage was refused: %+v", result)
+	}
+	got, err := os.ReadFile(filepath.Join(s.Root, "target.txt"))
+	if err != nil || string(got) != "B" {
+		t.Fatalf("restored postimage changed: %q %v", got, err)
+	}
+}
+
+func TestRGAS5InvalidatedNoopKeepsSupersessionSeverity(t *testing.T) {
+	s := slice2Store(t)
+	slice4SeedSupersession(t, s)
+	writeRepoFile(t, s, "target.txt", []byte("B"))
+	recipe := ApplyRecipe{Feature: "historical", Operations: []RecipeOperation{
+		{Type: "append-file", Path: "target.txt", Content: "!"},
+		{Type: "write-file", Path: "target.txt", Content: "B", PreimageHash: ptr("")},
+	}}
+	result := ExecuteRecipe(s, recipe)
+	warnings := strings.Join(result.Warnings, "\n")
+	if !result.Success || result.Applied != 2 || result.Skipped != 0 ||
+		!strings.Contains(warnings, `superseded by "newer"`) ||
+		!strings.Contains(warnings, "not a certification that explicit apply, coverage or replay is safe") {
+		t.Fatalf("invalidated witness lost the existing supersession severity: %+v", result)
+	}
+}

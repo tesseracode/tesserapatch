@@ -1659,6 +1659,11 @@ in ADR-041 section 7. Runtime implementation/validation/review remain pending.
 Coordinator evidence contract/publication guard extensions are authored and
 formatted with wrong-input controls. The runtime worker owns the same-target
 correction and evidence foundation; no S5 Go validation has run.
+The evidence foundation is now delivered; its three narrow caller closures
+are authorized. D7's cached same-target no-op bug will use a bounded upfront
+prefix proof preserving initial-tree authority, assigned to a separate
+file-disjoint implementer. Both units still need validation and review before
+consumer integration.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

@@ -4,6 +4,35 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 evidence foundation delivered (2026-09-09)**: the strict event codec,
+independent source/pair validation, E-before-C publication and focused tests
+are authored but unvalidated. Three caller closures remain authorized:
+`internal/cli/c1.go` and workflow `implement.go`/`refresh.go`, limited to
+P7 pre-editor frozen context and primary-error-aware status reporting.
+
+### Current disjoint runtime ownership
+
+Foundation worker `f88dc13c-d461-45f8-a583-b2a9eb806188` owns the evidence
+files/tests and the three caller closures above. Its foundation helpers are
+`BuildRecipeCaptureEvent`, `EncodeRecipeCaptureEvent`,
+`DecodeRecipeCaptureEvent`, `RecipeCaptureEventIdentity`,
+`ValidateRecipeCaptureEventSchema`, `ValidateRecipeCaptureEventSource`,
+`ValidateRecipeCaptureEventPair`, `recipeCaptureInput`,
+`reconstructPriorCoverage` and `ReconstructEditedCoverage`.
+
+The coordinator selects bounded upfront prefix proof for D7's same-target
+bug, not a blanket overlap restriction. Original initial-tree authorization
+remains intact; a postimage-only exemption must still be no-write at its
+sequential position. Predictable invalidation refuses before all writes.
+A separate implementer owns only `internal/workflow/recipe.go`,
+`writefile_safety.go`, new `recipe_prefix_precheck.go`,
+`recipe_authority_s5_apply_test.go` and
+`docs/adrs/ADR-042-ordered-recipe-noop-proof.md`.
+The foundation worker no longer owns those paths. No same-file parallel edits.
+The clarification/code need independent review; no Go validation has run.
+
+### Prior S5 ownership and accepted-contract record
+
 **S5 ADR-041 rev-1 ACCEPTED (2026-09-09)**: independent re-review is
 APPROVED, with both original findings closed. The concrete capture-evidence
 contract is accepted and indexed; its primary qualifications are effective.
@@ -2627,7 +2656,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — ADR-041 accepted; bounded runtime resumption
+- **Status**: In progress — evidence caller closure and bounded ordered no-op proof
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2635,6 +2664,14 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The foundation draft is delivered without Go validation. Caller-closure
+extensions are explicitly scoped to the accepted ADR-041 event/error rules.
+The same-target tests demonstrate cached no-op unsoundness; a separate
+file-disjoint implementer will build the bounded upfront prefix proof and
+document its preservation of initial-tree authority. Neither unit is accepted.
+
+### Earlier S5 coordinator summary (historical)
 
 Coordinator guard extension is authored: six accepted ADR-041 section pins
 with wrong-input fixtures, plus E-before-C publication, missing/reversed
@@ -2948,12 +2985,11 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5's independent capture-event evidence contract is Accepted rev-1 after
-independent approval. The partial D7/D14
-implementation and independent contract controls are authored but not
-Go-validated or approved. The runtime worker owns the bounded same-target
-correction, followed by the accepted evidence foundation. The coverage reader,
-D13/D17 and D10 remain unimplemented.
+ADR-041 is Accepted rev-1. The evidence foundation is delivered and needs its
+three caller closures; the bounded D7 ordered no-op proof is assigned to a
+separate disjoint implementer. These units and coordinator guards are not
+Go-validated or approved. Coverage read integration, D13/D17 and D10 remain
+unimplemented.
 S4 stays internally accepted, externally approved and durably pushed.
 ADR-039/040 remain in force. No S6 or GH #24 implementation is authorized.
 
@@ -3034,6 +3070,12 @@ remains blocked until that release is implemented, soaked and shipped.
 - Coordinator: `internal/workflow/recipe_authority_s5_contract_test.go`.
 - Coordinator evidence-publication guard extension:
   `internal/workflow/recipe_authority_s4_publication_guards_test.go`.
+- Foundation: `internal/workflow/recipe_capture_event.go`,
+  `recipe_capture_event_codec.go`, `recipe_coverage_publish.go`,
+  `recipe_authority_s5_capture_event_test.go`,
+  `recipe_authority_s5_capture_publish_test.go`,
+  `recipe_authority_s0_source_guards_test.go`,
+  `internal/cli/producer_observation.go`.
 - Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:
@@ -9504,9 +9546,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Receive the bounded same-target accounting correction from worker
-   `f88dc13c-d461-45f8-a583-b2a9eb806188`.
-2. Implement/checkpoint the ADR-041 evidence foundation, then resume S5
+1. Finish the evidence caller closures and separate bounded ordered no-op
+   proof under the current file-disjoint ownership at the top of this file.
+2. Checkpoint and validate/review the delivered units, then resume S5
    read/verify/apply/doctor integration with the accepted pair requirement.
 3. Checkpoint implementation, run serial gated validation and independent
    review, correct findings, then close durably. Do not start S6 or GH #24.

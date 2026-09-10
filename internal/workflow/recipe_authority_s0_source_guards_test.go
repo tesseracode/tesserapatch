@@ -353,6 +353,15 @@ func TestRGAS0BoundArtifactWriteScannerIsSensitive(t *testing.T) {
 // Outside the pure core and registered publication chains these stay forbidden.
 var rgaS0CoverageTokens = []string{
 	"recipe-coverage.json",
+	"recipe-capture-event.json",
+	"RecipeCaptureEvent",
+	"RecipeCaptureObservation",
+	"RecipeCaptureBindings",
+	"recipe_capture_event",
+	"recipeCaptureInput",
+	"recipeCaptureProjection",
+	"validateCaptureArtifact",
+	"reconstructPriorCoverage",
 	"RecipeCoverage",
 	"recipe_coverage",
 	"CoverageProducer",
@@ -378,12 +387,76 @@ func rgaS0ScanForbiddenTokens(src string, tokens []string) []string {
 	return hits
 }
 
+func rgaS0ConstantString(expr ast.Expr) (string, bool) {
+	return rgaS0ConstantStringIn(expr, make(map[ast.Expr]bool))
+}
+
+func rgaS0ConstantStringIn(expr ast.Expr, visiting map[ast.Expr]bool) (string, bool) {
+	if visiting[expr] {
+		return "", false
+	}
+	visiting[expr] = true
+	defer delete(visiting, expr)
+	switch node := expr.(type) {
+	case *ast.ParenExpr:
+		return rgaS0ConstantStringIn(node.X, visiting)
+	case *ast.BinaryExpr:
+		if node.Op != token.ADD {
+			return "", false
+		}
+		left, leftOK := rgaS0ConstantStringIn(node.X, visiting)
+		right, rightOK := rgaS0ConstantStringIn(node.Y, visiting)
+		return left + right, leftOK && rightOK
+	case *ast.Ident:
+		if node.Obj == nil || node.Obj.Kind != ast.Con {
+			return "", false
+		}
+		spec, ok := node.Obj.Decl.(*ast.ValueSpec)
+		if !ok {
+			return "", false
+		}
+		for i, name := range spec.Names {
+			if name.Obj == node.Obj && i < len(spec.Values) {
+				return rgaS0ConstantStringIn(spec.Values[i], visiting)
+			}
+		}
+		return "", false
+	default:
+		return rgaS0StringLit(expr)
+	}
+}
+
+func rgaS0UnregisteredEvidenceLiteral(rel, src string) error {
+	file, err := rgaS0Parse(rel, src)
+	if err != nil {
+		return err
+	}
+	var refusal error
+	ast.Inspect(file, func(node ast.Node) bool {
+		if refusal != nil {
+			return false
+		}
+		expr, ok := node.(ast.Expr)
+		if !ok {
+			return true
+		}
+		value, constant := rgaS0ConstantString(expr)
+		if constant && strings.Contains(value, "recipe-capture-event.json") {
+			refusal = fmt.Errorf("capture-event artifact outside its designated production surfaces")
+		}
+		return refusal == nil
+	})
+	return refusal
+}
+
 func rgaS0CoveragePhaseSource(rel, src string) error {
 	switch rel {
 	case "internal/workflow/recipe_coverage_types.go",
 		"internal/workflow/recipe_coverage_codec.go",
 		"internal/workflow/recipe_coverage.go",
-		"internal/workflow/recipe_coverage_simulation.go":
+		"internal/workflow/recipe_coverage_simulation.go",
+		"internal/workflow/recipe_capture_event.go",
+		"internal/workflow/recipe_capture_event_codec.go":
 	case "internal/workflow/recipe_coverage_publish.go",
 		"internal/workflow/recipe_autogen.go", "internal/workflow/implement.go", "internal/workflow/refresh.go",
 		"internal/workflow/accept.go", "internal/workflow/reconcile.go",
@@ -394,7 +467,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 		if hits := rgaS0ScanForbiddenTokens(src, rgaS0CoverageTokens); len(hits) > 0 {
 			return fmt.Errorf("coverage surface outside S3 pure-core allowlist: %v", hits)
 		}
-		return nil
+		return rgaS0UnregisteredEvidenceLiteral(rel, src)
 	}
 	file, err := rgaS0Parse(rel, src)
 	if err != nil {
@@ -416,6 +489,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 	}
 	for _, token := range []string{
 		"PublishCoverage", "ReportCoverageStatus", "ErrCoveragePublication", "CoverageProducer", "recipe-coverage.json",
+		"recipe-capture-event.json",
 		"ExecuteRecipe(", "executeOperation(", "LoadRecipe(", "DryRunRecipe(",
 		"ReadFeatureFile(", "WriteArtifact(", "WriteArtifactAtomic(", "WriteFeatureFile(", "filepath.Abs(",
 		"filepath.Glob(", "filepath.Walk", "filepath.EvalSymlinks(",
@@ -492,7 +566,7 @@ func rgaS0CoveragePhaseSource(rel, src string) error {
 	return callErr
 }
 
-// The original absence guard now separates the four pure files from S4's
+// The original absence guard separates pure coverage/evidence files from S4's
 // designated publisher and specifically registered producer call chains.
 func TestRGAS0CoveragePhaseBoundaryHolds(t *testing.T) {
 	for _, rel := range rgaS0ProductionGoFiles(t) {

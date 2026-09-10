@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
@@ -27,9 +26,12 @@ type CoveragePublicationInput struct {
 	Generation        *PatchGenerationInput
 	DeferRecipeWrites bool
 	priorCoverage     []byte
-	priorPatchHash    string
-	priorRecipeHash   string
+	priorCaptureEvent []byte
+	priorPatch        CoverageArtifact
+	priorRecipe       CoverageArtifact
+	priorObservation  *patchobs.Observation
 	observationErr    error
+	beforePairWrite   func(string) error
 }
 
 // ErrCoveragePublication distinguishes an owed publication failure from
@@ -62,36 +64,77 @@ func ObserveCoveragePublication(s *store.Store, obs patchobs.Observation) Covera
 		provenance.ReadError = nil
 	}
 	prior, _ := s.ReadFeatureFile(obs.Slug, "artifacts/recipe-coverage.json")
-	return CoveragePublicationInput{
+	priorEvent, _ := s.ReadFeatureFile(obs.Slug, "artifacts/recipe-capture-event.json")
+	in := CoveragePublicationInput{
 		Observation: obs, Recipe: recipe,
-		Provenance:    provenance,
-		Events:        CoverageEvents{StaleMarkerPresent: staleErr == nil},
-		priorCoverage: []byte(prior), priorPatchHash: obs.PatchSHA256,
-		priorRecipeHash: CoverageSHA256(recipe.Bytes),
-		observationErr:  observationErr,
+		Provenance:        provenance,
+		Events:            CoverageEvents{StaleMarkerPresent: staleErr == nil},
+		priorCoverage:     []byte(prior),
+		priorCaptureEvent: []byte(priorEvent),
+		observationErr:    observationErr,
 	}
+	if obs.Producer == patchobs.ProducerEdit {
+		priorPatch, readErr := s.ReadFeatureFile(obs.Slug, "artifacts/post-apply.patch")
+		in.priorPatch = CoverageArtifact{Present: readErr == nil, Path: "artifacts/post-apply.patch", ReadError: readErr}
+		if readErr == nil {
+			in.priorPatch.Bytes = []byte(priorPatch)
+		} else if errors.Is(readErr, fs.ErrNotExist) {
+			in.priorPatch.ReadError = nil
+		}
+		in.priorRecipe = recipe
+		in.priorObservation = reconstructPriorCoverage(s, in)
+	}
+	return in
 }
 
-// ReconstructEditedCoverage carries a commit forward only when the pre-edit
-// bindings and independently reconstructed preimage set both validate. This is
-// observation I/O, outside the four pure S3 files, using S1's retained-image cap.
-func ReconstructEditedCoverage(s *store.Store, in CoveragePublicationInput) CoveragePublicationInput {
+// reconstructPriorCoverage runs before the editor starts. Both prior artifacts
+// must bind the independently read inputs and the retained pre-editor images.
+func reconstructPriorCoverage(s *store.Store, in CoveragePublicationInput) *patchobs.Observation {
 	prior, err := DecodeRecipeCoverage(in.priorCoverage)
-	if err != nil || prior.Feature != in.Observation.Slug || !prior.PatchPresent || !prior.RecipePresent ||
-		prior.Reference.Kind != patchobs.ReferenceKindCommit ||
-		prior.PatchSHA256 != in.priorPatchHash || prior.RecipeSHA256 != in.priorRecipeHash {
-		return in
+	if err != nil || prior.Reference.Kind != patchobs.ReferenceKindCommit {
+		return nil
+	}
+	event, err := DecodeRecipeCaptureEvent(in.priorCaptureEvent)
+	if err != nil {
+		return nil
+	}
+	bindings := RecipeCaptureBindings{
+		RepoRoot: s.Root, Feature: in.Observation.Slug, Patch: in.priorPatch, Recipe: in.priorRecipe,
+	}
+	if err := ValidateRecipeCaptureEventPair(event, in.priorCoverage, bindings); err != nil {
+		return nil
 	}
 	obs := patchobs.Observe(patchobs.Input{
-		Producer: in.Observation.Producer, RepoRoot: s.Root, Slug: in.Observation.Slug,
-		Patch: string(in.Observation.PatchBytes), PatchPresent: in.Observation.PatchPresent,
+		Producer: prior.Producer, RepoRoot: s.Root, Slug: in.Observation.Slug,
+		Patch: string(in.priorPatch.Bytes), PatchPresent: in.priorPatch.Present,
 		Capture:     patchobs.CaptureDescriptor{Mode: patchobs.CaptureModeWorkingTreeAll},
-		PreimageRef: prior.Reference.Commit,
+		PreimageRef: event.Reference.Commit, ParentCreatedPaths: event.ParentCreatedPaths,
 	})
 	if obs.Reference.Kind != patchobs.ReferenceKindCommit ||
-		obs.Reference.PreimageSetSHA256 != prior.Reference.PreimageSetSHA256 {
+		obs.Reference.PreimageSetSHA256 != event.Reference.PreimageSetSHA256 {
+		return nil
+	}
+	obs.Capture = patchobs.CaptureDescriptor{
+		Mode: event.Capture.Mode, Pathspecs: event.Capture.Pathspecs, ClaimIDs: event.Capture.ClaimIDs,
+	}
+	if err := ValidateRecipeCaptureEventSource(event, in.priorCoverage, RecipeCoverageInput{
+		Observation: obs, Recipe: in.priorRecipe, Events: event.events(),
+	}); err != nil {
+		return nil
+	}
+	return &obs
+}
+
+// ReconstructEditedCoverage only consumes the validated context frozen before
+// the editor. A changed patch needs a new observation, never a late live reread.
+func ReconstructEditedCoverage(s *store.Store, in CoveragePublicationInput) CoveragePublicationInput {
+	if in.priorObservation == nil || in.priorObservation.RepoRoot != s.Root ||
+		in.Observation.PatchPresent != in.priorObservation.PatchPresent ||
+		!bytes.Equal(in.Observation.PatchBytes, in.priorObservation.PatchBytes) {
 		return in
 	}
+	obs := *in.priorObservation
+	obs.Producer = in.Observation.Producer
 	obs.Capture = in.Observation.Capture
 	obs.ArtifactBefore, obs.ArtifactAfter = in.Observation.ArtifactBefore, in.Observation.ArtifactAfter
 	in.Observation = obs
@@ -100,8 +143,8 @@ func ReconstructEditedCoverage(s *store.Store, in CoveragePublicationInput) Cove
 
 // PublishCoverage is the single publication boundary for P1-P7. Call it last,
 // after the producer's writes and state attempt. Recipe, provenance, generation
-// and coverage outputs are planned from immutable inputs before this function
-// publishes them in that order. Atomicity is single-file, not cross-file.
+// and paired evidence outputs are planned from immutable inputs before this
+// function publishes them, with coverage last. Atomicity is single-file.
 func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage RecipeCoverage, retErr error) {
 	defer func() {
 		if retErr != nil {
@@ -113,6 +156,11 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 	}
 	if in.observationErr != nil {
 		return RecipeCoverage{}, fmt.Errorf("publish coverage: %w", in.observationErr)
+	}
+	if in.Observation.Capture.Mode == patchobs.CaptureModeNoCapture &&
+		in.Observation.Reference.Kind == patchobs.ReferenceKindCommit &&
+		(in.priorObservation == nil || in.Observation.Reference != in.priorObservation.Reference) {
+		return RecipeCoverage{}, fmt.Errorf("publish coverage: no-capture durable reference lacks a validated frozen prior evidence pair")
 	}
 	if in.Autogen != nil {
 		if in.Observation.Producer != patchobs.ProducerRecord && in.Observation.Producer != patchobs.ProducerFeaturePatch {
@@ -129,15 +177,11 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 	if in.Generation != nil && in.Generation.Patch != string(in.Observation.PatchBytes) {
 		return RecipeCoverage{}, fmt.Errorf("publish coverage: generation patch differs from immutable observation")
 	}
-	if recipe, err := decodeCoverageRecipe(in.Recipe.Bytes); in.Recipe.Present && err == nil {
-		in.Observation.ParentCreatedPaths = slices.Clone(in.Observation.ParentCreatedPaths)
-		for _, op := range recipe.Operations {
-			if op.CreatedBy != "" {
-				in.Observation.ParentCreatedPaths = append(in.Observation.ParentCreatedPaths, op.Path)
-			}
-		}
+	core, err := recipeCaptureInput(RecipeCoverageInput{Observation: in.Observation, Recipe: in.Recipe, Events: in.Events})
+	if err != nil {
+		return RecipeCoverage{}, fmt.Errorf("publish coverage: %w", err)
 	}
-	core := RecipeCoverageInput{Observation: in.Observation, Recipe: in.Recipe, Events: in.Events}
+	in.Observation = core.Observation
 	c, err := BuildRecipeCoverage(core)
 	if err != nil {
 		return RecipeCoverage{}, fmt.Errorf("publish coverage: %w", err)
@@ -157,6 +201,17 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 	if err != nil {
 		return RecipeCoverage{}, fmt.Errorf("publish coverage: encode: %w", err)
 	}
+	captureEvent, err := BuildRecipeCaptureEvent(core, data)
+	if err != nil {
+		return RecipeCoverage{}, fmt.Errorf("publish capture event: %w", err)
+	}
+	if err := ValidateRecipeCaptureEventSource(captureEvent, data, core); err != nil {
+		return RecipeCoverage{}, fmt.Errorf("publish capture event: %w", err)
+	}
+	eventData, err := EncodeRecipeCaptureEvent(captureEvent)
+	if err != nil {
+		return RecipeCoverage{}, fmt.Errorf("publish capture event: encode: %w", err)
+	}
 	if in.Autogen != nil && in.Autogen.plan != nil {
 		if err := publishRecordRecipePlan(s, in.Observation.Slug, in.Autogen); err != nil {
 			return RecipeCoverage{}, err
@@ -167,8 +222,21 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 			return RecipeCoverage{}, fmt.Errorf("record patch generation: %w", err)
 		}
 	}
+	if in.beforePairWrite != nil {
+		if err := in.beforePairWrite("recipe-capture-event.json"); err != nil {
+			return RecipeCoverage{}, fmt.Errorf("publish recipe-capture-event.json: %w", err)
+		}
+	}
+	if err := s.WriteArtifactAtomic(in.Observation.Slug, "recipe-capture-event.json", string(eventData)); err != nil {
+		return RecipeCoverage{}, fmt.Errorf("publish recipe-capture-event.json: %w", err)
+	}
+	if in.beforePairWrite != nil {
+		if err := in.beforePairWrite("recipe-coverage.json"); err != nil {
+			return RecipeCoverage{}, fmt.Errorf("publish recipe-coverage.json: %w", err)
+		}
+	}
 	if err := s.WriteArtifactAtomic(in.Observation.Slug, "recipe-coverage.json", string(data)); err != nil {
-		return RecipeCoverage{}, fmt.Errorf("publish coverage: %w", err)
+		return RecipeCoverage{}, fmt.Errorf("publish recipe-coverage.json: %w", err)
 	}
 	return c, nil
 }

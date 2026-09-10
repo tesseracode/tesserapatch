@@ -1,3 +1,37 @@
+## Implementation Transition — GH #15 S5 foundation delivered — 2026-09-09
+
+**State**: IN PROGRESS — unvalidated draft; caller closure and D7 correction remain
+**Worker**: `f88dc13c-d461-45f8-a583-b2a9eb806188`
+
+The evidence foundation is authored: strict E schema/codec and independent
+source/pair validators; E-before-C publication; frozen prior-reference
+validation; injected failure boundaries; E-only source scanning and focused
+schema/publication/recovery tests. No Go validation ran.
+
+Authorize three tightly coupled ADR-041 caller closures: `internal/cli/c1.go`
+must identify/freeze P7 context before the editor and suppress success status
+on primary errors; `internal/workflow/implement.go` and `refresh.go` must
+combine primary failures before reporting completion. The foundation worker
+owns these and its existing evidence files/tests, not D7 ordering files.
+
+The same-target regression confirms cached no-op decisions are unsound.
+Select bounded upfront prefix proof rather than blanket overlap refusal:
+preserve original initial-tree preimage authorization; a postimage-only
+exemption must remain a no-write at its actual position. Predictable invalidation
+refuses before writes, retaining supersession severity. Sequential execution
+must never skip a write because an earlier operation changed the same
+normalized/physical target. Document this clarification and independently
+review the implementation; do not introduce a new authorization from a
+prefix-generated preimage or weaken the unchanged missing/unreadable cases.
+
+A separate disjoint implementer owns only `recipe.go`, `writefile_safety.go`,
+new `recipe_prefix_precheck.go`, `recipe_authority_s5_apply_test.go` and
+`ADR-042-ordered-recipe-noop-proof.md`. The foundation worker must not touch
+those files. Both workers run no Go validation or Git writes. The coordinator
+owns serial validation, existing publication guards, contract controls and
+all tracking/commits. S5 consumers remain undispatched until these units are
+checkpointed; no S6/GH #13/GH #24 implementation.
+
 ## Implementation Transition — GH #15 S5 evidence guards authored — 2026-09-09
 
 **State**: IN PROGRESS — foundation worker active; guards not Go-validated

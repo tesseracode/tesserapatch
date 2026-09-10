@@ -45,8 +45,7 @@ func coverageFinalizer(s *store.Store, in *workflow.CoveragePublicationInput, st
 		}
 		finished = true
 		coverage, err := workflow.PublishCoverage(s, *in)
-		err = workflow.ReportCoverageStatus(statusWriter, coverage, err)
-		return errors.Join(primary, err)
+		return workflow.ReportCoverageStatus(statusWriter, coverage, errors.Join(primary, err))
 	}
 }
 
