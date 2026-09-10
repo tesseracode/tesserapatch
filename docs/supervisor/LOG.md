@@ -1,3 +1,22 @@
+## Validation Transition — GH #15 S5 golden correction delivered — 2026-09-09
+
+**State**: IN PROGRESS — stable expected delta; restart unit validation
+**Worker**: `576d2e6a-628b-4e6b-bf16-6b4869d2349b`
+
+The four-file golden unit is delivered and the worker stopped. The S5
+expected E projection covers exactly the six existing producer fixtures,
+inserts E before C, and adds only land's staged E path. Standard-library
+hashing/JSON consumes frozen facts and prior expected raw C bytes, not
+production builders or current output. S2/S4 projection functions,
+historical fixtures/hash histories, capturers and normalizers are unchanged.
+
+Comparator mutations cover E fields/arrays, raw pair hashes, framing/staging,
+unrelated output/artifacts/state/recipe; malformed inputs refuse and an
+unaffected fixture remains a positive control. Checkpoint, then restart
+resource-gated formatting and targeted/golden families before owning suites,
+vet/build. Request independent test-delta review in parallel, with no Go
+commands from the reviewer. S5 consumers are still pending.
+
 ## Review — GH #15 S5 foundation finding closure — 2026-09-09
 
 **Reviewer**: `222308b5-9449-462e-80be-599ccd4dcd1f`

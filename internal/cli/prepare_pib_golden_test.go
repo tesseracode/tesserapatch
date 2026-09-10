@@ -1509,6 +1509,10 @@ func preparePIBGoldenDelta(name, got string) error {
 	if err != nil {
 		return err
 	}
+	want, err = rgaS5ExpectedCaptureEventGolden(name, want)
+	if err != nil {
+		return err
+	}
 	if !bytes.Equal(want, []byte(got)) {
 		return fmt.Errorf("%s drifted from baseline %s\n--- golden ---\n%s\n--- current ---\n%s",
 			name, preparePIBBaseline, want, got)

@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 golden correction delivered (2026-09-09)**: the exact four-file delta
+is authored/formatted and the worker stopped. Six producer fixtures gain E;
+only land gains one staged path. Frozen inputs and prior expected raw C bytes
+drive the oracle; S2/S4 projections and historical evidence remain unchanged.
+Checkpoint and restart gated unit validation, including actual golden capture,
+with independent delta review. No consumer code or S5 completion yet.
+
 **S5 foundation findings statically closed (2026-09-09)**: independent
 review confirms all reported foundation findings closed at `7a737a0`,
 including writer guards at `fbac9f0`. Targeted and full core suites pass;
@@ -2805,7 +2812,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — owning packages pass; exact S5 golden delta pending
+- **Status**: In progress — exact golden delta delivered; unit validation restarting
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2813,6 +2820,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The independent S5 golden projection and exact comparator controls are
+delivered in four authorized files. All workers stopped editing. The stable
+unit is entering a fresh validation restart; independent test-delta review
+will confirm that frozen evidence and earlier projections stay intact.
+
+### Earlier foundation finding-closure summary (historical)
 
 Independent review closed the binary-pair finding and confirmed all
 foundation findings closed. Runtime acceptance still waits for the exact
@@ -3254,7 +3268,7 @@ closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
 guards now pass the corrected targeted retry in all four packages plus the
 coupled index family and all full core packages. Affected CLI validation
-requires the exact expected golden delta, and foundation confirmation remains;
+requires revalidation of the delivered exact golden delta;
 neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
 remain unimplemented.
 All evidence-foundation findings are statically closed at `7a737a0`.
@@ -3353,6 +3367,9 @@ remains blocked until that release is implemented, soaked and shipped.
   `recipe_authority_s5_capture_publish_test.go`; read-error seam in
   `verify_anchored.go` and its actual failure/mutation fixture in
   `recipe_authority_s5_verify_test.go`.
+- Golden unit: new `internal/cli/recipe_authority_s5_golden_test.go`,
+  comparator wiring in `prepare_pib_golden_test.go`, and test composition
+  only in the S2/S4 golden test files. Earlier projection bodies unchanged.
 - Accepted policy: `docs/adrs/ADR-041-independent-capture-event-evidence.md`,
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:

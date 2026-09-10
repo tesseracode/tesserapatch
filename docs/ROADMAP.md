@@ -1721,6 +1721,9 @@ consumer implementation still waits for the foundation checkpoint.
 Independent review now confirms all foundation findings closed at `7a737a0`.
 The exact golden delta and remaining affected CLI/vet/build stages still
 precede runtime acceptance; this is not whole-S5 approval.
+The exact four-file golden delta is delivered and the worker stopped.
+Restart gated unit validation with actual golden capture and independently
+review the delta; earlier projections and historical fixtures remain intact.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

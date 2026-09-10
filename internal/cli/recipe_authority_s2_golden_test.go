@@ -179,8 +179,12 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 			// Keep S2's independently checked stage intact, then compare
 			// its mutations through the current publication-aware oracle.
 			expected, err = rgaS4ExpectedPublicationGolden(name, expected)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected, err = rgaS5ExpectedCaptureEventGolden(name, expected)
 			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
-				t.Fatalf("S2/S4 composed expected delta refused: %v", err)
+				t.Fatalf("S2/S4/S5 composed expected delta refused: %v", err)
 			}
 			for _, mutation := range []struct{ old, new string }{
 				{`"preimage_hash": ""`, `"preimage_hash": "sha256:wrong"`},

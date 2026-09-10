@@ -212,8 +212,12 @@ func TestRGAS4GoldenPublicationDeltaAndSensitivities(t *testing.T) {
 				t.Fatal(err)
 			}
 			expected, err := rgaS4ExpectedPublicationGolden(name, previous)
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected, err = rgaS5ExpectedCaptureEventGolden(name, expected)
 			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
-				t.Fatalf("S4 expected delta rejected: %v", err)
+				t.Fatalf("S4/S5 composed expected delta rejected: %v", err)
 			}
 			coverageBody, err := rgaS2GoldenSection(string(expected), "artifacts/recipe-coverage.json")
 			if err != nil {
