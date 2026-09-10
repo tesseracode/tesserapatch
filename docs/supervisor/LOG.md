@@ -1,3 +1,18 @@
+## Validation Result — GH #15 S5 corrected targeted unit — 2026-09-09
+
+**Checkpoint**: `7a737a0`
+**State**: IN PROGRESS — steps 1-2 PASS; affected-package stage next
+
+Formatting and targeted S0-S5 plus the coupled `TestS7ARRev16` family pass:
+patchobs 0.800s, gitutil 0.575s, workflow 12.519s, CLI 25.533s.
+Each command had its own 60-second window at 84-85% free memory,
+load1 <=5 and no active Go tools. No code changed during the run.
+
+Proceed serially to owning core packages and affected CLI/legacy golden
+families, then vet/build only if those pass. Stop at first failure.
+Independent binary confirmation remains pending; no foundation acceptance
+or full-S5 shard/close result is claimed.
+
 ## Validation Transition — GH #15 S5 corrected unit retry — 2026-09-09
 
 **State**: IN PROGRESS — all corrections authored; workers stopped

@@ -1708,6 +1708,9 @@ The binary pair correction is now delivered with actual-validator rehashed
 counterexamples and positive precedence controls. All workers stopped;
 checkpoint and restart gated unit validation, with independent confirmation
 still required before foundation acceptance.
+Corrected unit `7a737a0` now passes formatting and all targeted S0-S5/
+ADR-index families under fresh 84-85%-free gates. Owning packages and
+affected CLI/golden families are next, then vet/build if they pass.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

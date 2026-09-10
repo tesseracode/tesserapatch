@@ -4,6 +4,12 @@
 
 **Cluster state**: IN PROGRESS
 
+**S5 corrected targeted unit PASS (2026-09-09)**: steps 1-2 pass at
+`7a737a0`, including all S0-S5 targets and coupled ADR-index tests.
+Fresh per-command windows held at 84-85% free memory and load1 <=5.
+Owning core packages and affected CLI/golden families are next; vet/build
+follow only on success. No full foundation/S5 acceptance yet.
+
 **S5 corrected unit retry ready (2026-09-09)**: the binary pair fix is
 delivered with three rehashed counterexamples and five positive controls,
 preserving gitlink precedence and NUL-derived binary observations. All
@@ -2755,7 +2761,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — corrected unit restarting gated validation
+- **Status**: In progress — corrected targeted unit passes; affected packages next
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -2763,6 +2769,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The corrected unit passed formatting and targeted S0-S5/ADR-index tests
+under fresh qualifying windows. Patchobs/gitutil/workflow/CLI all pass.
+Code stayed unchanged during the run. Continue the serial affected-package
+stage, including directly affected legacy golden families, before vet/build.
+
+### Earlier retry readiness summary (historical)
 
 The binary pair correction is delivered and formatted. All first-run fixture/
 compatibility fixes and review corrections are authored; every worker has
@@ -3180,9 +3193,10 @@ integration or shipped assets belong to this slice.
 ADR-041 is Accepted rev-1. The evidence foundation and all three caller
 closures are delivered. The ordered no-op rev-1 correction is independently
 statically approved and ADR-042 is accepted. These units and coordinator
-guards compiled in the first gated run but still have targeted failures;
-neither unit is runtime-accepted. Coverage read integration, D13/D17 and D10
-remain unimplemented.
+guards now pass the corrected targeted retry in all four packages plus the
+coupled index family. Owning-package validation and foundation confirmation
+remain; neither unit is runtime-accepted. Coverage read integration, D13/D17
+and D10 remain unimplemented.
 The evidence foundation's binary correction is authored and awaits static
 confirmation/revalidation. Writer guards are statically approved at
 `fbac9f0`; the ordered unit's separate static approval remains scoped.
@@ -3861,6 +3875,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Corrected unit `7a737a0`: steps 1-2 PASS. Targeted S0-S5 and
+  TestS7ARRev16: patchobs 0.800s, gitutil 0.575s, workflow 12.519s,
+  CLI 25.533s. Separate fresh windows at 84-85% free, load1 <=5, no Go tools.
+- The corrected run has not reached affected packages/vet/build yet.
 
 - Unit attempt 1 at `fc519fd`: step 1 PASS; step 2 FAIL, stopping the
   sequence. All packages compiled; patchobs 0.794s PASS, gitutil 0.566s,
