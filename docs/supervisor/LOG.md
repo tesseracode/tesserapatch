@@ -1,3 +1,18 @@
+## Validation Blocker — GH #15 S5 September 12 retry — 2026-09-12
+
+**Checkpoint**: unchanged code/tests; retry tracking `6e07752`
+**State**: BLOCKED — initial resource gate; no Go command started
+
+The requested exact-script retry waited the full 600 seconds. Free memory
+remained 75-76%, load1 stayed below 5 and no Go tools were active, but the
+mandatory >=80% continuous minute never qualified. The gate exited 75
+before invocation 1. No tests ran or failed in this attempt, and no later
+stage ran. The owned failure sentinel remains.
+
+All prior static approvals, steps 1-5 and the earlier passing main invocation
+remain recorded, but the exact full script and final gate are incomplete.
+Further validation requires more free memory; no threshold was waived.
+
 ## Validation Resumption — GH #15 S5 resource retry — 2026-09-12
 
 **Checkpoint**: unchanged/pushed `6dfa527`

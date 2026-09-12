@@ -2,7 +2,16 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: BLOCKED
+
+**S5 September 12 retry resource-blocked**: memory stayed 75-76% through
+the entire 600-second wait; load1 remained below 5 and no Go tools were
+active. The >=80% continuous minute never qualified. Gate exit 75 occurred
+before invocation 1, so no Go command/test started in this attempt.
+Code/tests are unchanged; the owned failure sentinel remains. More free
+memory is required before the exact full-script/final-gate validation.
+
+### Earlier September 12 retry request (historical)
 
 **S5 operator-requested resource retry (2026-09-12 02:34 PDT)**: repository
 is unchanged/pushed at `6dfa527`, tracked state clean and 13 research files
@@ -3115,7 +3124,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — operator-requested resource gate retry before full script
+- **Status**: Blocked — September 12 resource gate timed out before any Go command
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3123,6 +3132,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The operator-requested retry waited all 600 seconds but never reached the
+required >=80% free memory (observed 75-76%). Load and process checks were
+acceptable. No Go command or test started. Code and prior approvals/results
+are unchanged; full-script and final-gate completion remain blocked.
+
+### Earlier retry preparation summary (historical)
 
 The operator requested another attempt on unchanged/pushed code. Memory is
 initially 75%, below the required 80%, despite acceptable load and no active
@@ -4400,6 +4416,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- 2026-09-12 exact-script retry: initial resource gate BLOCKED/exit 75 after
+  600 seconds at 75-76% free memory. No Go command/test started; no test
+  failure or later-stage execution occurred. Thresholds were unchanged.
 
 - Exact full-shard retry: invocation 1 PASS for every package, including
   main CLI 573.939s/workflow 102.634s. Fresh initial window at 83% free.
@@ -10425,6 +10445,7 @@ at 471.544s. Formatting, vet and CLI build pass.
   full 600-second wait, still 76% at 02:51 PDT. The 80% threshold is not waived.
   New operator-requested attempt on 2026-09-12 begins at 75% free/load1 2.97;
   the wrapper must wait for the full required window before starting Go.
+  That attempt timed out before invocation 1 at 75-76% free; no Go ran.
 - All consumer/D10 findings, including streamed gitlinks, are statically
   closed, the landed test correction is approved and steps 1-5 pass.
   Exact shards, gate and whole-S5 acceptance remain.
