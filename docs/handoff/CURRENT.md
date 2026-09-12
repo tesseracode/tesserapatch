@@ -2,7 +2,15 @@
 
 ## Status
 
-**Cluster state**: BLOCKED
+**Cluster state**: IN PROGRESS
+
+**S5 morning validation retry (2026-09-12 08:59 PDT)**: operator freed more
+resources. Initial sample is 82% free, load1 2.33, no active Go tools.
+Fetch confirms unchanged/pushed `51e8b96`, clean tracked state and the
+original 13 research files. Rerun the exact script through fresh full gates;
+the sample alone does not authorize a Go invocation or imply validation.
+
+### Earlier September 12 resource block (historical)
 
 **S5 September 12 retry resource-blocked**: memory stayed 75-76% through
 the entire 600-second wait; load1 remained below 5 and no Go tools were
@@ -3124,7 +3132,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — September 12 resource gate timed out before any Go command
+- **Status**: In progress — morning exact-script retry with qualifying resource gates
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3132,6 +3140,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The operator requested another retry after freeing resources. Instantaneous
+headroom is now eligible (82% free/load1 2.33/no Go tools) and the repository
+checkpoint is unchanged. Retry the exact full script from its beginning with
+the required full fresh window before every command; no thresholds change.
+
+### Earlier blocked retry summary (historical)
 
 The operator-requested retry waited all 600 seconds but never reached the
 required >=80% free memory (observed 75-76%). Load and process checks were

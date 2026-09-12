@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 BLOCKED — September 12 resource gate before any Go command**.
+**S5 🚧 IN PROGRESS — September 12 morning resource retry**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1844,6 +1844,9 @@ no thresholds or validation requirements are relaxed.
 The retry waited the full 600 seconds at 75-76% free and exited 75 before
 invocation 1. No Go command/test started. Code/tests and prior approvals
 are unchanged; more free memory is required for remaining validation.
+At 08:59 PDT the operator freed more resources: 82% free/load1 2.33/no Go
+tools, with unchanged pushed code/tests. Retry the exact full script with
+fresh full gates before every invocation; final validation remains pending.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

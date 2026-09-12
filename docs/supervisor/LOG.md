@@ -1,3 +1,16 @@
+## Validation Resumption — GH #15 S5 morning resource retry — 2026-09-12
+
+**Checkpoint**: unchanged/pushed `51e8b96`
+**State**: IN PROGRESS — operator-requested retry at 08:59 PDT
+
+Fetch confirms unchanged code/tests, clean tracked state and the original
+13 research files. Resource sample is now eligible: 82% free memory,
+load1 2.33, no active Go tools. It is still only an instantaneous sample.
+Clear the owned failure sentinel and rerun the exact script from invocation
+1 with a fresh 60-second gate before every Go command. All thresholds,
+the 600-second maximum wait and stop-on-failure behavior remain unchanged.
+Full script and final gate completion are still required for S5 acceptance.
+
 ## Validation Blocker — GH #15 S5 September 12 retry — 2026-09-12
 
 **Checkpoint**: unchanged code/tests; retry tracking `6e07752`
