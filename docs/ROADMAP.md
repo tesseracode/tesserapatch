@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 IN PROGRESS — September 12 morning resource retry**.
+**S5 ✅ REVIEW APPROVED — final mechanical gate pending — 2026-09-12**.
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 Operator-reported external S4 approval received; terminal CI 34368468175
 passes all required jobs and the tracked baseline is clean/pushed.
@@ -1847,6 +1847,11 @@ are unchanged; more free memory is required for remaining validation.
 At 08:59 PDT the operator freed more resources: 82% free/load1 2.33/no Go
 tools, with unchanged pushed code/tests. Retry the exact full script with
 fresh full gates before every invocation; final validation remains pending.
+The morning retry completed the exact 22-invocation script: main CLI
+570.270s/workflow 103.105s and every other/isolated invocation passed, each
+with a fresh 82-84%-free gate. All static findings and steps 1-6 pass.
+Validated/pushed tip `45799215b8b726886ea71571739a3158c601f494`; checkpoint
+review approval and run the explicit-base final gate before S5 acceptance.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

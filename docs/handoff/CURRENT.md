@@ -2,7 +2,17 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**S5 review approved; final gate next (2026-09-12)**: all static findings
+are closed and steps 1-6 PASS. The exact full 22-invocation script completed
+at pushed `45799215b8b726886ea71571739a3158c601f494`: main CLI 570.270s,
+workflow 103.105s and all other/isolated invocations pass. Every command had
+its own qualifying minute at 82-84% free, load1 <=5 and no Go tools.
+This is review approval, not final S5 acceptance. Checkpoint/push and run
+the explicit-WAVE_BASE mechanical gate before closure.
+
+### Earlier resource-retry history
 
 **S5 morning validation retry (2026-09-12 08:59 PDT)**: operator freed more
 resources. Initial sample is 82% free, load1 2.33, no active Go tools.
@@ -3132,7 +3142,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: In progress — morning exact-script retry with qualifying resource gates
+- **Status**: Review approved — steps 1-6 pass; explicit-base final gate pending
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3140,6 +3150,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The morning exact-script retry completed all 22 invocations successfully.
+All static reviews and steps 1-6 now pass. Repository/code/protected-file
+invariants remain intact, and the validated tip is pushed. The canonical
+state is APPROVED for the final mechanical gate, not yet ACCEPTED.
+
+### Earlier morning retry summary (historical)
 
 The operator requested another retry after freeing resources. Instantaneous
 headroom is now eligible (82% free/load1 2.33/no Go tools) and the repository
@@ -3741,10 +3758,10 @@ integration or shipped assets belong to this slice.
 S5 is implemented and every static finding/test correction is independently
 approved. ADR-041/042 are accepted; ADR-039/040 remain in force. Production
 is unchanged since `a119dca`, with the landed-CLI test refinement at `a6fefac`.
-Fresh steps 1-5 pass. The full-script retry's first invocation passes every
-package, but the resource gate stopped before invocation 2 at 76% free.
-The remaining 21 invocations and final wave-close gate are unrun, so S5 is
-not accepted. No implementation/review agent remains active.
+Fresh steps 1-6 pass, including one complete exact 22-invocation script at
+pushed `4579921`. All static reviews are complete. The final explicit-base
+wave-close gate remains, so S5 is review-approved but not yet accepted.
+No implementation/review agent remains active.
 
 S4 remains internally accepted, externally approved and durably pushed.
 No S6, release/tag or GH #24 implementation is authorized.
@@ -4431,6 +4448,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Exact full script PASS at pushed `4579921`: all 22 invocations, including
+  main CLI 570.270s/workflow 103.105s, all other packages and all 21 isolated
+  CLI processes. Every command had a fresh 82-84%-free/load1 <=5/no-Go minute.
+- All steps 1-6 are complete. Step 7 must still run its own fresh full shard
+  partition; prior partial attempts are historical, not reused as this pass.
 
 - 2026-09-12 exact-script retry: initial resource gate BLOCKED/exit 75 after
   600 seconds at 75-76% free memory. No Go command/test started; no test
@@ -10437,33 +10460,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Wait for resources to meet the full gate, clear only the owned failure
-   sentinel, and rerun exact step 6 with a fresh gate before each command.
-   Steps 1-5 need no repetition unless code/tests change. Stop on failure.
-2. Record its result, prepare the review-approved close checkpoint and run
+1. Commit/push the review-approved checkpoint so the durability gate can
+   compare HEAD with origin/main.
+2. Run
    `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 3. Archive/push terminal S5 tracking only after validation completes.
    Do not start S6, release/tag work or GH #24 implementation.
 
 ## Blockers
 
-- D9 policy is resolved by Accepted ADR-041 rev-1; the foundation/ordered
-  internal unit is accepted. Remaining S5 consumers are not accepted.
-- Resource gate: >=80% free memory was unavailable for a continuous minute
-  during the 600-second wait before step 3b; latest observed range 71-74%.
-  Follow-up at 2026-09-10 00:12 PDT: 78% free memory, load1 5.84; still
-  ineligible for validation.
-  At 01:22 PDT the operator-requested sample is eligible (84%, load1 3.67);
-  a fresh full qualifying minute is still required before each command.
-- The resource blocker is resolved for steps 1-5 by fresh qualifying windows.
-- Step 6 is resource-blocked before invocation 2: 76% free memory for the
-  full 600-second wait, still 76% at 02:51 PDT. The 80% threshold is not waived.
-  New operator-requested attempt on 2026-09-12 begins at 75% free/load1 2.97;
-  the wrapper must wait for the full required window before starting Go.
-  That attempt timed out before invocation 1 at 75-76% free; no Go ran.
-- All consumer/D10 findings, including streamed gitlinks, are statically
-  closed, the landed test correction is approved and steps 1-5 pass.
-  Exact shards, gate and whole-S5 acceptance remain.
+- No implementation or review finding remains open. Steps 1-6 pass,
+  including a complete exact full-script run after resource recovery.
+- Final step 7 and durable closure remain before S5 acceptance. Its Go
+  invocations still require fresh qualifying resource windows.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10478,16 +10487,16 @@ at 471.544s. Formatting, vet and CLI build pass.
   of this file. Older S4 pending actions below are historical, not dispatches.
 - Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` delivered all six corrections
   and stopped. All implementation workers are idle; do not resume historical
-  assignments while validation is resource-blocked.
+  assignments during final validation.
 - Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` closed all
   findings through `a119dca` and approved the final `a6fefac` test correction.
   Reviewer
   `222308b5-9449-462e-80be-599ccd4dcd1f` approved the parent-owned
   `cf381a1`/`bef41c5` row/count deltas; neither reviewer runs Go.
-- All current steps 1-5 and independent reviews pass. Full-script invocation
-  1 passes every package; resources block invocation 2, leaving 21 invocations
-  and step 7 outstanding. The owned failure sentinel prevents accidental
-  later-stage execution. Do not reuse old partial-run or pending-review notes.
+- All current steps 1-6 and independent reviews pass. The morning full script
+  completed all 22 invocations at `4579921`. Only step 7 and terminal tracking
+  remain. The earlier resource blocks are historical; do not reuse them as
+  current blockers or treat prior partial runs as the successful full run.
 - The verify inventory extension is authored; its one-capture/instability
   contract remains required through correction. No reference-body proof may
   come from a fresh mutable-worktree read.

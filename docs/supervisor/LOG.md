@@ -1,3 +1,27 @@
+## Implementation Decision — GH #15 S5 approved for final gate — 2026-09-12
+
+**Decision**: REVIEW APPROVED — all static findings closed; steps 1-6 PASS
+**WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+**Validated/pushed tip**: `45799215b8b726886ea71571739a3158c601f494`
+
+The exact 22-invocation script completed successfully. Main CLI 570.270s,
+workflow 103.105s, every other package and all 21 isolated CLI invocations
+passed. Every top-level Go invocation had its own fresh minute at 82-84%
+free memory, load1 <=5 and no active Go tools. This is a full script pass,
+not the earlier partial/resource-blocked attempts.
+
+Fetch confirms HEAD == origin/main, clean tracked state, no stashes, one
+main worktree and no operation markers. Code/tests and validation commands
+are unchanged from full-run dispatch. SPEC/CHANGELOG/assets/dependencies,
+ADR-039/040, S3 pure core, reconcile consumer, historical fixtures, allowlist,
+reviewer playbook and all 13 research files remain outside the S5 changes.
+
+Flip the canonical state to APPROVED, checkpoint/push, then run
+`make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+with fresh gates for all nested top-level Go commands. Final acceptance,
+archive and terminal tracking follow only after step 7 passes.
+No S6 dispatch, GH #24 implementation, release or tag.
+
 ## Validation Resumption — GH #15 S5 morning resource retry — 2026-09-12
 
 **Checkpoint**: unchanged/pushed `51e8b96`
