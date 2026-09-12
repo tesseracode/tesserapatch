@@ -2,7 +2,16 @@
 
 ## Status
 
-**Cluster state**: BLOCKED
+**Cluster state**: IN PROGRESS
+
+**S5 operator-requested resource retry (2026-09-12 02:34 PDT)**: repository
+is unchanged/pushed at `6dfa527`, tracked state clean and 13 research files
+untouched. Initial sample: 75% free memory, load1 2.97, no active Go tools.
+Memory remains below threshold. Retry the exact full script through its
+wrapper; no Go command may start unless its full fresh minute qualifies.
+The maximum wait stays 600 seconds and thresholds are unchanged.
+
+### Earlier full-shard resource block (historical)
 
 **S5 full-shard retry resource-blocked (2026-09-10 02:51 PDT)**: invocation
 1 of 22 passes every package (main CLI 573.939s, workflow 102.634s).
@@ -3106,7 +3115,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Blocked — resource gate before full-shard invocation 2 of 22
+- **Status**: In progress — operator-requested resource gate retry before full script
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
@@ -3114,6 +3123,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The operator requested another attempt on unchanged/pushed code. Memory is
+initially 75%, below the required 80%, despite acceptable load and no active
+Go tools. The exact script will be retried with its full bounded resource
+wait; no validation success or threshold relaxation is assumed.
+
+### Earlier full-shard result summary (historical)
 
 The full-shard retry's first invocation passes every package. The resource
 gate then stopped before invocation 2 after ten minutes at 76% free memory.
@@ -10407,6 +10423,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 - The resource blocker is resolved for steps 1-5 by fresh qualifying windows.
 - Step 6 is resource-blocked before invocation 2: 76% free memory for the
   full 600-second wait, still 76% at 02:51 PDT. The 80% threshold is not waived.
+  New operator-requested attempt on 2026-09-12 begins at 75% free/load1 2.97;
+  the wrapper must wait for the full required window before starting Go.
 - All consumer/D10 findings, including streamed gitlinks, are statically
   closed, the landed test correction is approved and steps 1-5 pass.
   Exact shards, gate and whole-S5 acceptance remain.

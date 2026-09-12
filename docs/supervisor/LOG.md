@@ -1,3 +1,19 @@
+## Validation Resumption — GH #15 S5 resource retry — 2026-09-12
+
+**Checkpoint**: unchanged/pushed `6dfa527`
+**State**: IN PROGRESS — operator-requested guarded retry
+
+The operator requested another validation attempt. Fetch confirms unchanged
+HEAD/origin, clean tracked state and the original 13 research files.
+Initial resource sample: 75% free memory, load1 2.97, no active Go tools.
+Memory is not yet eligible; this sample is not a gate pass.
+
+Clear only the owned failure sentinel and retry the exact 22-invocation
+script from its beginning. The wrapper waits at most 600 seconds for each
+fresh qualifying minute and must start no Go command below the thresholds.
+Steps 1-5/static reviews remain valid on unchanged code/tests; step 6 and
+the final gate still precede acceptance.
+
 ## Validation Blocker — GH #15 S5 full-shard retry resources — 2026-09-10
 
 **Code/test checkpoint**: production `a119dca`, tests `a6fefac`
