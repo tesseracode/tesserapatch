@@ -1,3 +1,21 @@
+## Review — S5 applicability rev-2 — 2026-09-13
+
+**Reviewer**: independent code-review agent `b9465991-369f-469c-8ae7-0be05a889a85`
+**Checkpoint**: `f7c525010569da5970107fa7b325244e281b8e57`
+**Verdict**: APPROVED for static code review; validation remains BLOCKED
+
+The reviewer reports no significant issues in the rev-2 delta. The remaining
+oversized indexed-fallback finding is closed; selected-submodule and implicit
+default-driver findings were closed in rev-1. No Go commands were run by the
+reviewer or implementer during this correction.
+
+**Action**: persist/push the reviewed implementation and honest blocked state,
+then let hosted CI run on this source without documentation-only cancellation.
+Local validation still needs a fresh full resource window and all prescribed
+stages; completed hosted CI is independently required. This is not S5 acceptance,
+a wave close, release/tag work or S6 dispatch. The original six positives,
+CI workflow/commands and thirteen research files remain unchanged.
+
 ## Implementation Transition — S5 applicability rev-2 — 2026-09-13
 
 **State**: boundary correction authored; re-review and validation pending

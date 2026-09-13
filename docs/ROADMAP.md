@@ -1634,8 +1634,9 @@ conversion-capable submodule discovery and implicit default diff drivers.
 All three corrections and focused positive/negative fixtures are authored;
 rev-1 review closes two findings but identifies an oversized-readable-file
 variant of indexed fallback. Rev-2's exact-boundary refusal, bounded stream
-and sparse-file regression are authored. Re-review, validation and completed
-hosted confirmation remain required.
+and sparse-file regression are authored. Independent static review through
+`f7c5250` reports no remaining issues. Local validation is still resource-blocked;
+completed green hosted CI and all local stages remain required before acceptance.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

@@ -4,6 +4,15 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability static review complete (2026-09-13)**: the independent reviewer
+reports no significant issues at `f7c5250`; all three findings and the
+oversized-fallback variant are closed in code. Persist/push this reviewed
+source and let hosted CI complete without documentation-only interruptions.
+Local validation remains blocked: no Go validation command has started because
+the required resource minute never qualified. This is not correction
+acceptance, a wave close or S6 readiness. All original positive fixtures and
+the thirteen research files remain unchanged.
+
 **Applicability rev-2 authored (2026-09-13)**: the indexed-source guard now
 rejects >=100 MiB attribute files before reading, and its streaming probe is
 bounded at that same limit to catch growth. An independently pinned 104857600
@@ -3262,7 +3271,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — rev-2 authored; re-review pending; local validation resource-blocked
+- **Status**: In progress — static review complete; local validation resource-blocked; hosted CI pending
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3271,6 +3280,11 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+Independent static review is complete through `f7c5250`, with no remaining
+reported findings. The reviewed correction is being durably pushed, but no
+local Go result exists and completed hosted CI is still required. Do not run
+the close gate or flip the canonical field to a terminal state yet.
 
 Rev-2 closes the readable-but-oversized fallback variant in code and adds a
 pinned exact-boundary fixture. Attribute-source probing and large fixture
@@ -4677,6 +4691,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `gofmt -l .` invocation. Exit 75; no Go test/vet/build/shard/gate ran.
   Focused control/hosted tests, affected validation, completed hosted CI and
   independent correction review remain pending. No thresholds were relaxed.
+- Rev-2 source through `f7c5250` is formatted and statically reviewed with no
+  remaining findings. No Go validation has run against any correction commit.
+  The resource continuity mutation fails its shell fixture as intended and
+  the restored helper passes all seven controls. Hosted results are pending
+  for the reviewed source, not implied by results on superseded checkpoints.
 
 ### Earlier S5 local results (historical; not correction acceptance)
 
@@ -10704,12 +10723,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Obtain independent re-review of the authored rev-1 corrections to all
-   three findings against `0e667a6`; retain original positive families.
-2. When resources qualify, explicitly clear only the owned failure sentinel
+1. When resources qualify, explicitly clear only the owned failure sentinel
    and restart from formatting, then focused control/simulated-hosted tests,
    affected packages, vet/build, full shards and the correction-base gate.
-   Require completed green hosted CI before acceptance or S6.
+   Static review is complete through `f7c5250`; retain original positives.
+2. Inspect the completed hosted run for the pushed reviewed source; do not
+   substitute a cancelled run or superseded checkpoint. Require green hosted
+   CI as well as local validation before acceptance or S6.
 3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
@@ -10717,8 +10737,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Blockers
 
 - Correction validation is resource-blocked: no continuous healthy minute
-  in the 600-second attempt, so no Go validation has begun. Three static
-  review findings require correction; hosted confirmation remains pending.
+  in the 600-second attempt, so no Go validation has begun. Static findings
+  are closed through `f7c5250`; hosted confirmation remains pending.
 - Hosted Ubuntu/macOS blocking CI fails six S5 families at `6ed7bdd` due to
   production over-refusal on registered but inapplicable filters. Local
   validation did not expose the runner-default configuration; production
@@ -10731,7 +10751,7 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Context for Next Agent
 
 - Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
-  implementation `0e667a6` is not accepted. New owned ignored helpers are in
+  reviewed source `f7c5250` is not accepted. New owned ignored helpers are in
   `bin/s5-applicability-validation/` (go, gofmt, resource-gate.sh,
   resource-gate-test.sh, hosted.gitconfig, failed); remove only owned files at
   closure. No real Git global/system configuration has changed. The thirteen
