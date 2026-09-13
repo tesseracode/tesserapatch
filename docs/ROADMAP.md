@@ -1852,6 +1852,13 @@ The morning retry completed the exact 22-invocation script: main CLI
 with a fresh 82-84%-free gate. All static findings and steps 1-6 pass.
 Validated/pushed tip `45799215b8b726886ea71571739a3158c601f494`; checkpoint
 review approval and run the explicit-base final gate before S5 acceptance.
+The final gate passes checks 1-7, then its shard phase stops on a later
+resource timeout (not a test failure). Resources recover at 20:31 PDT to
+84%/load1 2.12. Reset observation windows across sampling interruptions and
+retry the complete gate; no threshold or tracked command changes.
+The ignored helper's interruption controls now pass with a demonstrated
+failing gap-reset mutation; command labels improve timeout diagnosis.
+No Go command ran under the isolated shell probes.
 S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by

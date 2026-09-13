@@ -1,3 +1,29 @@
+## Validation Interruption — GH #15 S5 final gate — 2026-09-12
+
+**Gate checkpoint**: `a386f10bf30ebb473eaa7825fdc01a46f379cc18`
+**State**: REVIEW APPROVED — final gate incomplete due to resource timeout
+
+Checks 1-7 pass. Check 8's script stops at a later resource gate after
+passing preceding invocations; the reported tail ends in resource-gate exit
+75, not a test failure. Make exits 2 and therefore is not a passing gate.
+The captured tail does not establish an exact completed-invocation count.
+
+At 20:31 PDT resources are again eligible (84% free, load1 2.12, no Go tools).
+Repository/code are unchanged and pushed. Before retry, the owned ignored
+resource helper will reset its healthy interval after a sampling gap; a
+long interruption must never count as a continuously observed minute.
+Add command labels for future timeout diagnosis and a shell-only sensitivity
+fixture. This tightens observation without relaxing thresholds or changing
+tracked validation commands. Then rerun the complete final gate.
+
+The temporary helper correction is complete. Synthetic shell probes pass
+normal, interrupted, low-memory, high-load, active-tool and timeout cases.
+Removing the actual gap-reset condition makes the interrupted fixture fail
+(it would pass at simulated 100s instead of waiting until 160s); restoring
+the condition passes all six again. No Go command runs under these isolated
+probe mocks. Command labels now identify any later timeout. Only the three
+tracking files changed in Git; wrappers/tests remain ignored session tooling.
+
 ## Implementation Decision — GH #15 S5 approved for final gate — 2026-09-12
 
 **Decision**: REVIEW APPROVED — all static findings closed; steps 1-6 PASS

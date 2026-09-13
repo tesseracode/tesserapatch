@@ -4,6 +4,22 @@
 
 **Cluster state**: APPROVED
 
+**S5 final gate interrupted (2026-09-12)**: checks 1-7 pass at `a386f10`;
+check 8 stops at a resource timeout after preceding invocations pass. No
+test failure is reported, but make exits 2 and the gate is incomplete.
+At 20:31 PDT resources recover to 84% free/load1 2.12/no Go tools, with
+unchanged pushed code. Tighten only the owned resource helper to reset the
+healthy interval across sampling gaps, add command labels/sensitivity proof,
+then retry the complete final gate. S5 is still not accepted.
+
+The helper now rejects sampling gaps as continuous evidence and labels
+commands. Six isolated shell scenarios pass; removing the actual gap reset
+makes the interruption fixture fail, and restoring it passes again.
+No Go command runs under simulated probes. Four owned ignored files now
+remain under `bin/s5-validation/`: go, gofmt, resource-gate.sh and
+resource-gate-test.sh; remove only these (and any failure sentinel) at close.
+Production/tests/CI validation commands are unchanged.
+
 **S5 review approved; final gate next (2026-09-12)**: all static findings
 are closed and steps 1-6 PASS. The exact full 22-invocation script completed
 at pushed `45799215b8b726886ea71571739a3158c601f494`: main CLI 570.270s,
@@ -3142,7 +3158,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Review approved — steps 1-6 pass; explicit-base final gate pending
+- **Status**: Review approved — final gate resource-interrupted; guarded retry next
 - **Assigned**: 2026-09-09
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Release target**: `v0.17.0`
