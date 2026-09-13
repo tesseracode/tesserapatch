@@ -9727,3 +9727,16 @@ but did not establish hosted compatibility. Readiness is reopened pending
 fixture/configuration remediation and green native CI; S6 must not start
 on an assumption of green hosted checks. No source/workflow change or local
 Go validation was performed in this causality audit.
+
+## 2026-09-13 — Applicability assessment correction
+
+The operator supplied an independent reproduction showing installed LFS
+filters with no applicable path attributes. Code inspection and a separate
+Git-only invocation-local probe confirm the production guard over-refuses
+on registration. The earlier fixture-isolation-only recommendation is
+superseded: production applicability must be fixed, and simulated hosted
+configuration retained as regression coverage rather than scrubbed away.
+Named textconv drivers are also selected by path attributes; check-attr
+requires concrete pathnames and safe capture-set enumeration.
+This comparison made no source, workflow or playbook change. Hosted CI
+readiness remains blocked.

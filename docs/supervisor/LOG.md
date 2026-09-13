@@ -1,3 +1,48 @@
+## Assessment Correction — GH #15 S5 filter applicability — 2026-09-13
+
+**Scope**: compare the operator-supplied independent review; no implementation
+**Finding**: MEDIUM — production over-refusal on installed but inapplicable filters
+
+The reviewer independently reports the same local control/foreign-global-
+config failures. Their substantive correction is right: filtering Git
+configuration by `^filter\.` detects definitions, not whether any captured
+path uses them. CapturePatchScopedReadOnly rejects those definitions at
+gitutil.go:395-411 before collecting paths or asking Git for attributes.
+Consequently a standard Git-LFS installation disables this readonly helper
+even in repositories/paths where no filter applies.
+
+The coordinator independently confirmed the decisive Git fact without
+changing global/system config: four invocation-local filter.lfs definitions
+are returned by the guard's query, while `git check-attr filter diff --
+internal/gitutil/gitutil.go` reports both attributes unspecified. No Go
+validation or production/workflow change was made.
+
+The earlier fixture-isolation-only recommendation is superseded. Scrubbing
+ambient configuration just to turn positive tests green would conceal this
+real user-facing defect. Fix production applicability, keep simulated
+installed-but-unused LFS configuration as a positive regression case, and
+retain actual-applicable-filter refusal/no-execution controls. Hermetic test
+inputs are useful for reproducibility, not for removing the foreign case.
+
+Implementation refinements to the review's proposal:
+- Resolve attributes for concrete tracked and untracked capture candidates,
+  honoring scopes/exclusions and all Git attribute sources. check-attr takes
+  pathnames, not a pathspec-expansion contract; use NUL-safe enumeration.
+- Discovery/attribute checks must not invoke the very conversion process
+  that the readonly path must refuse.
+- diff.<driver>.textconv is selected through the per-path diff attribute,
+  not inherently global. Keeping unrelated conservative branches temporarily
+  is a scope choice, not proof that every registered driver applies.
+  See https://git-scm.com/docs/gitattributes and
+  https://git-scm.com/docs/git-check-attr.
+
+Required evidence before readiness: unchanged existing positive cases under
+simulated hosted LFS defaults, unused/out-of-scope/unset cases, applicable
+filter refusal before execution/writes, and green hosted Ubuntu/macOS CI.
+The proposed playbook lesson (simulate ambient Git/shell differences before
+acceptance) is sound, but REVIEW-PLAYBOOK.md was not edited by this comparison.
+S5 remains blocked pending a scoped production fix.
+
 ## Post-Close CI Investigation — GH #15 S5 — 2026-09-12
 
 **Scope**: operator-requested read-only causality investigation; no code/workflow fix

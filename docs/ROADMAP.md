@@ -1634,6 +1634,14 @@ No code/workflow correction was made by the audit. Hosted CI must be fixed
 and confirmed before S6; the local validation evidence below remains valid
 only for the environment where it ran.
 
+The independent review's correction is confirmed on 2026-09-13: this is
+production over-refusal on filter installation rather than applicability.
+Fixture isolation alone would mask it and is not the remedy. Fix effective
+attribute checks over the concrete capture set, retain simulated hosted LFS
+defaults as positive coverage and active-filter refusal/no-execution cases,
+then require green hosted CI. Named textconv definitions are per-path too;
+their treatment must not rely on the claim that registration is global use.
+
 S5 completes exact-postimage no-write classification/accounting, immutable
 read-time coverage bindings and offline content reconstruction, the six-rung
 verify check, seven-case execute preflight and warning-only read-only doctor
