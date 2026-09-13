@@ -1,3 +1,22 @@
+## Implementation Transition — S5 applicability rev-1 — 2026-09-13
+
+**State**: all three static corrections authored; re-review/validation pending
+
+Stage-aware cached enumeration refuses selected gitlinks before ordinary diff
+can invoke child status. Scoped files outside gitlinks remain usable. Before
+untracked no-index capture, relevant indexed attribute sources must be regular,
+readable worktree files; otherwise indexed/no-index fallback cannot be proved
+equivalent and capture refuses. This uses no temporary index or write. Installed
+`diff.default` converters are conservatively unsupported because Git selects
+them implicitly. Ordinary recording and original six positive families remain
+unchanged.
+
+New controls cover readable versus index-only overrides under global filter/
+diff rules, populated selected versus unselected submodules, implicit command/
+textconv defaults, and malformed stage/path metadata. Existing no-write and
+converter sentinels are reused. Source formatting/review follows; local Go
+validation has not started because the first resource gate failed.
+
 ## Review — S5 applicability correction — 2026-09-13
 
 **Reviewer**: independent code-review agent `b9465991-369f-469c-8ae7-0be05a889a85`

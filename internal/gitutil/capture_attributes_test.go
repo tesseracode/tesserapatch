@@ -259,6 +259,83 @@ func TestRGAS5CaptureConversionExclusionsRemainEffective(t *testing.T) {
 	captureAssertReadonly(t, root, marker, before)
 }
 
+func TestRGAS5CaptureIndexedAttributeFallbackRefuses(t *testing.T) {
+	for _, attribute := range []string{"filter=lfs", "diff=document"} {
+		t.Run(attribute, func(t *testing.T) {
+			root, marker, config := captureConversionFixture(t)
+			captureWrite(t, root, ".gitattributes", "new.txt -filter -diff\n")
+			captureGit(t, root, "add", "--", ".gitattributes")
+			captureGit(t, root, "commit", "-qm", "indexed attribute override")
+			global := filepath.Join(t.TempDir(), "attributes")
+			if err := os.WriteFile(global, []byte("*.txt "+attribute+"\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			captureGit(t, root, "config", "--file", config, "core.attributesfile", global)
+			captureWrite(t, root, "new.txt", "new\n")
+			before := captureTreeState(t, root)
+			if patch, err := CapturePatchScopedReadOnly(root, []string{"new.txt"}); err != nil || patch == "" {
+				t.Fatalf("readable worktree override was incorrectly refused: %v", err)
+			}
+			captureAssertReadonly(t, root, marker, before)
+			if err := os.Remove(filepath.Join(root, ".gitattributes")); err != nil {
+				t.Fatal(err)
+			}
+			resolved := captureGit(t, root, "check-attr", "filter", "diff", "--", "new.txt")
+			if !strings.Contains(resolved, "filter: unset") || !strings.Contains(resolved, "diff: unset") {
+				t.Fatalf("fixture lost the misleading indexed fallback: %s", resolved)
+			}
+			before = captureTreeState(t, root)
+			patch, err := CapturePatchScopedReadOnly(root, []string{"new.txt"})
+			if err == nil || patch != "" || !strings.Contains(err.Error(), "indexed attribute fallback") {
+				t.Fatalf("indexed/no-index divergence was not refused: %q %v", patch, err)
+			}
+			captureAssertReadonly(t, root, marker, before)
+		})
+	}
+}
+
+func TestRGAS5CaptureSubmoduleDiscoveryRefuses(t *testing.T) {
+	root, marker, _ := captureConversionFixture(t)
+	child := filepath.Join(root, "module")
+	if err := os.Mkdir(child, 0755); err != nil {
+		t.Fatal(err)
+	}
+	gitInit(t, child)
+	captureGit(t, root, "add", "--", "module")
+	captureGit(t, root, "commit", "-qm", "tracked gitlink")
+	captureWrite(t, child, ".gitattributes", "hello.txt filter=lfs\n")
+	captureWrite(t, child, "hello.txt", "other\n")
+	captureWrite(t, root, "hello.txt", "outer edit\n")
+	before := captureTreeState(t, root)
+	patch, err := CapturePatchScopedReadOnly(root, []string{"module"})
+	if err == nil || patch != "" || !strings.Contains(err.Error(), "submodule discovery") {
+		t.Fatalf("conversion-capable child discovery was not refused: %q %v", patch, err)
+	}
+	captureAssertReadonly(t, root, marker, before)
+	patch, err = CapturePatchScopedReadOnly(root, []string{"hello.txt"})
+	if err != nil || patch == "" {
+		t.Fatalf("unselected submodule prevented capture: %v", err)
+	}
+	captureAssertReadonly(t, root, marker, before)
+}
+
+func TestRGAS5CaptureImplicitDefaultDriverRefuses(t *testing.T) {
+	for _, setting := range []string{"textconv", "command"} {
+		t.Run(setting, func(t *testing.T) {
+			root, marker, config := captureConversionFixture(t)
+			command := strings.TrimSpace(captureGit(t, root, "config", "--file", config, "diff.document."+setting))
+			captureGit(t, root, "config", "--file", config, "diff.default."+setting, command)
+			captureWrite(t, root, "hello.txt", "changed\n")
+			before := captureTreeState(t, root)
+			patch, err := CapturePatchScopedReadOnly(root, []string{"hello.txt"})
+			if err == nil || patch != "" || !strings.Contains(err.Error(), "default diff driver") {
+				t.Fatalf("implicit converter was treated as unused: %q %v", patch, err)
+			}
+			captureAssertReadonly(t, root, marker, before)
+		})
+	}
+}
+
 func TestRGAS5CaptureAttributeMetadataAndSafetyControls(t *testing.T) {
 	config, err := parseCaptureConversionConfig("filter.lfs.clean\nunused command\x00diff.document.textconv\nunused converter\x00")
 	if err != nil {
@@ -299,6 +376,7 @@ func TestRGAS5CaptureAttributeMetadataAndSafetyControls(t *testing.T) {
 	}
 	for _, raw := range []string{
 		"diff.external\ncommand\x00", "core.autocrlf\ntrue\x00", "diff.renames\ncopies\x00",
+		"diff.default.textconv\ncommand\x00", "diff.default.command\ncommand\x00",
 		"filter.lfs.clean\nunterminated", "\nempty key\x00", "filter.\ncommand\x00",
 	} {
 		if _, err := parseCaptureConversionConfig(raw); err == nil {
@@ -312,5 +390,23 @@ func TestRGAS5CaptureAttributeMetadataAndSafetyControls(t *testing.T) {
 	}
 	if _, err := captureAttributeCandidates("unterminated", nil); err == nil {
 		t.Fatal("candidate parser accepted a partial pathname")
+	}
+	for _, name := range []string{"", "/", "../outside", "bad\x00name"} {
+		if err := validateCaptureAttributeFallback(t.TempDir(), []string{name}); err == nil ||
+			!strings.Contains(err.Error(), "invalid untracked candidate") {
+			t.Fatalf("attribute ancestor walk accepted invalid metadata %q: %v", name, err)
+		}
+	}
+	for _, raw := range []string{
+		"160000 abcdef 0\tmodule\x00", "100644 abcdef 4\tbad-stage\x00",
+		"100644 abcdef 0\tunterminated", "unknown abcdef 0\tbad-mode\x00",
+		"100644 abcdef 0\x00", "100644 abcdef 0\t\x00",
+	} {
+		if _, err := captureRegularIndexPaths(raw); err == nil {
+			t.Fatalf("index validator accepted unsafe metadata: %q", raw)
+		}
+	}
+	if raw, err := captureRegularIndexPaths("100644 abcdef 0\twith\nnewline\x00"); err != nil || raw != "with\nnewline\x00" {
+		t.Fatalf("index validator corrupted a concrete pathname: %q %v", raw, err)
 	}
 }

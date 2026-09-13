@@ -2,7 +2,11 @@ package gitutil
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -51,7 +55,95 @@ func parseCaptureConversionConfig(raw string) (captureConversionConfig, error) {
 			return config, fmt.Errorf("readonly capture received an unexpected conversion setting")
 		}
 	}
+	// Git selects the default driver even without an explicit diff attribute.
+	// Keep this implicit conversion outside the readonly equivalence domain.
+	if config.diffDrivers["default"] {
+		return config, fmt.Errorf("readonly capture cannot establish exact bytes with an implicit default diff driver")
+	}
 	return config, nil
+}
+
+func captureRegularIndexPaths(raw string) (string, error) {
+	entries, err := captureNULFields(raw)
+	if err != nil {
+		return "", fmt.Errorf("readonly capture received invalid index entries: %w", err)
+	}
+	var paths strings.Builder
+	for _, entry := range entries {
+		metadata, name, ok := strings.Cut(entry, "\t")
+		fields := strings.Fields(metadata)
+		if !ok || name == "" || len(fields) != 3 ||
+			(fields[2] != "0" && fields[2] != "1" && fields[2] != "2" && fields[2] != "3") {
+			return "", fmt.Errorf("readonly capture received malformed index metadata")
+		}
+		switch fields[0] {
+		case ModeRegular, ModeExecutable, ModeSymlink:
+		case ModeGitlink:
+			// Ordinary diff can run status in the child repository, whose
+			// clean filters are not described by the superproject attributes.
+			return "", fmt.Errorf("readonly capture cannot establish conversion-free submodule discovery for %q", name)
+		default:
+			return "", fmt.Errorf("readonly capture received an unsupported index mode for %q", name)
+		}
+		paths.WriteString(name)
+		paths.WriteByte(0)
+	}
+	return paths.String(), nil
+}
+
+func validateCaptureAttributeFallback(root string, untracked []string) error {
+	if len(untracked) == 0 {
+		return nil
+	}
+	ancestors := map[string]bool{}
+	for _, name := range untracked {
+		if name == "" || path.IsAbs(name) || name == ".." || strings.HasPrefix(name, "../") || strings.ContainsRune(name, 0) {
+			return fmt.Errorf("readonly capture received an invalid untracked candidate path")
+		}
+		for dir := path.Dir(name); ; dir = path.Dir(dir) {
+			ancestors[path.Join(dir, ".gitattributes")] = true
+			if dir == "." {
+				break
+			}
+		}
+	}
+	raw, err := runCaptureGitReadOnly(root, "ls-files", "--cached", "-z", "--", ".gitattributes", ":(glob)**/.gitattributes")
+	if err != nil {
+		return fmt.Errorf("readonly capture cannot inspect indexed attribute sources: %w", err)
+	}
+	indexed, err := captureNULFields(raw)
+	if err != nil {
+		return fmt.Errorf("readonly capture received invalid indexed attribute paths: %w", err)
+	}
+	for _, name := range indexed {
+		if !ancestors[name] {
+			continue
+		}
+		// check-attr can fall back to the index when a worktree attribute
+		// file is unavailable; diff --no-index cannot. Prove the shared
+		// worktree source is readable instead of creating a temporary index.
+		file := filepath.Join(root, filepath.FromSlash(name))
+		info, err := os.Lstat(file)
+		if err != nil {
+			return fmt.Errorf("readonly capture cannot rule out indexed attribute fallback for %q: %w", name, err)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("readonly capture cannot rule out indexed attribute fallback for nonregular %q", name)
+		}
+		f, err := os.Open(file)
+		if err != nil {
+			return fmt.Errorf("readonly capture cannot read shared attribute source %q: %w", name, err)
+		}
+		_, readErr := io.Copy(io.Discard, f)
+		closeErr := f.Close()
+		if readErr != nil {
+			return fmt.Errorf("readonly capture cannot read shared attribute source %q: %w", name, readErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("readonly capture cannot close shared attribute source %q: %w", name, closeErr)
+		}
+	}
+	return nil
 }
 
 func captureNULFields(raw string) ([]string, error) {

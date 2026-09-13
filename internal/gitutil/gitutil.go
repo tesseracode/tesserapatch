@@ -422,12 +422,19 @@ func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, er
 	untracked = filtered
 	// Enumerate index entries, not a diff/status: discovery must not invoke a
 	// clean filter before the applicability guard can refuse it.
-	args := append([]string{"ls-files", "--cached", "-z", "--"}, excludes...)
+	args := append([]string{"ls-files", "--cached", "--stage", "-z", "--"}, excludes...)
 	args = append(args, nested...)
 	args = append(args, pathspecs...)
 	trackedPaths, err := runCaptureGitReadOnly(repoRoot, args...)
 	if err != nil {
 		return "", fmt.Errorf("readonly capture cannot enumerate tracked candidates: %w", err)
+	}
+	trackedPaths, err = captureRegularIndexPaths(trackedPaths)
+	if err != nil {
+		return "", err
+	}
+	if err := validateCaptureAttributeFallback(repoRoot, untracked); err != nil {
+		return "", err
 	}
 	candidates, err := captureAttributeCandidates(trackedPaths, untracked)
 	if err != nil {

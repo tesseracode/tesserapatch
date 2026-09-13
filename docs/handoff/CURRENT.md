@@ -4,6 +4,17 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability rev-1 authored (2026-09-13)**: all three static findings have
+code/fixture corrections pending re-review. Stage metadata rejects selected
+gitlinks before conversion-capable child status. For untracked capture,
+relevant indexed attribute sources must have readable regular worktree
+counterparts, so check-attr cannot silently use an index-only override that
+no-index diff misses. No temporary index is created. Implicit `diff.default`
+converters remain conservatively unsupported. Scoped files outside gitlinks
+and readable attribute overrides have positive controls; unsafe counterparts
+have refusal/no-execution/no-write regressions. Local Go validation remains
+blocked and has not started; no acceptance is claimed.
+
 **Applicability review NEEDS REVISION (2026-09-13)**: static review of
 `0e667a6` identified three concrete gaps: indexed attribute fallback differs
 from no-index capture, selected gitlinks can run converter-capable submodule
@@ -3236,7 +3247,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — correcting three static review findings; local validation resource-blocked
+- **Status**: In progress — rev-1 corrections authored; re-review pending; local validation resource-blocked
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3245,6 +3256,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The three static findings are corrected in the same three gitutil files.
+Selected gitlinks are now an explicit readonly limitation (ordinary recording
+is unchanged). Missing/nonregular/unreadable indexed `.gitattributes` sources
+relevant to untracked candidates refuse before either diff; readable shared
+worktree sources remain supported, without materializing or writing an index.
+Implicit default diff conversion is conservatively refused rather than
+classified as a named unused driver. New positive/negative API and metadata
+controls cover each branch. These are authored corrections, not passing tests.
 
 Independent static review requires revision for indexed/no-index attribute
 context divergence, selected submodule conversion-capable discovery, and
@@ -10663,9 +10683,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Address all three static findings against applicability checkpoint
-   `0e667a6`, add regressions and obtain independent re-review without
-   weakening the original six positive families.
+1. Obtain independent re-review of the authored rev-1 corrections to all
+   three findings against `0e667a6`; retain original positive families.
 2. When resources qualify, explicitly clear only the owned failure sentinel
    and restart from formatting, then focused control/simulated-hosted tests,
    affected packages, vet/build, full shards and the correction-base gate.
