@@ -1632,7 +1632,10 @@ timed out before any Go command (600s; no continuous >=80%-free minute).
 Static review required revision for indexed/no-index attribute fallback,
 conversion-capable submodule discovery and implicit default diff drivers.
 All three corrections and focused positive/negative fixtures are authored;
-re-review, validation and completed hosted confirmation remain required.
+rev-1 review closes two findings but identifies an oversized-readable-file
+variant of indexed fallback. Rev-2's exact-boundary refusal, bounded stream
+and sparse-file regression are authored. Re-review, validation and completed
+hosted confirmation remain required.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

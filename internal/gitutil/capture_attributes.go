@@ -16,6 +16,9 @@ type captureConversionConfig struct {
 	diffDrivers map[string]bool
 }
 
+// Git's ATTR_MAX_FILE_SIZE rejects attribute files at this exact boundary.
+const captureAttributeFileLimit = 100 * 1024 * 1024
+
 func parseCaptureConversionConfig(raw string) (captureConversionConfig, error) {
 	config := captureConversionConfig{filters: map[string]bool{}, diffDrivers: map[string]bool{}}
 	entries, err := captureNULFields(raw)
@@ -130,17 +133,23 @@ func validateCaptureAttributeFallback(root string, untracked []string) error {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("readonly capture cannot rule out indexed attribute fallback for nonregular %q", name)
 		}
+		if info.Size() >= captureAttributeFileLimit {
+			return fmt.Errorf("readonly capture cannot rule out indexed attribute fallback for oversized %q", name)
+		}
 		f, err := os.Open(file)
 		if err != nil {
 			return fmt.Errorf("readonly capture cannot read shared attribute source %q: %w", name, err)
 		}
-		_, readErr := io.Copy(io.Discard, f)
+		size, readErr := io.Copy(io.Discard, io.LimitReader(f, captureAttributeFileLimit))
 		closeErr := f.Close()
 		if readErr != nil {
 			return fmt.Errorf("readonly capture cannot read shared attribute source %q: %w", name, readErr)
 		}
 		if closeErr != nil {
 			return fmt.Errorf("readonly capture cannot close shared attribute source %q: %w", name, closeErr)
+		}
+		if size >= captureAttributeFileLimit {
+			return fmt.Errorf("readonly capture cannot rule out indexed attribute fallback for growing %q", name)
 		}
 	}
 	return nil

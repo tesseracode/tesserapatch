@@ -4,6 +4,21 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability rev-2 authored (2026-09-13)**: the indexed-source guard now
+rejects >=100 MiB attribute files before reading, and its streaming probe is
+bounded at that same limit to catch growth. An independently pinned 104857600
+byte sparse-file regression asserts readonly refusal and no converter/write;
+test snapshots stream hashes rather than retaining the large body. Re-review
+is pending. The resource wrapper's interrupted-interval mutation was rejected
+by its shell fixture; restoration passes all seven shell controls. No Go
+validation has run and no local/hosted success is claimed.
+
+**Applicability rev-1 review (2026-09-13)**: submodule and implicit-default
+findings are closed. One indexed-fallback gap remains: Git rejects readable
+worktree attribute files at >=100 MiB and can fall back to the index anyway.
+Add an exact size-boundary refusal/bounded read and regression before the next
+review. Static evidence only; local Go validation is still blocked.
+
 **Applicability rev-1 authored (2026-09-13)**: all three static findings have
 code/fixture corrections pending re-review. Stage metadata rejects selected
 gitlinks before conversion-capable child status. For untracked capture,
@@ -3247,7 +3262,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — rev-1 corrections authored; re-review pending; local validation resource-blocked
+- **Status**: In progress — rev-2 authored; re-review pending; local validation resource-blocked
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3256,6 +3271,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+Rev-2 closes the readable-but-oversized fallback variant in code and adds a
+pinned exact-boundary fixture. Attribute-source probing and large fixture
+snapshots stream with bounded retention. The original resource wait remains
+the only attempted Go validation; a later snapshot is 78% free, so no retry
+was started. Independent re-review and all actual Go/hosted outcomes remain.
 
 The three static findings are corrected in the same three gitutil files.
 Selected gitlinks are now an explicit readonly limitation (ordinary recording

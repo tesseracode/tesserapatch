@@ -1,3 +1,34 @@
+## Implementation Transition — S5 applicability rev-2 — 2026-09-13
+
+**State**: boundary correction authored; re-review and validation pending
+
+Reject relevant indexed worktree attribute sources at Git's exact 100 MiB
+acceptance boundary, before opening. Bound the subsequent stream at the same
+limit and refuse growth to the limit. A sparse fixture independently pins
+104857600 bytes and reuses actual-capture refusal/no-write/no-execution
+assertions. Test snapshots now stream hashes rather than allocate the body.
+
+No Go command has run. The ignored resource helper's interruption fixture
+fails with its gap reset disabled, then all seven shell controls pass after
+restoration. A later real sample is 78% free; no further local attempt starts.
+Hosted run 34747587717 is still in progress on the earlier `0ad81a3` checkpoint,
+not the current review corrections; it cannot establish final acceptance.
+
+## Review — S5 applicability rev-1 — 2026-09-13
+
+**Reviewer**: independent code-review agent `b9465991-369f-469c-8ae7-0be05a889a85`
+**Checkpoint**: `8a06da7`
+**Verdict**: NEEDS REVISION (static only; no Go commands)
+
+Selected-submodule discovery and implicit-default-driver findings are closed.
+Indexed fallback remains HIGH for readable worktree attribute files at or above
+Git's 100 MiB limit: Git refuses those files and falls back to the index, while
+no-index diff cannot. Readability alone is insufficient.
+
+**Action**: reject the exact size boundary before reading and bound streaming
+reads, add an exact-boundary sparse-file sentinel regression, then re-review.
+Local resource validation remains blocked; no acceptance is claimed.
+
 ## Implementation Transition — S5 applicability rev-1 — 2026-09-13
 
 **State**: all three static corrections authored; re-review/validation pending

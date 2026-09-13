@@ -3,6 +3,7 @@ package gitutil
 import (
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -88,14 +89,22 @@ func captureTreeState(t *testing.T, root string) string {
 		if err != nil {
 			return err
 		}
-		var body []byte
+		hash := sha256.New()
 		if !entry.IsDir() {
-			body, err = os.ReadFile(path)
+			f, err := os.Open(path)
 			if err != nil {
 				return err
 			}
+			_, readErr := io.Copy(hash, f)
+			closeErr := f.Close()
+			if readErr != nil {
+				return readErr
+			}
+			if closeErr != nil {
+				return closeErr
+			}
 		}
-		rows = append(rows, fmt.Sprintf("%q:%s:%d:%x", rel, info.Mode(), info.ModTime().UnixNano(), sha256.Sum256(body)))
+		rows = append(rows, fmt.Sprintf("%q:%s:%d:%x", rel, info.Mode(), info.ModTime().UnixNano(), hash.Sum(nil)))
 		return nil
 	})
 	if err != nil {
@@ -315,6 +324,35 @@ func TestRGAS5CaptureSubmoduleDiscoveryRefuses(t *testing.T) {
 	patch, err = CapturePatchScopedReadOnly(root, []string{"hello.txt"})
 	if err != nil || patch == "" {
 		t.Fatalf("unselected submodule prevented capture: %v", err)
+	}
+	captureAssertReadonly(t, root, marker, before)
+}
+
+func TestRGAS5CaptureOversizedIndexedAttributeFallbackRefuses(t *testing.T) {
+	root, marker, config := captureConversionFixture(t)
+	captureWrite(t, root, ".gitattributes", "new.txt -filter\n")
+	captureGit(t, root, "add", "--", ".gitattributes")
+	captureGit(t, root, "commit", "-qm", "indexed override")
+	global := filepath.Join(t.TempDir(), "attributes")
+	if err := os.WriteFile(global, []byte("*.txt filter=lfs\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	captureGit(t, root, "config", "--file", config, "core.attributesfile", global)
+	f, err := os.OpenFile(filepath.Join(root, ".gitattributes"), os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Pin Git's boundary independently of the production constant.
+	truncateErr := f.Truncate(104857600)
+	closeErr := f.Close()
+	if truncateErr != nil || closeErr != nil {
+		t.Fatalf("create exact-boundary attribute fixture: %v %v", truncateErr, closeErr)
+	}
+	captureWrite(t, root, "new.txt", "new\n")
+	before := captureTreeState(t, root)
+	patch, err := CapturePatchScopedReadOnly(root, []string{"new.txt"})
+	if err == nil || patch != "" || !strings.Contains(err.Error(), "indexed attribute fallback") {
+		t.Fatalf("oversized indexed/no-index divergence was not refused: %q %v", patch, err)
 	}
 	captureAssertReadonly(t, root, marker, before)
 }
