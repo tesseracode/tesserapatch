@@ -1,3 +1,55 @@
+## Post-Close CI Investigation — GH #15 S5 — 2026-09-12
+
+**Scope**: operator-requested read-only causality investigation; no code/workflow fix
+**Verdict**: HOSTED CI BLOCKED — new S5 configuration-dependent failures confirmed
+
+Latest run [34738611969](https://github.com/tesseracode/tesserapatch/actions/runs/34738611969)
+at `6ed7bdd` fails the blocking Test step on Ubuntu and macOS. Formatting,
+vet/build, Windows blocking surfaces and both S7 observer jobs succeed.
+The same failure set is already present at gate checkpoint `89ae7c9`
+([34735957011](https://github.com/tesseracode/tesserapatch/actions/runs/34735957011)).
+Pre-S5 `537ffd9` passed all jobs
+([34368468175](https://github.com/tesseracode/tesserapatch/actions/runs/34368468175)).
+The final `6ed7bdd` commit changes only tracking documents; it is not the
+introducing code change, and the workflow/scripts are unchanged by S5.
+
+Both failing platforms report the same six new S5 families:
+TestRGAS5ReadonlyCaptureMatchesRecordWithoutIndexWrites,
+TestRGAS5Rung3AndDoctorCaptureGitEnvelope,
+TestRGAS5DoctorD10FixWritesNothingAndTruthfulCommand,
+TestRGAS5ReadRetentionOrderKeepsObservedPostimage,
+TestRGAS5SharedRecordPlanAndDryRecommendation, and
+TestRGAS5RecordGateFailuresCannotBecomeDryCommands.
+Each reaches the same refusal:
+`readonly capture cannot establish exact bytes without configured conversion/copy behavior`.
+
+`internal/gitutil/gitutil.go:391-412`, introduced in `95be8dd`, queries
+inherited Git configuration and refuses filter.*, external/textconv and
+conversion/copy settings before inspecting whether they affect fixture paths.
+The positive fixtures inherit runner system/global configuration. Hosted
+images provision Git LFS filters; the exact macOS image script explicitly
+runs both global and system installation, and the Ubuntu Git-LFS package
+postinst installs system configuration:
+- [macOS image Git setup](https://github.com/actions/runner-images/blob/macos-26-arm64/20260907.0351/images/macos/scripts/build/install-git.sh)
+- [Ubuntu image Git-LFS setup](https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/scripts/build/install-git-lfs.sh)
+- [Git-LFS package postinst](https://github.com/git-lfs/git-lfs/blob/main/debian/postinst)
+The job logs do not dump the exact offending key/value, so that narrower
+attribution is not claimed from the logs alone. The local matching-config
+query returns no entries, explaining why local runs did not exercise this
+runner-default case.
+
+This is an S5 test/environment compatibility regression, not the existing
+allowed Windows failures tracked by GH #17, a resource timeout or an Actions
+startup failure. The local 8/8 result remains real but did not validate the
+hosted Git configuration; accepting readiness without inspecting hosted CI
+was a validation gap.
+
+Record the blocker before S6. A correction must make positive fixture Git
+configuration explicit and retain dedicated refusal cases; any change to
+production handling of inactive registered filters needs its own safety
+evidence, not a blanket bypass. Then require green hosted Ubuntu/macOS runs.
+No source/workflow edits or new Go validation were performed in this audit.
+
 ## Implementation Decision — GH #15 S5 ACCEPTED — 2026-09-12
 
 **Decision**: ACCEPTED — all findings closed; all seven validation stages pass

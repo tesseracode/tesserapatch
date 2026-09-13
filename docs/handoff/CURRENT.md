@@ -2,7 +2,24 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: BLOCKED
+
+**Post-close hosted CI regression confirmed (2026-09-12)**: S5's local
+8/8 gate passed, but hosted CI is not green. Run
+[34738611969](https://github.com/tesseracode/tesserapatch/actions/runs/34738611969)
+at `6ed7bdd` fails Ubuntu/macOS Test; Windows blocking surfaces and observer
+jobs pass. The same failures occur at `89ae7c9`, while pre-S5 `537ffd9` is
+green. The final docs-only close is not the introducing change.
+
+Six new S5 test families hit CapturePatchScopedReadOnly's inherited-Git-config
+refusal, introduced in `95be8dd` (`internal/gitutil/gitutil.go:391-412`).
+Hosted images configure Git LFS filters; local matching configuration is
+absent. The logs identify the guard/refusal but do not print the exact
+offending key. See the newest LOG entry for evidence and runner-image links.
+This investigation changed no production code or workflow. CI remediation
+and hosted confirmation are required before treating S5 as ready for S6.
+
+### Local S5 acceptance record (superseded for hosted-CI readiness)
 
 **S5 ACCEPTED (2026-09-12)**: all independent findings are closed and all
 seven validation stages pass. The explicit-base final gate reports
@@ -3172,9 +3189,10 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Complete — S5 ACCEPTED; all seven stages and independent reviews pass
+- **Status**: Hosted CI blocked — S5 causality confirmed; remediation not started
 - **Assigned**: 2026-09-09
-- **Completed**: 2026-09-12
+- **Local close**: 2026-09-12
+- **Post-close investigation**: 2026-09-12 — CI failure attribution only
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
 - **Gate-validated/pushed tip**: `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`
 - **Release target**: `v0.17.0`
@@ -3182,6 +3200,16 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
+
+The operator asked whether failing GitHub checks came from S5. Confirmed
+new S5 failures on hosted Ubuntu/macOS, with a green pre-S5 baseline and
+identical errors before the final documentation-only close. The shared
+readonly-capture guard rejects inherited conversion/filter configuration;
+hosted image Git-LFS setup exposes a case absent from local validation.
+No code/workflow fix or local Go rerun was made. Record the CI blocker and
+preserve the real local gate history without claiming hosted success.
+
+### Local completion summary (historical)
 
 S5 is accepted. It adds ordered exact-postimage no-write accounting,
 independently paired capture evidence, immutable read-time content/binding
@@ -3801,6 +3829,13 @@ No coverage schema, simulation, producer coverage publication, consumer
 integration or shipped assets belong to this slice.
 
 ## Current State
+
+Hosted CI is blocked by an S5 configuration-dependent regression. The local
+gate/independent reviews below passed, but they did not reproduce hosted
+system/global Git configuration. A fixture/configuration correction and
+green native CI results are still required; no corrective code is authored.
+
+### Local S5 validation state (historical)
 
 S5 is ACCEPTED, with every review finding closed and all seven stages
 passing. The final explicit-base gate is 8/8 PASS at pushed `89ae7c9`.
@@ -10523,16 +10558,20 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Await a separate S6 assignment and record a fresh fetched/pushed WAVE_BASE
-   before dispatch. S5 is accepted; no correction remains.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+1. Correct the inherited-Git-configuration test/environment regression with
+   explicit fixture setup and preserved conversion-safety refusal controls.
+   Record a fresh correction scope/base before implementation.
+2. Require green hosted Ubuntu/macOS CI, not only another local gate, before
+   resuming S6 readiness. This audit did not start corrective implementation.
+3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No S5 blocker remains. All independent reviews and all seven validation
-  stages pass, including the final 8/8 gate.
+- Hosted Ubuntu/macOS blocking CI fails six S5 families at `6ed7bdd` due to
+  the readonly capture configuration guard. Local validation did not expose
+  the runner-default configuration; remediation and hosted confirmation remain.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10540,9 +10579,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
-- S5 is ACCEPTED at gate-validated/pushed `89ae7c9`; terminal tracking is
-  documentation-only. Its completion archive is in HISTORY. Historical
-  pending actions above are not current dispatches or blockers.
+- The local S5 acceptance/archive is preserved, but post-close hosted CI is
+  blocked. The newest LOG/CURRENT entry supersedes the old no-blocker
+  statements for readiness. Do not interpret the local 8/8 as hosted success.
 - S5 WAVE_BASE was `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`. A separately
   assigned S6 needs a fresh fetched/pushed base, not this or a release tag.
 - The four ignored resource-gate helpers are removed. Future validation

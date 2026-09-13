@@ -1619,10 +1619,20 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 ✅ ACCEPTED — 2026-09-12** (assigned 2026-09-09).
+**S5 🚧 HOSTED CI BLOCKED — 2026-09-12** (local close recorded below).
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
 **Gate-validated/pushed range**:
 `537ffd9bff153efe37afa3bc6d66f4e00fc55d35..89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`.
+
+Post-close audit confirms blocking Ubuntu/macOS Test failures at `6ed7bdd`,
+also present at `89ae7c9`; pre-S5 `537ffd9` is green. Six S5 families reach
+the readonly-capture guard introduced in `95be8dd`, which rejects inherited
+filter/conversion Git configuration provisioned on hosted images. Local
+configuration did not exercise that case. This is not GH #17's allowed
+Windows failure class. See CURRENT/LOG for run links and attribution.
+No code/workflow correction was made by the audit. Hosted CI must be fixed
+and confirmed before S6; the local validation evidence below remains valid
+only for the environment where it ran.
 
 S5 completes exact-postimage no-write classification/accounting, immutable
 read-time coverage bindings and offline content reconstruction, the six-rung
@@ -1657,7 +1667,8 @@ The completion archive is in HISTORY; terminal tracking changes documentation
 only after the passing gate. Four owned temporary validation helpers are
 removed. Protected S3 core, public assets/SPEC/CHANGELOG, dependencies,
 historical fixtures, allowlist, reviewer playbook and all 13 research files
-remain unchanged. S6 needs a separate assignment and fresh wave base.
+remain unchanged. S6 additionally waits for the hosted-CI regression fix,
+then needs a separate assignment and fresh wave base.
 No release/tag or GH #24 widening is included. GH #13 still requires shipped
 GH #15/v0.17.0 and its separate ADR-041 section-7 planning follow-up.
 

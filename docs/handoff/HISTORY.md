@@ -9705,3 +9705,25 @@ directory are removed; the original research files are untouched.
 No S5 blocker remains. S6 needs a separate assignment and fresh WAVE_BASE.
 No release or tag is shipped here. GH #24 remains non-blocking planning;
 GH #13 still requires ADR-041's planning follow-up and shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-12 — Post-close hosted CI audit — BLOCKED
+
+The operator requested CI failure attribution after the local S5 close.
+Latest run [34738611969](https://github.com/tesseracode/tesserapatch/actions/runs/34738611969)
+at `6ed7bdd` fails blocking Ubuntu/macOS Test, with the same errors already
+at `89ae7c9`. Pre-S5 `537ffd9` passed all jobs. The final close commit changed
+only documentation and did not introduce the code fault.
+
+Six new S5 families reach the same CapturePatchScopedReadOnly refusal for
+inherited filter/conversion Git configuration. The guard was added in
+`95be8dd`; hosted Git-LFS defaults expose configuration absent locally.
+The exact offending key/value is not dumped by CI logs. Evidence and image
+setup links are in the post-close supervisor LOG entry.
+
+The local 8/8 result and original acceptance record remain historical facts,
+but did not establish hosted compatibility. Readiness is reopened pending
+fixture/configuration remediation and green native CI; S6 must not start
+on an assumption of green hosted checks. No source/workflow change or local
+Go validation was performed in this causality audit.
