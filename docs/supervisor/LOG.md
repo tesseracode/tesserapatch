@@ -1,3 +1,23 @@
+## Review — S5 applicability correction — 2026-09-13
+
+**Reviewer**: independent code-review agent `b9465991-369f-469c-8ae7-0be05a889a85`
+**Range**: `9a3e6e4..0e667a6`
+**Verdict**: NEEDS REVISION (static review only; no Go commands)
+
+1. HIGH: `capture_attributes.go:95,139-140` resolves attributes with the
+   index, but untracked no-index diff does not. An indexed `-filter` override
+   absent from the worktree can hide a global active filter from the guard.
+2. HIGH: `gitutil.go:425-446` checks gitlink paths, not child files. Ordinary
+   diff can invoke submodule status whose index refresh executes clean filters.
+3. MEDIUM: `capture_attributes.go:134-145` misses Git's implicit `default`
+   diff driver for paths without an explicit diff attribute. Disabled
+   conversion would diverge from actual producer bytes.
+
+**Action**: correct all three within this applicability scope; add cross-source
+fallback, populated-submodule and implicit-default sentinel regressions. Keep
+the original six positives unchanged. Go validation remains resource-blocked.
+No acceptance or S6 dispatch. These are static findings, not reproduced tests.
+
 ## Validation Blocker — S5 applicability correction — 2026-09-13
 
 **Checkpoint**: `0e667a63ed2b83e4ff7591b0ff5233fe09f2df0e`

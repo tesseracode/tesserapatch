@@ -1629,7 +1629,10 @@ authored/formatted. Metadata-only enumeration precedes effective attribute
 checks and all diff operations; old positive families and CI configuration
 are unchanged. Checkpoint `0e667a6` awaits static review; the first local gate
 timed out before any Go command (600s; no continuous >=80%-free minute).
-All validation and completed hosted confirmation remain required.
+Static review now requires revision for indexed/no-index attribute fallback,
+conversion-capable submodule discovery and implicit default diff drivers.
+All three corrections, validation and completed hosted confirmation remain
+required.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

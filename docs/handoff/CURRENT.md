@@ -4,6 +4,15 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability review NEEDS REVISION (2026-09-13)**: static review of
+`0e667a6` identified three concrete gaps: indexed attribute fallback differs
+from no-index capture, selected gitlinks can run converter-capable submodule
+status, and implicit `diff.default` drivers are applicable without a named
+attribute. Correct all three with mutation-sensitive regression fixtures
+before re-review. The reviewer ran no Go commands; resource-blocked local
+validation remains outstanding. Do not interpret the pushed checkpoint as
+acceptance or green hosted CI.
+
 **Applicability validation resource-blocked (2026-09-13)**: implementation is
 checkpointed at `0e667a6`. The fresh gate exhausted 600 seconds before the
 first formatting-check command: memory fluctuated 78-81%, never sustaining
@@ -3227,7 +3236,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — implementation checkpointed; validation resource-blocked; review pending
+- **Status**: In progress — correcting three static review findings; local validation resource-blocked
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3236,6 +3245,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+Independent static review requires revision for indexed/no-index attribute
+context divergence, selected submodule conversion-capable discovery, and
+implicit default diff-driver applicability. These are tightly coupled to
+loosening the former global refusal; they must be addressed in this correction.
+Runtime confirmation is still absent because the resource gate prevented Go.
 
 The first correction validation attempt stopped before any Go command.
 The ignored gate's seven shell controls pass (healthy, interrupted interval,
@@ -10648,8 +10663,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Finish independent static review of applicability checkpoint `0e667a6`;
-   address findings without weakening the original six positive families.
+1. Address all three static findings against applicability checkpoint
+   `0e667a6`, add regressions and obtain independent re-review without
+   weakening the original six positive families.
 2. When resources qualify, explicitly clear only the owned failure sentinel
    and restart from formatting, then focused control/simulated-hosted tests,
    affected packages, vet/build, full shards and the correction-base gate.
@@ -10661,8 +10677,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Blockers
 
 - Correction validation is resource-blocked: no continuous healthy minute
-  in the 600-second attempt, so no Go validation has begun. Static review
-  and completed hosted confirmation of the correction remain pending.
+  in the 600-second attempt, so no Go validation has begun. Three static
+  review findings require correction; hosted confirmation remains pending.
 - Hosted Ubuntu/macOS blocking CI fails six S5 families at `6ed7bdd` due to
   production over-refusal on registered but inapplicable filters. Local
   validation did not expose the runner-default configuration; production
