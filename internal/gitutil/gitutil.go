@@ -386,30 +386,22 @@ func captureUntrackedExcluded(path string) bool {
 
 // CapturePatchScopedReadOnly captures the same default index-to-worktree
 // changes without intent-to-add/reset, a temporary index, or object writes.
-// Unsupported conversion/rename cases refuse a dry recommendation rather than
-// claim equality with record's existing intent-to-add capture.
+// Applicable conversion/unsupported rename cases refuse a dry recommendation
+// rather than claim equality with record's existing intent-to-add capture.
 func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, error) {
 	if os.Getenv("GIT_EXTERNAL_DIFF") != "" {
 		return "", fmt.Errorf("readonly capture cannot invoke an external diff driver")
 	}
-	config, configErr := runCaptureGitReadOnly(repoRoot, "config", "--get-regexp", `^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`)
+	config, configErr := runCaptureGitReadOnly(repoRoot, "config", "--get-regexp", "--null", `^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`)
 	if configErr != nil {
 		exit, ok := configErr.(*exec.ExitError)
 		if !ok || exit.ExitCode() != 1 {
 			return "", fmt.Errorf("readonly capture cannot establish conversion configuration")
 		}
 	}
-	for _, line := range strings.Split(config, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if fields[0] == "core.autocrlf" && len(fields) > 1 && (fields[1] == "false" || fields[1] == "0" || fields[1] == "no" || fields[1] == "off") {
-			continue
-		}
-		if fields[0] != "diff.renames" || (len(fields) > 1 && strings.Contains(strings.ToLower(fields[1]), "cop")) {
-			return "", fmt.Errorf("readonly capture cannot establish exact bytes without configured conversion/copy behavior")
-		}
+	conversions, err := parseCaptureConversionConfig(config)
+	if err != nil {
+		return "", err
 	}
 	excludes := []string{":(exclude).tpatch", ":(exclude).claude/skills", ":(exclude).github/skills",
 		":(exclude).github/prompts", ":(exclude).cursor/rules", ":(exclude).windsurfrules"}
@@ -428,14 +420,27 @@ func CapturePatchScopedReadOnly(repoRoot string, pathspecs []string) (string, er
 		}
 	}
 	untracked = filtered
-	if len(untracked) != 0 {
-		args := append([]string{"check-attr", "-z", "--all", "--"}, untracked...)
-		attributes, err := runCaptureGitReadOnly(repoRoot, args...)
-		if err != nil || attributes != "" {
-			return "", fmt.Errorf("readonly untracked capture cannot establish attribute-converted bytes")
-		}
+	// Enumerate index entries, not a diff/status: discovery must not invoke a
+	// clean filter before the applicability guard can refuse it.
+	args := append([]string{"ls-files", "--cached", "-z", "--"}, excludes...)
+	args = append(args, nested...)
+	args = append(args, pathspecs...)
+	trackedPaths, err := runCaptureGitReadOnly(repoRoot, args...)
+	if err != nil {
+		return "", fmt.Errorf("readonly capture cannot enumerate tracked candidates: %w", err)
 	}
-	args := append([]string{"diff", "--no-ext-diff", "--no-textconv", "--"}, excludes...)
+	candidates, err := captureAttributeCandidates(trackedPaths, untracked)
+	if err != nil {
+		return "", err
+	}
+	attributes, err := readCaptureAttributes(repoRoot, candidates)
+	if err != nil {
+		return "", err
+	}
+	if err := validateCaptureAttributes(attributes, conversions, untracked); err != nil {
+		return "", err
+	}
+	args = append([]string{"diff", "--no-ext-diff", "--no-textconv", "--"}, excludes...)
 	args = append(args, nested...)
 	args = append(args, pathspecs...)
 	tracked, err := runCaptureGitReadOnly(repoRoot, args...)

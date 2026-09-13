@@ -1624,6 +1624,10 @@ undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 Reviewer playbook/withdrawal commits are preserved and pushed. Production
 capture applicability and realistic hosted-config regression coverage are
 authorized; completed green hosted CI is required, not just local success.
+The three-file gitutil implementation and focused regression fixtures are
+authored/formatted. Metadata-only enumeration precedes effective attribute
+checks and all diff operations; old positive families and CI configuration
+are unchanged. Resource-gated validation and independent review are next.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

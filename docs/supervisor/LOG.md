@@ -1,3 +1,28 @@
+## Implementation Transition — S5 applicability correction — 2026-09-13
+
+**Task**: `fix-s5-capture-filter-applicability`
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**State**: authored; validation/review pending
+
+Readonly capture enumerates cached tracked entries and existing scoped untracked
+candidates, resolves effective attributes using NUL stdin/output, and refuses
+applicable conversions before diff. Registered-but-unused filter/named-driver
+definitions are safe; global unsafe conversion/copy controls remain. The check
+is conservative over all selected tracked entries, never a conversion-capable
+diff/status used to discover whether checking is needed.
+
+New fixtures cover hosted definitions, selected/out-of-scope conversions,
+worktree/info/global attributes, literal/glob/newline paths, unset ambiguity,
+metadata/nested-worktree exclusions, malformed inputs and no-write/no-execution
+evidence. A child control proves the execution sentinel actually detects a
+converter. All six original positive families are unchanged. Source formatting
+is complete; no Go validation or new review result is claimed.
+
+Next: resource-gated focused/control/simulated-host runs, affected validation,
+independent readonly review, then full local gates and completed hosted CI.
+The initial resource snapshot is now 79% free, below the required threshold;
+no threshold is relaxed. This checkpoint is not acceptance or S6 dispatch.
+
 ## Dispatch — S5 capture filter applicability correction — 2026-09-13
 
 **Task**: `fix-s5-capture-filter-applicability`

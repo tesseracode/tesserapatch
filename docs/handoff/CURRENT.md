@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability implementation authored (2026-09-13)**: readonly capture now
+enumerates concrete selected tracked/untracked candidates through metadata-only
+Git commands, then resolves NUL-delimited effective attributes before diff.
+Unused LFS and named diff-driver definitions no longer cause blanket refusal;
+applicable conversions still refuse without executing. New focused fixtures
+cover effective attribute sources, pathspec/exclusion behavior, unusual names,
+unset attributes, parser failure controls and converter/no-write sentinels.
+The six original positive families are unchanged. Source is formatted; Go
+validation and independent review are pending, not accepted.
+
 **S5 applicability correction started (2026-09-13)**: the operator requested
 implementation. Fresh WAVE_BASE is
 `ca07e2fd6ea4128db14a29589169edf47bade8c1`, after preserving/pushing the
@@ -3209,7 +3219,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — production fix and hosted-environment regression coverage
+- **Status**: In progress — implementation authored; resource-gated validation and review next
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3219,11 +3229,24 @@ WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
 
-The correction scope is recorded before code. The reviewer-owned playbook
-and withdrawn-approval commits are preserved/pushed; the new wave base is
-`ca07e2f`. Implement metadata-only capture-set enumeration and effective
-attribute validation, with realistic hosted configuration and no-execution/
-no-write controls. No source changes or new Go validation have run yet.
+The correction dispatch was persisted before code at `9a3e6e4`. Three owned
+gitutil files now implement and exercise effective attribute applicability.
+Candidate discovery deliberately uses cached index enumeration, not diff/status
+which could execute a filter before the guard. It conservatively checks every
+selected tracked candidate, plus selected non-excluded untracked paths. NUL
+transport preserves literal/glob/newline paths. Git resolves worktree, info and
+global attributes. Global external-diff/autocrlf/copy refusals stay intact.
+Valueless installed filter settings are valid metadata; ambiguous literal
+`filter=unset` stays fail-closed when an `unset` driver is defined.
+
+New tests exercise the actual readonly capture API under synthetic hosted
+definitions, compare permitted capture with the actual producer, and assert no
+converter command or repository/index/object/metadata write. Unsafe/malformed
+input controls exercise the same validators, and a child sentinel control
+proves executed converters leave evidence. Existing S5 positive families are
+unchanged. No Go validation has run yet; owned source formatting is complete.
+Ignored resource wrappers/config live under `bin/s5-applicability-validation/`
+and must be removed at close. All 13 research files remain untouched.
 
 ### Earlier assessment comparison (historical)
 
@@ -3955,6 +3978,13 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Applicability correction: `internal/gitutil/gitutil.go`,
+  `internal/gitutil/capture_attributes.go`,
+  `internal/gitutil/capture_attributes_test.go`, and CURRENT/ROADMAP/LOG.
+  Existing positive fixtures, CI commands and workflow are unchanged.
+
+### Earlier S5 files (historical)
+
 - Accepted S5 consumer surface: workflow read/diagnostic/reconstruction/D10/planner modules,
   captured recipe loading and pure autogen planning, verify inventory/row,
   doctor registry; CLI apply/auto/record/doctor integration and narrow
@@ -4569,6 +4599,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Applicability correction: source formatted; `git diff --check` clean.
+  No Go validation has run yet. Initial resource snapshot fell to 79% free;
+  a qualifying continuous minute is still required before every invocation.
+  Hosted CI and independent correction review remain pending.
+
+### Earlier S5 local results (historical; not correction acceptance)
 
 - Final S5 result: **all seven prescribed stages PASS**.
 - `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
