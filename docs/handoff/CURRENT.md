@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability validation resource-blocked (2026-09-13)**: implementation is
+checkpointed at `0e667a6`. The fresh gate exhausted 600 seconds before the
+first formatting-check command: memory fluctuated 78-81%, never sustaining
+the required >=80% minute. Load1 stayed <=5 and no Go tools were active.
+Exit 75; no Go validation command or focused test ran, and no later stage
+started. Independent static review is still pending. The correction is not
+accepted; keep the failure sentinel until an explicit validation retry.
+
 **Applicability implementation authored (2026-09-13)**: readonly capture now
 enumerates concrete selected tracked/untracked candidates through metadata-only
 Git commands, then resolves NUL-delimited effective attributes before diff.
@@ -3219,7 +3227,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — implementation authored; resource-gated validation and review next
+- **Status**: In progress — implementation checkpointed; validation resource-blocked; review pending
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3228,6 +3236,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The first correction validation attempt stopped before any Go command.
+The ignored gate's seven shell controls pass (healthy, interrupted interval,
+low memory, high load, active tool, malformed sample, stop-after-first-failure).
+The actual machine then failed to sustain the qualifying minute within 600
+seconds. No test success/failure is claimed. Static review of `0e667a6` is
+running independently with Go execution prohibited.
 
 The correction dispatch was persisted before code at `9a3e6e4`. Three owned
 gitutil files now implement and exercise effective attribute applicability.
@@ -4600,10 +4615,12 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Test Results
 
-- Applicability correction: source formatted; `git diff --check` clean.
-  No Go validation has run yet. Initial resource snapshot fell to 79% free;
-  a qualifying continuous minute is still required before every invocation.
-  Hosted CI and independent correction review remain pending.
+- Applicability correction at `0e667a6`: source formatted; diff clean. Resource
+  helper passes seven shell-only controls. The real gate timed out after 600
+  seconds at 78-81% free memory/load1 <=5/no active Go tools, before the first
+  `gofmt -l .` invocation. Exit 75; no Go test/vet/build/shard/gate ran.
+  Focused control/hosted tests, affected validation, completed hosted CI and
+  independent correction review remain pending. No thresholds were relaxed.
 
 ### Earlier S5 local results (historical; not correction acceptance)
 
@@ -10631,18 +10648,21 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Correct the production filter-applicability guard. Preserve simulated
-   hosted/global LFS defaults in positive tests and actual-applicable-filter
-   refusal/no-execution controls; fixture isolation alone is not a fix.
-   Record a fresh correction scope/base before implementation.
-2. Require green hosted Ubuntu/macOS CI, not only another local gate, before
-   resuming S6 readiness. This audit did not start corrective implementation.
+1. Finish independent static review of applicability checkpoint `0e667a6`;
+   address findings without weakening the original six positive families.
+2. When resources qualify, explicitly clear only the owned failure sentinel
+   and restart from formatting, then focused control/simulated-hosted tests,
+   affected packages, vet/build, full shards and the correction-base gate.
+   Require completed green hosted CI before acceptance or S6.
 3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
+- Correction validation is resource-blocked: no continuous healthy minute
+  in the 600-second attempt, so no Go validation has begun. Static review
+  and completed hosted confirmation of the correction remain pending.
 - Hosted Ubuntu/macOS blocking CI fails six S5 families at `6ed7bdd` due to
   production over-refusal on registered but inapplicable filters. Local
   validation did not expose the runner-default configuration; production
@@ -10654,6 +10674,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
+- Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
+  implementation `0e667a6` is not accepted. New owned ignored helpers are in
+  `bin/s5-applicability-validation/` (go, gofmt, resource-gate.sh,
+  resource-gate-test.sh, hosted.gitconfig, failed); remove only owned files at
+  closure. No real Git global/system configuration has changed. The thirteen
+  research files remain untouched. Historical S5 pass statements below do
+  not cover this correction.
 - The local S5 acceptance/archive is preserved, but post-close hosted CI is
   blocked. The newest LOG/CURRENT entry supersedes the old no-blocker
   statements for readiness. Do not interpret the local 8/8 as hosted success.

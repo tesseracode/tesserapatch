@@ -1,3 +1,19 @@
+## Validation Blocker — S5 applicability correction — 2026-09-13
+
+**Checkpoint**: `0e667a63ed2b83e4ff7591b0ff5233fe09f2df0e`
+**State**: local validation BLOCKED; static review pending
+
+The resource wrapper's seven shell-only controls pass. The real first gate
+then exhausted its 600-second budget: memory fluctuated 78-81% without
+sustaining >=80% for 60 continuous seconds; load1 stayed <=5 and no Go tools
+were active. Exit 75 occurred before `gofmt -l .`, so no formatting validation,
+focused test, vet, build, shard or final gate ran. Later stages did not start.
+Owned source was formatted before gating; that is not a suite result.
+
+The implementation remains checkpointed; independent readonly review is in
+progress with Go execution prohibited. Keep the failure sentinel for an
+explicit retry. No local/hosted success, acceptance or S6 readiness is claimed.
+
 ## Implementation Transition — S5 applicability correction — 2026-09-13
 
 **Task**: `fix-s5-capture-filter-applicability`
