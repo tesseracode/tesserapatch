@@ -1,3 +1,36 @@
+## Implementation Decision — GH #15 S5 ACCEPTED — 2026-09-12
+
+**Decision**: ACCEPTED — all findings closed; all seven validation stages pass
+**WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+**Gate-validated/pushed tip**: `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`
+**Range**: `537ffd9..89ae7c9` (60 commits before terminal tracking)
+
+### Evidence
+
+The final `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+exited 0: **8/8 PASS**, no warnings. Its own complete fresh 22-invocation
+test partition passes, in addition to the standalone complete run at
+`4579921` (main CLI 570.270s, workflow 103.105s). Every top-level Go
+invocation used its required qualifying minute; the final helper also resets
+the window across sampling gaps, with an independently exercised failing
+mutation. No threshold or tracked validation command was relaxed.
+
+All implementation, policy and compatibility findings are independently
+closed, including the bounded gitlink correction and landed-CLI refinement.
+The gate confirms clean tracked state, all 13 research files allowlisted,
+HEAD pushed, all 60 trailers valid and the single canonical approved field.
+Protected source/schema/asset/dependency/historical-fixture paths remain
+unchanged from the declared S5 base.
+
+### Action Taken
+
+Accept S5, flip CURRENT/ROADMAP and append the completion archive to HISTORY.
+Remove only the four owned ignored validation helpers and their empty
+directory. Commit/push these four tracking documents with no code, fixture
+or tracked validation-command change after the passing gate.
+No S6 dispatch, release/tag, GH #24 widening or GH #13 implementation.
+GH #13 retains its separate ADR-041 section-7 planning dependency.
+
 ## Validation Interruption — GH #15 S5 final gate — 2026-09-12
 
 **Gate checkpoint**: `a386f10bf30ebb473eaa7825fdc01a46f379cc18`

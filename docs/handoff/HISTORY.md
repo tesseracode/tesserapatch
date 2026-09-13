@@ -9534,3 +9534,174 @@ Terminal tracking records the accepted state without a new release or tag.
 
 No S4 blocker remains. S5 requires a separate assignment and fresh WAVE_BASE.
 GH #24 remains planning-only; GH #13 waits for shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-12 — GH #15 S5 — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `implement-recipe-generation-authority-s5`
+- **Milestone**: GH #15 / ADR-036
+- **Description**: Apply, verify, doctor and accounting, with independent capture evidence.
+- **Status**: Complete — ACCEPTED
+- **Assigned / completed**: 2026-09-09 / 2026-09-12
+- **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+- **Gate-validated/pushed tip**: `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`
+- **Range**: `537ffd9..89ae7c9` (60 commits before terminal tracking).
+- **Boundary**: S5 only; no S6, GH #24 widening, GH #13 implementation, release or tag.
+
+## Session Summary
+
+The operator reported external S4 approval and requested S5. Fresh fetch
+confirmed clean/pushed `537ffd9`, one main worktree, no stashes/operation
+markers, all 13 research files untouched and terminal S4 CI green.
+Dispatch `caca158` preceded code. Runtime ownership and independent
+coordinator test/golden/tracking ownership were file-disjoint; later units
+ran sequentially where surfaces overlapped.
+
+S5 implements exact-postimage no-write handling for both valid preimage-gate
+forms, with Applied and Skipped accounting and the exact success message.
+Initial write authorization remains separate from ordered skip witnesses.
+An alias-aware bounded prefix proof handles repeated/aliased targets and
+restoring prefixes before mutation, with a current-path recheck before skip.
+Legacy writes, missing/unreadable initial refusals, path safety and existing
+supersession severity remain. An 8 MiB materialization limit does not cap
+streamed exact equality or force valid large-file no-ops into writes.
+
+It also adds immutable C/E/P/R/marker assessment, exact readable-existence
+and raw-byte bindings, offline reference/object/payload reconstruction,
+the six-rung recipe_generation_coverage verify row, total seven-case execute
+preflight, and warning-only non-fixing doctor D10. Execute uses the same
+captured recipe bytes it validated. Auto preflight precedes preparation;
+canonical reapply remains state-selected and outside the recipe classifier.
+Warnings never grant replay authority, and V10 remains independent.
+
+The shared read-only record planner is used by the actual producer and by
+remediation. Pure recipe planning is separated from publication. A printed
+regeneration command requires complete derivation and actual producer/event/
+publication feasibility, not copied labels or an optimistic hint. Known
+unsafe publication targets are non-overridable producer gates. Doctor writes
+nothing, including under --fix, and its missing-C cohort requires readable
+patch and recipe artifacts without hiding present invalid coverage.
+
+## Architecture Decisions and Scope
+
+S5 exposed D9's missing independent capture-event carrier: same-patch P1/P2
+events and P6/P7 no-capture events can legitimately change coverage metadata
+without updating a generation. Comparing the latest generation would reject
+real events; copying C into its own validator cannot establish independence.
+
+The operator selected `independent-evidence`. Accepted ADR-041 defines
+`recipe-capture-event.json` (E), independently built from frozen observation,
+effective parent exclusions, real event facts and final bound inputs, with
+a one-way hash of exact coverage bytes (C). The shared publisher writes E
+atomically before C last on every governed event. P2 checkpoints now allow
+exactly E+C; all other no-write guarantees remain. This is unkeyed consistency
+evidence, not authenticated authorship/history or D16 origin.
+
+ADR-041 rev-1 corrected the independently identified binary-stub and
+parent-exclusion gaps. It defines bounded incomplete proof without invented
+bodies or promoted observation flags, preserves independently available
+facts in mixed records, and adds 42 supplemental ICE cases without rewriting
+the canonical C schema, ten-predicate blocks or original 360-row matrix.
+One new unmapped surface code makes seven mapped plus twelve unmapped codes.
+Its section 7 records the required separate GH #13 gate/identity/acceptance
+planning follow-up before that future implementation.
+
+Accepted ADR-042 clarifies ordered no-op proof, alias containment, gate-input
+dependencies and bounded memory. ADR-039's complete-operation domain,
+ADR-040's semantic reasons and D16's exact canonical-byte origin remain
+unchanged. No new replay candidate or broader operation domain is included.
+
+## Review Scoreboard and Pattern Catches
+
+- ADR-041 rev-0: NEEDS REVISION on observed binary stubs lacking reconstructable
+  payload and omitted captured ParentCreatedPaths. Rev-1 independently
+  APPROVED and accepted at `ace1f14`.
+- Ordered no-op rev-0: NEEDS REVISION on large-file no-op rejection/rewrites,
+  unresolved runtime alias fallback and projected created_by metadata.
+  Corrected streaming equality, safe fallback and gate-input tracking were
+  independently APPROVED; ADR-042 accepted at `37a88e9`.
+- Evidence foundation: grammar-proven binary content and registered-file/
+  publisher method-alias gaps corrected with actual-validator mutations.
+  All foundation findings closed at `7a737a0`/`fbac9f0`.
+- Consumer rev-0: one HIGH publication-path gate defect and five MEDIUM
+  reconstruction/read-only/probe/environment findings. Corrections make
+  publication safety a real producer gate, preserve the real 20 MiB
+  retention cohort, reject malformed hunkless modifications, close write-
+  capable opens/aliases, restrict verify planning to rung 3 and propagate
+  the complete readonly/offline/C-locale environment transitively.
+- Streamed-gitlink follow-up: corrected at `a119dca` with bounded pointer
+  scratch, exact prefix/commit/LF validation and commit-ID-only digest.
+  Actual free/exhausted-budget and malformed-pointer controls accompany it.
+  Independent review closes all consumer/D10 findings.
+- Exact E and verify-row golden deltas independently APPROVED. Original
+  S2/S4 projection bodies, historical fixture bytes/hash histories, capturers
+  and normalizers remain unchanged. A passing new coverage row does not
+  repair the frozen fixture's existing V8 failure.
+- Landed CLI correction `70bbc41`/`a6fefac` independently APPROVED: no-record
+  land repairs attestation but leaves stale C/E blocked; a real record and
+  re-land repair coverage. Distinct valid capture contexts avoid reusing an
+  old raw artifact identity, while feature bytes remain exact.
+- Terminal verdict: ACCEPTED after all seven stages and the final 8/8 gate.
+  No implementation, policy, compatibility or review finding remains open.
+
+All eleven original pure-core mutations survive, with additional whole-file
+writer-reference, path/constant/alias, readonly capability, parser inventory,
+capture-pair, ordered-proof, environment and final-comparator sensitivities.
+The same guarded validators reject the deliberately wrong fixtures.
+
+## Files Changed
+
+Workflow recipe execution/loading, preimage safety and bounded prefix proof;
+capture-event schema/codec and shared publication; immutable coverage reading,
+diagnostics/reconstruction, pure autogen/shared record planning, doctor D10
+and verify inventory/row. Gitutil gains exact in-memory patch reconstruction
+and scoped readonly capture/discovery; patchobs gains bounded offline
+reconstruction and complete command environment propagation.
+
+CLI apply/auto/record/doctor integration and narrow collision/diffstat/
+pending-baseline wrappers; directly coupled source inventories, legacy
+counts, real CLI/runtime fixtures and independent expected golden stages;
+ADR-041/042, primary pointers, ADR index/current pin and tracking.
+
+Protected S3 pure core, ADR-039/040, SPEC, CHANGELOG, assets, dependencies,
+reconcile consumer, historical fixture files, allowlist, reviewer playbook
+and all 13 research files remain unchanged from the S5 base.
+
+## Test Results
+
+All seven prescribed stages PASS:
+1. Gofmt reports no unformatted file.
+2. Targeted S0-S5, index/provenance, actual golden, gateway and ACL cases pass.
+3. Full owning core and expanded affected CLI pass; final refreshed owning
+   run includes workflow 103.058s and CLI/ACL 97.224s.
+4. Serial vet passes.
+5. Serial CLI build passes.
+6. Exact standalone 22-invocation script passes at pushed `4579921`, including
+   main CLI 570.270s, workflow 103.105s and all 21 isolated CLI invocations.
+7. `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+   passes at pushed `89ae7c9`: **8/8 PASS**, no warnings, including its own
+   complete fresh 22-invocation partition.
+
+Every top-level Go invocation required a fresh continuous minute at >=80%
+free memory, load1 <=5 and no active Go tools. Resource pauses in earlier
+attempts were explicit exit-75 blockers, not test failures or completed
+scripts. The final helper additionally resets across sampling gaps; six
+isolated shell scenarios pass, and deleting the real gap-reset condition
+makes its interruption fixture fail. No Go ran under simulated probes.
+Tracked scripts, timeout/partition settings and resource thresholds were
+never weakened.
+
+## Current State, Blockers and Next Steps
+
+S5 is ACCEPTED and its validated code is pushed. Terminal changes are only
+CURRENT/HISTORY/ROADMAP/LOG, with no code, fixture or tracked validation-
+command change after the successful gate. All wave commits carry the
+Copilot trailer. The four owned ignored validation helpers and their empty
+directory are removed; the original research files are untouched.
+
+No S5 blocker remains. S6 needs a separate assignment and fresh WAVE_BASE.
+No release or tag is shipped here. GH #24 remains non-blocking planning;
+GH #13 still requires ADR-041's planning follow-up and shipped GH #15/v0.17.0.

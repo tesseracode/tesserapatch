@@ -1619,247 +1619,47 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 ✅ REVIEW APPROVED — final mechanical gate pending — 2026-09-12**.
+**S5 ✅ ACCEPTED — 2026-09-12** (assigned 2026-09-09).
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
-Operator-reported external S4 approval received; terminal CI 34368468175
-passes all required jobs and the tracked baseline is clean/pushed.
-Scope: exact-postimage apply/verify classification and accounting, read-time
-binding recomputation, six-rung verify row, total seven-case execute
-classifier, read-only doctor D10 and dry-derivation-gated remediation.
-Preserve ADR-029 atomicity/path-safety/supersession behavior, ADR-039/040,
-S3 purity, S4 publication and all 11 phase-boundary mutations. One runtime
-worker and a disjoint coordinator contract-test unit; all Go validation
-remains serial and resource-gated. Scope is checkpointed before code.
-Dispatch `caca158` and independent contract-test checkpoint `e38a73a` are
-pushed. The worker delivered partial D7/D14 classification/accounting, then
-stopped at D9 capture authority: same-patch/P2 checkpoint publication can
-change capture without updating an independent generation descriptor.
-Operator adjudication is required; no weaker binding rule or new marker
-was invented. The reader/verify row/D17/doctor remain unimplemented and
-no S5 Go validation has run. Auto-mode preflight placement is authorized as
-a normal no-writes-on-refusal closure, not a separate policy change.
-The operator selected `independent-evidence`: plan ADR-041 and reopen only
-the S4 publication rules needed for independent capture-event evidence.
-Concrete schema/ordering/migration approval precedes runtime resumption;
-the selected direction is not itself acceptance of an implementation.
-Proposed ADR-041 and its explicit primary-document qualifications are
-authored, including 36 supplemental acceptance cases. The canonical coverage
-schema, ten-predicate blocks and original matrix remain unchanged.
-Independent rev-0 review returned NEEDS REVISION on fully observed binary-
-stub reconstruction and the missing captured parent-exclusion input.
-Rev-1 corrects those cases before re-review; runtime integration stays paused.
-Those corrections are authored with an independent effective parent-exclusion
-set, bounded binary-stub proof rules and six added actual-reader/mutation
-cases (42 supplemental total). Independent re-review is next.
-Independent re-review is APPROVED with no significant issue. ADR-041 rev-1
-is accepted/indexed, primary qualifications are effective, and only its
-required S4 pair-publication surfaces reopen before the S5 reader.
-GH #13's separate gate/identity/acceptance planning dependency is recorded
-in ADR-041 section 7. Runtime implementation/validation/review remain pending.
-Coordinator evidence contract/publication guard extensions are authored and
-formatted with wrong-input controls. The runtime worker owns the same-target
-correction and evidence foundation; no S5 Go validation has run.
-The evidence foundation is now delivered; its three narrow caller closures
-are authorized. D7's cached same-target no-op bug will use a bounded upfront
-prefix proof preserving initial-tree authority, assigned to a separate
-file-disjoint implementer. Both units still need validation and review before
-consumer integration.
-The ordered-proof draft and Proposed ADR-042 are delivered with eight new
-focused test functions. Independent review must confirm ordering, alias,
-resource-limit and legacy-preservation behavior before accepting this unit.
-Ordered-proof rev-0 review is NEEDS REVISION: size-limit no-op regression and
-unresolved-runtime-alias containment (HIGH), plus projected created_by
-metadata dependencies (MEDIUM). Rev-1 stays in the same bounded file scope.
-Rev-1 corrections are authored with streaming equality, bounded-image
-recovery, containment-safe fallback and gate-input tracking, plus five
-regression functions. Validation and independent confirmation remain pending.
-Independent ordered rev-1 correction review is now APPROVED. ADR-042 is
-accepted/indexed with primary pointers; runtime validation is still pending
-alongside the evidence caller closures. No S5 completion is claimed.
-All foundation caller closures are now delivered and the worker stopped.
-The stable combined unit enters gated formatting/targeted/affected/vet/build
-validation; full slice shards/close wait for consumer integration.
-Unit attempt 1 passed formatting and compiled all selected packages, then
-stopped at targeted step 2 on exact inventories/amended S4 expectations and
-two new S5 fixtures. Fresh 85%-free gates passed; no later stage ran.
-Test-only compatibility corrections and immutable foundation review are next.
-Coordinator fixture fixes are authored: valid generation upper descriptors
-and an actual injected immutable-read error instead of an invalid-ref
-assumption. The production reader remains floor-gated/offline; revalidation
-waits for the disjoint compatibility correction.
-Independent foundation rev-0 is NEEDS REVISION on grammar-proven binary
-content validation and registered-file E-only writer detection. Corrections
-are split between the foundation worker and coordinator, without overlapping
-the compatibility agent's files. No revalidation or acceptance yet.
-Compatibility deltas and registered-file writer detection are now authored/
-formatted with exact write-set and full-path/alias mutation controls; that
-agent stopped. The foundation worker is completing the binary pair fix.
-The shared registered-file detector also covers C, with two additional
-full-path/constant-alias controls, so the same bypass is closed for both files.
-Re-review closes the registered-file case but finds an alternate-publisher
-WriteFeatureFile method-value alias (MEDIUM). Selector-reference and mapping
-inventory corrections are in progress; binary validation remains separate.
-Those guard corrections are authored/formatted with three reference forms
-for both C/E through the actual phase and mapping validators.
-Independent static review now closes both writer-guard findings at `fbac9f0`.
-Only the binary-pair foundation finding remains open; no Go revalidation or
-whole-foundation acceptance has occurred.
-The binary pair correction is now delivered with actual-validator rehashed
-counterexamples and positive precedence controls. All workers stopped;
-checkpoint and restart gated unit validation, with independent confirmation
-still required before foundation acceptance.
-Corrected unit `7a737a0` now passes formatting and all targeted S0-S5/
-ADR-index families under fresh 84-85%-free gates. Owning packages and
-affected CLI/golden families are next, then vet/build if they pass.
-Full core packages now pass (workflow 98.559s). The affected CLI run stops
-only on the frozen producer golden expectations lacking E/staging. Author a
-separate six-fixture S5 expected delta with independent hashes and exact
-sensitivities; historical fixture bytes and S2/S4 projections stay unchanged.
-The golden worker is active. Read-only consumer scouting preserves the
-inventory/strict-grammar/zero-write reconstruction constraints in CURRENT;
-consumer implementation still waits for the foundation checkpoint.
-Independent review now confirms all foundation findings closed at `7a737a0`.
-The exact golden delta and remaining affected CLI/vet/build stages still
-precede runtime acceptance; this is not whole-S5 approval.
-The exact four-file golden delta is delivered and the worker stopped.
-Restart gated unit validation with actual golden capture and independently
-review the delta; earlier projections and historical fixtures remain intact.
-The expanded targeted retry at `97ff4ff` now passes actual goldens plus
-S0-S5/index/provenance families under fresh gates. Remaining unit stages and
-independent delta review precede consumer integration.
-The internal unit now passes all steps 1-5, including full core (workflow
-98.676s), affected CLI (64.139s), vet/build and actual goldens. Await the
-independent delta verdict before consumer dispatch; final S5 shards/gate
-remain after that implementation.
-Independent golden-delta review APPROVED `97ff4ff`; the internal foundation/
-ordered unit is accepted. Remaining S5 consumers are dispatched to one fresh
-runtime owner with disjoint coordinator golden/tracking ownership. The same
-WAVE_BASE applies; this is not a wave close or S6 dispatch.
-Consumer scope now includes shared readonly record feasibility and pure
-autogen planning extraction, used by the producer and remediation alike.
-The first fresh worker stopped without edits for this approval; no guessed
-planner or mutating doctor path is authorized.
-The fresh consumer/planner worker is active; coordinator-owned golden
-scouting preserves the existing V8-driven compat-verify failure and row
-isolation. No consumer implementation result or new validation is claimed.
-The complete scoped consumer/planner draft is now delivered and the worker
-stopped. Legacy check-count expectations and an isolated compat-verify row
-delta precede fresh validation and independent review. No S5 acceptance yet.
-The seven parent-owned count/golden files are updated, preserving original
-V8 failure and artifact bytes with comparator mutations. The stable consumer
-draft now enters fresh gated validation; independent review is read-only at
-`95be8dd`.
-Consumer attempt 1 passes formatting/compilation and patchobs/workflow
-targets, then stops at two source-contract refactor residues: human count
-projection and legacy error duplication. Fix production factoring without
-weakening the guards, then restart; no later stage ran.
-The correction is authored/formatted: display-free shared collision facts
-with the registered CLI projection, plus one captured-byte legacy loader.
-Retry 2 passes all consumer/live-golden targets except the now-stale entry
-for that removed duplicate reader. Remove only the stale inventory entry,
-then restart; no later validation stage ran.
-Retry 3 passes all targets/index/goldens and full patchobs/gitutil/store,
-then workflow exposes two old counts plus real legacy probe-budget and
-readonly offline/locale regressions. Correct the implementation and counts
-without weakening the old guards; no later validation stage ran.
-The old count expectations are corrected at `bef41c5`; the consumer worker
-owns gateway/remediation fixes while independent runtime and exact-delta
-reviews continue. Foundation acceptance is not whole-S5 acceptance.
-The exact consumer row/count deltas `cf381a1`/`bef41c5` are independently
-APPROVED. Production review and the remediation/gateway correction still
-precede full S5 validation and acceptance.
-Consumer rev-0 review is NEEDS REVISION on six findings (one HIGH publication
-gate, five MEDIUM reconstruction/read-only/probe/environment issues).
-The worker owns their corrections and regressions; no S5 acceptance yet.
-Partial rung-3/envelope corrections are delivered. Two narrowly authorized
-transitive reader/enumerator paths complete that scope before the worker
-continues all six findings; no revalidation or closure is claimed.
-Consumer rev-1 is delivered for all six findings, with concrete regressions,
-and the worker stopped. Restart gated validation and independent re-review;
-implementation claims alone do not close findings.
-Rev-1 targeted core/gateway/correction controls pass; CLI stops only on old
-P1 failure timing now superseded by the required pre-mutation gate. Update
-those expectations to demand unchanged artifacts and the exact early refusal;
-no production or safety-guard relaxation.
-The retry passes all targets and full core (workflow 107.172s), then affected
-CLI exposes two uncheckpointed edited-recipe fixtures, unknown-D10 input and
-a real D10 missing-coverage cohort error. Correct those without relaxing
-binding or accepting the extra warning; no vet/build/later stages ran.
-Those corrections are authored/formatted with real checkpoint and cohort
-controls; the original doctor warning expectation is preserved.
-Cohort retry passes negative cases and CLI targets; seed the recipe artifact
-missing from the positive truthful-command fixture before restarting.
-Latest code `a97b4af` now passes steps 1-3a, including targeted/live-golden/
-gateway controls and all full core suites (workflow 113.364s). Step 3b never
-started: memory stayed 71-74% through a 600-second gate wait, exiting 75.
-No test failed in that run and no threshold was relaxed. Review confirmation
-and remaining CLI/vet/build/shards/gate stages still precede S5 acceptance.
-Re-review at `a97b4af` closes five original findings and D10 corrections,
-but retains one MEDIUM streamed-gitlink identity/validation defect under
-exhausted image budget. Correct it without Go runs while resource-blocked,
-then restart validation from formatting once resources qualify.
-The gitlink correction is authored on 2026-09-10 using bounded pointer
-scratch, exact identity validation/digest and real exhausted-budget controls.
-No Go validation ran while resource-blocked; independent confirmation and a
-fresh step-1 restart remain.
-Independent static review APPROVED `a119dca`; all consumer/D10 findings are
-closed. Resource-gated fresh validation and final wave-close still remain;
-S5 is not accepted.
-At 2026-09-10 00:12 PDT the readiness sample remains ineligible (78% free,
-load1 5.84); no Go validation was attempted.
-At 01:22 PDT the operator requested a retry: 84% free/load1 3.67/no active
-Go tools. The code/checkpoint is unchanged and pushed. Restart from
-formatting with a fresh full gate before every command; all static findings
-are closed but S5 validation/acceptance remain incomplete.
-The resumed steps 1-2 now pass under fresh 84%-free gates, including
-exhausted-budget gitlink controls. Owning suites and final stages remain.
-Resumed steps 1-5 now all pass: full core (workflow 102.762s), affected CLI
-71.948s, vet/build and targeted/goldens. All findings are closed; exact
-22-shard validation and explicit-base gate remain before S5 acceptance.
-The first exact-shard invocation stops only on three older landed-CLI
-expectations (CLI 595.016s). Correct that file's row counts and distinguish
-landing re-attestation from real coverage repair; no production/gate
-weakening or later shard/gate run.
-The one-file correction is authored/formatted, explicitly proving attestation
-alone leaves coverage blocked and real producer repair restores pass.
-Its first targeted run correctly exposed reused-identity history ambiguity.
-Pin distinct valid capture contexts and exact unchanged source in the fixture;
-production ambiguity/coverage rules remain unchanged.
-The corrected `a6fefac` targets now pass, including ACL1/2/3 and exact source/
-capture-identity assertions. Refresh remaining stages and rerun full shards
-from the first invocation; narrow correction review remains pending.
-Refreshed steps 1-5 pass (workflow 103.058s, expanded CLI/ACL 97.224s,
-vet/build). Restart the exact full script while the readonly narrow review
-finishes against the immutable test correction.
-Independent review APPROVED `70bbc41`/`a6fefac`; all static reviews are
-complete. The exact full-shard retry continues on unchanged code/tests.
-The retry's first invocation passes every package (main CLI 573.939s,
-workflow 102.634s). The next gate times out after 600s at 76% free, exiting
-75 before invocation 2 starts. No test failed; 21 invocations and the final
-gate remain. All static reviews and steps 1-5 are complete, not whole S5.
-On 2026-09-12 the operator requested another exact-script attempt. Code/tests
-are unchanged; initial memory is 75%, load1 2.97 with no active Go tools.
-The full bounded resource gate must qualify before any Go command starts;
-no thresholds or validation requirements are relaxed.
-The retry waited the full 600 seconds at 75-76% free and exited 75 before
-invocation 1. No Go command/test started. Code/tests and prior approvals
-are unchanged; more free memory is required for remaining validation.
-At 08:59 PDT the operator freed more resources: 82% free/load1 2.33/no Go
-tools, with unchanged pushed code/tests. Retry the exact full script with
-fresh full gates before every invocation; final validation remains pending.
-The morning retry completed the exact 22-invocation script: main CLI
-570.270s/workflow 103.105s and every other/isolated invocation passed, each
-with a fresh 82-84%-free gate. All static findings and steps 1-6 pass.
-Validated/pushed tip `45799215b8b726886ea71571739a3158c601f494`; checkpoint
-review approval and run the explicit-base final gate before S5 acceptance.
-The final gate passes checks 1-7, then its shard phase stops on a later
-resource timeout (not a test failure). Resources recover at 20:31 PDT to
-84%/load1 2.12. Reset observation windows across sampling interruptions and
-retry the complete gate; no threshold or tracked command changes.
-The ignored helper's interruption controls now pass with a demonstrated
-failing gap-reset mutation; command labels improve timeout diagnosis.
-No Go command ran under the isolated shell probes.
-S6, GH #24 widening, GH #13 implementation and release/tag work remain excluded.
+**Gate-validated/pushed range**:
+`537ffd9bff153efe37afa3bc6d66f4e00fc55d35..89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`.
+
+S5 completes exact-postimage no-write classification/accounting, immutable
+read-time coverage bindings and offline content reconstruction, the six-rung
+verify check, seven-case execute preflight and warning-only read-only doctor
+D10. Explicit execution remains distinct from replay authority; V10 and
+legacy no-coverage behavior remain independently enforced. Shared actual
+record planning gates every offered regeneration command.
+
+Operator-selected, independently reviewed ADR-041 adds deterministic
+capture-event evidence, E-before-C publication on all seven producers and
+42 supplemental cases. It carries captured parent exclusions and defines
+honest limited proof for unavailable/omitted payloads without invented
+observations. ADR-042 preserves initial write permission while proving
+ordered no-op witnesses, bounded memory and safe aliases. ADR-039/040,
+D16 origin proof, the canonical C schema and ten-predicate blocks remain.
+
+Every implementation, policy and compatibility finding is independently
+closed. All eleven original phase mutations and new parser/pair/writer/
+readonly/order/environment controls remain effective. Historical fixtures,
+S2/S4 projection bodies and hash histories are unchanged; separate exact
+expected deltas retain the old V8 failure and the distinction between
+landing re-attestation and real producer coverage repair.
+
+All seven validation stages pass. The standalone exact 22-invocation script
+passes (main CLI 570.270s, workflow 103.105s), and the explicit-base final gate
+passes **8/8**, no warnings, with its own complete fresh partition at
+`89ae7c9`. Every top-level Go invocation had a fresh qualifying resource
+window; sampling interruptions reset the observed minute. Earlier partial/
+resource-blocked runs are historical, not substitutes for the two full passes.
+
+The completion archive is in HISTORY; terminal tracking changes documentation
+only after the passing gate. Four owned temporary validation helpers are
+removed. Protected S3 core, public assets/SPEC/CHANGELOG, dependencies,
+historical fixtures, allowlist, reviewer playbook and all 13 research files
+remain unchanged. S6 needs a separate assignment and fresh wave base.
+No release/tag or GH #24 widening is included. GH #13 still requires shipped
+GH #15/v0.17.0 and its separate ADR-041 section-7 planning follow-up.
 
 Post-S1 external review is APPROVED WITH NOTES. Its LOW is corrected by
 registering `extractUpstreamContext` as PI-13, migrating it to strict

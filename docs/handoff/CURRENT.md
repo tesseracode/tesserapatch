@@ -2,7 +2,21 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
+
+**S5 ACCEPTED (2026-09-12)**: all independent findings are closed and all
+seven validation stages pass. The explicit-base final gate reports
+**8/8 PASS**, no warnings, at pushed
+`89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`. Both the standalone full script
+and the gate's own fresh 22-invocation partition pass. Terminal tracking is
+documentation-only; no code, fixture or tracked validation command changes
+after that gate. The completion archive is in HISTORY and the four owned
+validation helpers are removed. The 13 research files remain untouched.
+
+S6 requires a separate assignment and fresh wave base. No release/tag,
+GH #24 widening or GH #13 implementation is included in this close.
+
+### S5 final-gate history (superseded)
 
 **S5 final gate interrupted (2026-09-12)**: checks 1-7 pass at `a386f10`;
 check 8 stops at a resource timeout after preceding invocations pass. No
@@ -3158,19 +3172,36 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Review approved — final gate resource-interrupted; guarded retry next
+- **Status**: Complete — S5 ACCEPTED; all seven stages and independent reviews pass
 - **Assigned**: 2026-09-09
+- **Completed**: 2026-09-12
 - **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+- **Gate-validated/pushed tip**: `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`
 - **Release target**: `v0.17.0`
 
 WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
 
 ## Session Summary
 
-The morning exact-script retry completed all 22 invocations successfully.
-All static reviews and steps 1-6 now pass. Repository/code/protected-file
-invariants remain intact, and the validated tip is pushed. The canonical
-state is APPROVED for the final mechanical gate, not yet ACCEPTED.
+S5 is accepted. It adds ordered exact-postimage no-write accounting,
+independently paired capture evidence, immutable read-time content/binding
+assessment, the six-rung verify row, seven-case execute preflight and
+warning-only read-only doctor D10 with actual-producer feasibility checks.
+ADR-041 records the operator-selected evidence design; ADR-042 preserves
+initial write authority while proving ordered no-op witnesses.
+
+All implementation and compatibility findings are independently closed.
+Steps 1-7 pass, including the standalone complete 22-invocation script and
+the final gate's own complete fresh partition. The gate is 8/8 PASS at
+pushed `89ae7c9`. No code/test/tracked validation-command change follows it.
+The completion archive and terminal documents preserve the scope, decisions,
+review corrections and resource pauses; temporary helpers are removed.
+S6 and the downstream GH #13/#24 work remain separate.
+
+### S5 final validation preparation (historical)
+
+The morning exact-script retry completed all 22 invocations before the final
+gate. The earlier approved checkpoint and interruptions below are historical.
 
 ### Earlier morning retry summary (historical)
 
@@ -3771,16 +3802,15 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
-S5 is implemented and every static finding/test correction is independently
-approved. ADR-041/042 are accepted; ADR-039/040 remain in force. Production
-is unchanged since `a119dca`, with the landed-CLI test refinement at `a6fefac`.
-Fresh steps 1-6 pass, including one complete exact 22-invocation script at
-pushed `4579921`. All static reviews are complete. The final explicit-base
-wave-close gate remains, so S5 is review-approved but not yet accepted.
-No implementation/review agent remains active.
+S5 is ACCEPTED, with every review finding closed and all seven stages
+passing. The final explicit-base gate is 8/8 PASS at pushed `89ae7c9`.
+Production is unchanged since `a119dca`; the final runtime-test correction
+is `a6fefac`. Terminal tracking changes documentation only. No implementation
+or review agent remains active.
 
-S4 remains internally accepted, externally approved and durably pushed.
-No S6, release/tag or GH #24 implementation is authorized.
+ADR-041/042 are accepted, ADR-039/040 remain in force, and S0-S4 stay
+accepted. S6 requires a separate dispatch; no release/tag or GH #24
+implementation is authorized by this close.
 
 ### Accepted prerequisite state (historical)
 
@@ -3854,12 +3884,16 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
-- Consumer draft: workflow read/diagnostic/reconstruction/D10/planner modules,
+- Accepted S5 consumer surface: workflow read/diagnostic/reconstruction/D10/planner modules,
   captured recipe loading and pure autogen planning, verify inventory/row,
   doctor registry; CLI apply/auto/record/doctor integration and narrow
   collision/diffstat/pending-baseline wrappers; gitutil pure reconstruction/
   readonly capture and patchobs reference reads; scoped tests/source guards.
-  The exact file set is recorded by the consumer checkpoint.
+  The exact file set is recorded by the commits in the validated S5 range.
+- Terminal tracking only: `docs/handoff/CURRENT.md`,
+  `docs/handoff/HISTORY.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
+- Four owned ignored helpers in `bin/s5-validation/` are removed at close;
+  no historical fixture, protected asset or research file is removed.
 
 - S5 dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`. Authorized implementation paths are listed above.
@@ -3886,14 +3920,14 @@ remains blocked until that release is implemented, soaked and shipped.
   plus explicit qualifications in ADR-036 and its recipe-generation PRD.
 - ADR index and directly coupled exact current-region pin:
   `docs/adrs/README.md`, `internal/cli/prepare_s7_rev16_test.go`.
-- Partial worker unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
+- Accepted ordered/preimage unit: `internal/workflow/recipe.go`, `writefile_safety.go`,
   `verify_anchored.go`, `recipe_authority_s5_apply_test.go`,
-  `recipe_authority_s5_verify_test.go`. These are not acceptance-ready.
+  `recipe_authority_s5_verify_test.go`.
 - Ordered proof extension: new `internal/workflow/recipe_prefix_precheck.go`
   and accepted `docs/adrs/ADR-042-ordered-recipe-noop-proof.md`, plus scoped
   changes to `recipe.go`, `writefile_safety.go` and the S5 apply tests.
-- Three session-owned ignored wrappers under `bin/s5-validation/`; not staged
-  or part of the product, and removed at closure.
+- Session-owned validation helpers were never staged or part of the product;
+  all four are removed at closure.
 
 ### Completed S4 file record
 
@@ -4464,6 +4498,19 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Final S5 result: **all seven prescribed stages PASS**.
+- `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
+  at pushed `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33` exits 0:
+  **8/8 PASS**, no warnings, including its own complete fresh 22-invocation
+  partition. The standalone complete script also passed at `4579921`.
+- Every top-level Go command used a fresh qualifying minute at >=80% free
+  memory, load1 <=5 and no active Go tools. The final helper rejects sampling
+  gaps, with six passing shell scenarios and a deliberately failing mutation.
+- No code, fixture or tracked validation command changes after the passing
+  gate. This documentation-only terminal update requires no new Go run.
+
+### S5 execution evidence (historical)
 
 - Exact full script PASS at pushed `4579921`: all 22 invocations, including
   main CLI 570.270s/workflow 103.105s, all other packages and all 21 isolated
@@ -10476,19 +10523,16 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Commit/push the review-approved checkpoint so the durability gate can
-   compare HEAD with origin/main.
-2. Run
-   `make wave-close-check WAVE_BASE=537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
-3. Archive/push terminal S5 tracking only after validation completes.
-   Do not start S6, release/tag work or GH #24 implementation.
+1. Await a separate S6 assignment and record a fresh fetched/pushed WAVE_BASE
+   before dispatch. S5 is accepted; no correction remains.
+2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+   the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
+   implementation.
 
 ## Blockers
 
-- No implementation or review finding remains open. Steps 1-6 pass,
-  including a complete exact full-script run after resource recovery.
-- Final step 7 and durable closure remain before S5 acceptance. Its Go
-  invocations still require fresh qualifying resource windows.
+- No S5 blocker remains. All independent reviews and all seven validation
+  stages pass, including the final 8/8 gate.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10496,23 +10540,25 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
-- Active S5 WAVE_BASE: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.
-  The operator supplied external S4 approval and S5 authorization, but no
-  new review findings/checklist. S4 is already archived; do not duplicate it.
-- S5's runtime ownership and strict resource-gated sequence are at the top
-  of this file. Older S4 pending actions below are historical, not dispatches.
+- S5 is ACCEPTED at gate-validated/pushed `89ae7c9`; terminal tracking is
+  documentation-only. Its completion archive is in HISTORY. Historical
+  pending actions above are not current dispatches or blockers.
+- S5 WAVE_BASE was `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`. A separately
+  assigned S6 needs a fresh fetched/pushed base, not this or a release tag.
+- The four ignored resource-gate helpers are removed. Future validation
+  must retain fresh per-command windows and reset them across sampling gaps;
+  do not weaken thresholds, skip shards or assume a partial run is complete.
 - Worker `51ca5679-7631-4492-ae58-7e0fead1b61e` delivered all six corrections
   and stopped. All implementation workers are idle; do not resume historical
-  assignments during final validation.
+  assignments after closure.
 - Consumer reviewer `a4ae4c62-3a13-4e22-8f3e-338ef6c088c8` closed all
   findings through `a119dca` and approved the final `a6fefac` test correction.
   Reviewer
   `222308b5-9449-462e-80be-599ccd4dcd1f` approved the parent-owned
   `cf381a1`/`bef41c5` row/count deltas; neither reviewer runs Go.
-- All current steps 1-6 and independent reviews pass. The morning full script
-  completed all 22 invocations at `4579921`. Only step 7 and terminal tracking
-  remain. The earlier resource blocks are historical; do not reuse them as
-  current blockers or treat prior partial runs as the successful full run.
+- All steps 1-7 and independent reviews pass. The morning full script
+  completed all 22 invocations at `4579921`, and the final gate repeated the
+  complete partition at `89ae7c9`. Earlier resource blocks are historical.
 - The verify inventory extension is authored; its one-capture/instability
   contract remains required through correction. No reference-body proof may
   come from a fresh mutable-worktree read.
