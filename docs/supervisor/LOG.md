@@ -1,3 +1,29 @@
+## Dispatch — S5 capture filter applicability correction — 2026-09-13
+
+**Task**: `fix-s5-capture-filter-applicability`
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**State**: IN PROGRESS
+
+The operator authorizes the production fix. Reviewer-owned commits
+`ca72b9b` (playbook) and `ca07e2f` (withdrawn S5 approval) were inspected,
+preserved unchanged and pushed before recording this correction base.
+Tracked state is clean; the original 13 research files are untouched.
+
+Scope: CapturePatchScopedReadOnly and focused gitutil tests. Enumerate
+concrete tracked/untracked candidates with existing exclusions using
+metadata-only plumbing; resolve effective attributes before diff/conversion.
+Unused filter or named diff-driver definitions must not refuse plain paths.
+Applicable/uncertain conversions still refuse without invoking their commands.
+Keep global conversion/copy guards, readonly environment and existing
+untracked attribute safety conservative; no S6 or schema change.
+
+Add simulated hosted configuration, active/out-of-scope/unset filter,
+named-driver, unusual-path and no-write/no-execution controls. Do not alter
+the six existing positive families to hide ambient configuration. Each new
+validator receives failing-input controls. Local Go validation remains
+serial behind the required fresh 60-second resource gates; completed hosted
+Ubuntu/macOS and observer/Windows jobs must be green before acceptance.
+
 ## Review — implement-recipe-generation-authority-s5 — 2026-09-13 (revised)
 
 **Reviewer**: external (Copilot)

@@ -2,7 +2,18 @@
 
 ## Status
 
-**Cluster state**: BLOCKED
+**Cluster state**: IN PROGRESS
+
+**S5 applicability correction started (2026-09-13)**: the operator requested
+implementation. Fresh WAVE_BASE is
+`ca07e2fd6ea4128db14a29589169edf47bade8c1`, after preserving/pushing the
+reviewer's playbook and withdrawn-approval commits unchanged. The 13 research
+files remain untouched. Fix effective path applicability in readonly capture,
+not fixture-only configuration scrubbing. Scope is gitutil capture plus new
+focused tests; all old positive families and safety guards remain intact.
+Local resource-gated validation and completed green hosted CI are required.
+
+### Earlier post-close assessment history
 
 **Reviewer assessment confirmed (2026-09-13)**: this is a production
 applicability defect, not merely a misconfigured test. The readonly capture
@@ -3194,21 +3205,27 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s5`
+- **Task ID**: `fix-s5-capture-filter-applicability`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: S5 — apply, verify, doctor and accounting
-- **Status**: Hosted CI blocked — production filter-applicability defect confirmed
-- **Assigned**: 2026-09-09
-- **Local close**: 2026-09-12
-- **Post-close investigation**: 2026-09-12 — CI failure attribution only
-- **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`
-- **Gate-validated/pushed tip**: `89ae7c9cefb2161cf56e1e54cb2684b946a4cd33`
+- **Description**: Correct readonly capture filter and named diff-driver applicability
+- **Status**: In progress — production fix and hosted-environment regression coverage
+- **Assigned**: 2026-09-13
+- **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
+- **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
 - **Release target**: `v0.17.0`
 
-WAVE_BASE = 537ffd9bff153efe37afa3bc6d66f4e00fc55d35
+WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The correction scope is recorded before code. The reviewer-owned playbook
+and withdrawn-approval commits are preserved/pushed; the new wave base is
+`ca07e2f`. Implement metadata-only capture-set enumeration and effective
+attribute validation, with realistic hosted configuration and no-execution/
+no-write controls. No source changes or new Go validation have run yet.
+
+### Earlier assessment comparison (historical)
 
 Compared the independent reviewer assessment with production code and
 Git attribute behavior. The core MEDIUM finding is accurate: registered
