@@ -165,6 +165,64 @@ have the runner enforce it before starting rather than starting under
 contention: a suite that times out because the machine was busy produces a
 finding about the machine, not the code.
 
+### 1.10 Check hosted CI before trusting a local pass
+
+A local suite proves the code works *on this machine*. It cannot prove the code
+works on a machine configured differently, and `make wave-close-check` has the
+same blind spot — it runs here. Two accepted waves in this project shipped
+host-specific defects behind a green local gate: the `dash` vs `bash` `\x1f`
+divergence, and an S5 capture guard that refuses whenever Git LFS is merely
+installed.
+
+**Do this before concluding that a green local run means the change is safe.**
+Establish whether the change turned CI from green to red:
+
+```sh
+gh run list --branch main --limit 20 \
+  --json conclusion,headSha,createdAt,displayTitle \
+  --jq '.[] | "\(.conclusion)\t\(.headSha[0:7])\t\(.createdAt[0:16])\t\(.displayTitle[0:60])"'
+
+# the last commit that actually passed
+gh run list --branch main --limit 100 --json conclusion,headSha,displayTitle \
+  --jq '[.[] | select(.conclusion=="success")][0]'
+
+# a specific baseline — e.g. the pre-wave commit the wave claims was green
+gh run list --branch main --limit 100 --json conclusion,headSha,displayTitle \
+  --jq '.[] | select(.headSha|startswith("<sha>"))'
+
+gh run view <run-id> --log-failed    # the failing step's output
+```
+
+**`cancelled` is not `success`.** A wave that pushes many commits in quick
+succession cancels its own in-flight runs, so the branch can show a long
+uninterrupted streak with no completed result at all. Tally before concluding
+anything:
+
+```sh
+gh run list --branch main --limit 60 --json conclusion --jq '.[].conclusion' \
+  | sort | uniq -c
+```
+
+At S5 close that tally read `50 cancelled, 10 failure, 0 success` — CI had been
+red for the entire slice while local validation passed 15/15.
+
+**Only after CI is confirmed red, reproduce locally.** Most host differences are
+ambient configuration, and can be simulated in seconds instead of waiting on a
+CI round-trip. For Git configuration specifically, point the global config
+somewhere synthetic rather than editing the operator's real one:
+
+```sh
+printf '[filter "lfs"]\n\tclean = git-lfs clean -- %%f\n' > /tmp/fake-gitconfig
+GIT_CONFIG_GLOBAL=/tmp/fake-gitconfig go test ./pkg -run 'TestName' -count=1
+```
+
+Then ask the question the failure alone does not answer: **is the test wrong, or
+is the code wrong?** Isolating a fixture until CI turns green is only correct if
+the environment CI provides is one real users never have. If the environment is
+ordinary — LFS installed, a non-default shell, a different `init.defaultBranch`
+— the test is reporting a genuine defect, and silencing it converts a caught
+defect into an uncaught one.
+
 ---
 
 ## 2. Recurring defect classes
