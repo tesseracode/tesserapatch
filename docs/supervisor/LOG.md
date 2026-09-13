@@ -1,3 +1,67 @@
+## Review — implement-recipe-generation-authority-s5 — 2026-09-13 (revised)
+
+**Reviewer**: external (Copilot)
+**Task**: GH #15 S5 — verify/doctor/apply integration
+**Range**: `537ffd9..6ed7bdd` · **Supersedes**: the 2026-09-12 APPROVED verdict
+
+### Verdict: NEEDS REVISION
+
+The prior APPROVED verdict is withdrawn. It rested on local validation only —
+15/15 packages green, gofmt/vet/build clean — which was true and insufficient.
+Hosted CI was red for the entire slice and was not consulted before acceptance.
+That omission is the reviewer's, not the implementer's.
+
+### Evidence
+
+- `537ffd9` (pre-S5 baseline, accepted at S4): CI **success**.
+- Last 60 runs on `main`: **50 cancelled, 10 failure, 0 success**. The
+  cancellations are self-inflicted — 61 commits pushed in quick succession kept
+  superseding in-flight runs — so the slice produced almost no completed CI
+  signal while appearing active.
+- Reproduced locally in seconds by pointing `GIT_CONFIG_GLOBAL` at a synthetic
+  config carrying Git-LFS filters: control passes (`ok` 9.088s), simulated host
+  fails with exactly six families, all citing `readonly capture cannot
+  establish exact bytes without configured conversion/copy behavior`.
+
+### Finding — MEDIUM · over-refusal on installed but inapplicable filters
+
+`internal/gitutil/gitutil.go:395-411`. A probe repository with zero
+`.gitattributes` entries, where `git check-attr filter` reports `unspecified`,
+is still refused because `git config --get-regexp '^filter\.'` matches a global
+Git-LFS installation. The guard tests whether a filter is *defined*, not whether
+it *applies* to the captured paths.
+
+`git lfs install` writes global configuration and is the standard setup step, so
+this disables readonly capture for any developer who has ever installed LFS,
+in every repository, including those with no LFS content.
+
+The conservative instinct is correct — clean/smudge genuinely transform bytes —
+but the applicability test is wrong. Resolve attributes for the concrete capture
+candidates and refuse only when a path resolves to a set, non-`unspecified`
+filter. The `diff.external`, `diff.*.textconv` and `core.autocrlf` arms are
+global by nature and can stand.
+
+### Required for re-review
+
+1. Production applicability fix; the six failing tests pass **unmodified**.
+2. Installed-but-unused LFS retained as a positive regression fixture, and
+   actual-applicable-filter refusal retained.
+3. Hosted CI green on `main` before S6 dispatches — a completed run, not a
+   cancelled one.
+
+### Notes
+
+Fixture isolation alone is rejected as remediation: it would turn CI green while
+leaving the defect in users' hands and removing the only signal detecting it.
+The 2026-09-13 Assessment Correction below reaches the same conclusion
+independently.
+
+Reviewer-side follow-up landed: `docs/REVIEW-PLAYBOOK.md` §1.10 now requires a
+hosted-CI green/red determination before a local pass is treated as sufficient,
+and records that `cancelled` is not `success`.
+
+---
+
 ## Assessment Correction — GH #15 S5 filter applicability — 2026-09-13
 
 **Scope**: compare the operator-supplied independent review; no implementation
