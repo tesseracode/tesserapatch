@@ -1625,10 +1625,11 @@ undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 `ca07e2fd6ea4128db14a29589169edf47bade8c1..0e4861ec79df18c7720ff0398e4d2f4b6067b110`.
 All seven local stages pass; the final gate reports **8/8 PASS**, no warnings,
 including its own complete fresh 22-invocation partition. Independent review
-and completed hosted runs `34748008741`/`34943456714` pass. The correction is
-archived in HISTORY; terminal changes are tracking-only. Preserve the in-flight
-tracking-only hosted run before the final close push. No S6/release/tag work
-is dispatched and all thirteen research files remain untouched.
+and completed hosted runs `34748008741`/`34943456714` pass. Final hosted run
+`34950823322` also completes SUCCESS on the exact `0e4861e` gate checkpoint,
+without cancellation. The correction is archived in HISTORY; terminal changes
+are tracking-only and owned validation helpers/logs are removed. No S6/release/tag
+work is dispatched and all thirteen research files remain untouched.
 
 Earlier correction execution record:
 

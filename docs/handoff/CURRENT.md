@@ -8,15 +8,17 @@
 pass. The final explicit-base gate exits 0 at pushed
 `0e4861ec79df18c7720ff0398e4d2f4b6067b110`: **8/8 PASS**, no warnings,
 including its own fresh full 22-invocation partition. The standalone 22-run
-partition also passed at `ffc26d0`. Independent review is complete and hosted
-runs `34748008741`/`34943456714` are completed green on identical source.
+partition also passed at `ffc26d0`. Independent review is complete. Hosted run
+`34950823322` is completed green at the exact final-gate checkpoint; earlier
+runs `34748008741`/`34943456714` also completed green on identical source.
 
 The correction archive is appended to HISTORY. Closing edits are tracking-only;
 production, tests, CI commands and original positive families are unchanged.
-Let the current tracking-only hosted run `34950823322` finish before pushing
-the closing record so it is not cancelled. Durability cleanup/push remains the
-last close operation, not a new implementation task. No release/tag or S6
-dispatch. The thirteen research files and allowlist remain untouched.
+The current hosted run was allowed to finish without cancellation. All five
+owned validation helpers/config and six logs are removed, along with their
+empty directories. This is the documentation-only terminal close; no source
+change, release/tag or S6 dispatch. The thirteen research files and allowlist
+remain untouched.
 
 ### Applicability correction execution history (superseded)
 
@@ -3331,7 +3333,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: Complete — all local stages and required hosted evidence pass; closing push pending
+- **Status**: Complete — correction accepted; all local and hosted validation complete
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3347,8 +3349,9 @@ protocol without changing source or fixtures. The final gate passes 8/8 at
 passed 22/22 invocations and 38 package-result rows at `ffc26d0`.
 The resource protocol remained unchanged before every top-level Go command.
 The accepted correction is archived below HISTORY's hosted-CI reopening record.
-Finish only terminal documentation durability and owned-helper cleanup after
-the in-flight hosted run completes; no further implementation is dispatched.
+Final hosted run `34950823322` now also passes at the exact `0e4861e` gate
+checkpoint. Owned helpers/logs are removed; final edits are tracking-only and
+no further implementation is dispatched.
 
 Hosted run `34943456714` completed SUCCESS without being cancelled; all five
 blocking jobs pass. Its Windows full-suite annotation is on the existing
@@ -4785,6 +4788,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Hosted run `34950823322` completes SUCCESS at the exact final-gate
+  checkpoint `0e4861e`: all five required jobs pass; release is skipped.
+  It was not cancelled for closing documentation. All prescribed local and
+  hosted evidence is complete; no source/test change follows that evidence.
 
 - FINAL September 15 result: **all seven prescribed local stages PASS**.
   `make wave-close-check WAVE_BASE=ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -10859,35 +10867,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Let hosted run `34950823322` finish before the terminal tracking push;
-   remove only owned validation helpers/logs and durably push this close.
-   All local stages and required reviewed-source hosted evidence pass.
-   S6 needs a separate assignment and fresh WAVE_BASE; it is not dispatched.
+1. S6 needs a separate assignment and fresh WAVE_BASE; it is not dispatched.
+   S5 and its applicability correction are accepted with full local/hosted
+   evidence. No further correction validation or helper cleanup remains.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No correction implementation, review or validation blocker remains.
-  Only closing-record durability awaits the in-flight hosted run's completion
-  to avoid cancellation. Historical resource/CI blockers below are resolved.
-
-- No implementation/review/hosted-source blocker remains. Stages 1-6 pass.
-  Stage 7 is executing; both hosted runs have completed successfully.
-  Historical resource blockers below do not describe current readiness.
-
-- Hosted confirmation is complete at `0190e61`. Local validation is now
-  retrying under the unchanged resource protocol; acceptance still waits for
-  every prescribed stage and the explicit-correction-base final gate.
-
-- Correction validation is resource-blocked: no continuous healthy minute
-  in the 600-second attempt, so no Go validation has begun. Static findings
-  are closed through `f7c5250`; hosted confirmation remains pending.
-- Hosted Ubuntu/macOS blocking CI fails six S5 families at `6ed7bdd` due to
-  production over-refusal on registered but inapplicable filters. Local
-  validation did not expose the runner-default configuration; production
-  applicability repair and hosted confirmation remain.
+- No S5/correction implementation, review or validation blocker remains.
+  Earlier resource/hosted-CI blockers are resolved; their evidence is preserved
+  in the execution history and HISTORY archive.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -10897,15 +10888,17 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 - Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
   reviewed source `f7c5250` is accepted with the passing `0e4861e` final gate.
-  Owned ignored helpers awaiting cleanup are in
-  `bin/s5-applicability-validation/` (go, gofmt, resource-gate.sh,
-  resource-gate-test.sh, hosted.gitconfig, failed); remove only owned files at
-  closure. No real Git global/system configuration has changed. The thirteen
-  research files remain untouched. Historical S5 pass statements below do
-  not cover this correction.
-- The local S5 acceptance/archive is preserved, but post-close hosted CI is
-  blocked. The newest LOG/CURRENT entry supersedes the old no-blocker
-  statements for readiness. Do not interpret the local 8/8 as hosted success.
+  Hosted run `34950823322` is green on that exact checkpoint. The owned
+  `bin/s5-applicability-validation/` helpers/config/logs and empty directories
+  are removed. No real Git global/system configuration changed; the thirteen
+  research files remain untouched.
+- The local S5 acceptance/archive and subsequent reopening remain historical.
+  This correction closes the hosted applicability defect with independent
+  review, synthetic-host regression coverage, native CI and full local gates.
+  No fixture-only isolation or local-pass proxy substituted for production repair.
+
+### Earlier S5 implementation context (historical)
+
 - S5 WAVE_BASE was `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`. A separately
   assigned S6 needs a fresh fetched/pushed base, not this or a release tag.
 - The four ignored resource-gate helpers are removed. Future validation

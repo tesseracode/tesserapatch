@@ -1,3 +1,25 @@
+## Close — S5 applicability correction — 2026-09-15
+
+**Task**: `fix-s5-capture-filter-applicability`
+**Verdict**: ACCEPTED — local and hosted validation complete
+**Validated range**:
+`ca07e2fd6ea4128db14a29589169edf47bade8c1..0e4861ec79df18c7720ff0398e4d2f4b6067b110`
+
+Hosted run
+[34950823322](https://github.com/tesseracode/tesserapatch/actions/runs/34950823322)
+completes SUCCESS at the exact final-gate checkpoint. All five required jobs
+pass, release is skipped, and no in-flight run was cancelled for this close.
+Together with the passing 8/8 local gate and complete independent review,
+this closes the original hosted-defaults defect and its review findings.
+
+**Action taken**: CURRENT has exactly one ACCEPTED canonical field and a
+complete active task; ROADMAP records the accepted range; HISTORY contains the
+correction archive. All five owned helper/config files and six logs, plus their
+empty directories, are removed. Only closing documentation changed after the
+validated checkpoint; original fixtures, assets, CI commands, allowlist and
+the thirteen research files are unchanged. Commit/push this terminal record.
+No release/tag or S6 dispatch.
+
 ## Acceptance — S5 applicability correction — 2026-09-15
 
 **Task**: `fix-s5-capture-filter-applicability`

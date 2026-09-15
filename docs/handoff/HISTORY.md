@@ -9752,7 +9752,7 @@ readiness remains blocked.
 - **Description**: Correct installed-but-inapplicable Git conversion refusal
 - **Assigned**: 2026-09-13
 - **Completed validation**: 2026-09-15
-- **Status**: ACCEPTED; terminal tracking durability follows hosted-run completion
+- **Status**: ACCEPTED — local/hosted evidence and terminal cleanup complete
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
 - **Reviewed source**: `f7c525010569da5970107fa7b325244e281b8e57`
 - **Validated/pushed range**:
@@ -9822,6 +9822,12 @@ at `ffc26d0` pass all five required jobs: Ubuntu/macOS/Windows and both observer
 jobs. The existing Windows full-suite allowed-failure surface remains distinct
 from blocking-job success. Hosted evidence is independent of the local gate.
 
+Final hosted run
+[34950823322](https://github.com/tesseracode/tesserapatch/actions/runs/34950823322)
+also completes SUCCESS at the exact `0e4861e` final-gate checkpoint, all five
+required jobs passing and release skipped. It was allowed to finish without
+cancellation before the terminal close.
+
 ## Review Scoreboard and Pattern Catch
 
 - Initial review at `0e667a6`: NEEDS REVISION — three concrete gaps.
@@ -9839,9 +9845,10 @@ contexts must agree before exact readonly capture can be claimed.
 ## Current State, Blockers and Next Steps
 
 No correction implementation, review or validation blocker remains. Terminal
-edits are tracking-only. The currently running tracking-only hosted job is
-allowed to finish before the closing push so the record is not cancelled.
-Owned ignored helpers/logs are removed at the final close; research is untouched.
+edits are tracking-only. All three hosted runs completed successfully. Five
+owned helper/config files, six logs and their empty directories are removed;
+research is untouched. No source, fixture or CI-command change follows the
+validated checkpoint.
 
 S6 needs a separate assignment and fresh WAVE_BASE. No release/tag is shipped
 here. GH #24 remains non-blocking planning, and GH #13 still requires ADR-041's
