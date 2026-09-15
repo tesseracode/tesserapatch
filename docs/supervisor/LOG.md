@@ -1,3 +1,19 @@
+## Final-Gate Dispatch — S5 applicability correction — 2026-09-15
+
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**State**: APPROVED; stage 7 executing, acceptance pending
+
+Hosted run `34943456714` completes SUCCESS at `ffc26d0` with all five
+blocking jobs passing. It was allowed to finish without cancellation. The
+allowed-failure Windows full-suite annotation belongs to the existing GH #17
+surface; no blocking job failed. Both completed hosted runs now cover the
+unchanged reviewed source.
+
+**Action**: push the final-gate tracking checkpoint and execute the explicit-base
+mechanical gate. Its formatting/vet/build and all 22 test invocations must each
+qualify a fresh resource window. No source, fixture, workflow or partition
+change. Archive/accept only after success; no release/tag or S6 dispatch.
+
 ## Decision — S5 applicability approved for final gate — 2026-09-15
 
 **Checkpoint**: `ffc26d0ae3d7094799ab909d2411ee89458694b2`

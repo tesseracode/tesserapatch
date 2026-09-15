@@ -1644,8 +1644,9 @@ September 15 local stages 1-5 PASS: formatting, RGA/control/simulated-host
 targets, full affected packages, vet and build (83-84%-free gates).
 The exact 22-invocation full shard script now PASSES at `ffc26d0`, with fresh
 84%-free per-command gates. The explicit-base final gate remains before
-acceptance; the newer tracking-only hosted run is allowed to finish before
-another tracking push. Reviewed implementation range:
+acceptance; newer hosted run `34943456714` also completed SUCCESS, without
+cancellation, at `ffc26d0`. The final gate is now dispatched on a tracking-only
+successor. Reviewed implementation range:
 `ca07e2fd6ea4128db14a29589169edf47bade8c1..f7c525010569da5970107fa7b325244e281b8e57`.
 Source/tests and original positive families remain unchanged.
 The earlier local close and investigation below remain historical evidence.

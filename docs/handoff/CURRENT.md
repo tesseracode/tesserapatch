@@ -9,8 +9,9 @@ The exact full script completed all 22 invocations at pushed `ffc26d0`,
 including main CLI 553.321s/workflow 101.829s and every isolated shard.
 Each invocation qualified a fresh minute at 84% free/load1 <=5/no Go tools.
 Static review and hosted run `34748008741` already pass on identical source.
-The newer tracking-only hosted run `34943456714` is still awaiting macOS;
-let it finish before pushing this final-gate checkpoint to avoid cancelling it.
+The newer hosted run `34943456714` now also completes SUCCESS at `ffc26d0`,
+including all five blocking jobs. It was allowed to finish without cancellation.
+Push this final-gate checkpoint and execute stage 7 now.
 
 The canonical APPROVED token records review/implementation approval for the
 mechanical close, not a claim that stage 7 has run. Execute
@@ -3314,7 +3315,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: Approved for final gate — static/hosted and local stages 1-6 pass; stage 7 pending
+- **Status**: Approved — static/hosted and local stages 1-6 pass; stage 7 executing
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3323,6 +3324,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+Hosted run `34943456714` completed SUCCESS without being cancelled; all five
+blocking jobs pass. Its Windows full-suite annotation is on the existing
+GH #17 allowed-failure surface and does not change blocking-job success.
+Push the approved final-gate tracking and run stage 7 through the same per-Go
+resource wrappers. No code/fixture/workflow changed while awaiting CI.
 
 The complete September 15 shard script passes at `ffc26d0`: 22/22 fresh Go
 invocations, including the whole-package partition and all 21 isolated CLI
@@ -4753,6 +4760,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Newer hosted run `34943456714` completes SUCCESS at `ffc26d0`, all five
+  blocking jobs passing. Final gate starts next on a tracking-only successor,
+  with the exact explicit correction WAVE_BASE and fresh internal Go gates.
 
 - September 15 stage 6 PASS: exact 22-invocation script exits 0 at
   `ffc26d0ae3d7094799ab909d2411ee89458694b2`; main CLI 553.321s, workflow
@@ -10815,21 +10826,18 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Let hosted run `34943456714` finish, then push the final-gate checkpoint.
-   Completed hosted run `34748008741` already proves the identical source;
-   do not cancel the newer run merely for tracking.
-2. Run the explicit correction-base wave-close gate through fresh per-command
+1. Run the explicit correction-base wave-close gate through fresh per-command
    resource gates. Stages 1-6 are complete; do not substitute their prior
    results for the gate's own fresh checks/partition. Archive and close only
    after success; no S6 dispatch is included.
-3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
 - No implementation/review/hosted-source blocker remains. Stages 1-6 pass.
-  Stage 7 is pending; avoid cancelling the newer tracking-only hosted run.
+  Stage 7 is executing; both hosted runs have completed successfully.
   Historical resource blockers below do not describe current readiness.
 
 - Hosted confirmation is complete at `0190e61`. Local validation is now
