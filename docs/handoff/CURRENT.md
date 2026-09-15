@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability stages 1-5 PASS (2026-09-15)**: full affected gitutil/workflow
+packages pass (9.272s/100.863s), followed by clean vet and build. Every command
+qualified a fresh minute at 84% free/load1 <=5/no active Go tools. Start the
+unchanged CI-equivalent 22-invocation shard script; its per-invocation gates
+and first-failure stop remain active. Hosted CI/static review already pass,
+but full shards and the correction-base final gate still precede acceptance.
+
 **Applicability stages 1-2 PASS (2026-09-15)**: formatting is clean. Targeted
 RGA S0-S5 tests pass across gitutil, workflow, patchobs, store and CLI (assets
 has no matching targets). The focused actual-capture regressions and all six
@@ -3293,7 +3300,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — static review and hosted CI complete; local validation retrying
+- **Status**: In progress — static/hosted and local stages 1-5 pass; full shards starting
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3302,6 +3309,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+September 15 affected packages pass (gitutil 9.272s, workflow 100.863s),
+then `go vet ./...` and `go build ./cmd/tpatch` pass. All three invocations
+had fresh qualifying minutes at 84% free. No implementation/fixture change
+was needed. Checkpoint the result and run the exact existing shard script
+with wrappers gating each fresh Go process.
 
 September 15 stages 1-2 pass. Control targets: gitutil 3.512s, workflow
 16.054s, patchobs 1.217s, store 0.302s, CLI 16.461s. The same capture/legacy
@@ -4719,6 +4732,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 15 stages 3-5 PASS: full affected gitutil/workflow packages
+  (9.272s/100.863s), vet all packages and build CLI are clean. Each command
+  qualified its own 84%-free minute. Stages 1-5 are now complete; stage 6
+  full shards starts next and stage 7 final gate remains outstanding.
 
 - September 15 stages 1-2 PASS: `gofmt -l .` empty; RGA S0-S5 control
   targets pass in gitutil/workflow/patchobs/store/CLI; assets reports no

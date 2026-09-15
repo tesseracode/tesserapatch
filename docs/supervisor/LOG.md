@@ -1,3 +1,19 @@
+## Validation Transition — S5 applicability full shards — 2026-09-15
+
+**Source**: unchanged reviewed `f7c5250`; tracking at `023d08b`
+**Result**: stages 1-5 PASS; stage 6 starting
+
+Full affected gitutil/workflow packages pass (9.272s/100.863s), then vet and
+CLI build are clean. Every invocation qualified a fresh resource minute at
+84% free, load1 <=5 and no Go tools. No source/fixture change was necessary.
+
+**Action**: checkpoint/push honest progress and run the exact existing
+`sh scripts/wave-close-test-shards.sh`, gating each of its 22 Go invocations.
+Keep its environment and partition unchanged. Stop on the first failure;
+stage 7 must subsequently run its own fresh checks/partition with correction
+WAVE_BASE `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
+No acceptance or S6 dispatch.
+
 ## Validation Result — S5 applicability stages 1-2 — 2026-09-15
 
 **Source**: unchanged reviewed `f7c5250`; tracking at `c4595e0`
