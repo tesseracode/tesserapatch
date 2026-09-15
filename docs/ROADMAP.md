@@ -1640,6 +1640,9 @@ at `0190e61` across Ubuntu/macOS/Windows and both observer jobs. The operator's
 September 15 resource retry starts at 83% free/load1 2.24/no Go tools, with a
 fresh qualifying minute still required for each command. All local stages and
 the correction-base final gate remain required before acceptance.
+September 15 formatting and targeted RGA/control/simulated-host stages now
+PASS (83-84%-free gates). Affected packages, vet/build, full shards and final
+gate are next; source/tests and original positive families remain unchanged.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

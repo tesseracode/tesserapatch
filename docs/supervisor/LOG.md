@@ -1,3 +1,19 @@
+## Validation Result — S5 applicability stages 1-2 — 2026-09-15
+
+**Source**: unchanged reviewed `f7c5250`; tracking at `c4595e0`
+**Result**: PASS; stages 3-7 next
+
+Fresh gated `gofmt -l .` is empty. Targeted RGA S0-S5 control tests pass:
+gitutil 3.512s, workflow 16.054s, patchobs 1.217s, store 0.302s and CLI
+16.461s; assets has no matching targets. Actual capture regressions and the
+six original hosted-failure families pass with synthetic global LFS settings:
+gitutil 2.838s and workflow 2.419s. Original fixtures are unchanged.
+
+Every invocation passed a fresh continuous-minute resource gate at 83-84%
+free memory, load1 <=5 and no active Go tools. Interrupted windows reset
+normally. No threshold relaxation, source change or later-stage bypass.
+Proceed serially to affected packages, vet/build, full shards and final gate.
+
 ## Validation Retry — S5 applicability correction — 2026-09-15
 
 **Checkpoint**: `0190e61140bae5ba2a61fa1540f0faac292fdef3`

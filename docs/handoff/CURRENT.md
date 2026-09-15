@@ -4,6 +4,15 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability stages 1-2 PASS (2026-09-15)**: formatting is clean. Targeted
+RGA S0-S5 tests pass across gitutil, workflow, patchobs, store and CLI (assets
+has no matching targets). The focused actual-capture regressions and all six
+original hosted-failure families also pass under synthetic global LFS settings,
+without changing those original fixtures. Every invocation qualified a fresh
+continuous resource minute at 83-84% free, load1 <=5 and no active Go tools.
+Continue serially with affected packages, vet/build and full validation.
+Production/tests remain unchanged; this is not final acceptance.
+
 **Applicability validation retry (2026-09-15)**: the operator freed resources.
 HEAD and origin/main remain `0190e61140bae5ba2a61fa1540f0faac292fdef3`,
 tracked state is clean, and all thirteen research files are untouched.
@@ -3294,6 +3303,12 @@ WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
 
+September 15 stages 1-2 pass. Control targets: gitutil 3.512s, workflow
+16.054s, patchobs 1.217s, store 0.302s, CLI 16.461s. The same capture/legacy
+failure targets under simulated global LFS pass: gitutil 2.838s, workflow
+2.419s. Gate interruptions correctly reset the qualifying interval; no
+threshold was weakened. Proceed to affected package tests and vet/build.
+
 The operator requested a resource retry on September 15. The unchanged pushed
 checkpoint now has a completed green hosted run on all five validation jobs.
 The initial machine snapshot qualifies, but is not a continuous-minute gate.
@@ -4704,6 +4719,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 15 stages 1-2 PASS: `gofmt -l .` empty; RGA S0-S5 control
+  targets pass in gitutil/workflow/patchobs/store/CLI; assets reports no
+  matching tests. New capture regressions and six original failure families
+  pass in gitutil/workflow with synthetic `GIT_CONFIG_GLOBAL` LFS definitions.
+  Each command had a fresh qualifying resource minute at 83-84% free.
+  Stages 3-7 remain outstanding.
 
 - September 15 retry: hosted run `34748008741` is completed SUCCESS at
   `0190e61` (all five test/observer jobs; release skipped). Local formatting,
