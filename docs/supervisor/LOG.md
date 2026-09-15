@@ -1,3 +1,24 @@
+## Validation Retry — S5 applicability correction — 2026-09-15
+
+**Checkpoint**: `0190e61140bae5ba2a61fa1540f0faac292fdef3`
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**State**: hosted CI PASS; local validation restarting
+
+The operator freed resources and requested a retry. Fetch confirms identical
+HEAD/origin, clean tracked state, one main worktree, no stashes and the thirteen
+untouched research files. Initial resources: 83% free, load1 2.24, no Go tools.
+This snapshot does not replace the fresh continuous-minute per-command gate.
+
+Hosted run [34748008741](https://github.com/tesseracode/tesserapatch/actions/runs/34748008741)
+completed SUCCESS on the reviewed checkpoint. Ubuntu/macOS/Windows test jobs
+and both S7 observer jobs all succeed; release is skipped. This is completed
+hosted evidence, not a cancelled run or a local proxy.
+
+**Action**: clear only the owned previous failure sentinel, restart formatting,
+targeted control/simulated-host coverage, affected packages, vet/build, full
+shards and the explicit-base final gate, serially and stopping on first failure.
+No source change, acceptance, release/tag work or S6 dispatch.
+
 ## Review — S5 applicability rev-2 — 2026-09-13
 
 **Reviewer**: independent code-review agent `b9465991-369f-469c-8ae7-0be05a889a85`

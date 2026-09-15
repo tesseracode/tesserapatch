@@ -4,6 +4,19 @@
 
 **Cluster state**: IN PROGRESS
 
+**Applicability validation retry (2026-09-15)**: the operator freed resources.
+HEAD and origin/main remain `0190e61140bae5ba2a61fa1540f0faac292fdef3`,
+tracked state is clean, and all thirteen research files are untouched.
+Initial resources are 83% free/load1 2.24/no active Go tools. Restart local
+validation from formatting with a fresh qualifying minute before every Go
+command, retaining serial execution and first-failure stop.
+
+Hosted run [34748008741](https://github.com/tesseracode/tesserapatch/actions/runs/34748008741)
+completed **SUCCESS** on that exact reviewed checkpoint: Ubuntu/macOS/Windows
+test jobs and both S7 observer jobs all succeed; release is skipped.
+This closes the hosted-CI blocker, not the outstanding local validation.
+No source change or S6 dispatch is included in this retry.
+
 **Applicability static review complete (2026-09-13)**: the independent reviewer
 reports no significant issues at `f7c5250`; all three findings and the
 oversized-fallback variant are closed in code. Persist/push this reviewed
@@ -3271,7 +3284,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — static review complete; local validation resource-blocked; hosted CI pending
+- **Status**: In progress — static review and hosted CI complete; local validation retrying
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3280,6 +3293,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The operator requested a resource retry on September 15. The unchanged pushed
+checkpoint now has a completed green hosted run on all five validation jobs.
+The initial machine snapshot qualifies, but is not a continuous-minute gate.
+Clear only the owned prior failure sentinel and restart the prescribed local
+sequence, stopping on the first failure. Static approval remains valid because
+production/tests are unchanged.
 
 Independent static review is complete through `f7c5250`, with no remaining
 reported findings. The reviewed correction is being durably pushed, but no
@@ -4684,6 +4704,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 15 retry: hosted run `34748008741` is completed SUCCESS at
+  `0190e61` (all five test/observer jobs; release skipped). Local formatting,
+  targeted/control/simulated-host tests, affected packages, vet/build, full
+  shards and the correction-base gate are being restarted from the beginning.
+  No local pass is claimed from the initial resource snapshot.
 
 - Applicability correction at `0e667a6`: source formatted; diff clean. Resource
   helper passes seven shell-only controls. The real gate timed out after 600
@@ -10735,6 +10761,10 @@ at 471.544s. Formatting, vet and CLI build pass.
    implementation.
 
 ## Blockers
+
+- Hosted confirmation is complete at `0190e61`. Local validation is now
+  retrying under the unchanged resource protocol; acceptance still waits for
+  every prescribed stage and the explicit-correction-base final gate.
 
 - Correction validation is resource-blocked: no continuous healthy minute
   in the 600-second attempt, so no Go validation has begun. Static findings
