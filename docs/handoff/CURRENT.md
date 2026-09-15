@@ -2,7 +2,23 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
+
+**Applicability correction ACCEPTED (2026-09-15)**: all seven local stages
+pass. The final explicit-base gate exits 0 at pushed
+`0e4861ec79df18c7720ff0398e4d2f4b6067b110`: **8/8 PASS**, no warnings,
+including its own fresh full 22-invocation partition. The standalone 22-run
+partition also passed at `ffc26d0`. Independent review is complete and hosted
+runs `34748008741`/`34943456714` are completed green on identical source.
+
+The correction archive is appended to HISTORY. Closing edits are tracking-only;
+production, tests, CI commands and original positive families are unchanged.
+Let the current tracking-only hosted run `34950823322` finish before pushing
+the closing record so it is not cancelled. Durability cleanup/push remains the
+last close operation, not a new implementation task. No release/tag or S6
+dispatch. The thirteen research files and allowlist remain untouched.
+
+### Applicability correction execution history (superseded)
 
 **Applicability approved for final gate (2026-09-15)**: stages 1-6 PASS.
 The exact full script completed all 22 invocations at pushed `ffc26d0`,
@@ -3315,7 +3331,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: Approved — static/hosted and local stages 1-6 pass; stage 7 executing
+- **Status**: Complete — all local stages and required hosted evidence pass; closing push pending
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3324,6 +3340,15 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The operator's resource retry completed the correction's entire validation
+protocol without changing source or fixtures. The final gate passes 8/8 at
+`0e4861e`, including its own uncached shard partition; the standalone partition
+passed 22/22 invocations and 38 package-result rows at `ffc26d0`.
+The resource protocol remained unchanged before every top-level Go command.
+The accepted correction is archived below HISTORY's hosted-CI reopening record.
+Finish only terminal documentation durability and owned-helper cleanup after
+the in-flight hosted run completes; no further implementation is dispatched.
 
 Hosted run `34943456714` completed SUCCESS without being cancelled; all five
 blocking jobs pass. Its Windows full-suite annotation is on the existing
@@ -4760,6 +4785,14 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- FINAL September 15 result: **all seven prescribed local stages PASS**.
+  `make wave-close-check WAVE_BASE=ca07e2fd6ea4128db14a29589169edf47bade8c1`
+  exits 0 at `0e4861ec79df18c7720ff0398e4d2f4b6067b110`: **8/8 PASS**,
+  no warnings, including its own complete fresh 22-process test partition.
+  The standalone partition also passes 22/22 invocations at `ffc26d0`.
+  Every top-level Go command was gated by a fresh continuous minute at
+  >=80% free memory, load1 <=5 and no active Go tools.
 
 - Newer hosted run `34943456714` completes SUCCESS at `ffc26d0`, all five
   blocking jobs passing. Final gate starts next on a tracking-only successor,
@@ -10826,15 +10859,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the explicit correction-base wave-close gate through fresh per-command
-   resource gates. Stages 1-6 are complete; do not substitute their prior
-   results for the gate's own fresh checks/partition. Archive and close only
-   after success; no S6 dispatch is included.
+1. Let hosted run `34950823322` finish before the terminal tracking push;
+   remove only owned validation helpers/logs and durably push this close.
+   All local stages and required reviewed-source hosted evidence pass.
+   S6 needs a separate assignment and fresh WAVE_BASE; it is not dispatched.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
+
+- No correction implementation, review or validation blocker remains.
+  Only closing-record durability awaits the in-flight hosted run's completion
+  to avoid cancellation. Historical resource/CI blockers below are resolved.
 
 - No implementation/review/hosted-source blocker remains. Stages 1-6 pass.
   Stage 7 is executing; both hosted runs have completed successfully.
@@ -10859,7 +10896,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Context for Next Agent
 
 - Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
-  reviewed source `f7c5250` is not accepted. New owned ignored helpers are in
+  reviewed source `f7c5250` is accepted with the passing `0e4861e` final gate.
+  Owned ignored helpers awaiting cleanup are in
   `bin/s5-applicability-validation/` (go, gofmt, resource-gate.sh,
   resource-gate-test.sh, hosted.gitconfig, failed); remove only owned files at
   closure. No real Git global/system configuration has changed. The thirteen

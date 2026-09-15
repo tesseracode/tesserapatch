@@ -9740,3 +9740,109 @@ Named textconv drivers are also selected by path attributes; check-attr
 requires concrete pathnames and safe capture-set enumeration.
 This comparison made no source, workflow or playbook change. Hosted CI
 readiness remains blocked.
+
+---
+
+# 2026-09-15 — GH #15 S5 applicability correction — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `fix-s5-capture-filter-applicability`
+- **Milestone**: GH #15 / ADR-036
+- **Description**: Correct installed-but-inapplicable Git conversion refusal
+- **Assigned**: 2026-09-13
+- **Completed validation**: 2026-09-15
+- **Status**: ACCEPTED; terminal tracking durability follows hosted-run completion
+- **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+- **Reviewed source**: `f7c525010569da5970107fa7b325244e281b8e57`
+- **Validated/pushed range**:
+  `ca07e2fd6ea4128db14a29589169edf47bade8c1..0e4861ec79df18c7720ff0398e4d2f4b6067b110`
+
+## Session Summary
+
+S5's initial local close missed hosted Git-LFS defaults. A blanket configuration
+guard rejected all repositories on machines with registered filters, even when
+no selected path used them. Fixture scrubbing was explicitly rejected: it would
+hide a production defect rather than repair capture.
+
+Readonly capture now enumerates concrete tracked/untracked candidates using
+metadata-only Git plumbing, honors existing exclusions/pathspecs, and resolves
+effective NUL-delimited attributes before diff. Installed-unused filter/named
+diff definitions are allowed; applicable or unprovable conversions refuse
+without executing converter commands or writing index/object/source state.
+Global unsafe conversion controls stay conservative.
+
+Independent review closed three coupled safety gaps: indexed attribute fallback
+can differ from no-index capture; selected gitlinks can trigger converter-capable
+child status; and the `default` diff driver can apply without a named attribute.
+A follow-up review identified Git's >=100 MiB attribute-file fallback boundary;
+the correction rejects that boundary and bounds streaming reads. Focused
+positive/negative fixtures cover each case, including exact-boundary sparse
+files and an execution sentinel with its own sensitivity control.
+
+## Files Changed
+
+- `internal/gitutil/gitutil.go`
+- `internal/gitutil/capture_attributes.go`
+- `internal/gitutil/capture_attributes_test.go`
+- CURRENT, HISTORY, ROADMAP and supervisor LOG tracking records
+
+The six original positive failure families, workflow/CLI production consumers,
+CI commands, shard partition, schemas, dependencies and shipped assets are
+unchanged by this correction. The thirteen unrelated research files and
+`.wave-close-allowlist` remain untouched.
+
+## Validation
+
+1. Fresh-gated `gofmt -l .`: empty.
+2. RGA S0-S5 control targets pass across gitutil/workflow/patchobs/store/CLI.
+   Capture regressions and all six original failing families also pass with
+   synthetic global LFS definitions, without editing the old positive fixtures.
+3. Full affected gitutil/workflow packages pass: 9.272s/100.863s.
+4. `go vet ./...`: PASS.
+5. `go build ./cmd/tpatch`: PASS.
+6. Exact standalone shard script: **22/22 invocations PASS**, 38 passing
+   package-result rows, at `ffc26d0`; main CLI 553.321s/workflow 101.829s.
+7. `make wave-close-check WAVE_BASE=ca07e2fd6ea4128db14a29589169edf47bade8c1`:
+   **8/8 PASS**, no warnings, at `0e4861e`, including its own complete fresh
+   22-invocation partition.
+
+Every top-level Go invocation required a fresh continuous minute at >=80% free
+memory, load1 <=5 and no active Go tools. The September 13 resource timeout
+ran no Go validation; the September 15 operator retry completed all stages
+without relaxing thresholds or changing source/tests. The owned resource
+helper's interrupted-window mutation fails its shell fixture; restoring the
+helper passes all seven shell controls.
+
+Completed hosted runs
+[34748008741](https://github.com/tesseracode/tesserapatch/actions/runs/34748008741)
+at `0190e61` and
+[34943456714](https://github.com/tesseracode/tesserapatch/actions/runs/34943456714)
+at `ffc26d0` pass all five required jobs: Ubuntu/macOS/Windows and both observer
+jobs. The existing Windows full-suite allowed-failure surface remains distinct
+from blocking-job success. Hosted evidence is independent of the local gate.
+
+## Review Scoreboard and Pattern Catch
+
+- Initial review at `0e667a6`: NEEDS REVISION — three concrete gaps.
+- Rev-1 at `8a06da7`: submodule/default findings closed; oversized readable
+  attribute fallback still NEEDS REVISION.
+- Rev-2 at `f7c5250`: no significant issues; all static findings closed.
+- Resource-gated local sequence: all seven stages PASS.
+- Hosted native CI: completed green runs, not cancellation or local-pass proxies.
+
+The pattern correction is production applicability plus foreign-environment
+regressions, not test-environment isolation. Readability alone also does not
+prove that Git will use an attribute source: fallback limits and execution
+contexts must agree before exact readonly capture can be claimed.
+
+## Current State, Blockers and Next Steps
+
+No correction implementation, review or validation blocker remains. Terminal
+edits are tracking-only. The currently running tracking-only hosted job is
+allowed to finish before the closing push so the record is not cancelled.
+Owned ignored helpers/logs are removed at the final close; research is untouched.
+
+S6 needs a separate assignment and fresh WAVE_BASE. No release/tag is shipped
+here. GH #24 remains non-blocking planning, and GH #13 still requires ADR-041's
+separate planning follow-up plus shipped GH #15/v0.17.0.

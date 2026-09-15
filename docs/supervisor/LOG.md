@@ -1,3 +1,28 @@
+## Acceptance — S5 applicability correction — 2026-09-15
+
+**Task**: `fix-s5-capture-filter-applicability`
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**Gate checkpoint**: `0e4861ec79df18c7720ff0398e4d2f4b6067b110`
+**Verdict**: ACCEPTED; terminal-record push/cleanup pending
+
+All seven prescribed local stages pass. The final explicit-base gate exits 0,
+**8/8 PASS**, no warnings: clean tracked tree, thirteen allowlisted research
+files, pushed HEAD, twelve correct trailers, one terminal canonical field,
+formatting/vet/build, and its own full fresh 22-invocation test partition.
+The standalone partition separately passed 22/22 invocations (38 `ok` package
+results) at `ffc26d0`. Every top-level Go command used a fresh required resource
+window. No thresholds, test selectors, partition settings or CI commands changed.
+
+Independent review closed all findings through `f7c5250`; completed hosted
+runs `34748008741` and `34943456714` pass on identical production/test source.
+The original six positive families and all thirteen research files are unchanged.
+
+**Action**: archive the correction immediately to HISTORY and flip CURRENT and
+ROADMAP to ACCEPTED with the validated range. Let current hosted run
+`34950823322` finish before the terminal docs push, avoiding cancellation;
+then remove only owned helpers/logs and push the close. No release/tag or S6
+dispatch. The final gate is not a proxy for hosted evidence: both now exist.
+
 ## Final-Gate Dispatch — S5 applicability correction — 2026-09-15
 
 **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`

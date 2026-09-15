@@ -1619,8 +1619,19 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 ✅ APPLICABILITY APPROVED — FINAL GATE PENDING — 2026-09-15**.
+**S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
+**Validated/pushed range**:
+`ca07e2fd6ea4128db14a29589169edf47bade8c1..0e4861ec79df18c7720ff0398e4d2f4b6067b110`.
+All seven local stages pass; the final gate reports **8/8 PASS**, no warnings,
+including its own complete fresh 22-invocation partition. Independent review
+and completed hosted runs `34748008741`/`34943456714` pass. The correction is
+archived in HISTORY; terminal changes are tracking-only. Preserve the in-flight
+tracking-only hosted run before the final close push. No S6/release/tag work
+is dispatched and all thirteen research files remain untouched.
+
+Earlier correction execution record:
+
 Reviewer playbook/withdrawal commits are preserved and pushed. Production
 capture applicability and realistic hosted-config regression coverage are
 authorized; completed green hosted CI is required, not just local success.
