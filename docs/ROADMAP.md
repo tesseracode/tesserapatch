@@ -1619,7 +1619,7 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S5 🚧 APPLICABILITY CORRECTION IN PROGRESS — 2026-09-13**.
+**S5 ✅ APPLICABILITY APPROVED — FINAL GATE PENDING — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
 Reviewer playbook/withdrawal commits are preserved and pushed. Production
 capture applicability and realistic hosted-config regression coverage are
@@ -1642,8 +1642,12 @@ fresh qualifying minute still required for each command. All local stages and
 the correction-base final gate remain required before acceptance.
 September 15 local stages 1-5 PASS: formatting, RGA/control/simulated-host
 targets, full affected packages, vet and build (83-84%-free gates).
-The exact 22-invocation full shard script starts next; final gate still
-follows it. Source/tests and original positive families remain unchanged.
+The exact 22-invocation full shard script now PASSES at `ffc26d0`, with fresh
+84%-free per-command gates. The explicit-base final gate remains before
+acceptance; the newer tracking-only hosted run is allowed to finish before
+another tracking push. Reviewed implementation range:
+`ca07e2fd6ea4128db14a29589169edf47bade8c1..f7c525010569da5970107fa7b325244e281b8e57`.
+Source/tests and original positive families remain unchanged.
 The earlier local close and investigation below remain historical evidence.
 
 **WAVE_BASE**: `537ffd9bff153efe37afa3bc6d66f4e00fc55d35`.

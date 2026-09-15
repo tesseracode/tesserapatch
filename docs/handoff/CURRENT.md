@@ -2,7 +2,21 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**Applicability approved for final gate (2026-09-15)**: stages 1-6 PASS.
+The exact full script completed all 22 invocations at pushed `ffc26d0`,
+including main CLI 553.321s/workflow 101.829s and every isolated shard.
+Each invocation qualified a fresh minute at 84% free/load1 <=5/no Go tools.
+Static review and hosted run `34748008741` already pass on identical source.
+The newer tracking-only hosted run `34943456714` is still awaiting macOS;
+let it finish before pushing this final-gate checkpoint to avoid cancelling it.
+
+The canonical APPROVED token records review/implementation approval for the
+mechanical close, not a claim that stage 7 has run. Execute
+`make wave-close-check WAVE_BASE=ca07e2fd6ea4128db14a29589169edf47bade8c1`
+on the pushed checkpoint with fresh resource gates. Acceptance/archive follows
+only after that gate passes. No source change, tag/release or S6 dispatch.
 
 **Applicability stages 1-5 PASS (2026-09-15)**: full affected gitutil/workflow
 packages pass (9.272s/100.863s), followed by clean vet and build. Every command
@@ -3300,7 +3314,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: In progress — static/hosted and local stages 1-5 pass; full shards starting
+- **Status**: Approved for final gate — static/hosted and local stages 1-6 pass; stage 7 pending
 - **Assigned**: 2026-09-13
 - **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
 - **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
@@ -3309,6 +3323,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
 
 ## Session Summary
+
+The complete September 15 shard script passes at `ffc26d0`: 22/22 fresh Go
+invocations, including the whole-package partition and all 21 isolated CLI
+processes. All qualifying windows were 84% free with load1 <=5 and no active
+Go tools. This completes stage 6; stage 7 must independently repeat its checks
+and partition. Preserve the ongoing tracking-only hosted run before pushing
+the terminal-token final-gate checkpoint.
 
 September 15 affected packages pass (gitutil 9.272s, workflow 100.863s),
 then `go vet ./...` and `go build ./cmd/tpatch` pass. All three invocations
@@ -4732,6 +4753,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 15 stage 6 PASS: exact 22-invocation script exits 0 at
+  `ffc26d0ae3d7094799ab909d2411ee89458694b2`; main CLI 553.321s, workflow
+  101.829s, every isolated CLI shard passes. Every invocation had its own
+  qualifying 84%-free resource minute. Stages 1-6 pass; stage 7 remains.
 
 - September 15 stages 3-5 PASS: full affected gitutil/workflow packages
   (9.272s/100.863s), vet all packages and build CLI are clean. Each command
@@ -10789,18 +10815,22 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. When resources qualify, explicitly clear only the owned failure sentinel
-   and restart from formatting, then focused control/simulated-hosted tests,
-   affected packages, vet/build, full shards and the correction-base gate.
-   Static review is complete through `f7c5250`; retain original positives.
-2. Inspect the completed hosted run for the pushed reviewed source; do not
-   substitute a cancelled run or superseded checkpoint. Require green hosted
-   CI as well as local validation before acceptance or S6.
+1. Let hosted run `34943456714` finish, then push the final-gate checkpoint.
+   Completed hosted run `34748008741` already proves the identical source;
+   do not cancel the newer run merely for tracking.
+2. Run the explicit correction-base wave-close gate through fresh per-command
+   resource gates. Stages 1-6 are complete; do not substitute their prior
+   results for the gate's own fresh checks/partition. Archive and close only
+   after success; no S6 dispatch is included.
 3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
+
+- No implementation/review/hosted-source blocker remains. Stages 1-6 pass.
+  Stage 7 is pending; avoid cancelling the newer tracking-only hosted run.
+  Historical resource blockers below do not describe current readiness.
 
 - Hosted confirmation is complete at `0190e61`. Local validation is now
   retrying under the unchanged resource protocol; acceptance still waits for

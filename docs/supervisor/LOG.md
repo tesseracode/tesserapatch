@@ -1,3 +1,22 @@
+## Decision — S5 applicability approved for final gate — 2026-09-15
+
+**Checkpoint**: `ffc26d0ae3d7094799ab909d2411ee89458694b2`
+**WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
+**Result**: stages 1-6 PASS; stage 7 pending
+
+The exact unchanged shard script exits 0 with all 22 invocations passing:
+main CLI 553.321s/workflow 101.829s and all 21 isolated CLI processes.
+Every invocation qualified a fresh minute at 84% free, load1 <=5 and no Go
+tools. Source/tests are unchanged since static review and completed green
+hosted run `34748008741`.
+
+**Action**: flip the sole canonical field to APPROVED for the mechanical
+close, while explicitly keeping acceptance pending stage 7. Let tracking-only
+hosted run `34943456714` finish its macOS job before pushing the next docs
+checkpoint, then run `make wave-close-check` with the correction WAVE_BASE and
+fresh per-command gates. The gate must run its own partition; no cached or
+prior partial result substitutes. No source change, release/tag or S6 dispatch.
+
 ## Validation Transition — S5 applicability full shards — 2026-09-15
 
 **Source**: unchanged reviewed `f7c5250`; tracking at `023d08b`
