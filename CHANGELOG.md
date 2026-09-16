@@ -35,6 +35,15 @@ release. Review, cumulative soak and release authorization remain separate.
 
 ### Corrected
 
+- **Editor failure exit status:** `tpatch edit` now returns a non-zero exit
+  when the editor process fails, even if coverage publication succeeds.
+  It still inspects bound-artifact changes and attempts coverage publication
+  for changed canonical recipe/patch bytes before returning the editor error.
+  A non-zero exit does not imply that saved edits were rolled back.
+  An editor-only failure normally returns tpatch exit 1, not the editor's
+  exact exit code. Editor-process failures are no longer silently treated
+  as command success.
+
 - Exact-postimage no-write success respects the ordered recipe prefix and
   rechecks bytes/containment at use; equality alone supplies no new write
   permission. Existing preimage, path and supersession policy remains.

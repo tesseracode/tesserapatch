@@ -18,32 +18,32 @@ func rgaS6ExpectedDanglingSurfaces(previous map[string]string) (map[string]strin
 		{
 			"assets/prompts/copilot/tessera-patch-apply.prompt.md",
 			"a0d00e4490b16e1bd62751651f36ae1e1d47145f5b35a08a4549dff0587de296",
-			"c7a5cd64c530f882ca8b0fd839ebf05f2dcc019f51ec4cb7052512a36bb8df71",
+			"1fabc947282019dd1676997a62318ac1466d53239ced82851eab8c7658e116a8",
 		},
 		{
 			"assets/skills/claude/tessera-patch/SKILL.md",
 			"1348460eb0243d318577249ae380c2db8da9b94283e3093a8f3d7e06bc36eb4a",
-			"1ce5d2bb771b2a8d31e1f65b2ecd8258f1f5e6ca9d9787bc3630267f88e8b142",
+			"35299f5b3caa450df48b819c812d994a7d1d651bb048a2e8f9ed6331c2a2d6d4",
 		},
 		{
 			"assets/skills/copilot/tessera-patch/SKILL.md",
 			"ad0ef9ddd93ca3b6b17623eb36f0d3297434bdef3e1e635c4873067d3e7d13c5",
-			"c1763e36517ae56816170d1f93c18d802a12e1f89ecc42d5bfa96358632dba22",
+			"c51e23147a46ac749bf75149b84c33f6b7921fe14dee171f9d0c75ca83a559eb",
 		},
 		{
 			"assets/skills/cursor/tessera-patch.mdc",
 			"88cb89a4aec4f3400eb654ffb545b5f377446ae69b3dc6d1bb9f66a1a05c8eea",
-			"9ab2fcc0a25a355671a32d483a83138595f377a1c774cf4e81852ce2972fb0b2",
+			"963ab3be368e34a4fc05f1fcc11e7f7f7c7ffe38bb38725d328e63191400bbd8",
 		},
 		{
 			"assets/skills/windsurf/windsurfrules",
 			"60df5c3a9758c4d58e899621d34fdcb70eec97be4fbcd3424f1b267543f8eaae",
-			"73c4730896b4cb4e2738a5bf4046081fd9efa47c4720b1386874f2a19e273a22",
+			"c82f2abc4db356ba849f7f56765f8d3146b9e26e84d97175593521c5153c697e",
 		},
 		{
 			"assets/workflows/tessera-patch-generic.md",
 			"7325c4507b67058fbe9092b4f6c49bc5d5a911712a645912f8b561c09788d735",
-			"70c29c15f43011d15242ac409085ada2a451e9a6b0b160161c8a1aa1445ecbed",
+			"70becebf81c99fbe59e4bc175c5f13e9028639e6040bf39d137dd8f2623dfed1",
 		},
 		{
 			"docs/feature-layout.md",

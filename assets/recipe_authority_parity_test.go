@@ -40,18 +40,28 @@ func TestRecipeAuthorityPublicParity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			body := string(raw)
-			if path == "CHANGELOG.md" {
-				body, err = rgaUnreleasedSection(body)
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-			if err := validateRecipeAuthoritySurface(body, false); err != nil {
+			if err := rgaValidatePublicSurface(path, string(raw)); err != nil {
 				t.Fatalf("%s: %v", path, err)
 			}
 		})
 	}
+}
+
+func rgaValidatePublicSurface(path, body string) error {
+	if path == "CHANGELOG.md" {
+		current, err := rgaUnreleasedSection(body)
+		if err != nil {
+			return err
+		}
+		body = current
+	}
+	if err := validateRecipeAuthoritySurface(body, false); err != nil {
+		return err
+	}
+	if path == "SPEC.md" || path == "CHANGELOG.md" {
+		return rgaRequireEditorFailureDisclosure(body)
+	}
+	return nil
 }
 
 func rgaEmbeddedSurface(t *testing.T, path string) string {
@@ -144,6 +154,9 @@ var rgaRequiredDisclaimers = []struct {
 // Capture group 1 is the authorizing predicate. Negation is checked at that
 // predicate, not anywhere in the document or line: a surviving disclaimer
 // cannot hide a contradictory second assertion.
+const rgaEditorFailureCondition = `(?:editor(?:[- ]process)? failures?|editor(?: process)? fail(?:s|ed)?)`
+const rgaEditorSuccessAction = `((?:(?:returns?|exits?|reports?|return|exit)\s+(?:(?:a|an|with|exit|status|code)\s+){0,3}(?:zero|0|success)(?:\s+(?:exit|status|code)){0,2}|succeeds?))`
+
 var rgaOverclaims = []struct {
 	name string
 	re   *regexp.Regexp
@@ -188,6 +201,14 @@ var rgaOverclaims = []struct {
 	)},
 	{"reversed-pair-publication", regexp.MustCompile(
 		`\bc(?:\s+atomically)?\s+(before)\s+e\b`,
+	)},
+	{"editor-failure-success", regexp.MustCompile(
+		`\b(?:tpatch edit|the command)(?: now)?\s+` + rgaEditorSuccessAction +
+			`\s+(?:even\s+)?(?:when|if|though|despite|after)\s+(?:(?:the|an|a)\s+)?` + rgaEditorFailureCondition + `\b`,
+	)},
+	{"editor-failure-success", regexp.MustCompile(
+		`\b` + rgaEditorFailureCondition + `(?:\s+(?:makes?|causes?)\s+|,\s*)` +
+			`(?:tpatch edit|the command)(?:\s+to)?\s+` + rgaEditorSuccessAction + `\b`,
 	)},
 }
 
@@ -341,6 +362,9 @@ func rgaValidateInstalledContract(body string) error {
 	if end := strings.Index(section, "\n## "); end >= 0 {
 		section = section[:end]
 	}
+	if err := rgaRequireEditorFailureDisclosure(section); err != nil {
+		return err
+	}
 	for _, required := range []string{
 		"recipe-coverage.json", "recipe-capture-event.json", "not a transaction",
 		"unkeyed consistency", "not authenticated authorship or historical",
@@ -399,6 +423,93 @@ func rgaValidateInstalledContract(body string) error {
 		return fmt.Errorf("invented --mode reapply")
 	}
 	return nil
+}
+
+var rgaEditorFailureRequirements = []struct {
+	name string
+	re   *regexp.Regexp
+}{
+	{"editor failure is non-zero despite publication success", regexp.MustCompile(
+		`\btpatch edit (?:now )?returns a non[- ]zero exit when the editor process fails, even if coverage publication succeeds\b`)},
+	{"inspection still occurs", regexp.MustCompile(`\bstill inspects bound[- ]artifact changes\b`)},
+	{"publication is attempted before returning the editor error", regexp.MustCompile(
+		`\battempts coverage publication for changed canonical recipe/patch bytes before returning the editor error\b`)},
+	{"non-zero does not imply rollback", regexp.MustCompile(
+		`\ba non[- ]zero exit does not imply that saved edits were rolled back\b`)},
+	{"no numeric editor exit passthrough", regexp.MustCompile(
+		`\ban editor[- ]only failure normally returns tpatch exit 1, not the editor's exact exit code\b`)},
+}
+
+func rgaRequireEditorFailureDisclosure(body string) error {
+	plain := rgaPlain(body)
+	for _, required := range rgaEditorFailureRequirements {
+		if !required.re.MatchString(plain) {
+			return fmt.Errorf("missing editor-failure disclosure: %s", required.name)
+		}
+	}
+	return nil
+}
+
+func TestRecipeAuthorityEditorFailureDisclosureSensitivity(t *testing.T) {
+	block := regexp.MustCompile(`(?ms)^(?:\*\*Editor failures:\*\*|- \*\*Editor failure exit status:\*\*).*?(?:\r?\n\r?\n|\z)`)
+	for _, surface := range []string{"installed", "SPEC.md", "CHANGELOG.md"} {
+		t.Run(surface, func(t *testing.T) {
+			good := rgaEmbeddedSurface(t, skillFiles[0].path)
+			if surface != "installed" {
+				raw, err := os.ReadFile(filepath.Join("..", surface))
+				if err != nil {
+					t.Fatal(err)
+				}
+				good = string(raw)
+			}
+			validate := func(body string) error {
+				if surface == "installed" {
+					return validateRecipeAuthoritySurface(body, true)
+				}
+				return rgaValidatePublicSurface(surface, body)
+			}
+			if err := validate(good); err != nil {
+				t.Fatalf("actual disclosure baseline: %v", err)
+			}
+			spans := block.FindAllStringIndex(good, -1)
+			if len(spans) != 1 {
+				t.Fatalf("want one editor disclosure mutation target, got %d", len(spans))
+			}
+			start, end := spans[0][0], spans[0][1]
+			disclosure := good[start:end]
+			without := good[:start] + good[end:]
+			if err := validate(without); err == nil || !strings.Contains(err.Error(), "editor-failure disclosure") {
+				t.Fatalf("same surface validator accepted disclosure removal: %v", err)
+			}
+			zero := strings.Replace(disclosure, "a non-zero exit", "a zero exit", 1)
+			if zero == disclosure {
+				t.Fatal("zero-exit mutation did not change its target")
+			}
+			appendClaim := func(claim string) string {
+				return good[:end] + "\n" + claim + "\n\n" + good[end:]
+			}
+			for name, wrong := range map[string]string{
+				"zero-exit-replacement":  good[:start] + zero + good[end:],
+				"appended-zero-exit":     appendClaim("tpatch edit exits zero even when the editor process fails."),
+				"appended-failure-first": appendClaim("An editor-process failure makes tpatch edit exit zero."),
+			} {
+				t.Run(name, func(t *testing.T) {
+					if err := validate(wrong); err == nil || !strings.Contains(err.Error(), "editor-failure-success") {
+						t.Fatalf("same surface validator accepted a zero-exit claim: %v", err)
+					}
+				})
+			}
+			for _, truthful := range []string{
+				"tpatch edit never exits zero when the editor process fails.",
+				"Coverage publication succeeds even when the editor process fails.",
+				"tpatch edit exits zero when no editor process fails.",
+			} {
+				if err := validate(appendClaim(truthful)); err != nil {
+					t.Fatalf("truthful distinction rejected: %q: %v", truthful, err)
+				}
+			}
+		})
+	}
 }
 
 func TestRecipeAuthorityOverclaimSensitivity(t *testing.T) {

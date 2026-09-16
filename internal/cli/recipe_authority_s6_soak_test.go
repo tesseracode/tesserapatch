@@ -24,6 +24,43 @@ type rgaS6Soak struct {
 	producers map[patchobs.ProducerID]int
 }
 
+func TestRGAS6EditorFailureExitAndPublication(t *testing.T) {
+	for _, save := range []bool{false, true} {
+		t.Run(fmt.Sprintf("save-before-failure=%v", save), func(t *testing.T) {
+			const slug = "editor-failure-status"
+			root := rgaS4CLIFixture(t, slug, true)
+			if _, stderr, code := runRecord(t, "record", slug, "--path", root, "--lenient"); code != 0 {
+				t.Fatal(stderr)
+			}
+			before := workflow.SnapshotRecipeCoverage(root, slug)
+			mode, body := "noop", string(before.Recipe.Bytes)
+			if save {
+				mode, body = "write", body+"\n"
+			}
+			rgaS4SetEditor(t, mode, body, true)
+			_, stderr, code := runCmdExit("edit", slug, "artifacts/apply-recipe.json", "--path", root)
+			if code != 1 || !strings.Contains(stderr, "exit status 37") {
+				t.Fatalf("editor failure must be a generic non-zero CLI result, not forwarded 37: exit=%d err=%s", code, stderr)
+			}
+			after := workflow.SnapshotRecipeCoverage(root, slug)
+			if after.Recipe.Err != nil || string(after.Recipe.Bytes) != body {
+				t.Fatalf("failed editor command changed or rolled back saved bytes: %v", after.Recipe.Err)
+			}
+			if !save {
+				if !bytes.Equal(before.Coverage.Bytes, after.Coverage.Bytes) || !bytes.Equal(before.Event.Bytes, after.Event.Bytes) {
+					t.Fatal("unchanged editor failure invented a publication")
+				}
+				return
+			}
+			c := rgaS4CLICoverage(t, root, slug)
+			rgaS4CLICapturePair(t, root, slug)
+			if c.Producer != patchobs.ProducerEdit || c.CoverageStatus != workflow.CoverageComplete {
+				t.Fatalf("fixture must prove successful P7 publication can coexist with the non-zero exit: %+v", c)
+			}
+		})
+	}
+}
+
 func (f *rgaS6Soak) run(args ...string) string {
 	f.t.Helper()
 	args = append(args, "--path", f.root)

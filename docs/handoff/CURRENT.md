@@ -4,6 +4,20 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 editor-exit correction authored (2026-09-16)**: Unreleased, SPEC and all
+seven installed documents now state non-zero command failure even when P7
+publication succeeds, attempted publication before error return, no implied
+rollback and no numeric editor-code passthrough. The shared validator requires
+the disclosure on installed surfaces/SPEC/Unreleased and rejects contrary
+zero-exit claims even beside the correct paragraph. Removal, replacement,
+appended contradiction and truthful distinction controls use the same paths.
+
+A real CLI case exercises editor status 37 with and without saved changes:
+expected tpatch exit 1, no rollback, and successful bound P7 publication despite
+the command failure. Only the six current S6 skill hashes are advanced; the
+historical AP map and before hashes remain unchanged. Runtime source is untouched.
+These edits are authored/formatted, not yet validated or re-reviewed.
+
 **S6 editor-exit disclosure revision started (2026-09-16)**: the operator
 accepted the external MEDIUM finding. The carried S6 obligation to disclose
 editor-process failure as a non-zero command result was omitted from public
@@ -3567,6 +3581,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+The correction is implemented in nine public/installed documents, the shared
+parity test, a focused actual exit-boundary test and the current digest delta.
+The new publication-success case distinguishes this disclosure from an ordinary
+publication failure. Positive/negative tests preserve the old historical oracle
+and prior semantic guard controls. Targeted resource-gated execution is next.
+
 External review identified the missing S6 editor-exit disclosure and its absent
 parity requirement. The operator authorized correction before remaining full
 validation. Source confirms editor errors are returned after the P7 publication
@@ -4515,6 +4535,12 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- Editor-exit revision: `CHANGELOG.md`, `SPEC.md`, six skill surfaces,
+  `assets/templates/README.md`, `assets/recipe_authority_parity_test.go`,
+  `internal/cli/recipe_authority_s6_soak_test.go`,
+  `internal/cli/recipe_authority_s6_doc_delta_test.go`, plus tracking.
+  No production Go or historical AP-oracle edit.
 
 - Coordinator compatibility: `SPEC.md`,
   `internal/cli/prepare_s7_ap_dangling_test.go`,

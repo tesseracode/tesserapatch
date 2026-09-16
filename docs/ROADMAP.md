@@ -1626,6 +1626,9 @@ and parity correction. The operator authorized Unreleased/SPEC/skills/template,
 mutation-sensitive checks and the explicit S6 hash projection update; runtime
 behavior and the historical oracle stay unchanged. Prior green results do not
 substitute for validation/re-review of this revision.
+The editor-exit disclosure, missing/contrary-claim guards, actual CLI
+publication-success/failure-exit case and current skill-hash delta are now
+authored. Targeted execution and re-review remain pending; runtime is unchanged.
 Operator-dispatched scope is PRD S6 and RGA-359/360: public SPEC/operator/layout
 docs, all six embedded skill surfaces, seven-producer and authority-overclaim
 parity, and cumulative downstream soak with generated, unsupported and both

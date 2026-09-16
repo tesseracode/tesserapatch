@@ -164,6 +164,13 @@ is proof by itself.
 | P6 | `implement` | `tpatch implement <slug>` provider/heuristic recipe writes and successful `tpatch implement <slug> --manual` checkpoints; `no-capture`, including raw undecodable provider output as incomplete. |
 | P7 | `artifact-edit` | `tpatch edit <slug> artifacts/apply-recipe.json` / `tpatch edit <slug> artifacts/post-apply.patch`; only changed bytes at the resolved canonical path count, even if the editor then errors. A root decoy, other artifact or unchanged edit is not an event. |
 
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally returns
+tpatch exit 1, not the editor's exact exit code.
+
 Every governed event finalizes the pair, including incomplete and same-byte
 events. Publication failure is nonzero and suppresses success-shaped completion.
 External filesystem edits are not producer events; bound-byte drift is detected on read.

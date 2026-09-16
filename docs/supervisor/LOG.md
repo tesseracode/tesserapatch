@@ -1,3 +1,24 @@
+## Revision Delivery — S6 editor exit disclosure — 2026-09-16
+
+**State**: authored; targeted validation/re-review pending
+
+Unreleased, SPEC P7 and all seven installed documents now disclose editor
+failure as a non-zero command result even when publication succeeds, attempted
+publication before error return, no implied rollback and no forwarding of
+the editor's exact numeric code.
+
+The same installed/current-public validation paths require the disclosure and
+reject zero-exit contradictions beside valid text. Missing paragraph, changed
+exit polarity, appended command-first/failure-first claims and truthful
+publication-success/no-failure distinctions have controls. A focused actual
+CLI case uses editor exit 37, requiring tpatch exit 1 both before/after save,
+unchanged no-event evidence and successful P7 publication without rollback
+in the saved case.
+
+The six current S6 hash values are advanced; historical before hashes and the
+AP oracle remain unchanged. No production Go change. All new work is formatted
+but not yet executed; previous green evidence does not certify this revision.
+
 ## External Review and Revision Dispatch — S6 editor exit disclosure — 2026-09-16
 
 **Reviewer**: external review supplied by the operator
