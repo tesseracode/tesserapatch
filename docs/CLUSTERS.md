@@ -14,7 +14,6 @@ transition — new PRD accepted, ADR assigned, wave kickoff, wave ship,
 implementation blocker.
 
 **Cluster states**:
-
 - **Exploring** — whitepaper in flight; PRDs not yet drafted.
 - **Drafting** — PRDs being authored; cross-review cycle active.
 - **Accepted** — supervisor LOG entry approving the cluster; ADRs pending.
