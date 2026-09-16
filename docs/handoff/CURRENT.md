@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 first targeted run stopped (2026-09-15)**: formatting passed. The cumulative
+CLI soak passed (5.949s), including all seven producer paths and its negative
+controls. Asset parity failed only on Copilot's installed-contract wording:
+it says `recheck`, while the shared canonical checklist requires `rechecked`.
+The meaning was already present; align this one sentence with the other
+surfaces without weakening the validator. No broader stage ran. Both Go
+invocations qualified fresh 83-84%-free resource windows.
+
 **S6 implementation delivered; targeted validation next (2026-09-15)**:
 all twelve public docs, six embedded skills, the workspace README template,
 the shared semantic parity guard and the cumulative CLI soak are authored.
@@ -3408,6 +3416,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+First gated targets at `a6e4191`: cumulative CLI soak PASS; assets FAIL on
+one lexical Copilot parity mismatch (`recheck` versus required `rechecked`).
+No runtime defect was observed and no existing fixture/guard is relaxed.
+Stop-first-failure is recorded; correct the one installed sentence and restart
+formatting/new targets before continuing the validation sequence.
+
 Asset/parity delivery is complete: seven installed documents plus
 `assets/recipe_authority_parity_test.go`. The guard scans all twelve current
 public documents and installed surfaces; CHANGELOG extraction handles its
@@ -4907,6 +4921,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- First S6 targeted invocation: CLI soak PASS (5.949s); assets FAIL on the
+  Copilot `rechecked` checklist term. Formatting is clean. Gates qualified at
+  83-84% free/load1 <=5/no Go tools. No broader package/vet/build/shard stage ran.
 
 - S6 Go validation is starting from an immutable combined implementation.
   No existing success result covers these edits. First targets are the shared

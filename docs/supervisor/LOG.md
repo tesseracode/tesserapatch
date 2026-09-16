@@ -1,3 +1,19 @@
+## Validation Result — GH #15 S6 first targets — 2026-09-15
+
+**Checkpoint**: `a6e4191`
+**Result**: formatting PASS; CLI soak PASS; asset parity NEEDS CORRECTION
+
+Fresh resource windows qualified at 83-84% free, load1 <=5 and no active Go
+tools. `gofmt -l .` is empty. The cumulative soak passes in 5.949s, exercising
+all seven producers and its real-reader/legacy/ledger negative controls.
+Asset parity fails only because Copilot says `recheck` where the canonical
+installed checklist requires `rechecked`; its existing sentence already
+describes the correct at-use proof.
+
+**Action**: stop broader validation, align that single sentence with the other
+surfaces without weakening any guard, checkpoint and retry formatting/new
+targets. No runtime, schema, historical fixture or resource-policy change.
+
 ## Validation Transition — GH #15 S6 combined implementation — 2026-09-15
 
 **Asset implementer**: `efb405c8-b226-4538-95b6-b7814e462781`

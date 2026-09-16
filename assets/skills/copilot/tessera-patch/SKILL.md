@@ -226,7 +226,7 @@ errors retain existing behavior.
 
 **ADR-042 ordered no-write:** initial preimage authorization stays separate
 from exact-postimage equality, which grants only a no-write exemption. Prove
-equality at each operation's sequential position and recheck before skipping;
+equality at each operation's sequential position; it is rechecked before skipping;
 no fallback write permission follows. Invalidated postimage-only witnesses
 refuse before any operation; originally authorized writes retain ordinary
 execution. Skips increment both `Applied` and `Skipped`:
