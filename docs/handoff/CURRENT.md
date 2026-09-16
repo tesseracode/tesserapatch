@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 compatibility targets PASS; prefix selector correction (2026-09-15)**:
+the exact legacy PIB-155/231 contract targets, dangling public workflows and
+AP observer pass (CLI 264.112s). Formatting is clean and fresh resource gates
+qualified. The combined selector was over-anchored: it omitted suffixes after
+`TestRecipeAuthority`/`TestRGAS[0-6]`, so the other packages reported no tests.
+Those results are not counted as RGA/asset validation. Run the corrected prefix
+selector now on unchanged source before claiming a combined pass.
+
 **S6 guard revisions delivered (2026-09-15)**: the asset worker changed only
 its validator file. Coordinated predicates retain their governing subject,
 not an earlier predicate's negation; explicit/unrelated subjects replace or
@@ -5032,6 +5040,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Corrected SPEC/AP compatibility targets and AP observer PASS (264.112s).
+  The first combined selector accidentally omitted the RGA/authority prefixes;
+  five package `no tests to run` results are not credited. Formatting passed.
+  Corrected prefix selection is the next required run on the same source.
 
 - Guard implementation is delivered; prior red-proof failures must now turn
   green alongside every old positive/negative control and affected AP/PIB row.

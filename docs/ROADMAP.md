@@ -1662,6 +1662,9 @@ all existing/new controls and the historical-only exclusion boundary remain.
 The subject-aware and strict current/history fixes are now delivered, with
 additional contrast/subject-switch/fence/preamble fixtures. Combined new and
 legacy targeted validation and independent re-review are next.
+Legacy compatibility targets/AP observer now PASS. An over-anchored selector
+omitted the RGA/authority-prefix tests; their no-test results are not credited,
+and the corrected prefix run is required before combined validation is claimed.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

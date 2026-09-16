@@ -1,3 +1,18 @@
+## Validation Result — GH #15 S6 compatibility and selector correction — 2026-09-15
+
+**Checkpoint**: `5d1d1ea`
+**Result**: legacy compatibility/AP observer PASS; RGA-prefix run still owed
+
+Formatting passes with fresh resource gates at 83-84% free. The selected
+PIB-155/231 guards, full prepare-contract rows/baseline, dangling workflows
+and AP observer pass in CLI (264.112s). The selector incorrectly anchored
+`TestRecipeAuthority`/`TestRGAS[0-6]` without their suffixes; assets and the
+other four non-CLI packages report no tests. Those are not RGA passes.
+
+**Action**: run the corrected prefix selector on unchanged source. No code
+fix is needed for this selection error, and no broader stage starts until
+the intended new/old RGA cases actually execute successfully.
+
 ## Revision Delivery — GH #15 S6 semantic guards — 2026-09-15
 
 **Implementer**: `efb405c8-b226-4538-95b6-b7814e462781`
