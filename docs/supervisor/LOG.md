@@ -1,3 +1,22 @@
+## Implementation Transition — GH #15 S6 compatibility corrections — 2026-09-15
+
+**State**: coordinator compatibility unit authored; validation pending
+
+SPEC's negative atomicity explanation now uses per-file guarantee wording,
+preserving its meaning without the old PIB-155 banned phrase. PIB-459 retains
+its complete source inventory, semantic dangling-repair checks, declaration
+hashes and historical public-doc hash map. A separate S6 projection requires
+that exact nine-entry historical input, changes only six skill/feature-layout
+body hashes, and preserves both ADR/PRD bodies. Expected hashes are pinned
+constants, not computed from live inputs.
+
+New controls reject missing/unknown/historically changed/already projected
+inputs and append unapproved prose to each current document through the same
+AP validator. No historical fixture or runtime source is rewritten. The asset
+agent separately owns only fixture-first reproductions and subsequent fixes
+for the two RGA semantic false-accepts; parent will run the red proof and all
+validation. File scopes are disjoint and Go remains parent-only.
+
 ## Validation Result — GH #15 S6 owning-package stop — 2026-09-15
 
 **Implementation checkpoint**: `a8e15a3` (only review tracking changed mid-run)

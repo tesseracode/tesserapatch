@@ -1651,6 +1651,9 @@ The owning run passes assets but stops on the existing SPEC atomic-phrase
 guard, frozen public-doc digest drift and the unsharded CLI timeout. Preserve
 old guards/fixtures through precise wording and an explicit S6 digest delta;
 use existing CI sharding for complete CLI coverage, without timeout inflation.
+SPEC wording and the explicit seven-body S6 digest projection are authored
+with old-oracle/current-body negative controls. The original AP oracle and
+frozen fixtures remain unchanged; asset false-accept reproductions are next.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

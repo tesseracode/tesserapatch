@@ -4,6 +4,19 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 compatibility corrections authored (2026-09-15)**: SPEC now describes
+the per-file guarantees without the old guard's forbidden phrase. PIB-459 keeps
+its historical digest map and every semantic/inventory check; an explicit S6
+projection pins only six skill bodies plus feature layout, while retaining the
+unchanged ADR/PRD hashes. New controls reject historical-map drift, projection
+reapplication and unapproved current body edits through the same AP validator.
+No frozen fixture or runtime source is rewritten. Validation remains pending.
+
+The asset implementer owns only the two RGA guard corrections. First it will
+deliver fixture-only false-accept reproductions for a parent-controlled red
+run; implementation changes follow that evidence. The coordinator owns SPEC
+and the separate S6 document-digest projection, with no shared-file overlap.
+
 **S6 owning-package run stopped (2026-09-15)**: full asset tests passed
 (1.200s). CLI exposed two compatibility surfaces: the existing PIB-155/231
 guard rejects SPEC's new `atomic publication set` phrase, and PIB-459's frozen
@@ -3440,6 +3453,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Coordinator compatibility edits are authored in SPEC, the existing AP validator
+hook and a new build-tag-matched S6 doc-delta test. The old accepted map remains
+byte-identical. Expected new hashes are constants rather than hashes read from
+live documents, and both old/current mutation controls are retained.
+Asset false-accept fixtures are being prepared in the separately owned file.
+
 Owning-package validation failed before vet/build. Assets pass; CLI reports
 the old no-multi-file-atomic phrase guard and public-document digest drift,
 then times out in the unsharded S7 AST suite. These are distinct from the two
@@ -4320,6 +4339,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- Coordinator compatibility: `SPEC.md`,
+  `internal/cli/prepare_s7_ap_dangling_test.go`,
+  `internal/cli/recipe_authority_s6_doc_delta_test.go`.
+  No change to the historical accepted map, PRD/ADR or fixture bytes.
 
 - Assets delivered: the six skill surfaces, `assets/templates/README.md` and
   `assets/recipe_authority_parity_test.go`. Existing assets tests are unchanged.

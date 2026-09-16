@@ -562,9 +562,13 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 		return fmt.Errorf("dangling declaration content drift:\ngot  %#v\nwant %#v",
 			declarationHashes, s7APAcceptedDanglingDeclarations)
 	}
-	if !reflect.DeepEqual(surfaceHashes, s7APAcceptedDanglingSurfaces) {
+	expectedSurfaces, err := rgaS6ExpectedDanglingSurfaces(s7APAcceptedDanglingSurfaces)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(surfaceHashes, expectedSurfaces) {
 		return fmt.Errorf("dangling prose surface content drift:\ngot  %#v\nwant %#v",
-			surfaceHashes, s7APAcceptedDanglingSurfaces)
+			surfaceHashes, expectedSurfaces)
 	}
 	return nil
 }

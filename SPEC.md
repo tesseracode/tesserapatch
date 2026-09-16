@@ -460,8 +460,8 @@ next binding read instead.
 All seven producers use one shared publication API. The bound-artifact
 publication order is recipe (if authorized), provenance (if justified),
 generation (if owed), **E → C**. P6 finalizes after its state-mark attempt;
-outer orchestration, such as accept's later state update, is not part of an
-atomic publication set:
+outer orchestration, such as accept's later state update, remains outside
+those per-file write guarantees:
 
 - **E**, `artifacts/recipe-capture-event.json`, is independently constructed
   from the immutable observation, exact final patch/recipe inputs, event
