@@ -1,3 +1,22 @@
+## Review and Correction Result — S6 editor exit disclosure — 2026-09-16
+
+**Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`
+**Reviewed implementation**: `a694324516ab9171fc2a6837414a691c632f1183`
+**Verdict**: APPROVED (static only); correction validation PASS
+
+The independent reviewer approves the bounded disclosure/guard/runtime-boundary
+test/digest correction. Targeted authority/editor/AP tests pass, followed by
+the complete assets package (2.255s), vet and CLI build. Every Go command used
+a fresh resource window at 81-83% free, load1 <=5 and no active Go tools.
+The real CLI test proves successful complete P7 publication and retained saved
+bytes can coexist with generic exit 1 from editor status 37.
+
+**Action**: mark the external disclosure finding addressed and push the reviewed
+correction. Production Go and the historical AP oracle remain unchanged.
+Remaining full S6 standalone/final-gate validation and native CI must cover this
+new revision; older green checkpoints are not substituted. No S6 acceptance,
+release/tag or automatic broad-suite restart is claimed by this bounded fix.
+
 ## Targeted Result — S6 editor exit disclosure — 2026-09-16
 
 **Checkpoint**: `a694324516ab9171fc2a6837414a691c632f1183`

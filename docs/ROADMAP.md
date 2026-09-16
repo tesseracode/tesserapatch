@@ -1632,6 +1632,10 @@ authored. Targeted execution and re-review remain pending; runtime is unchanged.
 The correction's targeted disclosure/mutation/editor-boundary/AP checks now
 PASS at `a694324` with fresh resource gates. Full asset validation, vet/build
 and independent correction review remain before the remaining S6 full stages.
+The correction is now independently APPROVED and passes targeted/full-asset
+tests plus vet/build. Production Go and the historical oracle remain unchanged.
+Remaining full S6 validation/native CI must cover the revised disclosure source;
+the bounded correction is not final S6 acceptance or a release.
 Operator-dispatched scope is PRD S6 and RGA-359/360: public SPEC/operator/layout
 docs, all six embedded skill surfaces, seven-producer and authority-overclaim
 parity, and cumulative downstream soak with generated, unsupported and both

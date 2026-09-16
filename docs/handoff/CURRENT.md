@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 editor-exit disclosure correction approved (2026-09-16)**: the external
+finding is addressed through `a694324`. Independent static correction review
+is APPROVED. Targeted authority/editor/AP tests, full assets (2.255s), vet and
+build pass under fresh 81-83%-free gates. The runtime test proves editor status
+37 maps to tpatch exit 1 even after successful P7 publication, without rollback.
+No production Go or historical-oracle change was required.
+
+The bounded correction is complete, not S6 as a whole. Remaining full
+standalone/final-gate validation and native CI must cover the revised source.
+The old failure sentinel was cleared for these authorized correction runs;
+on a later retry, remove it only if present. No tag or release is authorized.
+
 **S6 editor-exit targeted correction PASS (2026-09-16)**: fresh-gated formatting
 and the selected authority/editor/publication/oracle tests pass at `a694324`
 (assets 2.262s, CLI 3.586s). The actual CLI returns 1 for editor status 37 both
@@ -3580,7 +3592,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: In progress — editor-exit disclosure revision; resource-gated validation pending
+- **Status**: In progress — disclosure correction approved; remaining full validation pending
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3588,6 +3600,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+The editor-exit omission is corrected and independently approved. All focused
+and full-asset checks plus vet/build pass, with real CLI proof of successful
+publication beside a non-zero editor failure result. Current expected skill
+hashes match the new text; the historical map/before values are preserved.
+Push the correction and retain the separate remaining full S6 validation work.
 
 The correction is implemented in nine public/installed documents, the shared
 parity test, a focused actual exit-boundary test and the current digest delta.
@@ -5200,6 +5218,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Disclosure correction PASS: targeted assets 2.262s/CLI 3.586s, full assets
+  2.255s, vet/build clean. Fresh resource gates qualified at 81-83% free.
+  Independent static review APPROVED at `a694324`. This does not certify the
+  unrerun full standalone/final-gate stages or new native CI.
 
 - Editor-exit correction targeted PASS at `a694324`: formatting empty;
   authority controls/assets 2.262s, new actual CLI boundary plus old edit/AP
@@ -11345,8 +11368,8 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. On an authorized resource retry, clear only `bin/s6-validation/failed`
-   and restart the complete standalone 22-invocation script with fresh gates.
+1. On the next full validation retry, remove `bin/s6-validation/failed` only if
+   present and restart the complete standalone 22-invocation script with fresh gates.
    Stages 1-5 and independent review already pass; do not combine partial
    standalone attempts into a claimed full pass.
 2. After the standalone pass completes, run the final gate with WAVE_BASE
@@ -11359,9 +11382,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
-- The external MEDIUM disclosure/parity finding is being corrected. Previous
-  source validation does not certify these new edits; targeted correction
-  validation and re-review must precede the remaining full validation.
+- The external MEDIUM disclosure/parity finding is addressed and independently
+  approved. Targeted/full-asset/vet/build validation passes; remaining full
+  standalone/final-gate and native CI must cover the revised source.
 - Stage 6 is resource-blocked: the fifth admission gate exhausted 600 seconds
   without a qualifying minute; latest sampled free memory is 79%. Native CI
   and review pass, and the held edit is resolved. Standalone completion and
