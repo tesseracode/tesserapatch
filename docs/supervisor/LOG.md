@@ -1,3 +1,23 @@
+## Reproduction Dispatch — GH #15 S6 guard false-accepts — 2026-09-15
+
+**State**: fixture-only delta; validators intentionally unchanged
+
+The asset worker delivered `TestRecipeAuthorityCoordinatedPredicateSensitivity`
+and `TestRecipeAuthorityChangelogHeadingBoundarySensitivity`, including the
+reviewer's exact cases, coordinated variants, negated controls, non-release
+current headings and genuine history controls. It has stopped before any
+implementation fix and ran no Go commands.
+
+Parent will gate the two-target old-validator run and require actual named
+assertion failures. Resource timeout, compile failure or an unexpected reason
+will not be counted as reproduction. Only after that proof may the worker
+change its one owned validator file.
+
+Preparation first stopped at gofmt: the fixture-only functions were inserted
+inside an existing test. Parent corrected top-level placement while preserving
+all existing test bodies and validator code. No Go test ran in that attempt;
+the syntax error is not counted as the required red proof.
+
 ## Implementation Transition — GH #15 S6 compatibility corrections — 2026-09-15
 
 **State**: coordinator compatibility unit authored; validation pending

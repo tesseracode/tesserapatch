@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 false-accept fixtures ready (2026-09-15)**: the asset worker delivered
+fixture-only tests for coordinated-predicate subject loss and current-changelog
+heading exclusion. Validator implementations are unchanged. Parent will run
+only those two new targets under a fresh resource gate and require the exact
+expected test failures before authorizing fixes; a compile/resource failure
+will not count as reproduction.
+The first preparation attempt stopped at gofmt because the worker inserted the
+new functions inside an existing test. Parent moved them to top level without
+changing either validator; no Go test ran and this syntax failure is not red proof.
+
 **S6 compatibility corrections authored (2026-09-15)**: SPEC now describes
 the per-file guarantees without the old guard's forbidden phrase. PIB-459 keeps
 its historical digest map and every semantic/inventory check; an explicit S6
@@ -3452,6 +3462,11 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+The asset worker has paused after fixture-only delivery. Both independent
+findings now have executable old-validator regressions, with paired truthful
+negations and historical-release controls. Parent-controlled red proof is next;
+compatibility corrections in SPEC/the explicit AP projection remain authored.
 
 Coordinator compatibility edits are authored in SPEC, the existing AP validator
 hook and a new build-tag-matched S6 doc-delta test. The old accepted map remains

@@ -461,6 +461,7 @@ func TestRecipeAuthorityCurrentChangelogScope(t *testing.T) {
 			t.Fatalf("current-section positive control: %v", err)
 		}
 	}
+
 	bad, err := rgaUnreleasedSection("# Changelog\n\n## [Unreleased]\n" + compact +
 		"\n### Added\nCoverage is replay-safe.\n" + history)
 	if err != nil {
@@ -478,5 +479,103 @@ func TestRecipeAuthorityCurrentChangelogScope(t *testing.T) {
 		if _, err := rgaUnreleasedSection(malformed); err == nil {
 			t.Fatal("missing/duplicate Unreleased heading accepted")
 		}
+	}
+}
+
+func TestRecipeAuthorityCoordinatedPredicateSensitivity(t *testing.T) {
+	good := rgaEmbeddedSurface(t, skillFiles[0].path)
+	for _, installed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("installed=%v", installed), func(t *testing.T) {
+			if err := validateRecipeAuthoritySurface(good, installed); err != nil {
+				t.Fatalf("positive baseline: %v", err)
+			}
+			for _, fixture := range []struct {
+				name  string
+				claim string
+				code  string
+			}{
+				{"negative-then-replay-safe", "Coverage never grants replay permission and is replay-safe.", "replay-or-cross-base-authority"},
+				{"negative-then-cross-base-safe", "Coverage does not grant replay permission and is cross-base-safe.", "replay-or-cross-base-authority"},
+				{"negative-then-replay-permission", "Coverage never grants replay permission and allows replay.", "replay-or-cross-base-authority"},
+				{"two-negatives-then-authority", "Coverage never grants replay permission and is not replay-safe and is cross-base-safe.", "replay-or-cross-base-authority"},
+				{"negative-then-historical-proof", "Coverage does not authenticate its producer and proves historical origin.", "coverage-as-authentication"},
+				{"negative-then-broad-completeness", "Replace-in-file does not satisfy complete coverage and satisfies v1 completeness.", "broad-operation-completeness"},
+			} {
+				t.Run(fixture.name, func(t *testing.T) {
+					err := validateRecipeAuthoritySurface(good+"\n\n"+fixture.claim+"\n", installed)
+					if err == nil || !strings.Contains(err.Error(), fixture.code) {
+						t.Fatalf("coordinated affirmative predicate escaped %s: %v", fixture.code, err)
+					}
+				})
+			}
+			for _, disclaimer := range []string{
+				"Coverage never grants replay permission and is not replay-safe.",
+				"Coverage does not grant replay permission and is not cross-base-safe.",
+				"Coverage never grants replay permission and never allows replay.",
+				"Coverage never grants replay permission and is not replay-safe and is not cross-base-safe.",
+				"Coverage does not authenticate its producer and does not prove historical origin.",
+				"Replace-in-file does not satisfy complete coverage and cannot satisfy v1 completeness.",
+			} {
+				t.Run("negated/"+disclaimer, func(t *testing.T) {
+					if err := validateRecipeAuthoritySurface(good+"\n\n"+disclaimer+"\n", installed); err != nil {
+						t.Fatalf("coordinated negations rejected: %v", err)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestRecipeAuthorityChangelogHeadingBoundarySensitivity(t *testing.T) {
+	compact := "Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.\n" +
+		"A warn/exit0 coverage row is not eligibility and never grants replay permission.\n"
+	current := "# Changelog\n\n## Unreleased — v0.17 planned — recipe generation authority\n\n" + compact
+	history := "\n## [0.16.0]\nHistorical release notes.\n"
+	check := func(document string) error {
+		section, err := rgaUnreleasedSection(document)
+		if err != nil {
+			return err
+		}
+		return validateRecipeAuthoritySurface(section, false)
+	}
+	if err := check(current + history); err != nil {
+		t.Fatalf("positive current/historical baseline: %v", err)
+	}
+	for _, fixture := range []struct {
+		name    string
+		heading string
+	}{
+		{"parenthesized-duplicate-unreleased", "## Unreleased (v0.17 planned)"},
+		{"bracketed-decorated-duplicate", "## [Unreleased] (v0.17 planned)"},
+		{"non-release-current-notes", "## Current implementation notes"},
+		{"planned-version-is-not-release", "## v0.17 planned notes"},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			for _, content := range []string{
+				"Coverage is replay-safe.",
+				"Current implementation notes; no additional authority claimed.",
+			} {
+				t.Run(content, func(t *testing.T) {
+					document := current + "\n" + fixture.heading + "\n" + content + "\n" + history
+					if err := check(document); err == nil {
+						t.Fatalf("unknown/duplicate current heading silently hid current text: %q", fixture.heading)
+					}
+				})
+			}
+		})
+	}
+	for _, heading := range []string{
+		"## [0.16.0]",
+		"## [0.16.0] - 2026-08-31",
+		"## v0.16.0 — 2026-08-31",
+	} {
+		t.Run("historical/"+heading, func(t *testing.T) {
+			// This deliberately contradictory historical sentence must not be
+			// mistaken for current guidance after an identified release boundary.
+			document := current + "\n" + heading + "\nCoverage is replay-safe.\n"
+			if err := check(document); err != nil {
+				t.Fatalf("genuine historical release was treated as current guidance: %v", err)
+			}
+		})
 	}
 }
