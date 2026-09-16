@@ -4,6 +4,19 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 standalone validation resource-blocked (2026-09-16)**: stage 6 passed
+its first four invocations, including main CLI 613.059s/workflow 102.747s,
+then the resource gate for invocation 5 exhausted 600 seconds. Memory stayed
+77-80% without a continuous qualifying minute; load remained <=5 and no Go
+tools were active. Exit 75 occurred before invocation 5 started. No test
+failed in this attempt; the incomplete standalone pass is not credited.
+
+Stages 1-5 and independent review remain PASS. Stage 6 must restart in full
+on an authorized resource retry; stage 7 has not run. Latest memory is 79%.
+The held CLUSTERS edit is resolved by operator-authorized `592557f`. Current
+hosted run `35065721289` has four successful jobs and macOS still in progress;
+do not cancel it merely to push blocked-state documentation.
+
 **S6 clean-tree disposition resolved (2026-09-16)**: the operator selected
 `commit-as-is` for the pre-existing CLUSTERS blank-line removal. Commit
 `592557f` contains that one-file edit separately; its before/after working-file
@@ -3518,7 +3531,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: In progress — scoped from the accepted S5 close
+- **Status**: Blocked — standalone resource gate; stages 1-5 and review pass
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3526,6 +3539,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+Standalone stage 6 stopped on resource admission, not a failing test.
+Invocations 1-4 passed; invocation 5 never started after the 600-second
+77-80%-free wait failed to produce a continuous healthy minute. The required
+owning partition/vet/build and static re-review already pass, but neither the
+earlier owning run nor these four invocations substitutes for stage 6/7.
+Keep the owned failure sentinel and record this blocker before stopping.
 
 The operator explicitly approved committing the existing CLUSTERS contents
 as-is. The one-blank-line removal was isolated in `592557f` with the required
@@ -5106,6 +5126,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Stage 6 resource stop: first 4/22 invocations PASS, fifth command not
+  started. Main CLI 613.059s/workflow 102.747s; isolated CLI 26.270s,
+  70.298s and 110.151s. Next gate timed out after 600 seconds at 77-80%
+  free, with no continuous qualifying minute. Exit 75, no test failure.
+  Standalone completion and final gate remain outstanding.
 
 - S6 stages 3-5 PASS: exact full owning partition 22/22, 38 `ok` rows,
   then `go vet ./...` and CLI build. There are 24 qualifying resource windows.
@@ -11236,22 +11262,23 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Implement S6 public docs and six-surface parity in file-disjoint scopes;
-   add the cumulative P1-P7 soak with legacy and unsupported cohorts.
-2. Run focused parity/soak and affected/full validation under the unchanged
-   resource protocol, then independent review and completed hosted CI.
-3. The CLUSTERS disposition is resolved by explicit operator authorization and
-   separate commit `592557f`. Keep all research untouched. Release/tagging and
-   GH #13 execution are not part of this dispatch.
-4. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+1. On an authorized resource retry, clear only `bin/s6-validation/failed`
+   and restart the complete standalone 22-invocation script with fresh gates.
+   Stages 1-5 and independent review already pass; do not combine partial
+   standalone attempts into a claimed full pass.
+2. Require completed hosted CI, then run the final gate with WAVE_BASE
+   `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. The CLUSTERS edit is already
+   resolved by explicit authorization/separate `592557f`; research is untouched.
+3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No implementation/review or held-edit blocker remains. The operator approved
-  the separate CLUSTERS commit; remaining standalone/final-gate and hosted
-  validation are still required before S6 acceptance.
+- Stage 6 is resource-blocked: the fifth admission gate exhausted 600 seconds
+  without a qualifying minute; latest free memory is 79%. Hosted macOS is
+  still in progress. No implementation/review or held-edit blocker remains,
+  but standalone completion, native CI and final gate precede acceptance.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

@@ -1678,6 +1678,10 @@ final gate remain; hosted macOS and the held CLUSTERS disposition are pending.
 The operator has now resolved CLUSTERS with an explicit `commit-as-is`;
 its pre-existing one-line removal is isolated at `592557f`, with file contents
 preserved. Standalone/final-gate and hosted completion remain outstanding.
+Standalone stage 6 is now resource-blocked: first 4/22 invocations pass, but
+invocation 5 never starts after a 600-second 77-80%-free wait. No test failed.
+The earlier complete owning run is not substituted for this incomplete pass.
+Stage 6 restart, hosted macOS completion and final gate remain; no acceptance.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

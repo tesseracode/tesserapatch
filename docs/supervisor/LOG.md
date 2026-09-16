@@ -1,3 +1,22 @@
+## Validation Blocker — GH #15 S6 standalone admission — 2026-09-16
+
+**Implementation**: unchanged approved `3e89743`
+**Result**: stage 6 resource-blocked; no test failure
+
+Standalone invocations 1-4 pass: whole-package partition (main CLI 613.059s,
+workflow 102.747s) and three isolated CLI processes (26.270s, 70.298s,
+110.151s). The fifth gate then exhausts 600 seconds at 77-80% free memory
+without a continuous qualifying minute; load stays <=5 and no Go tools are
+active. Exit 75 occurs before that Go command starts. No later command/gate runs.
+
+**Action**: preserve the failure sentinel and stop. An authorized retry must
+restart the entire standalone script, not reuse this partial pass or the
+already-complete owning run. Stages 1-5 and independent review remain PASS.
+CLUSTERS is resolved by `592557f`; all research remains untouched. Latest
+memory is 79%. Hosted run `35065721289` has four successful jobs and macOS
+still running; preserve it before a documentation-only push. No acceptance,
+release/tag or threshold relaxation.
+
 ## Operator Disposition — CLUSTERS held edit — 2026-09-16
 
 **Decision**: `commit-as-is` (explicit operator response)
