@@ -1,3 +1,21 @@
+## Reproduction Result — GH #15 S6 guard false-accepts — 2026-09-15
+
+**Checkpoint**: `c1ac09b` (fixture-only; old validators unchanged)
+**Result**: RED PROOF CONFIRMED — expected assertion failures, not acceptance
+
+After correcting fixture placement, formatting passes. Fresh 83%-free resource
+windows qualify before formatting and the two-target run. Go exits 1 (assets
+0.599s) with both named regression families failing on `nil` false-accepts:
+twelve coordinated-claim cases across installed/public modes and eight current
+heading insertions. Parent verifies both top-level failure names and exit 1;
+no syntax/resource failure is credited as proof.
+
+**Action**: authorize the worker to fix only its validator file, preserving
+all original/new controls. Each coordinated predicate needs the applicable
+subject; only identified historical releases may be excluded from current
+guidance, with unknown/duplicate current headings refused. No broader Go
+stage runs until fixes are delivered and the next explicit retry begins.
+
 ## Reproduction Dispatch — GH #15 S6 guard false-accepts — 2026-09-15
 
 **State**: fixture-only delta; validators intentionally unchanged

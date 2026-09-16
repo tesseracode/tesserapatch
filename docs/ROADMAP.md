@@ -1656,6 +1656,9 @@ with old-oracle/current-body negative controls. The original AP oracle and
 frozen fixtures remain unchanged; asset false-accept reproductions are next.
 Both false-accept fixture families are delivered without validator changes.
 A focused old-validator red run will establish the review cases before fixes.
+The red run now reproduces both findings with the expected false-accept
+assertions, not a syntax/resource failure. Validator correction is authorized;
+all existing/new controls and the historical-only exclusion boundary remain.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

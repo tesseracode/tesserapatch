@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 false-accepts reproduced (2026-09-15)**: the corrected fixture-only
+checkpoint `c1ac09b` formats cleanly. Under fresh 83%-free gates, both named
+regression families fail by accepting the bad input (`nil`): twelve coordinated
+claim cases across public/installed modes and eight inserted-current-heading
+cases. This is the required red proof, not a compile/resource error. The asset
+worker may now fix its one validator file; all controls must remain.
+
 **S6 false-accept fixtures ready (2026-09-15)**: the asset worker delivered
 fixture-only tests for coordinated-predicate subject loss and current-changelog
 heading exclusion. Validator implementations are unchanged. Parent will run
@@ -3463,6 +3470,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+The old validators demonstrably accept both review defects. The focused Go
+test exits 1 with the expected named assertions (assets 0.599s); the parent
+reproduction procedure confirms both families. No broader validation follows
+that expected failure. The earlier gofmt nesting mistake was fixed before
+compilation and did not count as proof.
+
 The asset worker has paused after fixture-only delivery. Both independent
 findings now have executable old-validator regressions, with paired truthful
 negations and historical-release controls. Parent-controlled red proof is next;
@@ -5003,6 +5016,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Guard red proof at `c1ac09b`: formatting PASS; both exact review regression
+  families FAIL as expected with `nil` false-accepts (assets 0.599s). Twelve
+  coordinated-claim and eight heading-insertion assertions expose the old
+  behavior. Fresh 83%-free resource windows qualify; no compile/resource
+  failure is counted. Normal validation remains pending the actual fixes.
 
 - Full owning run: assets PASS 1.200s; CLI FAIL 2402.254s. Failures name
   PIB-155/231 (`atomic publication set`), PIB-459 public-prose digest drift,
