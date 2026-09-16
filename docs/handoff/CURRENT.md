@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 editor-exit targeted correction PASS (2026-09-16)**: fresh-gated formatting
+and the selected authority/editor/publication/oracle tests pass at `a694324`
+(assets 2.262s, CLI 3.586s). The actual CLI returns 1 for editor status 37 both
+with and without saved changes; the saved case retains its bytes and publishes
+valid complete P7 coverage despite command failure. Removal/zero-exit/appended
+contradiction controls and current digest checks pass. Full asset tests,
+vet/build and independent correction review follow; S6 is not accepted.
+
 **S6 editor-exit correction authored (2026-09-16)**: Unreleased, SPEC and all
 seven installed documents now state non-zero command failure even when P7
 publication succeeds, attempted publication before error return, no implied
@@ -5192,6 +5200,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Editor-exit correction targeted PASS at `a694324`: formatting empty;
+  authority controls/assets 2.262s, new actual CLI boundary plus old edit/AP
+  controls 3.586s. Fresh resource windows qualified at 81-82% free.
+  Full correction validation/re-review and remaining S6 full stages are pending.
 
 - Hosted run `35065721289` completes SUCCESS at `3e89743`: all five required
   jobs succeed; release skipped. This is completed native evidence, not a

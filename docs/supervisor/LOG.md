@@ -1,3 +1,19 @@
+## Targeted Result — S6 editor exit disclosure — 2026-09-16
+
+**Checkpoint**: `a694324516ab9171fc2a6837414a691c632f1183`
+**Result**: formatting and targeted correction tests PASS
+
+Fresh windows qualify at 81-82% free, load1 <=5 and no Go tools. All selected
+authority/disclosure/contradiction tests pass (assets 2.262s); actual CLI
+editor-boundary, prior edit cases and AP digest/body controls pass (CLI 3.586s).
+The new runtime case proves editor status 37 becomes tpatch exit 1 even after
+successful complete P7 publication, preserving saved bytes; unchanged failure
+publishes nothing. No production code changed.
+
+**Action**: run full assets then vet/build through fresh gates while independent
+readonly correction review proceeds. Broader S6 completion remains separate;
+these focused passes do not substitute for the incomplete standalone/final gate.
+
 ## Revision Delivery — S6 editor exit disclosure — 2026-09-16
 
 **State**: authored; targeted validation/re-review pending
