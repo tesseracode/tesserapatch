@@ -4,6 +4,16 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 guard revisions delivered (2026-09-15)**: the asset worker changed only
+its validator file. Coordinated predicates retain their governing subject,
+not an earlier predicate's negation; explicit/unrelated subjects replace or
+clear ownership. Changelog parsing retains current preamble/notes, recognizes
+only historical release boundaries and refuses ambiguous current/unshipped
+headings; fenced/indented headings cannot silently end guidance. All previous
+controls remain, with added contrast/subject-switch and boundary cases.
+Parent will run the previously red cases, public parity and legacy compatibility
+targets together before re-review. No green result is claimed yet.
+
 **S6 false-accepts reproduced (2026-09-15)**: the corrected fixture-only
 checkpoint `c1ac09b` formats cleanly. Under fresh 83%-free gates, both named
 regression families fail by accepting the bad input (`nil`): twelve coordinated
@@ -3470,6 +3480,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Both reviewed guard fixes are authored and the worker is stopped. Parent owns
+the immutable combined correction: SPEC wording, the explicit AP body-digest
+delta and subject-aware/current-guidance validation. The worker ran no Go.
+Next run includes all new/old RGA targets plus the affected legacy PIB guards
+and AP observer so the compatibility correction is not validated in isolation.
+
 The old validators demonstrably accept both review defects. The focused Go
 test exits 1 with the expected named assertions (assets 0.599s); the parent
 reproduction procedure confirms both families. No broader validation follows
@@ -5016,6 +5032,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Guard implementation is delivered; prior red-proof failures must now turn
+  green alongside every old positive/negative control and affected AP/PIB row.
+  No Go validation has run on the corrected validator yet.
 
 - Guard red proof at `c1ac09b`: formatting PASS; both exact review regression
   families FAIL as expected with `nil` false-accepts (assets 0.599s). Twelve

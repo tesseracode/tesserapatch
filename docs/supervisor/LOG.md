@@ -1,3 +1,21 @@
+## Revision Delivery — GH #15 S6 semantic guards — 2026-09-15
+
+**Implementer**: `efb405c8-b226-4538-95b6-b7814e462781`
+**State**: one-file guard revision delivered; validation/re-review pending
+
+Coordinated predicates inherit the applicable subject without inheriting prior
+negation. Explicit subjects replace ownership and unrelated subjects clear it.
+Changelog extraction retains current preamble/notes and only a recognized
+historical-release heading ends guidance; ambiguous current, duplicate and
+unshipped headings refuse. Fenced/indented headings do not become boundaries.
+All old controls remain, with added contrast, subject-switching, preamble,
+current-note and false-release controls.
+
+Worker ran no Go and changed no other file. Parent will format/checkpoint,
+then rerun new red cases and old parity plus the affected PIB/AP compatibility
+tests and observer. The historical AP oracle remains unchanged. Independent
+re-review follows passing targets; no runtime/source contract change.
+
 ## Reproduction Result — GH #15 S6 guard false-accepts — 2026-09-15
 
 **Checkpoint**: `c1ac09b` (fixture-only; old validators unchanged)

@@ -63,19 +63,67 @@ func rgaEmbeddedSurface(t *testing.T, path string) string {
 	return string(body)
 }
 
-var rgaUnreleasedHeading = regexp.MustCompile(`(?im)^##[ \t]+(?:\[unreleased\]|unreleased)(?:[ \t]+[—–-][ \t]+[^\r\n]+)?[ \t]*\r?$`)
-var rgaReleaseHeading = regexp.MustCompile(`(?m)^##[ \t]+`)
+var rgaChangelogHeading = regexp.MustCompile(`^ {0,3}##(?:[ \t]+|$)`)
+var rgaCurrentHeading = regexp.MustCompile(`(?i)^ {0,3}##[ \t]+\[?unreleased\b`)
+var rgaUnreleasedHeading = regexp.MustCompile(`(?i)^ {0,3}##[ \t]+(?:\[unreleased\]|unreleased)(?:[ \t]+[—–-][ \t]+[^\r\n]+|[ \t]+\([^()\r\n]+\))?[ \t]*$`)
+var rgaReleaseHeading = regexp.MustCompile(`^ {0,3}##[ \t]+(?:\[v?[0-9]+\.[0-9]+\.[0-9]+\]|v?[0-9]+\.[0-9]+\.[0-9]+)(?:[ \t]+[—–-][ \t]+[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[ \t]+[—–-][ \t]+[^\r\n]+)?)?[ \t]*$`)
+var rgaUnshippedQualifier = regexp.MustCompile(`(?i)\b(?:planned|unreleased|upcoming|draft|unshipped|not released)\b`)
 
 func rgaUnreleasedSection(body string) (string, error) {
-	matches := rgaUnreleasedHeading.FindAllStringIndex(body, -1)
-	if len(matches) != 1 {
-		return "", fmt.Errorf("want exactly one Unreleased heading, got %d", len(matches))
+	currentCount, offset, historyStart := 0, 0, len(body)
+	var fence byte
+	fenceLength := 0
+	for _, raw := range strings.SplitAfter(body, "\n") {
+		lineStart := offset
+		offset += len(raw)
+		line := strings.TrimRight(raw, "\r\n")
+		trimmed := strings.TrimLeft(line, " ")
+		if len(line)-len(trimmed) <= 3 && (strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~")) {
+			length := 0
+			for length < len(trimmed) && trimmed[length] == trimmed[0] {
+				length++
+			}
+			if fence == 0 {
+				fence, fenceLength = trimmed[0], length
+			} else if trimmed[0] == fence && length >= fenceLength && strings.TrimSpace(trimmed[length:]) == "" {
+				fence, fenceLength = 0, 0
+			}
+			continue
+		}
+		if fence != 0 || !rgaChangelogHeading.MatchString(line) {
+			continue
+		}
+		switch {
+		case rgaCurrentHeading.MatchString(line):
+			currentCount++
+			if currentCount != 1 || !rgaUnreleasedHeading.MatchString(line) || historyStart != len(body) {
+				return "", fmt.Errorf("duplicate, misplaced or unsupported current heading: %q", line)
+			}
+		case rgaReleaseHeading.MatchString(line):
+			if historyStart == len(body) {
+				if rgaUnshippedQualifier.MatchString(line) {
+					return "", fmt.Errorf("unshipped version is not a historical release: %q", line)
+				}
+				if currentCount != 1 {
+					return "", fmt.Errorf("historical release precedes Unreleased guidance: %q", line)
+				}
+				historyStart = lineStart
+			}
+		default:
+			if historyStart == len(body) {
+				return "", fmt.Errorf("unknown current changelog heading: %q", line)
+			}
+		}
 	}
-	section := body[matches[0][1]:]
-	if next := rgaReleaseHeading.FindStringIndex(section); next != nil {
-		section = section[:next[0]]
+	if fence != 0 && historyStart == len(body) {
+		return "", fmt.Errorf("unterminated changelog code fence")
 	}
-	return section, nil
+	if currentCount != 1 {
+		return "", fmt.Errorf("want exactly one Unreleased heading, got %d", currentCount)
+	}
+	// Keep preamble and additional current notes. Only a release boundary,
+	// never an arbitrary heading (or a heading inside a fence), ends guidance.
+	return body[:historyStart], nil
 }
 
 func rgaPlain(body string) string {
@@ -144,10 +192,48 @@ var rgaOverclaims = []struct {
 }
 
 var rgaParagraphBoundary = regexp.MustCompile(`\r?\n[ \t]*\r?\n`)
+var rgaSentenceBoundary = regexp.MustCompile(`[.!?;]\s+`)
 var rgaClauseBoundary = regexp.MustCompile(`(?:[.!?;]\s+|\s+\b(?:but|however|yet|whereas|although)\b\s+)`)
+var rgaCoordinationBoundary = regexp.MustCompile(`\s+(?:and|or|but|however|yet|whereas|although)\s+`)
 var rgaNegatedBefore = regexp.MustCompile(`\b(?:not|never|cannot|can't|neither)\s*$`)
 var rgaNegatedAfter = regexp.MustCompile(`^\s*(?:not|never|no)\b`)
 var rgaNeitherSubject = regexp.MustCompile(`^\s*neither (?:recipe )?coverage nor (?:a )?producer label\s*$`)
+
+const rgaClaimSubject = `(?:c and e|e and c|(?:recipe |complete |incomplete )?coverage(?:[_ -]status| record| row| pair)?|complete|incomplete|recipes?|warn\s*/\s*exit\s*0(?: coverage row)?|capture[- ]event(?: evidence)?|capture evidence|companion|the pair|publication|doctor|d10|append-file|replace-in-file|ungated (?:write-file|writes?)|(?:all|any|every) (?:recipe )?operations?|it|c|e)`
+const rgaFinitePredicate = `(?:is|are|means?|makes?|proves?|guarantees?|certifies?|establishes?|grants?|permits?|authorizes?|allows?|authenticates?|provides?|can|may|satisfies|satisfy|yields?|achieves?|supports?|qualif(?:y|ies)|includes?|admits?|writes?|repairs?|regenerates?|backfills?|publishes?|cannot|can't)`
+const rgaPredicatePhrase = `(?:(?:do|does|must|will|would|should)\s+)?(?:(?:not|never|also|still|now|always|automatically|therefore|alone)\s+)*` + rgaFinitePredicate + `\b`
+
+var rgaSubjectPredicate = regexp.MustCompile(`\b(` + rgaClaimSubject + `)\s+` + rgaPredicatePhrase)
+var rgaLeadingPredicate = regexp.MustCompile(`^` + rgaPredicatePhrase)
+var rgaAnyPredicate = regexp.MustCompile(`\b` + rgaFinitePredicate + `\b`)
+
+// Expand elided subjects across coordinated predicates, not their polarity.
+// Explicit new subjects replace the owner; an unrecognized subject with its
+// own predicate clears it instead of attributing that subject's claims to C.
+func rgaCoordinatedClaims(sentence string) []string {
+	claims := []string{sentence}
+	subject, previous := "", 0
+	boundaries := rgaCoordinationBoundary.FindAllStringIndex(sentence, -1)
+	for i, boundary := range boundaries {
+		before := strings.TrimSpace(sentence[previous:boundary[0]])
+		explicit := rgaSubjectPredicate.FindAllStringSubmatch(before, -1)
+		if len(explicit) != 0 {
+			subject = explicit[len(explicit)-1][1]
+		} else if previous == 0 || (!rgaLeadingPredicate.MatchString(before) && rgaAnyPredicate.MatchString(before)) {
+			subject = ""
+		}
+		end := len(sentence)
+		if i+1 < len(boundaries) {
+			end = boundaries[i+1][0]
+		}
+		next := strings.TrimSpace(sentence[boundary[1]:end])
+		if subject != "" && rgaLeadingPredicate.MatchString(next) {
+			claims = append(claims, subject+" "+next)
+		}
+		previous = boundary[1]
+	}
+	return claims
+}
 
 func rgaNegatedPredicate(clause string, start, end int) bool {
 	before, after := clause[:start], clause[end:]
@@ -159,7 +245,11 @@ func rgaNegatedPredicate(clause string, start, end int) bool {
 func validateRecipeAuthoritySurface(body string, installed bool) error {
 	var clauses []string
 	for _, paragraph := range rgaParagraphBoundary.Split(body, -1) {
-		clauses = append(clauses, rgaClauseBoundary.Split(rgaPlain(paragraph), -1)...)
+		for _, sentence := range rgaSentenceBoundary.Split(rgaPlain(paragraph), -1) {
+			for _, claim := range rgaCoordinatedClaims(sentence) {
+				clauses = append(clauses, rgaClauseBoundary.Split(claim, -1)...)
+			}
+		}
 	}
 	for _, clause := range clauses {
 		for _, rule := range rgaOverclaims {
@@ -452,6 +542,7 @@ func TestRecipeAuthorityCurrentChangelogScope(t *testing.T) {
 	for _, heading := range []string{
 		"## [Unreleased]", "## Unreleased",
 		"## Unreleased — v0.17 planned — recipe generation authority",
+		"## Unreleased (v0.17 planned)", "## [Unreleased] (v0.17 planned)",
 	} {
 		current, err := rgaUnreleasedSection("# Changelog\n\n" + heading + "\n" + compact + history)
 		if err != nil {
@@ -500,6 +591,9 @@ func TestRecipeAuthorityCoordinatedPredicateSensitivity(t *testing.T) {
 				{"two-negatives-then-authority", "Coverage never grants replay permission and is not replay-safe and is cross-base-safe.", "replay-or-cross-base-authority"},
 				{"negative-then-historical-proof", "Coverage does not authenticate its producer and proves historical origin.", "coverage-as-authentication"},
 				{"negative-then-broad-completeness", "Replace-in-file does not satisfy complete coverage and satisfies v1 completeness.", "broad-operation-completeness"},
+				{"contrast-elided-subject", "Coverage never grants replay permission but is replay-safe.", "replay-or-cross-base-authority"},
+				{"qualified-coordination", "Coverage never grants replay permission and still is cross-base-safe.", "replay-or-cross-base-authority"},
+				{"explicit-subject-replaces-owner", "Coverage never grants replay permission and replace-in-file does not satisfy complete coverage and satisfies v1 completeness.", "broad-operation-completeness"},
 			} {
 				t.Run(fixture.name, func(t *testing.T) {
 					err := validateRecipeAuthoritySurface(good+"\n\n"+fixture.claim+"\n", installed)
@@ -515,6 +609,11 @@ func TestRecipeAuthorityCoordinatedPredicateSensitivity(t *testing.T) {
 				"Coverage never grants replay permission and is not replay-safe and is not cross-base-safe.",
 				"Coverage does not authenticate its producer and does not prove historical origin.",
 				"Replace-in-file does not satisfy complete coverage and cannot satisfy v1 completeness.",
+				"Coverage never grants replay permission but is not replay-safe.",
+				"Coverage never grants replay permission and still is not cross-base-safe.",
+				"Coverage never grants replay permission and replace-in-file does not satisfy complete coverage and cannot satisfy v1 completeness.",
+				"Coverage never grants replay permission and the deployment is healthy and is eligible for replay.",
+				"Coverage never grants replay permission. A deployment is healthy and is eligible for replay.",
 			} {
 				t.Run("negated/"+disclaimer, func(t *testing.T) {
 					if err := validateRecipeAuthoritySurface(good+"\n\n"+disclaimer+"\n", installed); err != nil {
@@ -575,6 +674,26 @@ func TestRecipeAuthorityChangelogHeadingBoundarySensitivity(t *testing.T) {
 			document := current + "\n" + heading + "\nCoverage is replay-safe.\n"
 			if err := check(document); err != nil {
 				t.Fatalf("genuine historical release was treated as current guidance: %v", err)
+			}
+		})
+	}
+	for _, fixture := range []struct {
+		name     string
+		document string
+	}{
+		{"preamble-claim", "# Changelog\nCoverage is replay-safe.\n\n## [Unreleased]\n" + compact + history},
+		{"preamble-notes", "# Changelog\n### Current notes\nCoverage is replay-safe.\n\n## [Unreleased]\n" + compact + history},
+		{"additional-current-notes", current + "\n### Current notes\nCoverage is replay-safe.\n" + history},
+		{"fenced-release-is-current", current + "\n```markdown\n## [0.16.0]\nCoverage is replay-safe.\n```\n" + history},
+		{"tilde-fenced-release-is-current", current + "\n~~~markdown\n## [0.16.0]\nCoverage is replay-safe.\n~~~\n" + history},
+		{"indented-release-is-current", current + "\n    ## [0.16.0]\nCoverage is replay-safe.\n" + history},
+		{"tab-indented-release-is-current", current + "\n\t## [0.16.0]\nCoverage is replay-safe.\n" + history},
+		{"planned-full-version-is-not-release", current + "\n## v0.17.0 - planned\nCoverage is replay-safe.\n" + history},
+		{"dated-planned-version-is-not-release", current + "\n## v0.17.0 - 2026-09-30 - planned\nCoverage is replay-safe.\n" + history},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			if err := check(fixture.document); err == nil {
+				t.Fatal("current guidance disappeared at a false section boundary")
 			}
 		})
 	}

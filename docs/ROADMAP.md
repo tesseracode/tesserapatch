@@ -1659,6 +1659,9 @@ A focused old-validator red run will establish the review cases before fixes.
 The red run now reproduces both findings with the expected false-accept
 assertions, not a syntax/resource failure. Validator correction is authorized;
 all existing/new controls and the historical-only exclusion boundary remain.
+The subject-aware and strict current/history fixes are now delivered, with
+additional contrast/subject-switch/fence/preamble fixtures. Combined new and
+legacy targeted validation and independent re-review are next.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
