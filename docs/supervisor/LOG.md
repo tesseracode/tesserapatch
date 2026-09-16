@@ -1,3 +1,30 @@
+## Dispatch — GH #15 S6 public parity and soak — 2026-09-15
+
+**Task**: `implement-recipe-generation-authority-s6`
+**WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+**State**: IN PROGRESS
+
+The operator authorizes S6 after accepted S5 and completed green CI at the
+exact baseline (`34956682822`). Before dispatch, the operator authorizes
+reconciliation of an accidental LOG deletion: zero added lines/135 deleted
+lines were confirmed, then restored from HEAD; no reviewer additions existed
+to merge. The unrelated blank-line deletion in CLUSTERS is preserved unchanged.
+Thirteen untracked research files remain untouched.
+
+Scope is PRD S6/RGA-359/360: public docs and six skills, the seven-producer table,
+semantic authority/overclaim guards with failing mutations, and a cumulative
+repository exercising all producers with generated/unsupported/legacy cohorts.
+Coverage is necessary but not sufficient for future eligibility, never cross-base
+safety; warn/exit-0 is not eligibility. Carry all ADR-039/040/041/042 qualifications.
+
+**Ownership**: public-doc implementer owns SPEC/README/CHANGELOG and directly
+related operator docs; asset implementer owns all six surfaces, template README
+and asset tests; coordinator owns CLI soak and tracking. No shared-file writes,
+agent commits or agent Go execution. Parent validation stays serial and gated.
+Do not change runtime contracts, historical fixtures, CI commands, replay scope,
+release tags or the preserved CLUSTERS edit. Its eventual clean-tree disposition
+is an operator decision if still present at close.
+
 ## Close — S5 applicability correction — 2026-09-15
 
 **Task**: `fix-s5-capture-filter-applicability`

@@ -1619,6 +1619,16 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
+**S6 🚧 PUBLIC PARITY AND SOAK IN PROGRESS — 2026-09-15**.
+**WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
+Operator-dispatched scope is PRD S6 and RGA-359/360: public SPEC/operator/layout
+docs, all six embedded skill surfaces, seven-producer and authority-overclaim
+parity, and cumulative downstream soak with generated, unsupported and both
+pre-v0.17 legacy cohorts. Preserve ADR-039/040/041/042 and D16; no GH #13 replay,
+GH #24 widening, schema changes or release/tag authorization. Baseline CI
+`34956682822` is completed green. The unrelated CLUSTERS edit and all thirteen
+research files remain untouched; CURRENT records ownership and validation.
+
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
 **Validated/pushed range**:

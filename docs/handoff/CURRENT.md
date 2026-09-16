@@ -2,7 +2,36 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**S6 public parity and soak dispatched (2026-09-15)**: the operator authorized
+the final implementation slice in PRD section 8, S6, including RGA-359/360.
+Fresh WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`; HEAD and
+origin/main match, and hosted run `34956682822` is completed SUCCESS.
+S5 and its applicability correction are accepted and already archived.
+
+Before dispatch, the operator authorized restoration of accidentally deleted
+S5 LOG entries from HEAD. The diff had zero added reviewer lines and 135 deleted
+lines; all deleted entries are restored, with no reviewer additions lost.
+The existing one-blank-line edit in `docs/CLUSTERS.md` is intentionally left
+unchanged and uncommitted. It is not S6 work. The thirteen untracked research
+files and allowlist remain untouched.
+
+Scope: public SPEC/operator/layout documentation and six embedded skill
+surfaces, seven-producer/coverage authority parity and overclaim guards, and a
+realistic cumulative-repository soak exercising P1-P7 plus generated, unsupported
+and pre-v0.17 legacy cohorts (including the old stale marker). Preserve
+ADR-039/040/041/042, D16 and every existing scope/safety boundary. No GH #13
+replay consumer, GH #24 widening, schema change or release/tag authorization.
+
+Parallel ownership is file-disjoint: public-doc implementer owns SPEC/README/
+CHANGELOG and directly related operator docs; asset implementer owns the six
+skill surfaces, workspace README template and asset parity tests; coordinator
+owns the cumulative CLI soak and tracking. Implementers do not commit or run
+Go commands. The coordinator gates all Go validation serially with fresh
+60-second >=80%-free/load1 <=5/no-Go windows and stops on first failure.
+
+### S5 close (historical)
 
 **Applicability correction ACCEPTED (2026-09-15)**: all seven local stages
 pass. The final explicit-base gate exits 0 at pushed
@@ -3329,19 +3358,24 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `fix-s5-capture-filter-applicability`
+- **Task ID**: `implement-recipe-generation-authority-s6`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Correct readonly capture filter and named diff-driver applicability
-- **Status**: Complete — correction accepted; all local and hosted validation complete
-- **Assigned**: 2026-09-13
-- **Prior local S5 close**: 2026-09-12; hosted readiness withdrawn
-- **WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`
-- **Release target**: `v0.17.0`
+- **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
+- **Status**: In progress — scoped from the accepted S5 close
+- **Assigned**: 2026-09-15
+- **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+- **Release target**: `v0.17.0`; tagging/publication requires separate authorization
 
-WAVE_BASE = ca07e2fd6ea4128db14a29589169edf47bade8c1
+WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+S6 starts from the accepted and CI-green S5 close. Reconciled the accidental
+LOG deletion exactly as authorized; no new external-review lines were present.
+Preserved the unrelated CLUSTERS edit and all research files. Implementation
+scope is recorded before public asset, documentation or soak-test changes.
+The prior S5 entry is already archived in HISTORY; it is not reopened.
 
 The operator's resource retry completed the correction's entire validation
 protocol without changing source or fixtures. The final gate passes 8/8 at
@@ -4078,6 +4112,12 @@ integration or shipped assets belong to this slice.
 
 ## Current State
 
+S0-S5 implementation is accepted and immutable for S6 except a demonstrated
+tightly coupled defect requiring explicit tracking/review. Public documentation
+and skills still need the shipped authority boundaries, E/C artifacts and seven
+producer semantics. Cumulative downstream soak and semantic overclaim coverage
+are the S6 acceptance work, not a GH #13 replay implementation.
+
 Hosted CI is blocked by an S5 configuration-dependent regression. The local
 gate/independent reviews below passed, but they did not reproduce hosted
 system/global Git configuration. A production filter-applicability correction and green native
@@ -4166,6 +4206,16 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- S6 dispatch: CURRENT, ROADMAP and supervisor LOG. The accidental LOG deletion
+  was restored to HEAD before adding this entry. No S6 implementation edit yet.
+- Authorized docs: SPEC, README, an unreleased CHANGELOG entry and directly
+  related `docs/{feature-layout,record,path-b-operator-guide,faq,agent-as-provider,
+  reconcile,land,commits,dependencies}.md`.
+- Authorized assets: all six embedded surfaces, `assets/templates/README.md`
+  and asset parity/overclaim tests. Coordinator owns S6 CLI soak tests and any
+  narrowly required S6 golden projection; historical fixtures stay unchanged.
+- `docs/CLUSTERS.md` remains an operator-owned pre-existing edit, outside S6.
 
 - Applicability correction: `internal/gitutil/gitutil.go`,
   `internal/gitutil/capture_attributes.go`,
@@ -4788,6 +4838,9 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S6: no Go validation has run. Baseline CI `34956682822` completes SUCCESS at
+  `c7b0b8c`; prior S5 evidence below is not S6 validation.
 
 - Hosted run `34950823322` completes SUCCESS at the exact final-gate
   checkpoint `0e4861e`: all five required jobs pass; release is skipped.
@@ -10867,24 +10920,34 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. S6 needs a separate assignment and fresh WAVE_BASE; it is not dispatched.
-   S5 and its applicability correction are accepted with full local/hosted
-   evidence. No further correction validation or helper cleanup remains.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+1. Implement S6 public docs and six-surface parity in file-disjoint scopes;
+   add the cumulative P1-P7 soak with legacy and unsupported cohorts.
+2. Run focused parity/soak and affected/full validation under the unchanged
+   resource protocol, then independent review and completed hosted CI.
+3. Resolve only the final clean-tree disposition of the preserved CLUSTERS edit
+   with the operator if it remains; do not silently stage, revert or hide it.
+   Release/tagging and GH #13 execution are not part of this dispatch.
+4. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No S5/correction implementation, review or validation blocker remains.
-  Earlier resource/hosted-CI blockers are resolved; their evidence is preserved
-  in the execution history and HISTORY archive.
+- No S6 implementation blocker is known. The preserved, unrelated CLUSTERS edit
+  will prevent a clean-tree final gate if still present at close; leave its
+  disposition with the operator rather than committing or reverting it.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
   the separate ADR-041 section-7 planning follow-up.
 
 ## Context for Next Agent
+
+- Active S6 WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
+  S5 history below is accepted, not an active task. The original 13 research
+  files and the operator's CLUSTERS edit must not be swept into S6 commits.
+  The old resource wrappers were removed at S5 close; recreate only owned
+  ignored helpers if needed, preserving every resource/first-failure condition.
 
 - Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
   reviewed source `f7c5250` is accepted with the passing `0e4861e` final gate.
