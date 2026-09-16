@@ -1,3 +1,20 @@
+## Validation Transition — GH #15 S6 stages 1-5 PASS — 2026-09-16
+
+**Validated implementation**: `3e897436a85651a5ad7c5eba3bff80c7a6fa5c37`
+**Result**: full owning partition/vet/build PASS; standalone/final gate next
+
+The exact owning partition completes 22/22 invocations and 38 passing package
+rows, including main CLI 593.866s/workflow 103.907s, then vet and build pass.
+All 24 Go commands qualified fresh >=80%-free/load1 <=5/no-Go windows.
+Low-memory/high-load intervals paused admission and recovered within the
+existing limit; no threshold, timeout, selector or source change occurred.
+
+**Action**: checkpoint progress locally and start the separate standalone
+script on unchanged source. Preserve in-progress hosted run `35065721289`
+before tracking-only pushes. The operator must choose the held CLUSTERS edit's
+disposition before the final clean-tree gate; do not stage or restore it by
+assumption. No S6 acceptance or release/tag is claimed.
+
 ## Review — GH #15 S6 corrected authority and compatibility — 2026-09-15
 
 **Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`

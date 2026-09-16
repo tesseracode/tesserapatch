@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 stages 1-5 PASS (2026-09-16)**: full owning coverage completed all
+22 CI-equivalent invocations (38 passing package-result rows), then vet and
+build passed. All 24 Go invocations had fresh qualifying resource windows;
+temporary low-memory/high-load samples delayed commands rather than bypassing
+the gate. Main CLI 593.866s and workflow 103.907s pass. Independent review is
+APPROVED. The prescribed standalone script and final gate remain.
+
+Start the separate standalone pass on unchanged source. Hosted run
+`35065721289` still awaits macOS; do not interrupt it for tracking-only pushes.
+The held CLUSTERS blank-line edit still needs an explicit operator disposition
+before the clean-tree final gate.
+
 **S6 independent revision review APPROVED (2026-09-15)**: reviewer
 `a6c22c30-885c-468e-8c52-cf04ba767dd3` approves the corrected semantic guards
 and explicit compatibility delta through `3e89743` (static review only).
@@ -3508,6 +3520,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+The complete sharded owning run and vet/build pass. Twenty-two test commands
+and two additional Go commands each qualified a new continuous resource minute.
+No timeout was increased, selector changed, or partial run recombined. This
+completes stages 3-5; stage 6 is a separate fresh standalone run. Source remains
+the independently approved `3e89743` implementation, with tracking-only successors.
+
 Independent re-review is APPROVED for the corrected subject/current-history
 guards and the body-pinned AP projection, with no remaining reported finding.
 The reviewer ran no Go commands. Full owning coverage continues through the
@@ -5073,6 +5091,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S6 stages 3-5 PASS: exact full owning partition 22/22, 38 `ok` rows,
+  then `go vet ./...` and CLI build. There are 24 qualifying resource windows.
+  Main CLI 593.866s/workflow 103.907s; every isolated shard passes. Stages 1-5
+  are complete. Standalone stage 6 and the explicit-base final gate remain.
 
 - Corrected revision prefix run PASS in all six packages, including assets
   1.922s and CLI 23.214s; workflow 16.270s. Both red families are now green
