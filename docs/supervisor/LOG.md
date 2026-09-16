@@ -1,3 +1,23 @@
+## External Review and Revision Dispatch — S6 editor exit disclosure — 2026-09-16
+
+**Reviewer**: external review supplied by the operator
+**Reviewed range**: `c7b0b8c..583af4b`
+**Verdict**: NEEDS REVISION — MEDIUM disclosure/parity omission
+
+The carried S6 obligation explicitly requires disclosing non-zero exits from
+editor-process failure. Existing P7 prose describes observation despite editor
+error but not the command's result; Unreleased and the parity validator omit it.
+Runtime already returns `c.Run()` errors, attempts changed-bound-artifact
+publication, then returns the editor error even if publication succeeds.
+
+**Operator action**: authorize a narrow correction to Unreleased, SPEC's P7
+explanation, six skills/template, semantic guard controls and the current S6
+digest projection. Add a focused real CLI exit/publication case; preserve
+production Go, the historical AP map, old controls and all research. Clarify
+attempted publication, no implied rollback, and no promise to forward the
+editor's exact numeric exit code. Targeted resource-gated validation and
+independent re-review precede the remaining full validation; no acceptance/tag.
+
 ## Hosted Result — GH #15 S6 native CI PASS — 2026-09-16
 
 **Implementation**: `3e897436a85651a5ad7c5eba3bff80c7a6fa5c37`

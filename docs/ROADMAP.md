@@ -1621,6 +1621,11 @@ undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
 **S6 🚧 PUBLIC PARITY AND SOAK IN PROGRESS — 2026-09-15**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
+September 16 external review requires a bounded editor-failure exit disclosure
+and parity correction. The operator authorized Unreleased/SPEC/skills/template,
+mutation-sensitive checks and the explicit S6 hash projection update; runtime
+behavior and the historical oracle stay unchanged. Prior green results do not
+substitute for validation/re-review of this revision.
 Operator-dispatched scope is PRD S6 and RGA-359/360: public SPEC/operator/layout
 docs, all six embedded skill surfaces, seven-producer and authority-overclaim
 parity, and cumulative downstream soak with generated, unsupported and both

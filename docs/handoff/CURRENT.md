@@ -4,6 +4,21 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 editor-exit disclosure revision started (2026-09-16)**: the operator
+accepted the external MEDIUM finding. The carried S6 obligation to disclose
+editor-process failure as a non-zero command result was omitted from public
+guidance and parity. Runtime behavior is already implemented; fix only the
+Unreleased changelog, SPEC's P7 explanation, six skills/template, semantic
+disclosure guards and the explicit current S6 skill-digest projection.
+
+The wording must separate editor failure from publication failure: changed
+bound bytes are inspected and publication is attempted before returning the
+editor error, even when publication succeeds. Non-zero does not imply rollback
+or passthrough of the editor's exact numeric exit code. Preserve the historical
+AP oracle and all prior guards/fixtures. Add removal, zero-exit and appended
+contradiction controls, plus a focused real CLI boundary case. No production
+Go change, release/tag or resource-threshold relaxation is authorized.
+
 **S6 hosted CI PASS; local resource blocker remains (2026-09-16)**:
 [35065721289](https://github.com/tesseracode/tesserapatch/actions/runs/35065721289)
 completed SUCCESS at reviewed implementation
@@ -3543,7 +3558,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: Blocked — local stages 6-7; stages 1-5, review and hosted CI pass
+- **Status**: In progress — editor-exit disclosure revision; resource-gated validation pending
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3551,6 +3566,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+External review identified the missing S6 editor-exit disclosure and its absent
+parity requirement. The operator authorized correction before remaining full
+validation. Source confirms editor errors are returned after the P7 publication
+attempt, and an editor-only error maps to generic tpatch exit 1 rather than the
+editor's own code. Earlier S6 green evidence is historical until the revised
+docs/guards are validated and reviewed.
 
 Hosted CI completes successfully at the exact reviewed source after waiting
 without cancellation. All five required jobs pass and release is skipped.
@@ -11298,6 +11320,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Blockers
 
+- The external MEDIUM disclosure/parity finding is being corrected. Previous
+  source validation does not certify these new edits; targeted correction
+  validation and re-review must precede the remaining full validation.
 - Stage 6 is resource-blocked: the fifth admission gate exhausted 600 seconds
   without a qualifying minute; latest sampled free memory is 79%. Native CI
   and review pass, and the held edit is resolved. Standalone completion and
