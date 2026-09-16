@@ -1,3 +1,22 @@
+## Revision Validation — GH #15 S6 targets PASS — 2026-09-15
+
+**Source**: corrected through `5d1d1ea`; selector tracking at `a31a9a8`
+**Result**: all intended revision/new/old targets PASS; re-review next
+
+Correct prefix selection executes all six packages: assets 1.922s, gitutil
+3.448s, patchobs 1.140s, store 0.295s, workflow 16.270s, CLI 23.214s.
+Both reproduced false-accept families and all older authority controls pass,
+as do the cumulative soak and S6 AP projection sensitivities. The exact legacy
+PIB/AP targets and observer separately passed (264.112s). No `no tests to run`
+result is credited. Resource gates remain unchanged.
+
+**Action**: checkpoint/push and request independent re-review of the guard and
+compatibility deltas. Full owning coverage will run the exact established
+22-invocation CI script because the unsharded CLI hit its existing 40-minute
+limit; no larger timeout, changed selector, or partial-run recombination.
+Vet/build follow that run. The prescribed later standalone script and final
+gate remain independent steps. Preserve the unrelated CLUSTERS edit.
+
 ## Validation Result — GH #15 S6 compatibility and selector correction — 2026-09-15
 
 **Checkpoint**: `5d1d1ea`

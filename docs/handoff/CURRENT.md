@@ -4,6 +4,19 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 revision targets PASS (2026-09-15)**: the corrected prefix run executes
+the intended tests in all six packages, including both previously red guard
+families, every original authority control, the cumulative soak and the AP
+doc-delta sensitivities. Assets 1.922s, gitutil 3.448s, patchobs 1.140s, store
+0.295s, workflow 16.270s and CLI 23.214s all pass. Legacy compatibility and
+AP observer separately passed in 264.112s. No no-test result is credited.
+
+Independent re-review and full owning coverage now follow. Because the
+unsharded CLI exceeded its existing 40-minute limit, full owning coverage uses
+the exact established 22-invocation CI script, without changing its selectors,
+environment or timeout. Vet/build follow that owning run; the prescribed
+standalone/final-gate passes remain separate later steps.
+
 **S6 compatibility targets PASS; prefix selector correction (2026-09-15)**:
 the exact legacy PIB-155/231 contract targets, dangling public workflows and
 AP observer pass (CLI 264.112s). Formatting is clean and fresh resource gates
@@ -3488,6 +3501,13 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+The two reproduced guard escapes are corrected and all their old/new controls
+pass. The seven-body compatibility projection also passes its old-oracle and
+current-body mutations, alongside the original PIB/AP tests and observer.
+The initial selector omission was corrected explicitly; all intended RGA
+prefixes executed. Prepare an immutable checkpoint for re-review and sharded
+owning validation, avoiding another unsupported unsharded CLI attempt.
+
 Both reviewed guard fixes are authored and the worker is stopped. Parent owns
 the immutable combined correction: SPEC wording, the explicit AP body-digest
 delta and subject-aware/current-guidance validation. The worker ran no Go.
@@ -5040,6 +5060,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Corrected revision prefix run PASS in all six packages, including assets
+  1.922s and CLI 23.214s; workflow 16.270s. Both red families are now green
+  with all prior controls. Legacy PIB/AP/observer targets separately pass
+  (264.112s). Fresh 84%-free window qualified; no omitted target is counted.
 
 - Corrected SPEC/AP compatibility targets and AP observer PASS (264.112s).
   The first combined selector accidentally omitted the RGA/authority prefixes;
