@@ -1643,6 +1643,10 @@ focused retry precede broader validation; no runtime contract change.
 The focused retry now PASSES formatting and all RGA S0-S6/new parity targets
 across six packages. Full owning-package validation and independent review
 start next; source/runtime contracts and historical fixtures remain unchanged.
+Independent review reports two medium guard false-accepts (coordinated
+predicates and ambiguous current-changelog headings). Corrections and exact
+negative fixtures are required after the in-flight owning-package run; no
+runtime or public-prose defect was reported.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

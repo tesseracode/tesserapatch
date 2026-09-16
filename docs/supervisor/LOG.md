@@ -1,3 +1,24 @@
+## Review — GH #15 S6 public authority and soak — 2026-09-15
+
+**Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`
+**Range**: `c7b0b8c..a8e15a3`
+**Verdict**: NEEDS REVISION (static only; reviewer ran no Go commands)
+
+1. MEDIUM, `assets/recipe_authority_parity_test.go:166`: a negated first
+   predicate consumes its subject, hiding a coordinated affirmative claim:
+   `Coverage never grants replay permission and is replay-safe.` The same
+   validator must assess both predicates with the applicable subject.
+2. MEDIUM, `assets/recipe_authority_parity_test.go:66-76`: extraction stops at
+   any level-two heading, so `## Unreleased (v0.17 planned)` plus an overclaim
+   before a historical release is silently excluded. Only identified historical
+   release boundaries may end current guidance; duplicate/unknown current
+   headings must refuse.
+
+**Action**: preserve the in-flight owning-package checkpoint until its run
+finishes, then add these exact wrong-input cases and correct both validators.
+Do not weaken the authority contract or broaden changelog exemptions. Re-review
+and fresh validation follow; no runtime/doc prose finding was reported.
+
 ## Validation Transition — GH #15 S6 targeted retry PASS — 2026-09-15
 
 **Checkpoint**: `0c0b34d`

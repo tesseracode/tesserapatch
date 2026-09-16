@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 review NEEDS REVISION (2026-09-15)**: independent static review reports
+two medium false-accepts in the new asset guard: a coordinated affirmative
+predicate after a negated claim loses its subject, and an unrecognized
+`Unreleased (...)` level-two heading can hide current guidance as history.
+Add both exact wrong-input cases and fix the same validators before re-review.
+No runtime/doc-prose finding was reported. Owning-package validation is still
+running on the unchanged implementation; do not edit its source mid-run.
+
 **S6 targeted regression PASS (2026-09-15)**: the corrected installed wording
 passes the unchanged semantic validator. Fresh-gated formatting and the full
 RGA S0-S6/new authority targets pass in assets, gitutil, patchobs, store,
@@ -3422,6 +3430,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+Independent review of `c7b0b8c..a8e15a3` requires two semantic guard corrections:
+coordinated predicates must retain subject authority, and changelog extraction
+must end only at a real historical release rather than any level-two heading.
+The reviewer ran no Go commands. Preserve the current running checkpoint,
+then correct both with executable false-accept fixtures.
 
 Targeted retry at `0c0b34d` passes all six selected packages: assets 1.185s,
 gitutil 3.428s, patchobs 1.161s, store 0.296s, workflow 15.982s and CLI
