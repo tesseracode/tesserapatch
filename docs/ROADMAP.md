@@ -1675,6 +1675,9 @@ no release or final acceptance is claimed yet.
 On September 16, all owning shards (22/22), vet and build PASS under 24 fresh
 resource windows, completing stages 1-5. The separate standalone script and
 final gate remain; hosted macOS and the held CLUSTERS disposition are pending.
+The operator has now resolved CLUSTERS with an explicit `commit-as-is`;
+its pre-existing one-line removal is isolated at `592557f`, with file contents
+preserved. Standalone/final-gate and hosted completion remain outstanding.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

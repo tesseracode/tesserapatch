@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 clean-tree disposition resolved (2026-09-16)**: the operator selected
+`commit-as-is` for the pre-existing CLUSTERS blank-line removal. Commit
+`592557f` contains that one-file edit separately; its before/after working-file
+blob hashes match, so no contents were changed by the operation. The prior
+clean-tree blocker is resolved. Standalone validation is still running; no
+source, test, research or allowlist changes accompany this disposition.
+
 **S6 stages 1-5 PASS (2026-09-16)**: full owning coverage completed all
 22 CI-equivalent invocations (38 passing package-result rows), then vet and
 build passed. All 24 Go invocations had fresh qualifying resource windows;
@@ -3520,6 +3527,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+The operator explicitly approved committing the existing CLUSTERS contents
+as-is. The one-blank-line removal was isolated in `592557f` with the required
+trailer and unchanged file bytes. This removes the clean-tree obstacle without
+sweeping user work into an implementation commit. Standalone validation and
+hosted completion continue on the same implementation source.
+
 The complete sharded owning run and vet/build pass. Twenty-two test commands
 and two additional Go commands each qualified a new continuous resource minute.
 No timeout was increased, selector changed, or partial run recombined. This
@@ -4468,7 +4481,9 @@ remains blocked until that release is implemented, soaked and shipped.
 - Authorized assets: all six embedded surfaces, `assets/templates/README.md`
   and asset parity/overclaim tests. Coordinator owns S6 CLI soak tests and any
   narrowly required S6 golden projection; historical fixtures stay unchanged.
-- `docs/CLUSTERS.md` remains an operator-owned pre-existing edit, outside S6.
+- The operator-owned `docs/CLUSTERS.md` blank-line removal is committed
+  separately at `592557f` with explicit `commit-as-is` authorization; its
+  working-file contents were preserved.
 
 - Applicability correction: `internal/gitutil/gitutil.go`,
   `internal/gitutil/capture_attributes.go`,
@@ -11225,18 +11240,18 @@ at 471.544s. Formatting, vet and CLI build pass.
    add the cumulative P1-P7 soak with legacy and unsupported cohorts.
 2. Run focused parity/soak and affected/full validation under the unchanged
    resource protocol, then independent review and completed hosted CI.
-3. Resolve only the final clean-tree disposition of the preserved CLUSTERS edit
-   with the operator if it remains; do not silently stage, revert or hide it.
-   Release/tagging and GH #13 execution are not part of this dispatch.
+3. The CLUSTERS disposition is resolved by explicit operator authorization and
+   separate commit `592557f`. Keep all research untouched. Release/tagging and
+   GH #13 execution are not part of this dispatch.
 4. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No S6 implementation blocker is known. The preserved, unrelated CLUSTERS edit
-  will prevent a clean-tree final gate if still present at close; leave its
-  disposition with the operator rather than committing or reverting it.
+- No implementation/review or held-edit blocker remains. The operator approved
+  the separate CLUSTERS commit; remaining standalone/final-gate and hosted
+  validation are still required before S6 acceptance.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
