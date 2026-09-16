@@ -4,6 +4,21 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 implementation delivered; targeted validation next (2026-09-15)**:
+all twelve public docs, six embedded skills, the workspace README template,
+the shared semantic parity guard and the cumulative CLI soak are authored.
+Both implementers have finished and the coordinator owns the immutable
+validation checkpoint. Existing asset tests and historical fixtures are
+unchanged. Format owned Go tests, then run fresh-gated formatting and the
+new parity/soak targets; stop at the first failure before broader stages.
+
+The shared validator checks actual public/embedded bytes and rejects appended
+contradictory authority claims beside valid disclaimers, producer omissions/
+identity drift, predicate omissions, E/C order, authentication and unsupported
+operation-completeness claims. Negation controls bind to the relevant predicate.
+Only historical CHANGELOG release sections are excluded from current guidance.
+No runtime validation or release readiness is claimed yet.
+
 **S6 public documents delivered (2026-09-15)**: the documentation implementer
 completed all twelve owned public documents, including Unreleased-only notes.
 The edits cover seven producers, E-before-C publication, current ADR amendments,
@@ -3393,6 +3408,13 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Asset/parity delivery is complete: seven installed documents plus
+`assets/recipe_authority_parity_test.go`. The guard scans all twelve current
+public documents and installed surfaces; CHANGELOG extraction handles its
+decorated Unreleased heading and refuses duplicate headings. Both agents ran
+no Go commands. The combined source is ready for parent-controlled formatting
+and focused targets on one checkpoint.
+
 Public-doc delivery is complete in README, SPEC, CHANGELOG and nine operator/
 layout documents. Both implementers coordinated the common necessary-not-
 sufficient/no-cross-base-safety and warn/exit-0-not-eligibility disclaimers.
@@ -4242,6 +4264,9 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Assets delivered: the six skill surfaces, `assets/templates/README.md` and
+  `assets/recipe_authority_parity_test.go`. Existing assets tests are unchanged.
+
 - Public docs delivered: README, SPEC, CHANGELOG (Unreleased only),
   `docs/feature-layout.md`, `docs/record.md`, `docs/path-b-operator-guide.md`,
   `docs/faq.md`, `docs/agent-as-provider.md`, `docs/reconcile.md`,
@@ -4882,6 +4907,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S6 Go validation is starting from an immutable combined implementation.
+  No existing success result covers these edits. First targets are the shared
+  recipe-authority parity/sensitivities and cumulative downstream soak.
 
 - S6 resource helper: seven shell controls PASS, interrupted-window mutation
   correctly FAILS, real reset restored. No Go command ran under simulated

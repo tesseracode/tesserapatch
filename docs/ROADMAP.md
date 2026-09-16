@@ -1634,6 +1634,9 @@ Public docs and assets remain in progress; no S6 Go result is claimed.
 The twelve public documents are now delivered, with source-correct state-selected
 canonical reapply wording and current authority disclaimers. Assets/parity still
 await delivery; runtime validation and independent review remain pending.
+All seven installed documents and the shared semantic parity guard are now
+delivered alongside the coordinator soak. Combined targeted validation starts
+next; no S6 Go success or review approval is claimed yet.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

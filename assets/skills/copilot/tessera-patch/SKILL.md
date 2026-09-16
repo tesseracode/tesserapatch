@@ -66,8 +66,8 @@ Retirement audit: after a feature is confirmed upstreamed, `tpatch reconcile con
 - `tpatch config show|set` — Manage config
 - `tpatch cycle <slug>` — Run analyze→define→explore→implement→apply→record in sequence (batch or `--interactive`)
 - `tpatch test <slug>` — Run the configured `test_command` and record the outcome
-- `tpatch verify <slug>` — Run V0-V10 integrity checks against a feature's recipe and dependencies (freshness overlay)
-- `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` — Diagnose tpatch metadata drift (D1-D8, including D6 release drift via local --release-metadata snapshots)
+- `tpatch verify <slug>` — Run integrity/freshness checks, including `recipe_generation_coverage`, against the feature and dependencies
+- `tpatch doctor [--dry-run] [--fix] [--json] [--check <id>] [--release-metadata <file>]` — Diagnose metadata drift, including D6 release snapshots and read-only D10 recipe coverage
 - `tpatch next <slug>` — Emit the next action for a feature (`--format harness-json` for structured consumption)
 - `tpatch feature patch refresh <slug>` — Refresh the current feature patch; optional `--reason` is stored in patch-generations.json.
 - `tpatch feature patch fixup <slug> --reason "..."` — Append an explicit fixup generation; the target generation is auto-derived from the manifest.
@@ -141,6 +141,112 @@ Phase → artifact → state contract (the `--manual` flag validates this):
 | explore | `exploration.md` | `defined` |
 | implement | `artifacts/apply-recipe.json` (JSON-validated) | `implementing` |
 
+## Recipe generation and coverage authority
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+The canonical `post-apply.patch` remains feature intent; neither coverage nor a producer label authorizes replay.
+
+Under `.tpatch/features/<slug>/artifacts/`, `recipe-coverage.json` (C) binds exact
+readable patch/recipe bytes, reference and effects. `recipe-capture-event.json`
+(E) is independently built from the immutable observation and final bound inputs,
+with a raw-byte hash of C. Publish E atomically, then C atomically last:
+single-file atomicity, not a transaction. An interrupted same-byte event may
+leave the previous coherent pair; differing mixed pairs are detectable.
+Independent unkeyed consistency is not authenticated authorship or historical
+proof; coordinated consistent edits or whole-set rollback are not detected.
+Repair requires a real producer event, never fabricated reader backfill.
+Readers independently reconstruct content and trees; neither persisted file
+is proof by itself.
+
+| Producer | Identity | Commands / governed event |
+|---|---|---|
+| P1 | `record` | `tpatch record <slug>` (`--auto`, `--from`/`--to`, `--staged`, `--unstaged` included); `tpatch land <slug>` embeds P1, not another producer. |
+| P2 | `feature-patch-amend` | `tpatch feature patch refresh <slug>` / `tpatch feature patch fixup <slug> --reason "..."`; non-empty same-patch checkpoint writes only E + C, not patch/recipe/provenance/generation/marker/state. Empty capture is no event. |
+| P3 | `reconcile-accept` | `tpatch reconcile --accept <slug>` (also `--resolve --apply` auto-accept) refreshes patch, preserves recipe and republishes the pair. |
+| P4 | `cycle` | `tpatch cycle <slug>` patch-capture step; earlier implement is P6. Skipped/declined/empty patch steps owe no P4 event. |
+| P5 | `apply-done` | `tpatch apply <slug> --mode done` / auto apply's done step on patch write; state-selected canonical-patch reapply is separate, not a P5 write event. |
+| P6 | `implement` | `tpatch implement <slug>` provider/heuristic writes and successful `tpatch implement <slug> --manual` checkpoints; `no-capture`, including raw undecodable provider output as incomplete. |
+| P7 | `artifact-edit` | `tpatch edit <slug> artifacts/apply-recipe.json` / `tpatch edit <slug> artifacts/post-apply.patch`; changed bytes at the resolved canonical path, even before editor error. Root decoys, other artifacts and unchanged edits are no event. |
+
+Every governed event finalizes E + C, including incomplete/same-byte events.
+Publication failure is nonzero, suppressing success-shaped completion.
+External edits publish nothing; bound-byte drift is detected on read.
+
+**D16:** freshly derive the entire canonical recipe and compare all raw bytes,
+not file sets, parsed operations, formatting-equivalent JSON, labels or prior
+provenance. Exact equality permits convergent provenance repair without recipe
+rewriting. Otherwise preserve manual/provider recipe and provenance bytes;
+record/P2 may mark `recipe-stale.json`. Explicit
+`tpatch record <slug> --regenerate-recipe` replaces only with a complete
+derivation; unsupported effects withhold a partial recipe or preserve the
+existing one, even when regeneration is requested.
+P1/P2 create a missing recipe only from a complete derivation.
+`record --no-recipe-autogen` suppresses automatic creation, not explicit regeneration.
+P2's paired `producer-patch-rewrite` / `recipe-not-regenerated` reasons mean a
+rewritten patch is no longer exactly covered, simulated and reclassified by the
+preserved recipe. Formatting-only D16 mismatch does not raise them; the stale
+marker still makes coverage incomplete (ADR-040).
+
+**ADR-039 completeness:** only `write-file` with present, non-null
+`preimage_hash` is admissible; explicit `""` gates creation. `append-file`,
+`replace-in-file` (even exact replacement) and ungated writes cannot satisfy
+v1 completeness (`operation-not-reclassifiable` on assigned effects).
+The mixed-operation example below remains executable under existing gates,
+not a complete-coverage example. All ten predicates must hold:
+
+1. Present canonical patch, fully strict-parsed, with at least one effect.
+2. Durable `reference.kind: commit`.
+3. Readable, decodable recipe owned by the coverage feature.
+4. Every normalized patch effect exactly once; no extra effects.
+5. Every operation assigned to an effect; no surplus operations.
+6. Repository-safe effect/operation paths; no two operations claim one path.
+7. Every effect `represented`; all effect/record reason arrays empty.
+8. Required sides observed with exact modes/hashes on present sides, including observed absence where required.
+9. Full immutable-preimage simulation reproduces exact postimage bytes, existence and supported modes without unmodeled changes.
+10. Simulated-result reclassification is already-present for every operation and writes no byte.
+
+`cross_base_status`: incomplete → `unsupported`; complete existing-file writes
+→ `consumer-derivation-required`; complete exclusively empty-gated creations
+→ `reference-tree-only`. No GH #13 replay consumer or persisted anchors;
+broader operation coverage stays GH #24 work.
+
+**Readers:** verify's `recipe_generation_coverage` orders malformed C, then
+owner/raw-byte/reference/E binding failures (block/exit 2), then valid
+incomplete coverage, current stale marker, and genuinely absent C (warn/exit0),
+otherwise passes. Missing/invalid E beside C is
+`recipe-coverage-capture-evidence-invalid`. Legacy no-C, including an old
+`recipe-stale.json` or orphan E, remains warn/verify-green absent other failures.
+Recipe execution and auto apply's pre-prepare preflight refuse binding failures
+first. Valid incomplete coverage with no readable/decodable recipe refuses
+before mutation: `recipe-generation-incomplete`, exit 2, no partial synthesis
+or silent canonical-patch fallback. Decodable incomplete recipes retain execution
+with a non-authority warning and all other gates. Legacy missing/invalid-recipe
+errors retain existing behavior.
+
+**ADR-042 ordered no-write:** initial preimage authorization stays separate
+from exact-postimage equality, which grants only a no-write exemption. Prove
+equality at each operation's sequential position and recheck before skipping;
+no fallback write permission follows. Invalidated postimage-only witnesses
+refuse before any operation; originally authorized writes retain ordinary
+execution. Skips increment both `Applied` and `Skipped`:
+`[write-file] <path>: already present (exact postimage), no write`. Dry-run uses ordered
+previews without writes. Missing/unreadable targets, malformed gates, path
+containment, `created_by`, later-touch warnings and supersession severity stay
+independent; explicit superseded drift may warn/write under existing
+audit-not-safety policy. The 8 MiB projection bound does not limit streaming
+exact equality or large-file no-ops.
+
+**Recovery:** `tpatch doctor --check D10` is read-only, warning-only,
+`Fixable:false` even with `--fix`. Regeneration guidance requires dry feasibility
+of the actual named record command, complete derivation and pair publication;
+otherwise `recipe-generation-no-truthful-regeneration` calls for manual review.
+For withheld recipes, review the patch; run `git apply --check` before deliberate
+`git apply`, or author a full recipe and `tpatch implement <slug> --manual`
+(moves to `implementing`, including from `applied`). Already-applied effects
+need no reapplication. The state-selected canonical-patch `tpatch apply <slug>`
+path is separate; coverage does not select that path.
+
 ## apply-recipe.json schema
 
 ```json
@@ -163,7 +269,7 @@ Phase → artifact → state contract (the `--manual` flag validates this):
 Semantics:
 
 - Ops: `ensure-directory`, `write-file { path, content }`, `replace-in-file { path, search, replace }`, `append-file { path, content }`. No `delete-file` / `rename-file` yet — use Path B + `git rm` for deletes.
-- **`write-file` safety (v0.12.0+)** — every `write-file` op carries a `preimage_hash` precondition (PRD-write-file-recipe-safety §3.1, ADR-029 D1). Value is `sha256:<64 lowercase hex>` over the exact bytes the target file held before the recipe was generated, `""` for new-file writes (target must not exist at apply time), or absent for legacy recipes (accepted with a warning in v1). Apply refuses execution when the current file hash does not match, or when a later feature has already touched the same path.
+- **`write-file` safety** — `preimage_hash` is `sha256:<64 lowercase hex>` over expected initial bytes, `""` for creation, or omitted for legacy warning/ordinary-write behavior. Ordered exact-postimage proof can skip writing, never grant new write permission; other gates and supersession severity remain independent (see above).
 - Optional `created_by` (string, parent feature slug) on any op — from v0.6.0 a **live apply-time gate**: `apply --mode execute` rejects ops whose `created_by` parent is missing from `depends_on` (hard-parent miss fails in execute, warns in `--dry-run`). Omit unless the recipe declares feature-DAG provenance.
 - `replace-in-file.search` is a **literal string match, not a regex**. Paste the exact text, include surrounding lines for uniqueness.
 - `replace-in-file` replaces exactly one occurrence per op. Emit multiple ops to replace several copies.
@@ -175,7 +281,7 @@ Semantics:
 - `artifacts/post-apply.patch` — authoritative git diff. **The patch captures intent.**
 - `artifacts/apply-recipe.json` — deterministic script targeting a specific upstream snapshot.
 
-When they disagree (e.g. the recipe's `replace-in-file` can no longer find its anchor because upstream edited the line), trust the patch. Regenerate the recipe afterward.
+When they disagree (e.g. the recipe's `replace-in-file` can no longer find its anchor because upstream edited the line), trust the patch. Use the coverage diagnostics and feasible regeneration/manual recovery above.
 
 ## If reconcile returns 3WayConflicts
 
@@ -237,7 +343,7 @@ Verdicts: `shadow-awaiting` (all files resolved; feature state `reconciling-shad
 
 Each resolver run writes `.tpatch/features/<slug>/artifacts/resolution-session.json` — per-file status, validation reasons, shadow path. Agents acting as the provider (Path B) can edit the shadow files and then run `tpatch reconcile --accept <slug>`.
 
-On `--accept`, tpatch applies non-conflicting hunks of `post-apply.patch` via 3-way merge (excluding resolved files), copies resolved files from shadow → real tree, regenerates `post-apply.patch`, snapshots the delta as `patches/NNN-reconcile.patch`, and marks the feature `applied`. `apply-recipe.json` is NOT auto-regenerated — re-run `tpatch implement` or `tpatch record` if the recipe matters to you.
+On `--accept`, tpatch applies non-conflicting hunks of `post-apply.patch` via 3-way merge (excluding resolved files), copies resolved files from shadow → real tree, refreshes `post-apply.patch`, snapshots the delta as `patches/NNN-reconcile.patch`, and marks the feature `applied`. P3 preserves `apply-recipe.json` and republishes E + C. Use the coverage diagnostics and feasible regeneration/manual recovery above; plain `record` need not replace a preserved recipe.
 
 ## Optional intent preparation and recovery
 

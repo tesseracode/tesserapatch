@@ -1,3 +1,22 @@
+## Validation Transition — GH #15 S6 combined implementation — 2026-09-15
+
+**Asset implementer**: `efb405c8-b226-4538-95b6-b7814e462781`
+**State**: all implementation scopes delivered; focused validation next
+
+The six skills, workspace README template and new external asset parity test
+are delivered. The shared validator checks installed/current public text,
+producer identities/aliases, E/C publication and ten completeness predicates.
+Wrong-input cases append authorizing contradictions beside surviving good
+disclaimers and test predicate-local negation. Historical CHANGELOG sections
+alone are excluded; decorated/duplicate Unreleased headings are handled.
+Existing asset tests and all historical fixtures remain unchanged.
+
+The public-doc scope is committed at `7ef0bc6`, soak draft at `b479fe0`.
+Both implementers ran no Go commands and are finished. Parent will format owned
+tests, commit the asset delivery and run fresh-resource-gated formatting plus
+new parity/soak targets before broad validation. No runtime/source contract,
+release/tag or CLUSTERS disposition changed.
+
 ## Implementation Delivery — GH #15 S6 public docs — 2026-09-15
 
 **Implementer**: `23c716a3-0477-4d06-bfbd-a64f66bc759a`
