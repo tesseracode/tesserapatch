@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 targeted regression PASS (2026-09-15)**: the corrected installed wording
+passes the unchanged semantic validator. Fresh-gated formatting and the full
+RGA S0-S6/new authority targets pass in assets, gitutil, patchobs, store,
+workflow and CLI (including the cumulative soak). No historical fixture,
+runtime behavior or prior guard changed. Proceed to full owning-package tests,
+vet/build and independent readonly review on an immutable checkpoint.
+
 **S6 first targeted run stopped (2026-09-15)**: formatting passed. The cumulative
 CLI soak passed (5.949s), including all seven producer paths and its negative
 controls. Asset parity failed only on Copilot's installed-contract wording:
@@ -3416,6 +3423,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Targeted retry at `0c0b34d` passes all six selected packages: assets 1.185s,
+gitutil 3.428s, patchobs 1.161s, store 0.296s, workflow 15.982s and CLI
+21.938s. Formatting is empty. Both fresh windows qualified at 83% free,
+load1 <=5 and no active Go tools. The initial lexical mismatch is resolved;
+broader validation and independent review remain.
+
 First gated targets at `a6e4191`: cumulative CLI soak PASS; assets FAIL on
 one lexical Copilot parity mismatch (`recheck` versus required `rechecked`).
 No runtime defect was observed and no existing fixture/guard is relaxed.
@@ -4921,6 +4934,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S6 stages 1-2 PASS on retry: formatting empty; all RGA S0-S6 and new
+  authority targets pass across assets/gitutil/patchobs/store/workflow/CLI.
+  Exact package times are in the session summary. Fresh 83%-free windows
+  qualified before both invocations. Full owning packages/vet/build,
+  complete shards, review and final gate remain pending.
 
 - First S6 targeted invocation: CLI soak PASS (5.949s); assets FAIL on the
   Copilot `rechecked` checklist term. Formatting is clean. Gates qualified at

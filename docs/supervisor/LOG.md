@@ -1,3 +1,21 @@
+## Validation Transition — GH #15 S6 targeted retry PASS — 2026-09-15
+
+**Checkpoint**: `0c0b34d`
+**Result**: stages 1-2 PASS; owning packages/review next
+
+After the one-sentence Copilot alignment, the unchanged semantic guard passes.
+Formatting is empty. All RGA S0-S6/new authority targets pass: assets 1.185s,
+gitutil 3.428s, patchobs 1.161s, store 0.296s, workflow 15.982s and CLI 21.938s.
+Both commands had fresh 83%-free/load1 <=5/no-Go qualifying minutes.
+No prior fixture/guard or runtime contract changed.
+
+**Action**: checkpoint/push the combined implementation, dispatch independent
+readonly review with Go execution prohibited, and run owning asset/CLI packages
+then vet/build serially through fresh resource gates. Complete CI-equivalent
+shards and the final gate follow only after success. CLUSTERS remains an
+operator-owned dirty edit, excluded from commits and requiring disposition
+before the clean-tree close.
+
 ## Validation Result — GH #15 S6 first targets — 2026-09-15
 
 **Checkpoint**: `a6e4191`

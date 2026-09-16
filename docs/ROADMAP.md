@@ -1640,6 +1640,9 @@ next; no S6 Go success or review approval is claimed yet.
 First gated run: the cumulative CLI soak passes; asset parity stops on one
 Copilot wording mismatch (`recheck`/`rechecked`). A one-sentence alignment and
 focused retry precede broader validation; no runtime contract change.
+The focused retry now PASSES formatting and all RGA S0-S6/new parity targets
+across six packages. Full owning-package validation and independent review
+start next; source/runtime contracts and historical fixtures remain unchanged.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
