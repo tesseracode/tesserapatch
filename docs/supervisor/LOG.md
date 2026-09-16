@@ -1,3 +1,21 @@
+## Implementation Transition — GH #15 S6 cumulative soak — 2026-09-15
+
+**State**: coordinator unit authored; public docs/assets still in progress
+
+The new CLI soak keeps one populated repository with two legacy cohorts,
+a generated adjacent-argument customization, a maintained feature and an
+unsupported deletion. It drives P1-P7 through shipped CLI entry points,
+validates E/C with the production assessor, performs explicit record repair,
+and checks untouched legacy behavior. Wrong-input controls reject stale
+complete evidence, a missing P7 ledger entry and a corrupted legacy patch.
+No historical fixture, runtime source or command behavior was changed.
+
+Four owned ignored helper scripts restore the existing strict resource gates.
+All seven shell controls pass; the interrupted-window fixture fails when its
+actual reset is disabled. The real reset is restored. Latest resources are
+88% free/load1 2.33/no Go tools, but no S6 Go validation has started. Wait for
+an immutable completed implementation checkpoint before compiling/running.
+
 ## Dispatch — GH #15 S6 public parity and soak — 2026-09-15
 
 **Task**: `implement-recipe-generation-authority-s6`

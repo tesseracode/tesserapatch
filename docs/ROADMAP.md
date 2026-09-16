@@ -1628,6 +1628,9 @@ pre-v0.17 legacy cohorts. Preserve ADR-039/040/041/042 and D16; no GH #13 replay
 GH #24 widening, schema changes or release/tag authorization. Baseline CI
 `34956682822` is completed green. The unrelated CLUSTERS edit and all thirteen
 research files remain untouched; CURRENT records ownership and validation.
+Coordinator cumulative-soak assertions are authored, including real P1-P7
+commands, legacy/unsupported cohorts and failure-sensitive read/ledger controls.
+Public docs and assets remain in progress; no S6 Go result is claimed.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

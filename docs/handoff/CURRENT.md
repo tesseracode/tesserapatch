@@ -4,6 +4,20 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 cumulative soak authored (2026-09-15)**: the coordinator added an actual-CLI
+five-feature cumulative fixture with two landed legacy wire cohorts, a generated
+adjacent-arguments customization, a maintained feature driven through P1-P7,
+and an unsupported deletion. It checks E/C binding through the real reader,
+explicit regeneration between incompatible producer outputs, legacy verify-green
+and no-write behavior, and wrong-input controls for stale complete coverage,
+a missing producer and a corrupted legacy patch. These are authored assertions,
+not passing validation. Public-doc and asset implementers remain active.
+
+Owned ignored Go/gofmt resource wrappers are restored under `bin/s6-validation/`.
+Their seven shell controls pass; disabling the interruption reset makes the same
+fixture fail, and the real reset is restored. Latest real resource snapshot is
+88% free/load1 2.33/no Go tools. No S6 Go validation has started.
+
 **S6 public parity and soak dispatched (2026-09-15)**: the operator authorized
 the final implementation slice in PRD section 8, S6, including RGA-359/360.
 Fresh WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`; HEAD and
@@ -3371,6 +3385,13 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Coordinator soak unit is authored in `internal/cli/recipe_authority_s6_soak_test.go`.
+It reuses existing CLI, record/land, editor, Git and E/C fixture helpers instead
+of bypassing the producer finalizers. Legacy fixtures explicitly model the old
+ungated/no-coverage wire shape; they do not pretend an old binary was executed.
+Documentation/assets remain delegated to disjoint implementers. Resource-gate
+shell controls and their deliberate interruption mutation run without Go.
+
 S6 starts from the accepted and CI-green S5 close. Reconciled the accidental
 LOG deletion exactly as authorized; no new external-review lines were present.
 Preserved the unrelated CLUSTERS edit and all research files. Implementation
@@ -4207,6 +4228,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Coordinator: `internal/cli/recipe_authority_s6_soak_test.go` (authored;
+  no Go validation yet). Four ignored validation helper scripts are owned
+  under `bin/s6-validation/` and must be removed at close.
+
 - S6 dispatch: CURRENT, ROADMAP and supervisor LOG. The accidental LOG deletion
   was restored to HEAD before adding this entry. No S6 implementation edit yet.
 - Authorized docs: SPEC, README, an unreleased CHANGELOG entry and directly
@@ -4838,6 +4863,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- S6 resource helper: seven shell controls PASS, interrupted-window mutation
+  correctly FAILS, real reset restored. No Go command ran under simulated
+  probes. The new soak/public changes are not yet compiled or tested.
 
 - S6: no Go validation has run. Baseline CI `34956682822` completes SUCCESS at
   `c7b0b8c`; prior S5 evidence below is not S6 validation.
