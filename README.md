@@ -68,7 +68,37 @@ When upstream releases a new version, `tpatch reconcile` runs a 4-phase check:
 3. **Semantic** — Does upstream satisfy your acceptance criteria? (LLM-assisted)
 4. **Forward-apply** — Can your patch be cleanly re-applied? (safety net)
 
-Features that upstream adopted get retired. Features still needed get re-applied.
+Confirmed upstream adoptions are retired. Still-needed patches are reapplied
+when the existing checks permit; conflicts remain blocked for review.
+
+## Recipe coverage (v0.17 planned, unreleased)
+
+The current GH #15 implementation keeps `artifacts/post-apply.patch` canonical
+and publishes `recipe-capture-event.json` before `recipe-coverage.json`
+after governed record, patch-amend, reconcile-accept, cycle, apply-done,
+implement and bound-artifact edit events. Each replacement is atomic;
+the pair is not a cross-file transaction. See the
+[seven-producer contract](./SPEC.md#seven-governed-producers).
+
+Publication reports `recipe coverage: complete` or `recipe coverage: incomplete`
+with sorted reasons. Complete v1 coverage requires preimage-bearing
+`write-file` operations (including explicit-empty creation gates) **and**
+all ten proof predicates. Unsupported captures do not produce partial
+recipes; existing manual/provider recipes are preserved unless complete
+regeneration is explicitly requested. A label is not generated-origin proof.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Missing legacy coverage, including an old stale marker, remains verify-green
+absent other failures; malformed or mismatched present coverage blocks.
+`tpatch doctor --check D10` diagnoses without repair, even with `--fix`,
+and offers regeneration only when a read-only plan establishes it can
+truthfully complete. See [recording and recovery](./docs/record.md).
+
+The evidence pair provides unkeyed consistency, not authentication or
+history. Readers reconstruct the proof; landing/attestation remain separate.
+GH #13's new reconcile operation-replay consumer is future work for a
+separate release, not enabled by this coverage publication.
 
 ## LLM Provider
 

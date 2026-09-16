@@ -1,3 +1,24 @@
+## Implementation Delivery — GH #15 S6 public docs — 2026-09-15
+
+**Implementer**: `23c716a3-0477-4d06-bfbd-a64f66bc759a`
+**State**: twelve owned docs delivered; validation/review pending
+
+README, SPEC, Unreleased CHANGELOG and nine operator/layout docs now describe
+the seven producer categories, E-before-C, amended coverage/provenance domain,
+D13/D17, readonly D10 and legacy compatibility. Public docs and asset implementer
+agreed the explicit necessary-not-sufficient/no-cross-base-safety and
+warn/exit-0-not-eligibility boundaries.
+
+Source inspection corrected a dispatch shorthand: no `--reapply` flag exists.
+Canonical patch reapply is selected by unapplied/pending-baseline state, and
+the public docs name the actual flow rather than invent a flag/mode. No runtime
+change is needed. The twelve-file diff is whitespace-clean. No Go commands,
+agent commits or tracking edits were performed by the implementer.
+
+**Action**: checkpoint only the delivered docs plus this tracking transition.
+Leave asset edits with their implementer until completion; no concurrent Go
+validation or shared-file staging. CLUSTERS/research remain untouched.
+
 ## Implementation Transition — GH #15 S6 cumulative soak — 2026-09-15
 
 **State**: coordinator unit authored; public docs/assets still in progress

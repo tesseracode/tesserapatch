@@ -1,6 +1,10 @@
 # Recording Patches
 
-`tpatch record <slug>` captures the on-disk diff for a feature and stores it under `.tpatch/features/<slug>/patches/NNNN-record.patch` (plus `artifacts/post-apply.patch` for backwards compatibility). The captured patch is what `tpatch reconcile` replays and what downstream tooling diffs against the upstream baseline.
+`tpatch record <slug>` captures the diff for a feature into the canonical
+`.tpatch/features/<slug>/artifacts/post-apply.patch`. Numbered
+`patches/NNN-record.patch` files are historical snapshots, not the canonical
+input. The captured patch is what reconcile and downstream tooling use;
+an executable recipe must explain that patch, not silently replace it.
 
 The #1 footgun with `record` is **running it at the wrong time relative to `git commit`**. This doc explains the two supported orderings, how to recover if you got it wrong, and what the CLI does now to stop you from silently producing an empty patch.
 
@@ -64,6 +68,99 @@ Previously this produced a 0-byte patch, advanced the feature state to `applied`
 | Committed one feature to this branch, nothing else | `tpatch record <slug> --from upstream/main` |
 | Committed feature A, then committed feature B on top, realise A needs a fix | see `feat-noncontiguous-feature-commits` (planned) |
 | Working tree clean, no commits either | Nothing to record — do your edits first |
+
+## Capture modes and recipe authority (GH #15; unreleased)
+
+Choose one capture-mode family; `--files <paths>` and `--claimed-only` scope
+the selected capture rather than selecting another mode:
+
+| Command selection | Published `capture.mode` | Captured input |
+|---|---|---|
+| Default or `--all` | `working-tree-all` | Existing worktree diff plus untracked files. |
+| `--staged` | `staged-index` | HEAD → index; overlapping staged/unstaged paths refuse. |
+| `--unstaged` | `unstaged-worktree` | Index → worktree; overlapping staged/unstaged paths refuse. |
+| `--from <base> [--to <tip>]` | `committed-range` | Selected committed range, default tip HEAD. |
+| `--auto [--to <tip>]` | `auto-committed-range` | Inferred base and selected/default tip. |
+| `--commit-range <base>..<tip>` | `explicit-committed-range` | Explicit committed endpoints. |
+
+The reference is HEAD for accepted working-tree modes and the resolved
+lower endpoint for committed ranges. Committed-range postimages come from
+the upper commit, not later worktree edits. Accepted `--unstaged` is
+commit-kind HEAD, not an index snapshot: overlap refusal ensures the
+captured paths' index entries agree with HEAD.
+
+Record is P1 in the [seven-producer contract](../SPEC.md#seven-governed-producers).
+The embedded record step of `land` is also P1. A successful capture is
+observed once before bound writes. When authorized, a complete derivation
+writes the recipe, then justified `recipe-provenance.json`, then any owed
+generation. Final publication atomically replaces
+`recipe-capture-event.json` (**E**) before atomically replacing
+`recipe-coverage.json` (**C**). This is **not a cross-file transaction**;
+an error can leave earlier writes behind and returns non-zero. Same-patch
+reruns still republish E/C without duplicating a patch generation.
+
+E is unkeyed consistency evidence, not authentication or historical origin.
+Readers load it independently, compare its C hash and bound inputs, and
+reconstruct the proof. C absence remains legacy even beside E.
+
+### What generation and preservation mean
+
+Record derives only a **complete** recipe for supported regular-text
+additions/modifications. It does not emit a partial recipe that drops
+deletions, renames, copies, binary/mode/object changes or unavailable/unsafe
+effects. If full derivation is unavailable, a missing recipe stays missing
+and an existing recipe stays byte-identical; coverage reports the actual
+incompleteness.
+
+D16 proves generated origin by comparing **all freshly derived canonical
+bytes** with the existing recipe. Matching paths, labels, semantic
+equivalence or prior provenance are insufficient. Even formatting-only
+differences fail D16. A nonmatching manual/provider recipe and its
+provenance are preserved unless explicit `--regenerate-recipe` can replace
+it with a complete derivation. Successful D16 reruns can repair provenance
+with the current base/time, without inventing an author or past history.
+
+`recipe coverage: complete` or `recipe coverage: incomplete (<reasons>)`
+is printed on stderr after publication, with exact sorted/deduplicated
+reasons. V1 complete coverage admits only `write-file` with a present,
+non-null `preimage_hash` (including `""` for creation), and still requires
+all ten predicates in [SPEC](../SPEC.md#complete-coverage-origin-and-reasons).
+Append, replacement and ungated writes remain executable under existing
+rules but cannot supply complete v1 coverage.
+
+P2 (`feature patch refresh <slug>` and `feature patch fixup <slug> --reason <reason>`)
+does not force recipe regeneration. A changed patch whose preserved recipe
+no longer explains its effects raises **both** `producer-patch-rewrite` and
+`recipe-not-regenerated`. A formatting-only D16 mismatch that remains
+semantically exact does not raise those codes; its stale marker still
+yields `recipe-stale-marker-present`. A non-empty same-latest-generation
+checkpoint writes only E/C, not patch/recipe/provenance/generation/state.
+An empty P2 capture is not that checkpoint.
+
+### Diagnose before regenerating
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+Use `tpatch verify <slug>` for the full report and
+`tpatch doctor --check D10` for coverage diagnosis. D10 is warning-only
+and read-only even with `--fix`: it does not regenerate, delete a marker,
+repair provenance or publish evidence. It offers
+`tpatch record <slug> --regenerate-recipe` only after a read-only plan of
+that exact default working-tree command establishes complete D16-proven
+output and the real capture/state/collision/generation/publication gates.
+Otherwise `recipe-generation-no-truthful-regeneration` lists blockers;
+review the patch and choose a truthful capture manually. A clean committed
+feature may need a consciously selected range, not blind default regeneration.
+
+Verify warning rows do not fail the run absent other failures. Legacy missing
+C, including a pre-v0.17 `recipe-stale.json`, stays verify-green; present
+malformed or mismatched C/E blocks. For ordinary `apply --mode execute`,
+valid incomplete coverage with a decodable recipe warns and retains existing
+execution gates; bound absent/unreadable/undecodable recipes refuse with
+`recipe-generation-incomplete` (exit 2). See [SPEC's apply table](../SPEC.md#explicit-apply-and-ordered-no-write-success)
+for state-aware recovery and the separate state-selected canonical-patch
+reapply branch. No coverage row authorizes future GH #13 replay.
 
 ## Related
 

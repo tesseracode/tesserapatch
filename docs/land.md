@@ -26,6 +26,35 @@ tpatch land <slug> [--message <subject>] [--allow-extra-paths]
 
 Authoritative source: PRD-tpatch-land §3.1.
 
+## Coverage and landing are independent
+
+In the current GH #15 implementation (v0.17 planned, unreleased), the
+embedded record step is **P1 `record`**, not a separate `land` producer.
+It publishes `recipe-capture-event.json` (**E**) before
+`recipe-coverage.json` (**C**), atomically per file, after record's owned
+work. `land --no-record` owes no new coverage publication. There is no
+cross-file transaction covering record's artifacts, staging and the commit;
+record's earlier writes can survive a later landing refusal.
+
+Coverage status is reported as complete or incomplete with exact reasons.
+Complete v1 admits only preimage-bearing `write-file` operations, including
+explicit-empty creation, and requires all ten predicates. D16 record-origin
+proof means full freshly derived canonical-byte equality, never a label
+or historical provenance claim. E is unkeyed consistency evidence, not
+authentication/history; readers reconstruct the proof. Absent C remains
+legacy even beside E.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Coverage does not replace the four-trailer block, change its schema, or
+certify landing/attestation. Those gates retain their own evidence and
+failure conditions. Legacy missing coverage/old stale markers stay
+verify-green absent other failures. Doctor D10 is warning-only and
+read-only even with `--fix`; only a truthful current record plan can
+justify its regeneration suggestion. GH #13's new replay consumer is
+future separate-release work. See the
+[seven-producer contract](../SPEC.md#seven-governed-producers).
+
 ## Pre-flight (refusals)
 
 `land` refuses (exit non-zero, no mutations) when any of the following hold. The preflight is **deliberately narrower** than `tpatch reconcile`'s — `reconcile` requires a fully clean tree because it replays patches, but `land` is *recording and committing* the working tree, so unstaged and untracked files are expected and welcome.
@@ -39,7 +68,7 @@ Authoritative source: PRD-tpatch-land §3.1.
 7. **Hard-parent dep unsatisfied** — any unsatisfied hard parent in `depends_on` (see [`docs/dependencies.md`](./dependencies.md) §"Apply-time semantics") refuses with the existing apply-time gate diagnostic. `land` reuses the dependency-system gate; it does not reinvent it.
 8. **`status.apply.base_commit` is unusable** (v0.15.1, [GH #8](https://github.com/tesseracode/tesserapatch/issues/8)) — the value must be non-empty, `N` lowercase hex where `N` is **derived** from `git rev-parse --show-object-format` (40 for `sha1`, 64 for `sha256`), and resolvable as a commit. Otherwise the emitted `Tpatch-Base-Commit` trailer would be unreadable, and every future reader is required to reject it. Unreachability from `HEAD` alone is **not** a refusal: it emits a one-line warning and the landing proceeds, because in a shallow or partial clone the object may simply be outside local history.
 
-   The check runs **by invocation mode**. With `--no-record` it runs immediately after crash recovery and before every `land`-owned mutation: with no pending journal, the refusal has mutated nothing at all; with a pending journal, `recoverLand` may already have completed a *prior* interrupted transaction, and the refusal says so. In the default embedded-`record` mode the field is `record`'s output, so `land` re-validates the reloaded value immediately after `record` returns and before the `landed at` note, staging or the commit — and the refusal states that `record`'s artifacts are retained, because `record` completed as an independent transaction. `land` still never writes `status.apply.base_commit`.
+   The check runs **by invocation mode**. With `--no-record` it runs immediately after crash recovery and before every `land`-owned mutation: with no pending journal, the refusal has mutated nothing at all; with a pending journal, `recoverLand` may already have completed a *prior* interrupted transaction, and the refusal says so. In the default embedded-`record` mode the field is `record`'s output, so `land` re-validates the reloaded value immediately after `record` returns and before the `landed at` note, staging or the commit — and the refusal states that `record`'s artifacts are retained, because record completed its separate producer event, not a transaction shared with land. `land` still never writes `status.apply.base_commit`.
 
 **Not** a refusal:
 

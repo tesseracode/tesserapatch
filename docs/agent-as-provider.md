@@ -66,17 +66,19 @@ Intent bundle adopted (prepare --manual); artifacts authored by hand
 
 Both are only last-transition hints. Neither is durable per-artifact history,
 authorship, or provenance: each lifecycle transition overwrites the notes
-string. The current honest per-artifact answer remains `provenance: unknown`,
-including after `prepare --manual` or regeneration.
+string. For these intent artifacts, the honest per-artifact answer remains
+`provenance: unknown`, including after `prepare --manual` or regeneration.
 
 ## apply-recipe.json schema (authoritative)
 
-The recipe is the deterministic script that `tpatch apply --mode execute`
-replays against the current upstream snapshot.
+The recipe is the deterministic script that ordinary `tpatch apply --mode execute`
+runs against the current working tree under its existing safety gates.
+It is not automatically safe on a different upstream base.
 
 ```json
 {
   "version": 1,
+  "feature": "<slug>",
   "operations": [
     { "type": "ensure-directory", "path": "src/feature/" },
     { "type": "write-file",
@@ -119,12 +121,17 @@ op support is tracked in `feat-recipe-schema-expansion`.
 Optional fields:
 
 - `created_by` — optional string on any operation; value is the parent
-  feature slug that originated this file in the feature DAG (M14,
-  ADR-011). Ordering / label hint only; the apply path does not branch
-  on it. Currently inert — wired by future M14.3+ features (label
-  composition, topo reconcile). Omit when the feature has no DAG
-  provenance to declare. Recipes without `created_by` round-trip
-  byte-identical to the v0.5.3 schema.
+  feature slug that originated this file in the feature DAG.
+  Append/replacement operations validate it against the owning feature's
+  `status.json` dependencies when dependency handling is enabled; it is
+  not merely an author label. See
+  [dependencies](./dependencies.md#created_by--recipe-level-provenance).
+  A declaration never substitutes for a missing captured preimage.
+- `preimage_hash` on `write-file` — a SHA-256 of the expected initial
+  file bytes, or `""` to require initial absence for creation. Omission
+  retains legacy warning/ordinary-write behavior. The mixed-operation
+  example above is executable-schema illustration, **not complete v1
+  coverage**: append, replacement and ungated writes are outside that domain.
 
 Path safety:
 
@@ -135,15 +142,16 @@ Path safety:
 
 Ordering:
 
-- Operations execute sequentially. Later operations can assume earlier
-  operations succeeded (e.g. `ensure-directory` before `write-file`
-  into that directory, or `write-file` before `replace-in-file` on the
-  same file).
+- Operations execute sequentially; a failed operation is not a successful
+  transformation. Initial preimage gates run before mutation. Exact
+  postimage equality supplies only no-write evidence, which must survive
+  the relevant ordered prefix and be rechecked at use (ADR-042). It cannot
+  authorize a later write. This is not a whole-worktree transaction.
 
 ## Patch vs recipe — mental model
 
-`.tpatch/features/<slug>/artifacts/` contains two representations of
-the same change:
+`.tpatch/features/<slug>/artifacts/` contains the canonical change and an
+executable plan whose correspondence is assessed separately:
 
 | file | role |
 |------|------|
@@ -151,14 +159,60 @@ the same change:
 | `apply-recipe.json` | deterministic script targeting a specific upstream snapshot. |
 
 When they disagree — e.g. a `replace-in-file` anchor is no longer
-present because upstream edited the surrounding lines — **trust the
-patch**, regenerate the recipe. The patch is what `tpatch reconcile`
+present because upstream edited the surrounding lines — **review the
+patch and the new base**, rather than blindly executing or regenerating.
+The patch is what `tpatch reconcile`
 evaluates against new upstream, what `tpatch record` writes on every
 capture, and what survives a feature being rebuilt from scratch.
 
 The recipe is a performance optimisation: it lets `apply --mode
 execute` run without invoking a provider on a clean snapshot. It is
 not the source of truth.
+
+### Coverage, preservation and explicit execution (GH #15; unreleased)
+
+`implement`, including `--manual`, is P6: it publishes
+`recipe-capture-event.json` then `recipe-coverage.json` with
+`producer: implement`, `capture.mode: no-capture` and incomplete coverage.
+The checkpoint validates JSON and moves state to `implementing`; it does
+not certify patch completeness or manufacture a durable reference.
+If a provider response is saved as undecodable raw bytes, the publication
+binds those bytes and reports `recipe-undecodable`.
+
+Record can derive complete recipes for supported regular-text effects.
+D16 requires equality with the **entire freshly derived canonical recipe**,
+not matching paths, formatting-normalized equivalence, a label or history.
+Absent explicit successful `--regenerate-recipe`, differing manual/provider
+recipes and their provenance remain untouched; a stale marker can report
+an origin mismatch without claiming semantic rewrite drift.
+
+Complete coverage requires preimage-bearing `write-file` operations
+(explicit-empty creation is included) and all ten predicates. It excludes
+append/replacement/ungated writes even when a simulation looks correct.
+Publication emits `recipe coverage: complete` or `recipe coverage: incomplete`
+with exact sorted reasons. All [seven producers](../SPEC.md#seven-governed-producers)
+publish through E-before-C, atomically per file, not as a cross-file transaction.
+E is unkeyed consistency evidence, not authentication or historical origin;
+readers reconstruct the proof. C absence is legacy even if E exists.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Verify remains green for missing legacy coverage/old stale markers absent
+other failures. Doctor D10 is read-only and warning-only, even `--fix`;
+it offers regeneration only after the actual default record plan passes.
+
+Ordinary execute warns and retains existing gates for a decodable recipe
+with valid incomplete coverage. Malformed/stale coverage bindings refuse
+at exit 2; bound missing/unreadable/undecodable recipes refuse as
+`recipe-generation-incomplete`. An already-applied feature should be
+checked with `verify`/`status`, not reapplied on that instruction. Otherwise
+review the canonical patch and explicitly check it with `git apply --check`
+before any manual `git apply`, or author a complete recipe and checkpoint
+with `implement --manual` (which moves state to `implementing`).
+The separate state-selected canonical-patch reapply branch is not a coverage
+grant; there is no `--reapply` flag or `--mode reapply`.
+GH #13's new replay consumer is future separate-release work, and landing/
+attestation remain independent.
 
 ## The 3WayConflicts playbook
 
@@ -200,8 +254,11 @@ holds your **pre-reconcile** tree (index, working tree, and — crucially
    tpatch record <slug>
    ```
 
-   This captures a fresh `post-apply.patch` against the new upstream
-   and writes a new `apply-recipe.json`.
+   This captures a fresh `post-apply.patch` against the chosen capture
+   baseline and republishes coverage. It does not guarantee a new recipe:
+   existing manual/provider bytes are preserved, and unsupported effects
+   withhold partial generation. Review the reported reasons before choosing
+   any regeneration route.
 
 ### Worked example
 
@@ -236,9 +293,12 @@ tpatch reconcile --accept <slug>      # apply non-conflicting hunks + copy
 tpatch reconcile --reject <slug>      # discard shadow, no tree changes
 ```
 
-The four terminal flags (`--accept` / `--reject` / `--shadow-diff`, plus
-`--apply` for auto-accept when every file is `resolved`) take a slug as
-the flag value, not a positional arg. They are mutually exclusive.
+The three terminal flags (`--accept` / `--reject` / `--shadow-diff`) take
+a slug as the flag value, not a positional argument. They are mutually
+exclusive and cannot be combined with `--resolve`/`--apply`.
+Auto-accept instead uses boolean `--apply` with `--resolve`, for example
+`tpatch reconcile --resolve --apply <slug>`. It reaches the same P3 refresh
+only after resolution and the existing acceptance checks succeed.
 
 ### Verdicts
 
@@ -276,7 +336,7 @@ Path B: read it, edit the shadow files directly (they live under
 
 ### Accept flow (authoritative)
 
-`--accept` is not a simple copy. It does, atomically:
+`--accept` is not a simple copy. Its ordered steps are:
 
 1. Reads the original `artifacts/post-apply.patch` and extracts the set
    of files touched by the feature.
@@ -292,9 +352,14 @@ Path B: read it, edit the shadow files directly (they live under
    `patches/NNN-reconcile.patch` for audit.
 6. Marks feature state `applied` and prunes the shadow worktree.
 
-`apply-recipe.json` is NOT auto-regenerated — whole-diff to op-list is
-lossy. Re-run `tpatch implement` or `tpatch record` if the recipe
-matters to you.
+`apply-recipe.json` is NOT auto-regenerated. The patch refresh is P3
+(`reconcile-accept`, mode `reconcile`), including auto-accept, and publishes
+E then C even when no generation is appended. A preserved recipe that no
+longer explains the new patch yields incomplete coverage with the paired
+rewrite reasons. Publication is atomic per file, not a transaction covering
+the working tree and all artifacts; a failure can leave earlier changes.
+Inspect coverage with `verify`/doctor D10 and follow only truthful
+regeneration guidance rather than assuming a blind rerun fixes the recipe.
 
 ### Path B fallback
 

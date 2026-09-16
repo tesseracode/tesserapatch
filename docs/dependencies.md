@@ -125,25 +125,66 @@ Recipe operations may carry a `created_by: "<parent-slug>"` hint:
 
 ```jsonc
 {
-  "type": "write-file",
+  "type": "replace-in-file",
   "path": "src/extras/button.css",
-  "content": "...",
+  "search": "color: blue;",
+  "replace": "color: green;",
   "created_by": "button-component"
 }
 ```
 
-From v0.6.0 this is **a live gate**, not a comment field. At
-`apply --mode execute`:
+For append/replacement operations this is **a live gate**, not just a
+comment field, when dependency handling is enabled. At `apply --mode execute`:
 
-- The op's `created_by` parent must appear in the recipe's `depends_on`.
+- The op's `created_by` parent must appear in the owning feature's
+  `status.json` `depends_on`.
   Missing → operation rejected (configuration error in the recipe).
-- If the parent edge is **hard** and the parent is not in an applied
-  state, the op is rejected (matches the apply-time hard-parent check).
+- A missing target with a **hard** `created_by` parent refuses with the
+  parent-created-path diagnostic. The command's hard-parent state gate
+  remains a separate prerequisite.
 - In `apply --mode execute` the rejection is fatal.
 - In `apply --dry-run` a missing-hard-parent miss is **downgraded to a
   warning** so you can inspect the planned changes (PRD §4.3).
   Recipe-shape failures (parent absent from `depends_on`, unknown kind)
   remain hard errors in both modes.
+
+### Dependencies do not manufacture recipe coverage
+
+Current GH #15 implementation (v0.17 planned, unreleased) keeps dependency
+gates independent from recipe coverage. A `created_by` declaration does not
+reconstruct an unobserved preimage or authorize using the parent's postimage
+as the child's base. An excluded parent-created target carries
+`parent-created-target-unsupported`; do not erase the declaration just to
+obtain a complete-looking report.
+
+Complete v1 coverage admits only preimage-bearing `write-file` operations
+(including explicit-empty creation gates) **and all ten predicates**.
+Append, replacement and ungated writes remain outside that domain; a valid
+DAG does not widen it. D16 record-generated origin requires complete
+freshly derived canonical-byte equality, not parent identity, path-set
+equality or historical labels. Manual/provider recipes remain preserved
+unless complete regeneration is explicitly authorized.
+
+All [seven producers](../SPEC.md#seven-governed-producers) publish atomic
+`recipe-capture-event.json` (**E**) before atomic `recipe-coverage.json`
+(**C**), not a cross-file transaction. E preserves the effective
+parent-created-path exclusion input for independent reconstruction; it is
+unkeyed consistency evidence, not authentication/history. A later parent
+state cannot retroactively improve a captured incomplete proof.
+C absence remains legacy even when E exists.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Legacy absent C/old stale markers stay verify-green absent other failures,
+but do not satisfy a hard-parent gate or replace landing/attestation.
+Doctor D10 stays warning-only/read-only even with `--fix`, and regeneration
+advice requires a truthful plan of the actual record command. GH #13's new
+reconcile replay consumer remains future separate-release work.
+
+ADR-042's ordered no-write proof also retains existing dependency and
+`created_by` validation: a failed or unprovable prefix cannot establish a
+later exact-postimage witness. Equality is rechecked at use and supplies
+no new write authority; this is not a whole-worktree transaction.
 
 ### Cross-link: dependencies and `tpatch verify`
 

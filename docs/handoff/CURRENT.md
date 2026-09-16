@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 public documents delivered (2026-09-15)**: the documentation implementer
+completed all twelve owned public documents, including Unreleased-only notes.
+The edits cover seven producers, E-before-C publication, current ADR amendments,
+verify/apply/doctor boundaries and legacy behavior. Source inspection confirms
+canonical reapply is selected by unapplied/pending-baseline state; there is no
+`--reapply` flag or `--mode reapply`. Public wording follows the actual source.
+Asset/parity implementation is still active. No S6 Go validation has run.
+
 **S6 cumulative soak authored (2026-09-15)**: the coordinator added an actual-CLI
 five-feature cumulative fixture with two landed legacy wire cohorts, a generated
 adjacent-arguments customization, a maintained feature driven through P1-P7,
@@ -3385,6 +3393,12 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Public-doc delivery is complete in README, SPEC, CHANGELOG and nine operator/
+layout documents. Both implementers coordinated the common necessary-not-
+sufficient/no-cross-base-safety and warn/exit-0-not-eligibility disclaimers.
+The source-selected canonical reapply behavior is documented without inventing
+a flag. The twelve-file diff is whitespace-clean; this is not runtime validation.
+
 Coordinator soak unit is authored in `internal/cli/recipe_authority_s6_soak_test.go`.
 It reuses existing CLI, record/land, editor, Git and E/C fixture helpers instead
 of bypassing the producer finalizers. Legacy fixtures explicitly model the old
@@ -4227,6 +4241,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- Public docs delivered: README, SPEC, CHANGELOG (Unreleased only),
+  `docs/feature-layout.md`, `docs/record.md`, `docs/path-b-operator-guide.md`,
+  `docs/faq.md`, `docs/agent-as-provider.md`, `docs/reconcile.md`,
+  `docs/land.md`, `docs/commits.md`, `docs/dependencies.md`.
 
 - Coordinator: `internal/cli/recipe_authority_s6_soak_test.go` (authored;
   no Go validation yet). Four ignored validation helper scripts are owned

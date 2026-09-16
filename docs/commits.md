@@ -1,16 +1,15 @@
 # Commit Strategy
 
-> **Status**: Interim convention. This document captures the
-> per-feature commit pattern that operators should follow today, while
-> [`docs/prds/PRD-tpatch-land.md`](./prds/PRD-tpatch-land.md) is gated
-> behind the two `record` guardrail PRDs. Once `tpatch land` ships,
-> that command supersedes the manual two-commit dance described here,
-> and the four-trailer block in PRD-tpatch-land §3.4 supersedes the
-> single-trailer convention in §3 of this doc.
+> **Status**: Legacy/manual two-commit fallback. For current uncommitted
+> work prefer [`tpatch land`](./land.md): it already composes record,
+> scoped staging and one commit with the locked four-trailer block.
+> The two-commit convention below remains useful for retroactive recording
+> or older pinned tools; its single trailer is not modern landing
+> attestation.
 
 ## TL;DR
 
-One feature → **two ordinary Git commits**, both carrying a
+For the manual fallback, one feature → **two ordinary Git commits**, both carrying a
 `Tpatch-Feature: <slug>` trailer:
 
 1. **Production-code commit** — the actual change. Prefix `feat:` /
@@ -20,8 +19,36 @@ One feature → **two ordinary Git commits**, both carrying a
    only, written by `tpatch record --from HEAD~1`. Must NOT include
    any production-code edits.
 
-The trailer makes the feature ↔ commit mapping machine-readable today
-and forward-compatible with `tpatch land`.
+The trailer records feature identity; by itself it does not provide the
+four-trailer landing evidence that modern verify evaluates.
+
+### Current recipe authority (GH #15; v0.17 planned, unreleased)
+
+Record/embedded land is P1 of the
+[seven producers](../SPEC.md#seven-governed-producers). Canonical patch,
+authorized recipe/provenance and generation writes precede atomic
+`recipe-capture-event.json` (**E**), then atomic `recipe-coverage.json`
+(**C**) last. Commit the relevant feature artifacts together after reviewing
+the reported complete/incomplete status and exact reasons. Publication is
+not a cross-file transaction; a later commit does not retroactively make
+an interrupted publication complete.
+
+D16 requires **full freshly derived canonical-byte equality** to justify
+record-generated provenance, not matching paths, labels or historical
+origin. Differing manual/provider recipes are preserved unless complete
+regeneration is explicitly authorized. Unsupported effects withhold a new
+partial recipe; complete v1 admits only preimage-bearing `write-file`
+operations (explicit-empty creation included) and all ten predicates.
+E is unkeyed consistency evidence, not authentication/history; readers
+reconstruct the proof, and C absence stays legacy even beside E.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Missing legacy coverage/old stale markers remain verify-green absent other
+failures. Doctor D10 is read-only and warning-only even `--fix`; it offers
+regeneration only when a truthful current record plan passes. Landing
+trailers and attestation are independent of coverage. GH #13's new replay
+consumer is future separate-release work.
 
 ---
 
@@ -38,8 +65,7 @@ ending up with byte-identical `post-apply.patch` files because record
 captured the wrong scope.
 
 Splitting code and metadata into two commits — and binding both to a
-slug via a trailer — addresses this seam without waiting for `tpatch
-land` to land:
+slug via a trailer — addresses this seam for the manual fallback:
 
 - The production-code commit is auditable on its own
   (`git log -- <files>` shows feature work without `.tpatch/` noise).
@@ -50,17 +76,13 @@ land` to land:
 - The trailer survives clones, force-pushes, and rebases, so feature
   identity persists even after history rewriting.
 
-This pattern is **not** a substitute for `tpatch land`. Once
-`tpatch land` ships:
-
-- It produces **one** commit per feature (combining both halves with
-  full SHA trailers).
-- This doc transitions from "interim contract" to "deprecated
-  fallback for repos pinned to pre-`land` tpatch versions".
+For current uncommitted work, `tpatch land` instead produces **one** commit
+per feature, combining both halves with the four-trailer block. The split
+pattern does not create that attestation automatically.
 
 ---
 
-## 2. Path B workflow (recommended)
+## 2. Path B workflow (manual fallback)
 
 This is the agent-collaboration flow stress-tested in our
 `tesseraspaces` work and documented as authoritative for repos using
@@ -81,9 +103,9 @@ agent-as-provider authoring.
 │                                                                 │
 │         Tpatch-Feature: <slug>"                                 │
 │ 11. tpatch record   <slug> --from HEAD~1                        │
-│     # writes post-apply.patch + auto-generates apply-recipe.json│
-│ 12. (optional) agent annotates recipe op descriptions           │
-│ 13. (optional) tpatch apply <slug> --dry-run    # round-trip    │
+│     # writes canonical patch; conditionally derives recipe     │
+│ 12. review coverage; use tpatch edit for bound recipe edits     │
+│ 13. (optional) tpatch apply <slug> --dry-run    # preview        │
 │ 14. git add .tpatch/features/<slug>/                            │
 │ 15. git commit -m "chore(tpatch): record <slug>                 │
 │                                                                 │
@@ -101,9 +123,9 @@ defined    → tpatch apply --mode started   → implementing
 implementing → <agent edits + tests>       → implementing
 implementing → tpatch apply --mode done    → applied
 applied    → git commit (production)       → applied (HEAD advances)
-applied    → tpatch record --from HEAD~1   → active
-active     → git commit (chore tpatch)     → active (HEAD advances)
-active     → (optional) tpatch implement   → active (apply-recipe.json refreshed)
+applied    → tpatch record --from HEAD~1   → applied
+applied    → git commit (chore tpatch)     → applied (HEAD advances)
+applied    → (optional) tpatch implement   → implementing (recipe checkpoint/write)
 active     → tpatch reconcile              → active | upstream_merged | blocked
 ```
 
@@ -116,25 +138,27 @@ Notes on the steps:
   DAG is acyclic and free of dangling refs. See
   [`docs/dependencies.md`](./dependencies.md).
 - **Steps 5 + 8 — `--mode started` / `--mode done`.** These bracket
-  the agent-authored edit window. They produce the
-  `patches/NNN-started.patch` / `patches/NNN-done.patch` audit
-  snapshots, but do not capture the canonical `post-apply.patch` —
-  step 11 does that.
+  the agent-authored edit window. Done writes the canonical patch for a
+  non-empty ordinary capture and publishes P5 coverage; its current audit
+  label is `apply`. The canonical reapply branch writes no bound artifact.
+  Step 11 then records the consciously selected committed range as P1.
 - **Step 11 — `record --from HEAD~1`.** Diffs the just-committed
   feature against the parent commit. Equivalent to "all changes the
-  production-code commit introduced". Once `PRD-record-auto-base`
-  ships, prefer `tpatch record <slug> --auto`, which infers the base
-  from `.tpatch/upstream.lock` or `merge-base(HEAD, upstream/main)`.
-- **Step 13 — `apply --dry-run`.** Replays the auto-generated recipe
-  in-memory against the working tree without modifying anything.
-  Confirms the recipe round-trips cleanly. Failure here means the
-  recipe has drifted from the patch (often because the recipe
-  auto-generation skipped a deletion or a binary file); regenerate
-  with `tpatch record <slug> --regenerate-recipe`.
+  production-code commit introduced". `--auto` is also available, but
+  review its inferred scope rather than substituting a broad base for a
+  feature-specific range.
+- **Step 12 — recipe edits.** Use
+  `tpatch edit <slug> artifacts/apply-recipe.json` so P7 observes changed
+  bytes and republishes coverage. Out-of-band annotations invalidate a
+  present coverage binding, even if they appear semantically harmless.
+- **Step 13 — `apply --dry-run`.** Previews operations without writing.
+  It is not a patch-coverage check, cross-base proof or replay grant.
+  Inspect the report's errors/warnings and coverage separately; unsupported
+  effects are not repaired by blindly requesting regeneration.
 - **Steps 9–15 — staging discipline.** Resist the temptation to
   `git add -A`. Use explicit paths. Mixing code and `.tpatch/` in one
-  commit is the failure shape `tpatch land`'s safe-staging algorithm
-  is being designed to prevent (PRD-tpatch-land §3.3).
+  commit by accident is what `land`'s scoped staging avoids; an intentional
+  combined feature commit through `land` is the supported default.
 
 ### Why `record` lives between the two commits
 
@@ -144,8 +168,9 @@ commit is the load-bearing ordering. It means:
 - `record` reads the committed code, not the working tree, so
   `post-apply.patch` is exactly the diff the production-code commit
   introduced.
-- `apply-recipe.json` is auto-generated against the same commit, so
-  the patch and the recipe agree by construction.
+- Recipe derivation, when complete and authorized, uses the same captured
+  reference. Preserved recipes need not agree; coverage reports the actual
+  result, and a commit boundary does not prove correspondence.
 - The metadata commit is a pure follow-up that captures `record`'s
   output. No interleaving with edits.
 
@@ -156,10 +181,9 @@ passes `--from HEAD~1`.
 
 ---
 
-## 3. The `Tpatch-Feature` trailer (interim convention)
+## 3. The `Tpatch-Feature` trailer (manual identity convention)
 
-Until `tpatch land` ships, **every commit produced by the Path B
-workflow above MUST carry**:
+For this manual fallback, **both commits carry**:
 
 ```
 Tpatch-Feature: <slug>
@@ -209,11 +233,11 @@ commit 1d2e3f…  (HEAD~1)
 2. **Survives rebases.** Trailers are part of the commit message and
    travel with the commit through cherry-pick, rebase, and amend.
    Branch-name conventions do not.
-3. **Forward-compatible with `tpatch land`.** PRD-tpatch-land §3.4
+3. **Distinct from `tpatch land` attestation.** `land`
    adds three additional trailers (`Tpatch-Patch-SHA`,
    `Tpatch-Recipe-SHA`, `Tpatch-Base-Commit`) on a single combined
-   commit. Repos that adopted `Tpatch-Feature` early will see the
-   trailer block grow, not change. No migration needed.
+   commit. Historical single-trailer identity does not manufacture these
+   missing hashes/base or pass modern landing-evidence checks by itself.
 4. **Detection of WP-001-shaped failures.** Once trailers are
    established, a CI check or `tpatch status` extension can flag
    features whose `post-apply.patch` byte-hash is shared with another
@@ -254,10 +278,9 @@ git log --format=%B upstream/main..HEAD | \
        /^$/&&!slug{print "missing trailer"; exit 1}'
 ```
 
-A first-class `tpatch status --check-trailers` is **not** planned for
-this interim phase; once `tpatch land` ships, the four-trailer block
-becomes a structural property of every feature commit and a CI check
-becomes redundant.
+There is no `tpatch status --check-trailers` command. `land` writes the
+four-trailer block; `verify` independently evaluates available landing
+evidence rather than trusting a manually written identity trailer.
 
 ---
 
@@ -265,12 +288,12 @@ becomes redundant.
 
 | Anti-pattern | Failure shape |
 |---|---|
-| `git add -A && git commit -m "feat+tpatch"` | One commit mixing code and metadata. Defeats the audit and breaks `git log -- <code paths>`. Reproduces WP-001 §5.2 row 5. |
+| `git add -A && git commit -m "feat+tpatch"` | Unscoped staging can sweep unrelated work into the feature. An intentionally scoped combined commit via `land` is supported. |
 | Skipping the `Tpatch-Feature` trailer | Identity by commit-message convention only — fragile under rebase, invisible to `git log --grep`. |
 | Different slugs on the two commits | Splits the feature in `git log --grep`. Almost always a typo; CI should reject. |
-| Running `tpatch record` *before* the code commit | Captures the working tree (or refuses on a clean tree per `docs/record.md:38-50`). Inconsistent with the recipe auto-gen baseline. |
+| Assuming a working-tree record captured an already committed feature | Choose an explicit committed range instead. Recording before commit is the supported default, including embedded `land`. |
 | Running `git stash --include-untracked` mid-flow | Stashes `.tpatch/` away. On `git stash pop` the metadata can be lost or merged at the wrong base. See `docs/reconcile.md:46-72`. |
-| Squashing the two commits before `tpatch land` ships | Defeats the separation of audit history; once squashed, you cannot recover the boundary. |
+| Squashing without reviewing feature metadata and trailer evidence | Can erase the chosen boundary; coverage and landing evidence need independent review after history changes. |
 
 ---
 
@@ -297,9 +320,9 @@ identity bridge.
 
 ## 6. Migration to `tpatch land`
 
-When `tpatch land` ships:
+For current uncommitted work:
 
-| Today (interim) | After `tpatch land` |
+| Manual fallback | `tpatch land` |
 |---|---|
 | Two manual commits per feature | One `tpatch land` invocation per feature |
 | `Tpatch-Feature` trailer added by hand | Trailer block written by `land` (incl. SHA trailers) |
@@ -307,13 +330,9 @@ When `tpatch land` ships:
 | Manual `git add` of feature paths | Safe-staging algorithm in `land` (PRD §3.3) |
 | Operator chooses commit message | Subject derived from `spec.md` / `request.md` (PRD §3.4) |
 
-The migration is purely additive: existing repos using this
-convention will see their commit history continue to work with
-`tpatch land`-aware tooling because `Tpatch-Feature` is preserved.
-
-`tpatch land` will be gated behind the two `record` guardrail PRDs
-(`PRD-record-auto-base`, `PRD-record-collision-detection`) per
-WP-001. Until then, this doc is the authoritative commit contract.
+Historical identity trailers remain in Git. They are not automatically
+upgraded into full landing evidence or recipe authority. See
+[`docs/land.md`](./land.md) for the current command contract.
 
 ---
 
@@ -331,7 +350,7 @@ WP-001. Until then, this doc is the authoritative commit contract.
   Path B contract; the workflow above is the commit-discipline layer
   that sits on top of it.
 - [`docs/prds/PRD-tpatch-land.md`](./prds/PRD-tpatch-land.md) — the
-  drafted `land` command that supersedes this convention.
+  design contract behind the implemented `land` command.
 - [`docs/whitepapers/WP-001-feature-slice-gap.md`](./whitepapers/WP-001-feature-slice-gap.md)
   §5.2 — the boundary-capture failures this convention defends
   against.

@@ -15,7 +15,11 @@ The #1 confusion, observed in live stress testing, is that users see many number
 ├── record.md               ← human-readable summary of the last record run
 ├── status.json             ← machine state (state, last_command, timestamps, apply.*)
 ├── artifacts/
-│   ├── apply-recipe.json   ← operation list (phase: implement)
+│   ├── apply-recipe.json   ← executable plan (implement / authorized record derivation)
+│   ├── recipe-provenance.json ← recipe base/hash/time; not coverage proof
+│   ├── recipe-stale.json   ← optional preservation/drift warning
+│   ├── recipe-capture-event.json ← E: independently captured consistency evidence
+│   ├── recipe-coverage.json ← C: final bound effect/operation coverage report
 │   ├── post-apply.patch    ★ CANONICAL feature diff, always-current
 │   ├── incremental.patch   ← (optional) delta between two post-apply snapshots
 │   ├── post-apply-diff.txt ← `git diff --stat` of the recorded patch
@@ -131,6 +135,49 @@ git apply .tpatch/features/<slug>/artifacts/post-apply.patch
 
 Set by the apply flow when a started/done pair produces a delta that differs from the full diff (see `DeriveIncrementalPatch` in `internal/gitutil/`). Reconcile uses it in preference to `post-apply.patch` when both exist and the delta is smaller. You can ignore it for day-to-day work — it's an optimisation detail.
 
+### Recipe authority artifacts (GH #15; unreleased)
+
+The [seven producers](../SPEC.md#seven-governed-producers) are P1 record
+(including embedded land), P2 feature patch refresh/fixup, P3 reconcile
+accept/auto-accept, P4 cycle's patch step, P5 apply done except canonical
+reapply, P6 implement/manual checkpoint, and P7 canonical bound-artifact edit.
+Each governed event republishes the evidence pair, including P2's non-empty
+same-latest-generation checkpoint; generation history is not an event ledger.
+
+| Artifact | Meaning and authority boundary |
+|---|---|
+| `apply-recipe.json` | Explicit executable operations. A preserved manual/provider recipe need not completely explain the canonical patch. Unsupported generation withholds a new partial recipe rather than silently dropping effects. |
+| `recipe-provenance.json` | Existing recipe base, generation time and optional raw recipe hash. D16 record repair requires freshly derived **full canonical-byte equality**, never a label or historical-origin inference. |
+| `recipe-stale.json` | Preservation/drift marker. Formatting-only origin mismatch can produce it even when the recipe still semantically explains the patch; that does not justify rewrite-reason codes. Presence is warning-class, not a replay grant. |
+| `recipe-capture-event.json` (**E**) | Replace-in-place schema-v1 observation projection, capture/reference, event facts, parent-created exclusions and exact `coverage_sha256` pairing. Independently constructed from immutable inputs, not copied from C's claims. |
+| `recipe-coverage.json` (**C**) | Replace-in-place schema-v1 readable-presence/raw-hash bindings, recipe decodability, owner, producer/capture/reference, ordered effects and operation assignments, complete/incomplete and cross-base statuses, and exact reason arrays. |
+
+Publication order is authorized recipe → justified provenance → owed
+generation → atomic E → atomic C **last**, after producer-owned work.
+Atomicity is per artifact, not a cross-file transaction; failure can retain
+an earlier prefix. E/C contain no source bodies, secrets, timestamps or
+persisted replay anchors. E is unkeyed consistency evidence, not
+authentication, authorship, history or a rollback detector. Readers reconstruct
+the proof from independently read inputs rather than trusting hashes/labels.
+Genuinely absent C is uniformly legacy even with E present; present C requires
+valid matching E.
+
+Complete v1 coverage requires only preimage-bearing `write-file` operations
+(including explicit-empty creation gates) **and all ten predicates**, not
+append/replacement/ungated writes. `cross_base_status` is `unsupported` for
+incomplete records, `consumer-derivation-required` for complete records with
+existing-file writes, and `reference-tree-only` for complete creation-only
+records. These labels are limitations, not automatic execution authority.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Legacy absent C and old stale markers remain verify-green absent other
+failures. Doctor D10 only diagnoses, even under `--fix`; regeneration guidance
+is gated on a truthful current record plan. See
+[record recovery](./record.md#diagnose-before-regenerating). Landing trailers
+and attestation remain independent; GH #13 replay consumption is future,
+separate-release work.
+
 ### `patches/NNN-<label>.patch` — audit trail, not replay input
 
 Every time `tpatch record` (or certain apply modes) runs, it appends a numbered snapshot here via `Store.NextPatchNumber` (scan the directory, take max+1). The labels you'll see in the wild:
@@ -140,7 +187,7 @@ Every time `tpatch record` (or certain apply modes) runs, it appends a numbered 
 | `record` | `tpatch record` | Full feature diff at record time |
 | `started` | `tpatch apply --mode started` | Diff captured right before execute |
 | `cycle` | `tpatch cycle` | Patch from a cycle run |
-| `done` | `tpatch apply --mode done` | Diff captured after execute |
+| `apply` | `tpatch apply --mode done` | Diff captured after execute; historical versions also used `done` |
 
 Each file is a **complete** diff of the feature vs baseline — not an incremental delta between `NNN` and `NNN-1`. They exist so you can audit history ("what did my feature look like three days ago?"), not so you can replay them in order. **Applying `patches/001-record.patch` replays a stale state** that is missing every amendment recorded after it.
 
@@ -162,7 +209,7 @@ These are written once or twice per feature, by named phases:
 | `analysis.md` | `tpatch analyze` | LLM's (or heuristic's) classification + risk rating. |
 | `spec.md` | `tpatch define` (alias: `tpatch spec`) | Acceptance criteria + phased plan. Drives implement. |
 | `exploration.md` | `tpatch explore` | Target files + existing-code facts. Grounds implement. |
-| `apply-recipe.json` | `tpatch implement` | Operation list (create/modify) the apply flow executes. |
+| `apply-recipe.json` | `tpatch implement`; authorized record/P2 derivation; operator edits | Explicit operation list the apply flow executes; coverage separately measures correspondence to the canonical patch. |
 | `record.md` | `tpatch record` | Human-readable summary of the last record run. |
 
 ## Typed resources (optional, v0.15.0)

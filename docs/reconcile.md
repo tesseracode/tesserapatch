@@ -31,6 +31,48 @@ evidence + review pipeline
 | 6 | Confirmation gate | Converts raw `upstreamed` candidates into `confirmed-upstreamed` or `rejected-upstreamed` review verdicts before retirement (ADR-025 D8-D9; PRD-upstreamed-confirmation-gate §3-§6). |
 | 7 | Revision-pass writer | Appends review/correction entries that link back to evidence attempts and explain confirmation, rejection, cleanup, or later human action (ADR-025 D6-D7; PRD-reconcile-revision-pass-log §3-§6). |
 
+## Recipe coverage is not a new reconcile replay path
+
+Current GH #15 implementation (v0.17 planned, unreleased) adds producer and
+reader authority, not GH #13's future operation-replay consumer.
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Existing verdict, confirmation, patch application and landing/attestation
+rules remain independent; no persisted replay anchor or automatic new
+recipe replay path is added.
+
+Accept refresh, including resolver auto-accept, is P3 in the
+[seven-producer inventory](../SPEC.md#seven-governed-producers):
+`producer: reconcile-accept`, `capture.mode: reconcile`. It observes the
+accepted upstream reference and resulting patch before rewriting
+`post-apply.patch`, preserving `apply-recipe.json`. Even an identical or
+empty patch write owes publication; no generation append is required for
+that obligation.
+
+The final artifact publication is atomic `recipe-capture-event.json` (**E**)
+then atomic `recipe-coverage.json` (**C**), not a cross-file or whole-worktree
+transaction. Earlier changes can remain on failure, which returns non-zero.
+E is unkeyed consistency evidence, not authentication/history. Readers
+independently reconstruct and revalidate the proof; absent C is still legacy
+even with E present.
+
+Publication reports complete or incomplete with exact sorted reasons. A
+preserved recipe unable to explain the refreshed patch raises the paired
+`producer-patch-rewrite` / `recipe-not-regenerated` reasons. P3 does not
+regenerate recipes or gain completeness from its producer label.
+Complete v1 requires preimage-bearing `write-file` operations (including
+explicit-empty creation) and all ten predicates, not replacement, append
+or ungated writes. D16 generated origin is a separate full canonical-byte
+comparison, never historical origin.
+
+Use `verify` and read-only doctor D10 to inspect after acceptance. Missing
+legacy coverage/old stale markers stay verify-green absent other failures;
+that does not certify a replay. D10 remains warning-only and non-fixing
+even with `--fix`. Follow regeneration guidance only when its actual
+record plan passes; otherwise review the canonical patch, capture and
+state manually rather than treating a new upstream base as a regeneration
+instruction.
+
 ## Evidence and revision artifacts
 
 ### `reconcile-evidence.jsonl`

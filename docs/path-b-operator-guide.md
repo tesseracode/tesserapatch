@@ -121,15 +121,10 @@ tpatch analyze <slug> --manual
 tpatch define <slug> --manual
 tpatch explore <slug> --manual
 
-mkdir -p .tpatch/features/<slug>/artifacts
-printf '%s\n' '{"version":1,"operations":[]}' \
-  > .tpatch/features/<slug>/artifacts/apply-recipe.json
-tpatch implement <slug> --manual
-
 # Pick the narrowest correct base/range.
-tpatch record <slug> --auto --files <feature-paths> --regenerate-recipe
+tpatch record <slug> --auto --files <feature-paths>
 # or:
-tpatch record <slug> --from <feature-base> --to <feature-tip> --files <feature-paths> --regenerate-recipe
+tpatch record <slug> --from <feature-base> --to <feature-tip> --files <feature-paths>
 
 git add .tpatch/features/<slug> .tpatch/FEATURES.md
 git commit -m "chore(tpatch): record <slug>"
@@ -139,6 +134,59 @@ This flow is intentionally more manual than `land`: it is recovery for a
 feature that already has a production commit. The important thing is to
 record immediately, before another feature's commits make the range
 ambiguous.
+
+Do not create an empty recipe just to checkpoint a retroactive feature.
+Record can derive a missing recipe only when the entire captured change is
+supported; otherwise it preserves the canonical patch and reports incomplete
+coverage. A preserved existing recipe is replaced only by explicit successful
+`--regenerate-recipe`, after you review the intended range and replacement.
+
+## Read the coverage result, not just the exit code
+
+Current GH #15 implementation (v0.17 planned, unreleased) publishes
+`recipe-capture-event.json` (**E**) before `recipe-coverage.json` (**C**).
+Both are atomic replacements, not a cross-file transaction. E is unkeyed
+consistency evidence, not authentication/history; readers reconstruct the
+proof. Absent C stays legacy even with E present.
+
+All [seven producers](../SPEC.md#seven-governed-producers) are covered:
+record/embedded land, patch refresh/fixup checkpoints, reconcile
+accept/auto-accept, cycle's patch step, apply done except canonical reapply,
+implement/manual checkpoint, and canonical patch/recipe edits.
+The published stderr line says `recipe coverage: complete` or
+`recipe coverage: incomplete` with sorted reasons.
+
+Complete v1 coverage admits only preimage-bearing `write-file` operations,
+including explicit-empty creation, and still requires all ten predicates.
+Replacement, append and ungated writes are not complete v1 operations.
+D16 means total freshly derived canonical-byte equality, not labels,
+historical origin or semantic equivalence. Differing manual/provider recipes
+are preserved unless complete regeneration is explicitly authorized. A P2
+formatting-only mismatch may leave a stale marker without semantic rewrite
+reasons; do not treat formatting as proof that the recipe no longer explains
+the patch.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Legacy missing coverage and pre-v0.17 stale markers remain verify-green
+absent other failures. Landing/attestation is separate, and GH #13 replay
+consumption remains future separate-release work.
+
+Use `tpatch doctor --check D10` to diagnose. It is read-only and warning-only
+even under `--fix`. A regeneration suggestion appears only after a read-only
+plan of the actual default `record --regenerate-recipe` passes; otherwise
+`recipe-generation-no-truthful-regeneration` names blockers for manual review.
+Do not bypass capture or collision gates to make a warning disappear.
+
+For ordinary `apply --mode execute`, valid incomplete coverage beside a
+decodable recipe warns and preserves existing execution gates. Bound
+missing/unreadable/undecodable recipes refuse `recipe-generation-incomplete`
+(exit 2), while stale/malformed bindings have their own exit-2 coverage
+codes. Already-applied effects call for `verify`/`status`, not another apply.
+Manual recipe checkpointing moves state to `implementing`; review the
+[state-aware alternatives](../SPEC.md#explicit-apply-and-ordered-no-write-success)
+before taking that route. Canonical-patch reapply is state-selected and
+separate, not `--mode reapply` or coverage-generated permission.
 
 ## Small-feature fast track
 
@@ -225,8 +273,9 @@ Some older field notes are now out of date:
   captures.
 - `--auto + --files` is supported and should be the first recovery
   choice when the branch tracks upstream.
-- `record --regenerate-recipe` can regenerate a recipe from the
-  captured patch when the placeholder recipe is stale.
+- `record --regenerate-recipe` replaces an existing recipe only when a
+  complete derivation is available. Unsupported effects do not become
+  supported by requesting regeneration.
 - `tpatch land` exists and should usually replace manual
   `record -> git add -> git commit` when the code is still in the
   working tree.

@@ -2,6 +2,52 @@
 
 All notable changes to tpatch are recorded here.
 
+## Unreleased — v0.17 planned — recipe generation authority
+
+This section describes the current GH #15 implementation, not a shipped
+release. Review, cumulative soak and release authorization remain separate.
+
+### Added
+
+- Deterministic recipe coverage and independent capture-event evidence for
+  all seven governed producers: record (including embedded land), feature
+  patch refresh/fixup checkpoints, reconcile accept/auto-accept, cycle's
+  patch step, apply done except canonical reapply, implement/manual
+  checkpoint, and canonical recipe/patch edits. The final publication order
+  is atomic `recipe-capture-event.json` then atomic `recipe-coverage.json`,
+  not a cross-file transaction. Publication failures are surfaced.
+- Explicit complete/incomplete status and exact reasons. Complete v1 covers
+  only preimage-bearing `write-file` operations, including explicit-empty
+  creations, subject to all ten predicates. Unsupported effects withhold
+  partial generation. D16 requires freshly derived full canonical-byte
+  equality; labels and historical provenance cannot substitute. Differing
+  manual/provider recipes remain preserved unless complete regeneration is
+  explicitly authorized. P2 formatting-only mismatch does not invent
+  semantic rewrite reasons.
+- Verify's `recipe_generation_coverage` row and read-only, warning-only
+  doctor D10, including under `--fix`. Present malformed/stale bindings block
+  verify; valid incomplete, stale-marker and missing-coverage rows warn.
+  Legacy cohorts stay verify-green absent other failures. Regeneration
+  suggestions require a truthful read-only plan of the actual command.
+  Ordinary recipe execution refuses bound missing/undecodable recipes with
+  `recipe-generation-incomplete` (exit 2), while decodable incomplete recipes
+  retain explicit execution with a warning and existing safety gates.
+
+### Corrected
+
+- Exact-postimage no-write success respects the ordered recipe prefix and
+  rechecks bytes/containment at use; equality alone supplies no new write
+  permission. Existing preimage, path and supersession policy remains.
+  This is not a whole-worktree transaction or concurrent-mutation rollback.
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+Capture-event evidence is unkeyed consistency, not authentication or history;
+readers reconstruct the proof, and C absence remains legacy even with E
+present. Landing/attestation is independent. GH #13 replay consumption and
+GH #24 operation-domain widening remain future, separate work; this does
+not add replay anchors, change the recipe schema or authorize a release.
+
 ## v0.16.0 — 2026-08-31 — prepare intent bundles and archive retention
 
 ### Added

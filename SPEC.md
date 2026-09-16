@@ -78,7 +78,7 @@ of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 | `tpatch define <slug> [--path]` | Generate acceptance criteria + implementation plan |
 | `tpatch explore <slug> [--path]` | Read codebase, find minimal changeset |
 | `tpatch implement <slug> [--path]` | Generate deterministic apply recipe |
-| `tpatch apply <slug> [--mode prepare\|started\|done] [--path]` | Execute recipe or record session |
+| `tpatch apply <slug> [--mode auto\|prepare\|started\|execute\|done] [--dry-run] [--path]` | Execute recipe or record session |
 | `tpatch prepare <slug> [mode and report flags] [--path]` | Complete, adopt, regenerate, inspect, or abandon an intent-bundle transaction; unrelated to `apply --mode prepare` |
 | `tpatch feature intent-archive list <slug> [--json] [--quiet] [--path]` | Inspect retained prior intent bytes and archive repair state |
 | `tpatch feature intent-archive purge <slug> <selector> [--yes] [--json] [--quiet] [--path]` | Preview or perform bounded archive retention cleanup |
@@ -393,6 +393,10 @@ Amendment 1 (D8–D19).
         │   └── <commit-range>.md
         └── artifacts/
             ├── apply-recipe.json
+            ├── recipe-provenance.json
+            ├── recipe-stale.json
+            ├── recipe-capture-event.json
+            ├── recipe-coverage.json
             ├── apply-session.json
             ├── analysis.json
             ├── pre-apply.patch
@@ -412,6 +416,232 @@ Ephemeral, gitignored control state for resource capture lives outside
 the tracked tree, under `.tpatch/local/resource-scratch/<slug>/`: a
 persistent zero-length `.lock` file plus one `es_<12hex>/` directory per
 in-flight invocation. Nothing captured is ever written there.
+
+#### Recipe generation authority (GH #15; v0.17 planned, unreleased)
+
+`artifacts/post-apply.patch` remains the canonical feature diff.
+`apply-recipe.json` is an executable plan, not a replacement for that diff.
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+GH #13's new reconcile operation-replay consumer belongs to a future,
+separate release; GH #15 neither implements it nor persists replay anchors.
+Landing trailers, verification attestation and dependency gates remain
+independent. No recipe-schema or landing-trailer change is introduced.
+
+The contract is ADR-036 rev-7 **as amended by ADR-039, ADR-040, ADR-041
+and ADR-042**, not the superseded planning wording in isolation.
+
+##### Seven governed producers
+
+Every successful bound write, successful manual recipe checkpoint, or
+explicitly contracted same-patch checkpoint owes fresh publication. An
+invocation alone is not an event.
+
+| ID | Command/event | Stored `producer` | `capture.mode` and behavior |
+|---|---|---|---|
+| P1 | `record`; the embedded record step of `land` | `record` | Selected record mode: `working-tree-all`, `staged-index`, `unstaged-worktree`, `committed-range`, `auto-committed-range`, or `explicit-committed-range`. Derives a recipe when authorized and fully representable. `land` adds no producer or second publication; `land --no-record` skips P1. |
+| P2 | `feature patch refresh <slug>`; `feature patch fixup <slug> --reason <reason>` | `feature-patch-amend` | `working-tree-all`. Patch writes use non-regenerating autogen. A non-empty capture matching the latest generation still republishes evidence/coverage, without patch, recipe, provenance, generation or state writes. |
+| P3 | `reconcile --accept <slug>`; auto-accept via `reconcile --resolve --apply <slug>` | `reconcile-accept` | `reconcile`. Refresh writes the canonical patch against the accepted upstream commit and preserves the recipe. Publication is owed even for identical or empty refreshed patch bytes, whether or not a generation is appended. |
+| P4 | `cycle`'s non-empty patch-capture step | `cycle` | `working-tree-all`. No recipe regeneration here. The earlier implement step is P6; `--skip-execute` or declining subsequent prompts leaves that P6 publication, not an unfulfilled P4 event. |
+| P5 | `apply --mode done`'s non-empty patch write | `apply-done` | `working-tree-all`. Preserves the recipe. The state-selected canonical-patch reapply branch writes no bound artifact and owes no P5 publication. |
+| P6 | `implement` provider/heuristic recipe writes; `implement --manual` checkpoint | `implement` | `no-capture`, empty selectors, unavailable reference. Publishes incomplete coverage, including when no canonical patch exists. A successful raw undecodable response write also binds its exact bytes and reports `recipe-undecodable`. |
+| P7 | `edit <slug> artifacts/apply-recipe.json` or `edit <slug> artifacts/post-apply.patch` when the editor changes bytes | `artifact-edit` | `no-capture`. A durable prior reference is carried only after reconstruction and validation against the frozen prior evidence and unchanged patch; otherwise publication is explicitly incomplete. |
+
+P2 empty capture is **not** its same-patch checkpoint. P4/P5 empty capture,
+failed bound writes, failed manual validation, non-bound edits and unchanged
+editor results are not events. P7 uses the resolved canonical artifact path:
+a same-named feature-root decoy is not bound. A saved change still owes
+publication if the editor returns an error. An editor that returns before a
+later save cannot cover that save; out-of-band changes are detected at the
+next binding read instead.
+
+##### Publication and evidence
+
+All seven producers use one shared publication API. The bound-artifact
+publication order is recipe (if authorized), provenance (if justified),
+generation (if owed), **E → C**. P6 finalizes after its state-mark attempt;
+outer orchestration, such as accept's later state update, is not part of an
+atomic publication set:
+
+- **E**, `artifacts/recipe-capture-event.json`, is independently constructed
+  from the immutable observation, exact final patch/recipe inputs, event
+  facts and effective parent-created-path exclusions. It binds the exact raw
+  C bytes through `coverage_sha256`.
+- **C**, `artifacts/recipe-coverage.json`, binds the requested feature,
+  readable patch/recipe presence and raw-byte SHA-256s, strict recipe
+  decodability, reference and capture descriptors, ordered effects,
+  operation assignments, status and exact reasons.
+
+E is atomically replaced **before** the final atomic replacement of C.
+Atomicity is per file, **not a cross-file transaction**. Earlier writes may
+remain after failure; publication errors propagate as non-zero command
+failures, never ordinary success. A retry must re-observe the inputs.
+Identical events need not append a patch generation.
+
+E is unkeyed consistency evidence, not authentication, authorship or history.
+It is neither a journal nor an append-only event sequence. Coordinated
+consistent edits or rollback of the whole local set are not authenticated
+or detected as historical rollback. Readers independently load E, C and
+bound bytes, reconstruct locally available trees/content and recompute the
+proof; labels, stored hashes and JSON decoding alone are not proof.
+Originally unobserved sides cannot acquire authority from a later worktree
+read. Neither artifact stores source bodies, secrets, timestamps or a
+persisted cross-base replay anchor.
+
+**Genuine C absence is uniformly legacy, even if E exists** (including an
+orphaned E after interruption). E does not promote missing coverage into
+authority or a new legacy failure. With C present, absent, unreadable,
+malformed or unpaired E is a binding failure.
+
+##### Complete coverage, origin and reasons
+
+C has `schema_version: 1`, `coverage_status: complete|incomplete`, and
+`cross_base_status` as follows:
+
+| Coverage | `cross_base_status` |
+|---|---|
+| Incomplete | `unsupported` |
+| Complete, at least one existing-file write | `consumer-derivation-required` |
+| Complete, exclusively explicit-empty-gated creations | `reference-tree-only` |
+
+Under ADR-039, the complete-operation domain is **only `write-file` with a
+present, non-null `preimage_hash`**, including `""` as an explicit creation
+gate. This is necessary, not sufficient. All ten ADR-036 predicates apply:
+
+1. Readable canonical patch, completely parsed, with at least one effect.
+2. Durable `reference.kind: commit`.
+3. Readable, strictly decodable recipe owned by the coverage feature.
+4. Every normalized patch effect represented exactly once, with no extras.
+5. Every recipe operation assigned, with no surplus operations.
+6. Repository-safe effect/operation paths; no two operations claim one path.
+7. Every effect `represented`, with empty effect and record reason arrays.
+8. Required sides observed, with exact modes and hashes for present sides.
+9. Full simulation reproduces the observed bytes, existence and supported
+   modes, with no unmodeled path or mode changes.
+10. Reclassification of that result makes every operation already-present
+    without writing a byte.
+
+Append, replacement (even exact-postimage replacement), and ungated writes
+are not complete v1 operations: assigned effects carry
+`operation-not-reclassifiable`. Their existing explicit execution semantics
+are preserved. GH #24 owns any future widening, not this implementation.
+Generation with unsupported effects withholds the entire new recipe rather
+than emitting a partial one; an existing manual/provider recipe is preserved.
+Supported derivation covers regular text additions/modifications, not
+deletion, rename, copy, binary, executable, symlink, gitlink or mode-only
+effects, unsafe paths, missing observations or excluded parent-created targets.
+
+**D16 is total equality with freshly derived canonical recipe bytes.**
+File-set equality, semantic equivalence, a producer label or historical
+provenance cannot establish it. Even formatting/key-order differences fail
+the comparison. Without explicit successful complete regeneration, differing
+manual/provider bytes and their provenance are preserved. With D16 proof,
+record can create/repair `recipe-provenance.json` using this run's actual
+base and time, including a byte-no-op rerun; already-valid provenance is
+preserved. No historical origin is reconstructed.
+
+Successful publication prints `recipe coverage: complete` or
+`recipe coverage: incomplete (<sorted, deduplicated reasons>)` on stderr.
+The stored record-level `reasons` and per-effect `reason_codes` are exact:
+
+| Scope | Reason codes |
+|---|---|
+| Canonical patch | `canonical-patch-missing`, `canonical-patch-empty`, `canonical-patch-unparseable` |
+| Recipe/reference and event | `recipe-undecodable`, `recipe-owner-mismatch`, `reference-not-durable`, `recipe-stale-marker-present`, `manual-bound-artifact-edit`, `producer-patch-rewrite`, `recipe-not-regenerated` |
+| Assignment/simulation, record-level | `operation-surplus`, `simulation-mismatch` |
+| Effect capability | `effect-delete-unsupported`, `effect-rename-unsupported`, `effect-copy-unsupported`, `effect-binary-unsupported`, `effect-executable-unsupported`, `effect-mode-only-unsupported`, `effect-symlink-unsupported`, `effect-gitlink-unsupported` |
+| Effect safety/availability/assignment | `path-unsafe`, `preimage-unavailable`, `postimage-unavailable`, `parent-created-target-unsupported`, `operation-not-reclassifiable`, `operation-missing` |
+
+`operation-missing` is owed only for an otherwise representable effect,
+never for an intentionally excluded effect. Effect dispositions are
+`represented`, `mismatch` (the singleton `operation-missing`), `ambiguous`
+(unavailable observations), or `unsupported`; availability takes precedence
+over capability exclusions. `contextual_hint` is advisory, never permission.
+
+ADR-040 keeps explanation separate from origin: the paired
+`producer-patch-rewrite` / `recipe-not-regenerated` reasons apply only when
+a patch rewrite leaves a preserved, non-regenerated recipe unable to cover,
+simulate and reclassify the patch exactly. A P2 formatting-only D16 mismatch
+still preserves the recipe and stale marker, yielding incomplete coverage
+with `recipe-stale-marker-present`, **not invented rewrite reasons**.
+P2's coverage-only checkpoint adds no rewrite reasons.
+
+##### Verify and doctor
+
+Verify adds `recipe_generation_coverage` without changing report schema 1.1.
+The first matching D13 rung wins:
+
+| Rung | Condition | Row / report implication |
+|---|---|---|
+| 1 | C unreadable, malformed or unknown-schema/field | Failed `block`: `recipe-coverage-malformed`; verify exit 2. |
+| 2 | Owner, readable-presence, raw hash, E pairing or reconstructed reference/proof mismatch | Failed `block`; verify exit 2. Codes: `recipe-coverage-owner-mismatch`, `recipe-coverage-patch-changed`, `recipe-coverage-recipe-changed`, `recipe-coverage-capture-evidence-invalid`, `recipe-coverage-reference-stale`. |
+| 3 | Valid, bound incomplete C | Failed `warn`: `recipe-coverage-incomplete`, all sorted reasons and affected paths. |
+| 4 | Valid complete C, current `recipe-stale.json` present | Failed `warn`: `recipe-coverage-stale-marker`. |
+| 5 | C genuinely absent, regardless of E or old stale marker | Failed `warn`: `recipe-coverage-missing`. |
+| 6 | Valid complete C, no current stale marker | Passed `block` row; no failure contribution. |
+
+Warning rows leave verify passed/exit 0 **only absent other failures**.
+Missing-coverage legacy features, including pre-v0.17 stale-marker cohorts,
+remain verify-green under that condition. Coverage-envelope owner mismatch
+is a binding failure; recipe-owner mismatch is instead a stored incomplete
+reason reported through rung 3. Surface diagnostic codes are not schema
+reasons and must not be inserted into C.
+
+`tpatch doctor --check D10` is read-only, warning-only and never fixes
+artifacts, **even with `--fix`**. Missing C is reported there only when both
+patch and recipe are readable; malformed/stale/incomplete C is diagnosed.
+A regeneration command is offered only after a read-only plan of the
+actual default `tpatch record <slug> --regenerate-recipe` establishes a
+complete, D16-proven publication and passes its capture, state, collision,
+generation, round-trip and publication-path gates. The plan does not guess
+a committed range or offer bypass flags. Otherwise the diagnostic is
+`recipe-generation-no-truthful-regeneration`, names blockers and calls for
+manual patch/capture/state review. A suggestion is not execution or a
+guarantee against subsequent filesystem changes.
+
+##### Explicit apply and ordered no-write success
+
+On the ordinary recipe path, D17 is evaluated before recipe execution:
+
+| Order | Condition | Result |
+|---|---|---|
+| 1 | Malformed C or any binding failure, including invalid E | Named coverage refusal, exit 2, before mutation. |
+| 2 | Valid incomplete C binds no readable recipe | `recipe-generation-incomplete`, exit 2; actual read cause retained. |
+| 3 | Valid incomplete C binds readable undecodable bytes | Same named refusal, exit 2, including `recipe-undecodable`. |
+| 4 | Valid incomplete C binds a decodable recipe | Warn with reasons, then use existing execution gates; no replay permission is inferred. |
+| 5 | C absent and recipe absent/unreadable | Existing recipe-load error, exit 1. |
+| 6 | C absent and recipe readable | Existing legacy load/execution behavior, including existing parse errors. |
+| 7 | Valid complete C | Existing execution gates and stale-provenance warnings remain. |
+
+For orders 2/3, an already-`applied` feature is directed to `verify` and
+`status`, not another apply. Other states are directed to review the
+canonical patch, then explicitly run `git apply --check <patch>` before
+`git apply <patch>` if appropriate. Authoring a complete recipe and running
+`tpatch implement <slug> --manual` is an alternative, but that checkpoint
+moves the feature to `implementing`, including from `applied`.
+
+**Canonical-patch reapply is separate.** State `unapplied` or a pending
+unapplied baseline selects the existing patch branch of execute/done before
+coverage recipe preflight. It uses the canonical patch and its existing
+safety/materialization checks, not C as a grant. There is no `--reapply`
+flag and no `--mode reapply`. Do not change lifecycle state merely to evade
+a recipe refusal. `--dry-run` previews recipe operations; it is not a
+coverage or future cross-base eligibility check.
+
+ADR-042 preserves initial preimage authorization and operation order.
+Exact current postimage may justify **no write**, not fresh write authority:
+the relevant ordered prefix must preserve/restore the witness at that
+operation's position, and exact bytes and containment are rechecked just
+before skipping. Originally authorized writes may execute if the skip
+ceases to apply; a postimage-only candidate cannot gain that permission.
+Predictable witness invalidation refuses before any operation runs.
+Missing expected targets, malformed gates, unreadability and path safety
+remain refusals; legacy omitted gates retain their warning and ordinary
+writes. Existing supersession severity is audit policy, not a safety proof.
+A proved skip reports `[write-file] <path>: already present (exact postimage), no write`
+and increments both `Applied` and `Skipped`. This bounded ordered proof
+is **not a whole-worktree transaction** or a rollback promise for concurrent
+changes or unexpected I/O failures.
 
 ### 6. Provider Interface
 

@@ -1631,6 +1631,9 @@ research files remain untouched; CURRENT records ownership and validation.
 Coordinator cumulative-soak assertions are authored, including real P1-P7
 commands, legacy/unsupported cohorts and failure-sensitive read/ledger controls.
 Public docs and assets remain in progress; no S6 Go result is claimed.
+The twelve public documents are now delivered, with source-correct state-selected
+canonical reapply wording and current authority disclaimers. Assets/parity still
+await delivery; runtime validation and independent review remain pending.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.
