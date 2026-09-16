@@ -4,6 +4,15 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 owning-package run stopped (2026-09-15)**: full asset tests passed
+(1.200s). CLI exposed two compatibility surfaces: the existing PIB-155/231
+guard rejects SPEC's new `atomic publication set` phrase, and PIB-459's frozen
+whole-document digests need an explicit S6 projection for authorized public
+changes. The unsharded CLI process then hit its 40-minute limit. Vet/build and
+later stages did not run. Correct those surfaces while preserving old guards
+and frozen fixtures; subsequent full CLI coverage must use the repository's
+existing CI-equivalent partition, not a larger timeout or skipped selectors.
+
 **S6 review NEEDS REVISION (2026-09-15)**: independent static review reports
 two medium false-accepts in the new asset guard: a coordinated affirmative
 predicate after a negated claim loses its subject, and an unrecognized
@@ -3431,6 +3440,13 @@ WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
 
+Owning-package validation failed before vet/build. Assets pass; CLI reports
+the old no-multi-file-atomic phrase guard and public-document digest drift,
+then times out in the unsharded S7 AST suite. These are distinct from the two
+independent new-guard findings and all require disposition. No runtime feature
+failure is inferred from the timeout. Use the established sharding discipline
+for full CLI coverage after targeted corrections.
+
 Independent review of `c7b0b8c..a8e15a3` requires two semantic guard corrections:
 coordinated predicates must retain subject authority, and changelog extraction
 must end only at a real historical release rather than any level-two heading.
@@ -4948,6 +4964,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Full owning run: assets PASS 1.200s; CLI FAIL 2402.254s. Failures name
+  PIB-155/231 (`atomic publication set`), PIB-459 public-prose digest drift,
+  and a 40-minute unsharded timeout. The wrapper stopped before vet/build.
+  No larger timeout, changed CI selector or ignored failure is authorized.
 
 - S6 stages 1-2 PASS on retry: formatting empty; all RGA S0-S6 and new
   authority targets pass across assets/gitutil/patchobs/store/workflow/CLI.

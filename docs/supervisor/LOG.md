@@ -1,3 +1,21 @@
+## Validation Result — GH #15 S6 owning-package stop — 2026-09-15
+
+**Implementation checkpoint**: `a8e15a3` (only review tracking changed mid-run)
+**Result**: assets PASS; CLI FAIL; later stages not started
+
+Assets pass in 1.200s. CLI failures expose PIB-155/231's existing ban on the
+new SPEC phrase `atomic publication set`, and PIB-459's frozen whole-document
+digest mismatch for the six skills/feature layout. The unsharded process then
+times out at 40 minutes in the existing S7 AST suite (2402.254s total). Vet/build
+and later stages do not run; the failure sentinel is active.
+
+**Action**: inspect/fix the SPEC wording without weakening PIB-155; preserve
+frozen fixtures and add only an explicit, body-pinned S6 expected-doc delta
+with its own negative controls; correct the two independent RGA guard findings
+in parallel on disjoint files. After focused reproduction/correction, use the
+existing CI-equivalent sharding for full CLI coverage instead of extending
+the timeout or skipping registered selectors. No runtime contract change.
+
 ## Review — GH #15 S6 public authority and soak — 2026-09-15
 
 **Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`
