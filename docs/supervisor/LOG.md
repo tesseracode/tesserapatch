@@ -1,3 +1,19 @@
+## Review — GH #15 S6 corrected authority and compatibility — 2026-09-15
+
+**Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`
+**Revision range**: `a8e15a3..3e89743`
+**Verdict**: APPROVED (static review only)
+
+Independent re-review approves the coordinated-subject and changelog-boundary
+corrections, their red-to-green controls, and the explicit S6 AP document
+projection preserving the historical oracle. No remaining finding is reported.
+The reviewer ran no Go commands or edits.
+
+**Action**: continue the already-running full owning CI-equivalent partition
+on immutable source, then remaining validation stages. Targeted/new/old/legacy
+tests already pass. Approval does not substitute for full runtime validation
+or the final clean-tree gate; preserve the unrelated CLUSTERS edit.
+
 ## Revision Validation — GH #15 S6 targets PASS — 2026-09-15
 
 **Source**: corrected through `5d1d1ea`; selector tracking at `a31a9a8`

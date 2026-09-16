@@ -4,6 +4,13 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 independent revision review APPROVED (2026-09-15)**: reviewer
+`a6c22c30-885c-468e-8c52-cf04ba767dd3` approves the corrected semantic guards
+and explicit compatibility delta through `3e89743` (static review only).
+Both reported false-accepts are closed. Targeted execution already passes;
+full owning CI-equivalent shards are still running on unchanged source.
+No S6 acceptance is claimed until the remaining validation and close finish.
+
 **S6 revision targets PASS (2026-09-15)**: the corrected prefix run executes
 the intended tests in all six packages, including both previously red guard
 families, every original authority control, the cumulative soak and the AP
@@ -3500,6 +3507,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+Independent re-review is APPROVED for the corrected subject/current-history
+guards and the body-pinned AP projection, with no remaining reported finding.
+The reviewer ran no Go commands. Full owning coverage continues through the
+existing serial 22-invocation partition; retain source immutability and the
+operator-owned CLUSTERS edit.
 
 The two reproduced guard escapes are corrected and all their old/new controls
 pass. The seven-body compatibility projection also passes its old-oracle and
