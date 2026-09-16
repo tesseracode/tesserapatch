@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 hosted CI PASS; local resource blocker remains (2026-09-16)**:
+[35065721289](https://github.com/tesseracode/tesserapatch/actions/runs/35065721289)
+completed SUCCESS at reviewed implementation
+`3e897436a85651a5ad7c5eba3bff80c7a6fa5c37`. Ubuntu/macOS/Windows and both
+observer jobs all complete successfully; release is skipped. The run was not
+cancelled for tracking pushes. Persist the queued tracking and operator-approved
+CLUSTERS commit now that hosted completion is recorded.
+
+Only local stages 6-7 remain: the separate standalone pass stopped at its
+fifth resource gate, and the final gate has not run. Keep the failure sentinel;
+no automatic Go retry or S6 acceptance follows hosted success alone.
+
 **S6 standalone validation resource-blocked (2026-09-16)**: stage 6 passed
 its first four invocations, including main CLI 613.059s/workflow 102.747s,
 then the resource gate for invocation 5 exhausted 600 seconds. Memory stayed
@@ -3531,7 +3543,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: Blocked — standalone resource gate; stages 1-5 and review pass
+- **Status**: Blocked — local stages 6-7; stages 1-5, review and hosted CI pass
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3539,6 +3551,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+Hosted CI completes successfully at the exact reviewed source after waiting
+without cancellation. All five required jobs pass and release is skipped.
+Queue-free tracking can now be pushed, including the separately authorized
+CLUSTERS disposition. No source change or new Go validation accompanies this
+update; the local standalone/final-gate resource blocker remains.
 
 Standalone stage 6 stopped on resource admission, not a failing test.
 Invocations 1-4 passed; invocation 5 never started after the 600-second
@@ -5126,6 +5144,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Hosted run `35065721289` completes SUCCESS at `3e89743`: all five required
+  jobs succeed; release skipped. This is completed native evidence, not a
+  cancelled run or a proxy for the still-incomplete local stages 6-7.
 
 - Stage 6 resource stop: first 4/22 invocations PASS, fifth command not
   started. Main CLI 613.059s/workflow 102.747s; isolated CLI 26.270s,
@@ -11266,9 +11288,10 @@ at 471.544s. Formatting, vet and CLI build pass.
    and restart the complete standalone 22-invocation script with fresh gates.
    Stages 1-5 and independent review already pass; do not combine partial
    standalone attempts into a claimed full pass.
-2. Require completed hosted CI, then run the final gate with WAVE_BASE
-   `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. The CLUSTERS edit is already
-   resolved by explicit authorization/separate `592557f`; research is untouched.
+2. After the standalone pass completes, run the final gate with WAVE_BASE
+   `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. Hosted CI already passes on
+   the reviewed source; CLUSTERS is resolved by separately authorized `592557f`.
+   Keep research untouched and do not skip the local gate.
 3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
@@ -11276,9 +11299,9 @@ at 471.544s. Formatting, vet and CLI build pass.
 ## Blockers
 
 - Stage 6 is resource-blocked: the fifth admission gate exhausted 600 seconds
-  without a qualifying minute; latest free memory is 79%. Hosted macOS is
-  still in progress. No implementation/review or held-edit blocker remains,
-  but standalone completion, native CI and final gate precede acceptance.
+  without a qualifying minute; latest sampled free memory is 79%. Native CI
+  and review pass, and the held edit is resolved. Standalone completion and
+  final gate still precede acceptance; no implementation blocker remains.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

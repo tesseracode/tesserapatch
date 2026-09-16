@@ -1682,6 +1682,9 @@ Standalone stage 6 is now resource-blocked: first 4/22 invocations pass, but
 invocation 5 never starts after a 600-second 77-80%-free wait. No test failed.
 The earlier complete owning run is not substituted for this incomplete pass.
 Stage 6 restart, hosted macOS completion and final gate remain; no acceptance.
+Hosted run `35065721289` now completes SUCCESS at reviewed `3e89743`, all five
+required jobs passing, without cancellation. Only the local standalone/final
+gate stages remain resource-blocked; hosted success alone is not S6 acceptance.
 
 **S5 ✅ APPLICABILITY CORRECTION ACCEPTED — 2026-09-15**.
 **Correction WAVE_BASE**: `ca07e2fd6ea4128db14a29589169edf47bade8c1`.

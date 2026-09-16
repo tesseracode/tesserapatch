@@ -1,3 +1,21 @@
+## Hosted Result — GH #15 S6 native CI PASS — 2026-09-16
+
+**Implementation**: `3e897436a85651a5ad7c5eba3bff80c7a6fa5c37`
+**Run**: [35065721289](https://github.com/tesseracode/tesserapatch/actions/runs/35065721289)
+**Result**: SUCCESS — all five required jobs completed; release skipped
+
+Ubuntu, macOS, Windows and both S7 observer jobs complete successfully. The run
+was preserved to completion rather than cancelled for tracking-only pushes.
+This records job outcomes; the existing Windows full-suite allowed-failure
+surface and infrastructure annotations are not a blanket claim that every
+Windows case passed.
+
+**Action**: push the queued tracking and separately authorized CLUSTERS commit.
+No source/fixture/CI-command change follows the reviewed implementation.
+Stages 1-5 and independent review pass; local stage 6 remains resource-blocked
+after four completed invocations, and stage 7 has not run. Keep the sentinel
+and await an authorized resource retry; no acceptance, release or tag.
+
 ## Validation Blocker — GH #15 S6 standalone admission — 2026-09-16
 
 **Implementation**: unchanged approved `3e89743`
