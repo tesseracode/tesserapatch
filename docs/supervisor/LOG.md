@@ -1,3 +1,22 @@
+## Final-Gate Dispatch — GH #15 S6 — 2026-09-17
+
+**Source**: corrected `a694324`, hosted-green checkpoint `5af487f`
+**Standalone tracking checkpoint**: `180a543`
+**WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+**State**: APPROVED for the mechanical gate; acceptance pending its result
+
+The complete standalone retry passes all 22 invocations and 38 package-result
+rows: main CLI 579.917s/workflow 102.895s and every isolated shard. Formatting
+is empty; every command qualified a fresh 87-88%-free/load1 <=5/no-Go minute.
+Current-source hosted run `35081258144` completed SUCCESS on all five required
+jobs, and independent correction review is APPROVED. No implementation changed.
+
+**Action**: replace the canonical field in place with APPROVED, checkpoint/push
+tracking and run the explicit-base final gate through fresh Go wrappers.
+Its formatting/vet/build and 22-invocation partition must execute independently.
+Archive/accept S6 only after success; preserve research and the historical
+oracle. No release/tag, GH #13 implementation or GH #24 widening.
+
 ## Validation Retry — GH #15 S6 current-source close — 2026-09-17
 
 **Checkpoint**: `5af487f522a3b4d4257fbf2921c1db460d42cdc8`

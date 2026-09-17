@@ -2,7 +2,20 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**S6 approved for final gate (2026-09-17)**: the corrected-source standalone
+partition passes all 22 invocations and 38 package-result rows, including main
+CLI 579.917s/workflow 102.895s. Every invocation qualified a fresh minute at
+87-88% free, load1 <=5 and no active Go tools. Formatting is clean. Required
+hosted jobs also pass at `5af487f` (run `35081258144`), and the editor-disclosure
+correction is independently approved. No source changed during the retry.
+
+The single APPROVED field records readiness for the mechanical close, not a
+claim that it has run. Push the tracking checkpoint and execute
+`make wave-close-check WAVE_BASE=c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+with fresh internal resource gates. The final gate must run its own partition;
+only then archive/accept S6. No release/tag is authorized.
 
 **S6 full validation retry (2026-09-17)**: the operator freed resources and
 authorized retry. HEAD/origin are `5af487f522a3b4d4257fbf2921c1db460d42cdc8`,
@@ -3604,7 +3617,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: In progress — current-source hosted CI passes; standalone/final-gate retry active
+- **Status**: Approved for final gate — current-source standalone and hosted CI pass
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3612,6 +3625,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+September 17 standalone retry completed 22/22 invocations and 38 passing
+package-result rows on unchanged editor-correction source. All fresh resource
+windows qualified at 87-88% free. Together with targeted/owning evidence,
+vet/build, independent review and current-source native CI, only the final
+explicit-base gate remains. Prepare/push terminal-token tracking before that
+gate; do not reuse the standalone result as its own partition result.
 
 September 17 operator retry begins on unchanged, pushed `5af487f`. Current-source
 hosted CI is completed green. Preserve previous targeted/full-asset/vet/build
@@ -5236,6 +5256,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 17 standalone PASS: 22/22 invocations, 38 `ok` rows; main CLI
+  579.917s/workflow 102.895s. Formatting empty. All per-command resource
+  windows qualified at 87-88% free. Native CI `35081258144` is completed
+  SUCCESS at identical source `5af487f`. Final gate is the remaining step.
 
 - Current-source CI `35081258144` at `5af487f`: completed SUCCESS.
   Local standalone/final-gate retry starts September 17 with fresh gates;
@@ -11390,19 +11415,20 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. On the next full validation retry, remove `bin/s6-validation/failed` only if
-   present and restart the complete standalone 22-invocation script with fresh gates.
-   Stages 1-5 and independent review already pass; do not combine partial
-   standalone attempts into a claimed full pass.
-2. After the standalone pass completes, run the final gate with WAVE_BASE
+1. Run the final gate with WAVE_BASE
    `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. Hosted CI already passes on
    the reviewed source; CLUSTERS is resolved by separately authorized `592557f`.
-   Keep research untouched and do not skip the local gate.
-3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+   The standalone pass is complete; the gate must run its own fresh partition.
+   Archive/close only after success, preserving all research.
+2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
+
+- No implementation, review, hosted-CI or resource blocker remains at this
+  checkpoint. The final gate is pending. Earlier failed/partial attempts below
+  are historical and do not override the completed September 17 standalone run.
 
 - The external MEDIUM disclosure/parity finding is addressed and independently
   approved. Targeted/full-asset/vet/build validation passes; remaining full

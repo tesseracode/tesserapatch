@@ -1619,8 +1619,14 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S6 🚧 PUBLIC PARITY AND SOAK IN PROGRESS — 2026-09-15**.
+**S6 ✅ APPROVED — FINAL GATE PENDING — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
+Current corrected source has completed hosted CI at `5af487f` and independent
+review. The September 17 standalone retry passes 22/22 invocations and 38
+package-result rows under fresh 87-88%-free gates. No source changed during
+validation. The explicit-base final gate remains before S6 acceptance; release/
+tagging is not authorized. Earlier execution history follows.
+
 September 16 external review requires a bounded editor-failure exit disclosure
 and parity correction. The operator authorized Unreleased/SPEC/skills/template,
 mutation-sensitive checks and the explicit S6 hash projection update; runtime
