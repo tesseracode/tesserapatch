@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**S6 full validation retry (2026-09-17)**: the operator freed resources and
+authorized retry. HEAD/origin are `5af487f522a3b4d4257fbf2921c1db460d42cdc8`,
+tracked state is clean, one main worktree/no stashes, and the thirteen research
+files are unchanged. Initial resources are 87% free/load1 5.00/no active Go;
+only a fresh continuous qualifying minute authorizes each Go invocation.
+
+Hosted run [35081258144](https://github.com/tesseracode/tesserapatch/actions/runs/35081258144)
+completed SUCCESS on the current editor-disclosure correction. Restart the
+entire standalone partition, not the old partial attempt, then run the final
+gate with WAVE_BASE `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. No source
+change, release/tag or threshold relaxation is part of this retry.
+
 **S6 editor-exit disclosure correction approved (2026-09-16)**: the external
 finding is addressed through `a694324`. Independent static correction review
 is APPROVED. Targeted authority/editor/AP tests, full assets (2.255s), vet and
@@ -3592,7 +3604,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: In progress — disclosure correction approved; remaining full validation pending
+- **Status**: In progress — current-source hosted CI passes; standalone/final-gate retry active
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3600,6 +3612,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+September 17 operator retry begins on unchanged, pushed `5af487f`. Current-source
+hosted CI is completed green. Preserve previous targeted/full-asset/vet/build
+and review evidence, but restart the missing standalone pass in full before
+the explicit-base final gate. The initial resource snapshot is not itself a
+continuous-minute qualification.
 
 The editor-exit omission is corrected and independently approved. All focused
 and full-asset checks plus vet/build pass, with real CLI proof of successful
@@ -5218,6 +5236,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Current-source CI `35081258144` at `5af487f`: completed SUCCESS.
+  Local standalone/final-gate retry starts September 17 with fresh gates;
+  no partial prior pass is reused and no new local success is yet claimed.
 
 - Disclosure correction PASS: targeted assets 2.262s/CLI 3.586s, full assets
   2.255s, vet/build clean. Fresh resource gates qualified at 81-83% free.

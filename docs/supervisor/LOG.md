@@ -1,3 +1,21 @@
+## Validation Retry — GH #15 S6 current-source close — 2026-09-17
+
+**Checkpoint**: `5af487f522a3b4d4257fbf2921c1db460d42cdc8`
+**WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+**State**: current-source hosted CI PASS; local standalone/final gate restarting
+
+The operator freed resources and requested a retry. Fetch confirms identical
+HEAD/origin, clean tracked state, one main worktree, no stashes and thirteen
+unchanged research files. Initial resources: 87% free, load1 5.00, no Go tools.
+This snapshot does not replace a fresh continuous-minute gate.
+
+Hosted run `35081258144` completed SUCCESS on the editor-disclosure correction.
+The missing standalone partition restarts from invocation 1, followed by the
+explicit-base final gate. Preserve strict serial/resource/first-failure behavior;
+no source or runtime change, larger timeout, skipped selector or release/tag.
+Keep tracking checkpoints local until the gate-preparation push to avoid
+unnecessary documentation-only CI cancellations.
+
 ## Review and Correction Result — S6 editor exit disclosure — 2026-09-16
 
 **Reviewer**: `a6c22c30-885c-468e-8c52-cf04ba767dd3`

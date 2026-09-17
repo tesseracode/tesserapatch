@@ -1636,6 +1636,10 @@ The correction is now independently APPROVED and passes targeted/full-asset
 tests plus vet/build. Production Go and the historical oracle remain unchanged.
 Remaining full S6 validation/native CI must cover the revised disclosure source;
 the bounded correction is not final S6 acceptance or a release.
+September 17: current editor-disclosure checkpoint `5af487f` has completed
+green hosted run `35081258144`. The operator authorizes a full standalone/
+final-gate retry from a clean tracked tree; resources initially show 87%
+free/load1 5.00/no Go, with the unchanged full per-command gate still required.
 Operator-dispatched scope is PRD S6 and RGA-359/360: public SPEC/operator/layout
 docs, all six embedded skill surfaces, seven-producer and authority-overclaim
 parity, and cumulative downstream soak with generated, unsupported and both
