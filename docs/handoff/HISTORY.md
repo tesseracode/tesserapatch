@@ -9853,3 +9853,136 @@ validated checkpoint.
 S6 needs a separate assignment and fresh WAVE_BASE. No release/tag is shipped
 here. GH #24 remains non-blocking planning, and GH #13 still requires ADR-041's
 separate planning follow-up plus shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-17 — GH #15 S6 public parity and cumulative soak — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `implement-recipe-generation-authority-s6`
+- **Milestone**: GH #15 / ADR-036
+- **Assigned**: 2026-09-15
+- **Completed validation**: 2026-09-17
+- **Status**: ACCEPTED; terminal push/cleanup follows gate-head CI completion
+- **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+- **Validated/pushed range**:
+  `c7b0b8cb67d38a90e454d402796ba4b2168d2629..c5052eaad2215677dbdc032be717fda2cdced9aa`
+- **Release target**: v0.17.0; no release/tag authorization in this task
+
+## Session Summary
+
+S6 publishes the implemented recipe-generation/coverage authority contract in
+SPEC, README, Unreleased notes, nine operator/layout guides, all six embedded
+skill surfaces and the workspace README template. The guidance covers P1-P7,
+E-before-C per-file publication, ADR-039's gated-write completeness domain,
+ADR-040's semantic P2 reasons, D16 exact-derived-byte equality, ADR-041's unkeyed
+capture consistency, ADR-042's ordered no-write proof, D13/D17 and readonly D10.
+Coverage and warn/exit-0 are never a replay grant or cross-base safety claim.
+State-selected canonical reapply is described without inventing a flag or mode.
+
+A shared public/installed semantic validator checks authority claims, producer
+identity/aliases, completeness predicates and publication order. Independent
+review found two real false accepts: a coordinated affirmative predicate after
+a negated claim lost its subject; an unrecognized current heading could hide
+guidance as changelog history. Fixture-only tests reproduced twelve coordinated
+claim cases and eight heading cases red before fixes. Subject ownership and
+strict current/history boundaries then passed all prior/new controls, including
+contrast, subject switches, preamble, fences and false release headings.
+
+The cumulative soak keeps one populated Git repository with two landed legacy
+wire cohorts, a generated adjacent-argument customization, a maintained feature
+driven through all seven producers, and an unsupported deletion. It uses real
+CLI entry points and finalizers, validates E/C through the production reader,
+and performs explicit record regeneration rather than pretending warnings
+authorize replay. The modeled pre-v0.17 cohorts retain ungated recipes and no
+coverage, with/without the fixed historical stale marker; no old binary is
+claimed to have run. Corrupt legacy patch, stale complete pair and missing
+producer controls prove that green is not the fixture's only reachable result.
+
+Broader validation caught the existing PIB-155 atomic-phrase ban and PIB-459
+whole-document hash drift. SPEC retained the correct per-file meaning while
+removing the banned phrase. A separately pinned S6 projection changes only the
+six current skill hashes plus feature layout; the old nine-entry AP oracle,
+declaration/inventory checks, ADR/PRD bodies and frozen fixtures stay unchanged.
+Wrong historical input and unapproved current body edits fail the same validators.
+
+External review caught the carried editor-exit disclosure omission. The final
+revision states non-zero command failure even when publication succeeds, an
+attempt before error return, no implied rollback and no numeric editor-code
+passthrough. Installed/SPEC/Unreleased parity rejects removal, zero-exit
+replacement and appended contradictions. A real CLI case proves editor status
+37 maps to tpatch exit 1 while changed bytes remain and complete P7 publication
+can succeed. No-save failure publishes no event.
+
+## Files and Non-invalidation
+
+- Public documents: README, SPEC, Unreleased CHANGELOG and the operator/layout
+  guides for record, Path B, FAQ, agent-as-provider, reconcile, land, commits,
+  dependencies and feature layout.
+- Installed content: six skills and `assets/templates/README.md`.
+- Tests: `assets/recipe_authority_parity_test.go`,
+  `internal/cli/recipe_authority_s6_soak_test.go`,
+  `internal/cli/recipe_authority_s6_doc_delta_test.go`, and the narrowly scoped
+  expected-projection hook in `prepare_s7_ap_dangling_test.go`.
+- Tracking: CURRENT, HISTORY, ROADMAP and supervisor LOG.
+- Operator-owned CLUSTERS blank-line removal committed separately at `592557f`
+  after explicit `commit-as-is`; file contents were preserved.
+
+No production Go, dependency, CI workflow/selector, runtime schema or
+`.wave-close-allowlist` change. No historical fixture/oracle rewrite. All thirteen
+untracked research files remain untouched. An accidental deletion of S5 LOG
+entries was restored from HEAD before dispatch with operator authorization;
+the inspected diff contained no new reviewer lines to lose.
+
+## Validation and Review
+
+1. Formatting and new/old RGA/public-authority targets pass. An initial lexical
+   Copilot mismatch and a later over-anchored selector were corrected explicitly;
+   no omitted target or syntax failure was credited as a pass/red proof.
+2. Corrected PIB/AP compatibility targets and the AP observer pass, together
+   with current-body/historical-oracle sensitivity cases.
+3. Owning coverage completes the exact 22-invocation CI partition, followed by
+   vet/build. The earlier unsharded CLI timeout was not hidden by a larger timeout
+   or partial-run recombination.
+4. Editor-disclosure correction targets, full assets, vet/build and independent
+   correction review pass on the final implementation.
+5. September 17 standalone retry passes **22/22 invocations**, **38 passing
+   package-result rows**: main CLI 579.917s/workflow 102.895s. Every command
+   qualified a fresh 87-88%-free resource window.
+6. The explicit-base final gate at `c5052ea` passes **8/8**, no warnings, including
+   its own complete fresh 22-invocation partition.
+
+Every top-level Go invocation required 60 continuous seconds at >=80% free
+memory, load1 <=5 and no active Go/compile/link/vet/test process. Sampling gaps
+reset the interval, with shell controls and a deliberately failing gap-reset
+mutation. Earlier exit-75 stops ran no subsequent command and were not promoted
+to complete passes.
+
+Current editor-disclosure source has completed hosted SUCCESS at `5af487f`,
+[run 35081258144](https://github.com/tesseracode/tesserapatch/actions/runs/35081258144):
+all five required jobs pass; release is skipped. Earlier corrected S6 source
+also passed run `35065721289`. Required job success is distinct from the existing
+Windows full-suite allowed-failure surface. Gate-head run `35199057725` is
+preserved to completion before the final tracking push.
+
+Review scoreboard:
+
+- Initial S6 review: NEEDS REVISION, two semantic guard false accepts.
+- Fixture-only red proof, corrected guards/AP projection: APPROVED at `3e89743`.
+- External editor-exit disclosure review: NEEDS REVISION, bounded MEDIUM omission.
+- Disclosure/guard/CLI-boundary correction: APPROVED at `a694324`.
+- Final corrected-source local validation: complete standalone and 8/8 gate PASS.
+- Hosted current-source CI: completed green, not a local-pass proxy.
+
+## Close and Next Boundary
+
+No S6 implementation, review or validation finding remains. Closing edits are
+tracking-only and owned S6 helpers/logs are removed after the final hosted
+watcher finishes. No source or test change follows the successful gate.
+
+v0.17.0 release/tagging requires separate operator authorization. Release work
+must deliberately retain current-guidance coverage when moving Unreleased
+notes; it must not make the newly released contract an unchecked historical
+exception. GH #24 remains planning only. GH #13 still requires the separate
+ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0.

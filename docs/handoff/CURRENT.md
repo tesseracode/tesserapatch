@@ -2,7 +2,24 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
+
+**S6 ACCEPTED (2026-09-17)**: the final explicit-base gate exits 0 at pushed
+`c5052eaad2215677dbdc032be717fda2cdced9aa`: **8/8 PASS**, no warnings,
+including its own fresh 22-invocation partition. The corrected-source standalone
+pass separately completed 22/22 invocations and 38 package-result rows.
+Current-source native CI `35081258144` is green, and independent review covers
+the semantic guard fixes, compatibility projection and editor-exit disclosure.
+
+The S6 archive is appended to HISTORY; all implementation/review/validation
+findings are closed. Terminal changes are tracking-only. Let gate-head hosted
+run `35199057725` finish before the final documentation push to avoid cancelling
+it, then remove only owned S6 helper/log files and push the closing record.
+The thirteen research files, historical oracle and runtime Go remain untouched;
+the CLUSTERS formatting edit was separately authorized at `592557f`.
+No v0.17.0 release/tag or GH #13 implementation is authorized by this close.
+
+### S6 execution history (superseded)
 
 **S6 approved for final gate (2026-09-17)**: the corrected-source standalone
 partition passes all 22 invocations and 38 package-result rows, including main
@@ -3617,7 +3634,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: Approved for final gate — current-source standalone and hosted CI pass
+- **Status**: Complete — S6 accepted; terminal cleanup/push awaits hosted-run completion
 - **Assigned**: 2026-09-15
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3625,6 +3642,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
 
 ## Session Summary
+
+S6 completed the corrected-source standalone pass and the independent final
+gate, each running the full 22-invocation partition. The gate passes 8/8 at
+`c5052ea`; current-source native CI and independent review already pass.
+The handoff is archived immediately. Closing documentation and owned-helper
+cleanup remain, preserving the in-flight gate-head CI run before the final push.
+Release/tagging is a separate operator decision.
 
 September 17 standalone retry completed 22/22 invocations and 38 passing
 package-result rows on unchanged editor-correction source. All fresh resource
@@ -4600,6 +4624,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Terminal S6 close: CURRENT, HISTORY, ROADMAP and supervisor LOG only.
+  No source, asset, fixture or tracked validation command changes after the gate.
+  Owned ignored S6 helpers/logs will be removed after the hosted watcher finishes.
+
 - Editor-exit revision: `CHANGELOG.md`, `SPEC.md`, six skill surfaces,
   `assets/templates/README.md`, `assets/recipe_authority_parity_test.go`,
   `internal/cli/recipe_authority_s6_soak_test.go`,
@@ -5256,6 +5284,13 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- FINAL S6 local result: **all prescribed stages PASS**. The explicit-base
+  final gate at `c5052eaad2215677dbdc032be717fda2cdced9aa` reports **8/8 PASS**,
+  no warnings, including its own fresh full partition. The standalone run
+  separately passed 22/22 commands/38 package rows on the corrected source.
+  Every top-level Go invocation had the required fresh resource window.
+  Hosted `35081258144` and independent correction review are complete and green.
 
 - September 17 standalone PASS: 22/22 invocations, 38 `ok` rows; main CLI
   579.917s/workflow 102.895s. Formatting empty. All per-command resource
@@ -11415,28 +11450,21 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the final gate with WAVE_BASE
-   `c7b0b8cb67d38a90e454d402796ba4b2168d2629`. Hosted CI already passes on
-   the reviewed source; CLUSTERS is resolved by separately authorized `592557f`.
-   The standalone pass is complete; the gate must run its own fresh partition.
-   Archive/close only after success, preserving all research.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+1. Let gate-head hosted run `35199057725` finish, remove only owned S6
+   helpers/logs, and push the terminal tracking. All S6 validation/review is
+   complete; do not cancel CI merely for closing documentation.
+2. Release/tagging v0.17.0 requires separate operator authorization. When
+   moving Unreleased notes into a release, deliberately retarget current-
+   guidance parity rather than silently excluding the newly released contract.
+3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No implementation, review, hosted-CI or resource blocker remains at this
-  checkpoint. The final gate is pending. Earlier failed/partial attempts below
-  are historical and do not override the completed September 17 standalone run.
-
-- The external MEDIUM disclosure/parity finding is addressed and independently
-  approved. Targeted/full-asset/vet/build validation passes; remaining full
-  standalone/final-gate and native CI must cover the revised source.
-- Stage 6 is resource-blocked: the fifth admission gate exhausted 600 seconds
-  without a qualifying minute; latest sampled free memory is 79%. Native CI
-  and review pass, and the held edit is resolved. Standalone completion and
-  final gate still precede acceptance; no implementation blocker remains.
+- No S6 implementation, review or validation blocker remains. Terminal
+  durability/cleanup waits only to preserve the in-flight gate-head hosted run.
+  Earlier resource stops, test failures and disclosure omissions are resolved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
@@ -11444,11 +11472,13 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Context for Next Agent
 
-- Active S6 WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
-  S5 history below is accepted, not an active task. The original 13 research
-  files and the operator's CLUSTERS edit must not be swept into S6 commits.
-  The old resource wrappers were removed at S5 close; recreate only owned
-  ignored helpers if needed, preserving every resource/first-failure condition.
+- Accepted S6 WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`;
+  final gate passes at `c5052ea`. Release preparation needs its own assignment/
+  authorization, not an automatic continuation into GH #13.
+- The original thirteen research files remain untouched. CLUSTERS was committed
+  separately as-is at operator-authorized `592557f`. Owned `bin/s6-validation/`
+  helpers/logs await final cleanup after the CI watcher; no other files may
+  be cleaned. Future Go validation retains the same fresh-resource protocol.
 
 - Correction WAVE_BASE is `ca07e2fd6ea4128db14a29589169edf47bade8c1`;
   reviewed source `f7c5250` is accepted with the passing `0e4861e` final gate.

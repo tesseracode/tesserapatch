@@ -1619,8 +1619,19 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**S6 ✅ APPROVED — FINAL GATE PENDING — 2026-09-17**.
+**S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
+**Validated/pushed range**:
+`c7b0b8cb67d38a90e454d402796ba4b2168d2629..c5052eaad2215677dbdc032be717fda2cdced9aa`.
+The final gate reports **8/8 PASS**, no warnings, with its own full fresh
+partition; the standalone pass separately completed 22/22 invocations on the
+editor-disclosure-corrected source. Native CI and independent review pass.
+S6 is archived in HISTORY; terminal changes are tracking-only, with helper
+cleanup/push after the in-flight gate-head CI finishes. No v0.17.0 release/tag,
+GH #13 implementation or GH #24 widening is authorized by acceptance.
+
+Earlier S6 execution record:
+
 Current corrected source has completed hosted CI at `5af487f` and independent
 review. The September 17 standalone retry passes 22/22 invocations and 38
 package-result rows under fresh 87-88%-free gates. No source changed during

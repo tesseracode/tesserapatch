@@ -1,3 +1,29 @@
+## Acceptance — GH #15 S6 public parity and soak — 2026-09-17
+
+**Task**: `implement-recipe-generation-authority-s6`
+**WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+**Gate checkpoint**: `c5052eaad2215677dbdc032be717fda2cdced9aa`
+**Verdict**: ACCEPTED; terminal documentation push/cleanup pending
+
+All local stages pass. The explicit-base final gate exits 0 with **8/8 PASS**,
+no warnings: clean tracked tree, thirteen allowlisted research entries, pushed
+HEAD, twenty-six correct trailers, one terminal canonical field, clean
+formatting/vet/build and its own complete fresh 22-invocation partition.
+The corrected-source standalone pass separately completed 22/22 commands and
+38 passing package-result rows. Required per-command resource windows were
+preserved; no timeout/selector was weakened and no partial attempt substituted.
+
+Independent review closes the coordinated-predicate/current-history false
+accepts, explicit AP digest compatibility, and external editor-exit disclosure
+finding. Current-source hosted run `35081258144` is green. Production Go,
+dependencies, CI commands, the historical oracle and research remain unchanged.
+The CLUSTERS formatting edit has explicit separate authorization at `592557f`.
+
+**Action**: immediately archive S6 to HISTORY and flip CURRENT/ROADMAP to
+ACCEPTED with the validated range. Let gate-head hosted run `35199057725`
+finish before the closing docs push, then remove only owned S6 helpers/logs.
+No v0.17.0 release/tag, GH #13 implementation or GH #24 widening.
+
 ## Final-Gate Dispatch — GH #15 S6 — 2026-09-17
 
 **Source**: corrected `a694324`, hosted-green checkpoint `5af487f`
