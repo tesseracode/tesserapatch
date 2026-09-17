@@ -1,3 +1,24 @@
+## Close — GH #15 S6 public parity and soak — 2026-09-17
+
+**Verdict**: ACCEPTED — full local/native evidence and cleanup complete
+**Validated range**:
+`c7b0b8cb67d38a90e454d402796ba4b2168d2629..c5052eaad2215677dbdc032be717fda2cdced9aa`
+
+Hosted run
+[35199057725](https://github.com/tesseracode/tesserapatch/actions/runs/35199057725)
+completed SUCCESS at the exact 8/8 gate checkpoint. All five required jobs
+passed, release was skipped, and no in-flight run was cancelled for this close.
+The existing Windows full-suite allowed-failure surface is distinct from
+required-job success; no blanket claim about every Windows test is made.
+
+**Action taken**: CURRENT has one ACCEPTED canonical field and a complete task;
+ROADMAP records the validated range; HISTORY contains the S6 archive. Four
+owned helper scripts, fourteen logs and their empty directories are removed.
+All thirteen research files, historical oracle, production Go, dependencies,
+CI commands and allowlist remain unchanged by the close. Only four tracking
+documents changed after the validated checkpoint. Commit/push this terminal
+record; no v0.17.0 release/tag or GH #13/GH #24 implementation is authorized.
+
 ## Acceptance — GH #15 S6 public parity and soak — 2026-09-17
 
 **Task**: `implement-recipe-generation-authority-s6`

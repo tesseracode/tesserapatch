@@ -1626,8 +1626,9 @@ undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 The final gate reports **8/8 PASS**, no warnings, with its own full fresh
 partition; the standalone pass separately completed 22/22 invocations on the
 editor-disclosure-corrected source. Native CI and independent review pass.
-S6 is archived in HISTORY; terminal changes are tracking-only, with helper
-cleanup/push after the in-flight gate-head CI finishes. No v0.17.0 release/tag,
+S6 is archived in HISTORY. Gate-head native run `35199057725` completed green
+at the exact validated `c5052ea`, without cancellation; owned helpers/logs are
+removed and terminal changes are tracking-only. No v0.17.0 release/tag,
 GH #13 implementation or GH #24 widening is authorized by acceptance.
 
 Earlier S6 execution record:

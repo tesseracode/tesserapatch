@@ -9864,7 +9864,7 @@ separate planning follow-up plus shipped GH #15/v0.17.0.
 - **Milestone**: GH #15 / ADR-036
 - **Assigned**: 2026-09-15
 - **Completed validation**: 2026-09-17
-- **Status**: ACCEPTED; terminal push/cleanup follows gate-head CI completion
+- **Status**: ACCEPTED — full local/native evidence and terminal cleanup complete
 - **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
 - **Validated/pushed range**:
   `c7b0b8cb67d38a90e454d402796ba4b2168d2629..c5052eaad2215677dbdc032be717fda2cdced9aa`
@@ -9963,8 +9963,11 @@ Current editor-disclosure source has completed hosted SUCCESS at `5af487f`,
 [run 35081258144](https://github.com/tesseracode/tesserapatch/actions/runs/35081258144):
 all five required jobs pass; release is skipped. Earlier corrected S6 source
 also passed run `35065721289`. Required job success is distinct from the existing
-Windows full-suite allowed-failure surface. Gate-head run `35199057725` is
-preserved to completion before the final tracking push.
+Windows full-suite allowed-failure surface. Gate-head run
+[35199057725](https://github.com/tesseracode/tesserapatch/actions/runs/35199057725)
+also completed SUCCESS at the exact `c5052ea` gate checkpoint, with all five
+required jobs passing and release skipped. It was preserved to completion
+before the final tracking push.
 
 Review scoreboard:
 
@@ -9978,8 +9981,8 @@ Review scoreboard:
 ## Close and Next Boundary
 
 No S6 implementation, review or validation finding remains. Closing edits are
-tracking-only and owned S6 helpers/logs are removed after the final hosted
-watcher finishes. No source or test change follows the successful gate.
+tracking-only. Four owned S6 helper scripts, fourteen logs and their empty
+directories are removed. No source or test change follows the successful gate.
 
 v0.17.0 release/tagging requires separate operator authorization. Release work
 must deliberately retain current-guidance coverage when moving Unreleased
