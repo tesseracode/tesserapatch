@@ -1619,6 +1619,15 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
+**v0.17.0 🚧 RELEASE PREPARATION — 2026-09-19**.
+**WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.
+Operator authorized pre-tag work only: dated candidate notes, retained current
+changelog contract/disclosure guards and review/validation of a tag candidate.
+No tag or release may be published without separate explicit authorization.
+S6 remains accepted. The accidental 84-line LOG deletion is restored with no
+reviewer additions lost; research/runtime/oracle/CI commands remain untouched.
+Initial 60% free memory is below Go admission; no new validation result claimed.
+
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.
 **Validated/pushed range**:

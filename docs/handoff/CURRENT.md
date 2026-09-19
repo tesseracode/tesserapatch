@@ -2,7 +2,29 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**v0.17.0 release preparation dispatched (2026-09-19)**: the operator
+authorized the pre-tag steps, not tag creation or publication. Fresh WAVE_BASE
+is `c2733e6997714ac20ab9cc1abe5f4c6207285ca1` (fetched origin/main and HEAD).
+Restore/preserve the useful S6 log entries deleted by an uncommitted edit:
+the inspected diff was zero additions/84 deletions, with no reviewer additions.
+That restoration is complete; the thirteen research files remain untouched.
+
+Scope: dated v0.17.0 candidate notes, README/SPEC version labels, a deliberate
+changelog parity transition that keeps the v0.17.0 contract/disclosure checked,
+mutation-sensitive boundary controls, release-version build smoke test and
+release-preparation review/validation. No production behavior, dependencies,
+CI commands, historical assets/oracle, GH #13 or GH #24 change. Tagging still
+requires explicit authorization and must target a validated immutable commit.
+
+Initial free memory is 60%, below the required gate. No Go validation can start
+without a fresh continuous 60-second >=80%-free/load1 <=5/no-Go window.
+Retain the existing serial/first-failure protocol; do not claim a new result
+from S6's prior gate. The date in candidate notes is preparation date, not a
+claim of publication.
+
+### S6 acceptance (historical)
 
 **S6 ACCEPTED (2026-09-17)**: the final explicit-base gate exits 0 at pushed
 `c5052eaad2215677dbdc032be717fda2cdced9aa`: **8/8 PASS**, no warnings,
@@ -3632,18 +3654,23 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `implement-recipe-generation-authority-s6`
+- **Task ID**: `prepare-release-v0-17-0`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: S6 — public parity, semantic overclaim guards and cumulative downstream soak
-- **Status**: Complete — S6 accepted; full local/native validation and cleanup complete
-- **Assigned**: 2026-09-15
-- **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`
+- **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
+- **Status**: In progress — pre-tag preparation only; publication not authorized
+- **Assigned**: 2026-09-19
+- **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
 
-WAVE_BASE = c7b0b8cb67d38a90e454d402796ba4b2168d2629
+WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
+
+Release preparation starts from the accepted S6 close. Restored only the
+84 missing log lines after confirming no added reviewer content, preserving
+the valuable acceptance/native-CI record. Scope is recorded before changes.
+S6's archive remains in HISTORY; no tag, release or new feature is authorized.
 
 S6 is closed with exact-checkpoint native CI: run `35199057725` passed all five
 required jobs at the same `c5052ea` that passed the 8/8 mechanical gate. Owned
@@ -4632,6 +4659,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Release preparation scope: CHANGELOG, README, SPEC,
+  `assets/recipe_authority_parity_test.go`, CURRENT/ROADMAP/LOG.
+  No implementation edits yet. The accidental LOG deletion was restored first.
+
 - Terminal S6 close: CURRENT, HISTORY, ROADMAP and supervisor LOG only.
   No source, asset, fixture or tracked validation command changes after the gate.
   Four owned ignored helpers, fourteen logs and their empty directories are removed.
@@ -5292,6 +5323,9 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Release preparation: no Go validation yet; initial memory 60% is below
+  admission threshold. Old S6 evidence below is not a new release-prep pass.
 
 - Final native run `35199057725` at `c5052ea`: completed SUCCESS, all five
   required jobs pass, release skipped. It was not cancelled for the terminal
@@ -11463,14 +11497,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Release/tagging v0.17.0 requires separate operator authorization. When
-   moving Unreleased notes into a release, deliberately retarget current-
-   guidance parity rather than silently excluding the newly released contract.
+1. Prepare dated candidate notes and retain current v0.17.0 changelog authority/
+   editor-exit parity with mutation controls. Do not mark the candidate shipped.
+2. Run resource-gated focused/full validation, version smoke, independent review
+   and hosted CI; final close gate uses the fresh release-preparation WAVE_BASE.
+   Create/push no tag without subsequent explicit publication authorization.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
+
+- Initial memory is 60%, below the mandatory Go-validation threshold.
+  Preparation can proceed; runtime validation must await its full resource window.
 
 - No S6 implementation, review, validation or cleanup blocker remains.
   Earlier resource stops, test failures and disclosure omissions are resolved;

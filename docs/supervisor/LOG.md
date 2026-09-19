@@ -1,3 +1,25 @@
+## Dispatch — v0.17.0 release preparation — 2026-09-19
+
+**Task**: `prepare-release-v0-17-0`
+**WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
+**State**: IN PROGRESS — pre-tag work only
+
+Operator requested the pre-tag steps. Valuable S6 close/acceptance entries
+were restored from HEAD after confirming the pending edit deleted 84 lines
+and added none; no external-review additions were lost. The restored tree is
+clean apart from the thirteen known research files.
+
+Prepare a dated v0.17.0 candidate heading and README/SPEC labels, deliberately
+retarget the changelog guard to keep this exact contract checked, and add
+negative controls for renamed/missing/hidden current sections and disclosures.
+Validate version stamping through the existing build mechanism without a tag.
+Independent review and full resource-gated/native evidence precede readiness.
+No runtime, dependencies, CI, historical oracle, GH #13 or GH #24 change.
+
+Publication is not authorized: no tag/create-release command. Initial memory
+is 60%; no Go command starts without the existing full qualifying minute.
+Candidate date records preparation, not a claim that v0.17.0 shipped.
+
 ## Close — GH #15 S6 public parity and soak — 2026-09-17
 
 **Verdict**: ACCEPTED — full local/native evidence and cleanup complete
