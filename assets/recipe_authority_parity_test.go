@@ -13,8 +13,8 @@ import (
 )
 
 // RGA-359 checks installed bytes and current public guidance with the same
-// validator used by the wrong-input cases below. Historical changelog entries
-// are not current guidance; no other file or section is exempted.
+// validator used by the wrong-input cases below. Changelog releases older
+// than the selected contract are not current guidance; no other file is exempted.
 func TestRecipeAuthorityPublicParity(t *testing.T) {
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
@@ -49,7 +49,7 @@ func TestRecipeAuthorityPublicParity(t *testing.T) {
 
 func rgaValidatePublicSurface(path, body string) error {
 	if path == "CHANGELOG.md" {
-		current, err := rgaUnreleasedSection(body)
+		current, err := rgaChangelogSection(body, "0.17.0")
 		if err != nil {
 			return err
 		}
@@ -80,6 +80,20 @@ var rgaReleaseHeading = regexp.MustCompile(`^ {0,3}##[ \t]+(?:\[v?[0-9]+\.[0-9]+
 var rgaUnshippedQualifier = regexp.MustCompile(`(?i)\b(?:planned|unreleased|upcoming|draft|unshipped|not released)\b`)
 
 func rgaUnreleasedSection(body string) (string, error) {
+	return rgaChangelogSection(body, "")
+}
+
+// An empty release selects Unreleased for the retained pre-release controls.
+// Published/candidate contracts pin an exact version instead of dropping into
+// the historical exemption when their heading graduates from Unreleased.
+func rgaChangelogSection(body, release string) (string, error) {
+	currentHeading, validCurrentHeading := rgaCurrentHeading, rgaUnreleasedHeading
+	currentName := "Unreleased"
+	if release != "" {
+		currentHeading = regexp.MustCompile(`^ {0,3}##[ \t]+\[?v?` + regexp.QuoteMeta(release) + `(?:\]?(?:[ \t]|$))`)
+		validCurrentHeading = rgaReleaseHeading
+		currentName = "v" + release
+	}
 	currentCount, offset, historyStart := 0, 0, len(body)
 	var fence byte
 	fenceLength := 0
@@ -104,18 +118,21 @@ func rgaUnreleasedSection(body string) (string, error) {
 			continue
 		}
 		switch {
-		case rgaCurrentHeading.MatchString(line):
+		case currentHeading.MatchString(line):
 			currentCount++
-			if currentCount != 1 || !rgaUnreleasedHeading.MatchString(line) || historyStart != len(body) {
+			if currentCount != 1 || !validCurrentHeading.MatchString(line) || historyStart != len(body) ||
+				(release != "" && rgaUnshippedQualifier.MatchString(line)) {
 				return "", fmt.Errorf("duplicate, misplaced or unsupported current heading: %q", line)
 			}
+		case rgaCurrentHeading.MatchString(line):
+			return "", fmt.Errorf("unexpected Unreleased section beside selected %s contract", currentName)
 		case rgaReleaseHeading.MatchString(line):
 			if historyStart == len(body) {
 				if rgaUnshippedQualifier.MatchString(line) {
 					return "", fmt.Errorf("unshipped version is not a historical release: %q", line)
 				}
 				if currentCount != 1 {
-					return "", fmt.Errorf("historical release precedes Unreleased guidance: %q", line)
+					return "", fmt.Errorf("historical release precedes %s guidance: %q", currentName, line)
 				}
 				historyStart = lineStart
 			}
@@ -129,7 +146,7 @@ func rgaUnreleasedSection(body string) (string, error) {
 		return "", fmt.Errorf("unterminated changelog code fence")
 	}
 	if currentCount != 1 {
-		return "", fmt.Errorf("want exactly one Unreleased heading, got %d", currentCount)
+		return "", fmt.Errorf("want exactly one %s heading, got %d", currentName, currentCount)
 	}
 	// Keep preamble and additional current notes. Only a release boundary,
 	// never an arbitrary heading (or a heading inside a fence), ends guidance.
@@ -681,6 +698,73 @@ func TestRecipeAuthorityCurrentChangelogScope(t *testing.T) {
 		if _, err := rgaUnreleasedSection(malformed); err == nil {
 			t.Fatal("missing/duplicate Unreleased heading accepted")
 		}
+	}
+}
+
+func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "CHANGELOG.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := string(raw)
+	const heading = "## v0.17.0 — 2026-09-19 — recipe generation authority"
+	boundary := strings.Index(good, "\n## v0.16.0 ")
+	if strings.Count(good, heading) != 1 || boundary < 0 {
+		t.Fatal("versioned mutation fixture must pin the actual current and historical headings")
+	}
+	current, history := good[:boundary], good[boundary:]
+	validate := func(body string) error { return rgaValidatePublicSurface("CHANGELOG.md", body) }
+	if err := validate(good); err != nil {
+		t.Fatalf("actual versioned baseline: %v", err)
+	}
+	for _, alternative := range []string{
+		"## v0.17.0", "## [0.17.0]", "## [v0.17.0] - 2026-09-19",
+	} {
+		if err := validate(strings.Replace(good, heading, alternative, 1)); err != nil {
+			t.Fatalf("supported version heading %q: %v", alternative, err)
+		}
+	}
+	for name, wrong := range map[string]string{
+		"missing-current":                 "# Changelog\n" + history,
+		"wrong-version":                   strings.Replace(good, heading, "## v0.16.9", 1),
+		"unreleased-only-is-not-v017":     strings.Replace(good, heading, "## Unreleased", 1),
+		"unexpected-unreleased-before":    strings.Replace(good, heading, "## Unreleased\n\n"+heading, 1),
+		"unexpected-unreleased-after":     good + "\n## Unreleased\n",
+		"duplicate-current":               current + "\n" + heading + "\n" + history,
+		"duplicate-current-after-history": good + "\n## [v0.17.0]\n",
+		"current-after-older-version":     strings.Replace(good, heading, "## v0.16.9\n\n"+heading, 1),
+		"unknown-current-boundary":        current + "\n## Release notes\nCoverage is replay-safe.\n" + history,
+		"fenced-current-heading":          strings.Replace(good, heading, "```markdown\n"+heading+"\n```", 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validate(wrong); err == nil {
+				t.Fatal("same public validator accepted an invalid current-version boundary")
+			}
+		})
+	}
+	for name, addition := range map[string]string{
+		"versioned-replay-overclaim": "Coverage is replay-safe.",
+		"versioned-editor-overclaim": "tpatch edit exits zero even when the editor process fails.",
+		"fenced-false-history":       "```markdown\n## v0.16.0\nCoverage is replay-safe.\n```",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validate(current + "\n\n" + addition + "\n" + history); err == nil {
+				t.Fatal("graduating the heading silently exempted the current contract")
+			}
+		})
+	}
+	// A historical copy cannot substitute for the current version's disclosure.
+	const notice = "even if coverage publication succeeds"
+	if strings.Count(current, notice) != 1 {
+		t.Fatal("editor-disclosure mutation target absent or ambiguous")
+	}
+	withoutDisclosure := strings.Replace(current, notice, "only if publication fails", 1)
+	if err := validate(withoutDisclosure + history + "\n" + current[strings.Index(current, heading)+len(heading):]); err == nil ||
+		!strings.Contains(err.Error(), "editor-failure disclosure") {
+		t.Fatalf("old release prose supplied missing current disclosure: %v", err)
+	}
+	if err := validate(current + history + "\nCoverage is replay-safe.\n"); err != nil {
+		t.Fatalf("genuinely older release prose became current authority: %v", err)
 	}
 }
 

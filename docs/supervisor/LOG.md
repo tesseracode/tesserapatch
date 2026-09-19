@@ -1,3 +1,20 @@
+## Implementation Transition — v0.17.0 candidate parity — 2026-09-19
+
+**State**: authored; review and gated validation pending
+
+Promote CHANGELOG to dated v0.17.0 candidate notes while explicitly reserving
+publication authorization. README/SPEC labels match. The real changelog
+validator now selects exactly v0.17.0 through the shared parser rather than
+exempting the versioned contract as old history. Existing Unreleased tests
+still exercise the same parser; extra current headings are not silent fallbacks.
+
+New actual-validator fixtures reject missing/renamed/duplicate/fenced release
+headings, misplaced history and replay/editor-success overclaims within the
+selected version. A historical disclosure cannot repair missing current prose.
+No installed skill bodies, old digest oracle, runtime Go or CI commands change.
+The guard is formatted and diff-clean; seven resource-helper shell controls
+pass. No Go test/build ran yet; initial resource admission remains below 80%.
+
 ## Dispatch — v0.17.0 release preparation — 2026-09-19
 
 **Task**: `prepare-release-v0-17-0`

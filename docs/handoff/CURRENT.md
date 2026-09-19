@@ -4,6 +4,22 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep implementation authored (2026-09-19)**: CHANGELOG has a dated
+v0.17.0 candidate heading with explicit not-yet-published status; README/SPEC
+labels agree. The same changelog parser now pins the exact v0.17.0 section
+for the live public validator, keeping preamble and contract text checked until
+an older release boundary. Existing Unreleased mutation tests still exercise
+the shared parser's pre-release mode. An unexpected Unreleased heading in the
+version-selected path refuses rather than hiding the v0.17.0 contract.
+
+New same-path controls cover missing/renamed/duplicate/fenced headings,
+misplaced history, retained replay/editor-exit overclaims, and historical
+text failing to substitute for a missing current disclosure. No runtime,
+installed skill body, historical digest or CI-command change. The guard is
+formatted and diff-clean; execution remains pending. Four owned ignored
+helpers in `bin/v017-validation/` retain the prior serial resource gates;
+seven shell-only controls pass, with no simulated Go command.
+
 **v0.17.0 release preparation dispatched (2026-09-19)**: the operator
 authorized the pre-tag steps, not tag creation or publication. Fresh WAVE_BASE
 is `c2733e6997714ac20ab9cc1abe5f4c6207285ca1` (fetched origin/main and HEAD).
@@ -3667,6 +3683,12 @@ WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
 
+Candidate notes, labels and version-selected parity are authored. The date
+is a preparation date and publication is explicitly pending. The new tests
+check the real public validator, including old prose that must not satisfy
+current editor disclosure. Existing old-mode and semantic-sensitivity tests
+are preserved. Static review and fresh gated execution are next.
+
 Release preparation starts from the accepted S6 close. Restored only the
 84 missing log lines after confirming no added reviewer content, preserving
 the valuable acceptance/native-CI record. Scope is recorded before changes.
@@ -4659,9 +4681,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
-- Release preparation scope: CHANGELOG, README, SPEC,
+- Release preparation: CHANGELOG, README, SPEC,
   `assets/recipe_authority_parity_test.go`, CURRENT/ROADMAP/LOG.
-  No implementation edits yet. The accidental LOG deletion was restored first.
+  Four ignored validation helpers are owned under `bin/v017-validation/`.
+  No production Go, installed asset body or historical oracle change.
 
 - Terminal S6 close: CURRENT, HISTORY, ROADMAP and supervisor LOG only.
   No source, asset, fixture or tracked validation command changes after the gate.
@@ -5323,6 +5346,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Release-prep guard formatted and diff-clean; helper passes seven isolated
+  shell controls. No Go validation has run. Targeted full assets/RGA/compatibility
+  checks, vet/build/version smoke, full shards and explicit-base close are owed.
 
 - Release preparation: no Go validation yet; initial memory 60% is below
   admission threshold. Old S6 evidence below is not a new release-prep pass.

@@ -71,7 +71,7 @@ When upstream releases a new version, `tpatch reconcile` runs a 4-phase check:
 Confirmed upstream adoptions are retired. Still-needed patches are reapplied
 when the existing checks permit; conflicts remain blocked for review.
 
-## Recipe coverage (v0.17 planned, unreleased)
+## Recipe coverage (v0.17.0 release candidate; not yet tagged)
 
 The current GH #15 implementation keeps `artifacts/post-apply.patch` canonical
 and publishes `recipe-capture-event.json` before `recipe-coverage.json`

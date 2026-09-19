@@ -2,10 +2,12 @@
 
 All notable changes to tpatch are recorded here.
 
-## Unreleased — v0.17 planned — recipe generation authority
+## v0.17.0 — 2026-09-19 — recipe generation authority
 
-This section describes the current GH #15 implementation, not a shipped
-release. Review, cumulative soak and release authorization remain separate.
+Release-preparation candidate; the date above records preparation. Tag creation
+and publication remain pending explicit authorization. S0-S6 implementation,
+review and cumulative soak are accepted; this candidate's release checks are
+tracked separately.
 
 ### Added
 

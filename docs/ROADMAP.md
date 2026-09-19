@@ -1627,6 +1627,10 @@ No tag or release may be published without separate explicit authorization.
 S6 remains accepted. The accidental 84-line LOG deletion is restored with no
 reviewer additions lost; research/runtime/oracle/CI commands remain untouched.
 Initial 60% free memory is below Go admission; no new validation result claimed.
+Candidate notes/labels and exact-v0.17.0 changelog parity are authored, retaining
+all old controls and adding current-version disclosure/overclaim/boundary
+mutations. No runtime/installed-skill/historical-oracle change. Review and
+resource-gated execution are pending; the candidate is not yet tag-ready.
 
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.

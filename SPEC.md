@@ -417,7 +417,7 @@ the tracked tree, under `.tpatch/local/resource-scratch/<slug>/`: a
 persistent zero-length `.lock` file plus one `es_<12hex>/` directory per
 in-flight invocation. Nothing captured is ever written there.
 
-#### Recipe generation authority (GH #15; v0.17 planned, unreleased)
+#### Recipe generation authority (GH #15; v0.17.0 release candidate, not yet tagged)
 
 `artifacts/post-apply.patch` remains the canonical feature diff.
 `apply-recipe.json` is an executable plan, not a replacement for that diff.
