@@ -4,6 +4,26 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep boundary corrections authored (2026-09-19)**: selected-version
+recognition now catches linked/malformed duplicate candidates before strict
+heading validation. Historical headings must have a strictly older numeric
+version; equal/newer/overflow cases refuse even after history began. Existing
+undated older-release notes remain permitted after a valid historical boundary,
+but cannot themselves truncate current guidance. Added concrete linked, newer
+minor/patch/major, late-newer, overflow, equal-version and older-format controls.
+Formatting is complete; re-review pending and no Go test has run.
+
+**Release-prep review corrections and resource blocker (2026-09-19)**:
+independent static review reports two medium boundary escapes at `e94b6f4`:
+linked duplicate current headings after history and newer versions incorrectly
+treated as older history. Broaden candidate recognition, restrict historical
+version ordering, and add the exact mutations before re-review.
+
+The real local gate exhausted 600 seconds at 57-61% free (load1 <=5/no Go),
+exiting 75 before the first formatting check. No Go test or version smoke ran,
+and this timeout is not counted as a red proof. Keep the failure sentinel;
+local validation is blocked pending resource recovery. No tag is created.
+
 **Release-prep implementation authored (2026-09-19)**: CHANGELOG has a dated
 v0.17.0 candidate heading with explicit not-yet-published status; README/SPEC
 labels agree. The same changelog parser now pins the exact v0.17.0 section
@@ -3683,6 +3703,12 @@ WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
 
+Both static boundary findings have code/fixture corrections. Direct inspection
+also preserved this repository's older undated v0.5.x and v0.4.1-and-earlier
+headings after the existing valid historical boundary, rather than rejecting
+legitimate historical formatting. The resource failure sentinel remains;
+review is static only until an authorized validation retry qualifies.
+
 Candidate notes, labels and version-selected parity are authored. The date
 is a preparation date and publication is explicitly pending. The new tests
 check the real public validator, including old prose that must not satisfy
@@ -5346,6 +5372,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- First release-prep admission attempt: exit 75 after 600 seconds at 57-61%
+  free, before formatting/test/vet/build/smoke. Independent review identified
+  two static boundary cases to fix; no runtime proof is yet available.
 
 - Release-prep guard formatted and diff-clean; helper passes seven isolated
   shell controls. No Go validation has run. Targeted full assets/RGA/compatibility

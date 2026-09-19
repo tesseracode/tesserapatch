@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -77,6 +78,7 @@ var rgaChangelogHeading = regexp.MustCompile(`^ {0,3}##(?:[ \t]+|$)`)
 var rgaCurrentHeading = regexp.MustCompile(`(?i)^ {0,3}##[ \t]+\[?unreleased\b`)
 var rgaUnreleasedHeading = regexp.MustCompile(`(?i)^ {0,3}##[ \t]+(?:\[unreleased\]|unreleased)(?:[ \t]+[—–-][ \t]+[^\r\n]+|[ \t]+\([^()\r\n]+\))?[ \t]*$`)
 var rgaReleaseHeading = regexp.MustCompile(`^ {0,3}##[ \t]+(?:\[v?[0-9]+\.[0-9]+\.[0-9]+\]|v?[0-9]+\.[0-9]+\.[0-9]+)(?:[ \t]+[—–-][ \t]+[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[ \t]+[—–-][ \t]+[^\r\n]+)?)?[ \t]*$`)
+var rgaVersionHeadingCandidate = regexp.MustCompile(`^ {0,3}##[ \t]+\[?v?([0-9]+\.[0-9]+\.[0-9]+)(?:[^0-9.]|$)`)
 var rgaUnshippedQualifier = regexp.MustCompile(`(?i)\b(?:planned|unreleased|upcoming|draft|unshipped|not released)\b`)
 
 func rgaUnreleasedSection(body string) (string, error) {
@@ -90,7 +92,7 @@ func rgaChangelogSection(body, release string) (string, error) {
 	currentHeading, validCurrentHeading := rgaCurrentHeading, rgaUnreleasedHeading
 	currentName := "Unreleased"
 	if release != "" {
-		currentHeading = regexp.MustCompile(`^ {0,3}##[ \t]+\[?v?` + regexp.QuoteMeta(release) + `(?:\]?(?:[ \t]|$))`)
+		currentHeading = regexp.MustCompile(`^ {0,3}##[ \t]+\[?v?` + regexp.QuoteMeta(release) + `(?:[^0-9.]|$)`)
 		validCurrentHeading = rgaReleaseHeading
 		currentName = "v" + release
 	}
@@ -127,6 +129,12 @@ func rgaChangelogSection(body, release string) (string, error) {
 		case rgaCurrentHeading.MatchString(line):
 			return "", fmt.Errorf("unexpected Unreleased section beside selected %s contract", currentName)
 		case rgaReleaseHeading.MatchString(line):
+			if release != "" {
+				match := rgaVersionHeadingCandidate.FindStringSubmatch(line)
+				if len(match) != 2 || !rgaOlderVersion(match[1], release) {
+					return "", fmt.Errorf("release is not older than selected %s: %q", currentName, line)
+				}
+			}
 			if historyStart == len(body) {
 				if rgaUnshippedQualifier.MatchString(line) {
 					return "", fmt.Errorf("unshipped version is not a historical release: %q", line)
@@ -137,6 +145,12 @@ func rgaChangelogSection(body, release string) (string, error) {
 				historyStart = lineStart
 			}
 		default:
+			if release != "" {
+				if match := rgaVersionHeadingCandidate.FindStringSubmatch(line); len(match) == 2 &&
+					!rgaOlderVersion(match[1], release) {
+					return "", fmt.Errorf("unsupported current or newer version heading: %q", line)
+				}
+			}
 			if historyStart == len(body) {
 				return "", fmt.Errorf("unknown current changelog heading: %q", line)
 			}
@@ -151,6 +165,35 @@ func rgaChangelogSection(body, release string) (string, error) {
 	// Keep preamble and additional current notes. Only a release boundary,
 	// never an arbitrary heading (or a heading inside a fence), ends guidance.
 	return body[:historyStart], nil
+}
+
+func rgaOlderVersion(candidate, selected string) bool {
+	parse := func(version string) ([]uint64, bool) {
+		parts := strings.Split(version, ".")
+		if len(parts) != 3 {
+			return nil, false
+		}
+		numbers := make([]uint64, 3)
+		for i, part := range parts {
+			number, err := strconv.ParseUint(part, 10, 64)
+			if err != nil {
+				return nil, false
+			}
+			numbers[i] = number
+		}
+		return numbers, true
+	}
+	left, leftOK := parse(candidate)
+	right, rightOK := parse(selected)
+	if !leftOK || !rightOK {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return left[i] < right[i]
+		}
+	}
+	return false
 }
 
 func rgaPlain(body string) string {
@@ -732,6 +775,15 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		"unexpected-unreleased-after":     good + "\n## Unreleased\n",
 		"duplicate-current":               current + "\n" + heading + "\n" + history,
 		"duplicate-current-after-history": good + "\n## [v0.17.0]\n",
+		"linked-current-after-history":    good + "\n## [v0.17.0](#release)\nCoverage is replay-safe.\n",
+		"unsupported-current-suffix":      good + "\n## v0.17.0-rc1\nCoverage is replay-safe.\n",
+		"newer-minor-false-history":       current + "\n## v0.18.0\nCoverage is replay-safe.\n" + history,
+		"newer-patch-false-history":       current + "\n## v0.17.1\nCoverage is replay-safe.\n" + history,
+		"newer-major-false-history":       current + "\n## v1.0.0\nCoverage is replay-safe.\n" + history,
+		"newer-after-history":             good + "\n## v0.18.0\nCoverage is replay-safe.\n",
+		"linked-newer-after-history":      good + "\n## [v0.18.0](#release)\nCoverage is replay-safe.\n",
+		"numeric-version-overflow":        current + "\n## v999999999999999999999999.0.0\n" + history,
+		"equal-version-leading-zero":      good + "\n## v0.017.0\n",
 		"current-after-older-version":     strings.Replace(good, heading, "## v0.16.9\n\n"+heading, 1),
 		"unknown-current-boundary":        current + "\n## Release notes\nCoverage is replay-safe.\n" + history,
 		"fenced-current-heading":          strings.Replace(good, heading, "```markdown\n"+heading+"\n```", 1),
@@ -765,6 +817,19 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	}
 	if err := validate(current + history + "\nCoverage is replay-safe.\n"); err != nil {
 		t.Fatalf("genuinely older release prose became current authority: %v", err)
+	}
+	for _, older := range []string{"0.16.99", "0.9.0", "0.0.0"} {
+		if err := validate(current + "\n## v" + older + "\nCoverage is replay-safe.\n"); err != nil {
+			t.Fatalf("numeric older-version boundary %s rejected: %v", older, err)
+		}
+	}
+	for _, olderHeading := range []string{
+		"## v0.5.3 — Shadow Accept Accounting Fixes (Tranche C3)",
+		"## v0.4.1 and earlier",
+	} {
+		if err := validate(current + history + "\n" + olderHeading + "\nCoverage is replay-safe.\n"); err != nil {
+			t.Fatalf("existing older notes after a real history boundary rejected: %v", err)
+		}
 	}
 }
 

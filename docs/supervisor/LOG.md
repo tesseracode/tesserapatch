@@ -1,3 +1,37 @@
+## Revision Delivery — v0.17.0 boundary corrections — 2026-09-19
+
+**State**: authored; static re-review pending; local validation resource-blocked
+
+Selected-version candidates are recognized broadly enough to reject linked/
+malformed duplicates after history. Historical versions compare numeric triplets
+and must be strictly older, including headings encountered after history begins.
+Equal, newer, and overflow versions refuse; malformed newer headings cannot
+be ignored by the default branch. Existing older undated notes remain supported
+after a genuine historical boundary, not as a way to end current guidance.
+
+Added exact review cases plus minor/patch/major/late-newer, overflow, numeric
+equality, and real older-format controls. Formatting is complete; no Go test
+has run and no runtime red proof is claimed. The failure sentinel is preserved.
+
+## Review and Resource Blocker — v0.17.0 candidate parity — 2026-09-19
+
+**Reviewer**: `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`
+**Checkpoint**: `e94b6f4`
+**Verdict**: NEEDS REVISION (static only)
+
+Two MEDIUM boundary escapes remain: a linked duplicate current heading
+`## [v0.17.0](#release)` after history is not recognized as a current candidate,
+and any other version (including newer v0.18.0) can receive the historical
+exemption. Broaden candidate recognition before strict syntax validation and
+require strictly older numeric release versions for all historical headings.
+Add exact wrong-input cases before/after history, retaining old controls.
+
+The first local resource gate separately exhausted 600 seconds at 57-61% free,
+load1 <=5 and no active Go tools. Exit 75 occurred before even the formatting
+check, so no test/vet/build/version smoke command ran. This is not a test result
+or a red reproduction. Fix/re-review statically while preserving the resource
+blocker; no tag/publication.
+
 ## Implementation Transition — v0.17.0 candidate parity — 2026-09-19
 
 **State**: authored; review and gated validation pending
