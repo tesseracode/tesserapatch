@@ -1,3 +1,33 @@
+## Review — v0.17.0 corrected release boundaries — 2026-09-19
+
+**Reviewer**: `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`
+**Reviewed source**: `d0c63398a414de12e8856e20cd102b8f6b29942a`
+**Verdict**: APPROVED (static only; no significant issues reported)
+
+Both linked-current and newer-version boundary findings are closed in the
+reviewed correction. Candidate notes retain the explicit unpublished status
+and the current v0.17.0 contract/disclosure remains in scope. No reviewer Go
+command or runtime validation was performed.
+
+**Action**: persist/push reviewed preparation. Local gate remains resource-
+blocked and no test, version smoke, full suite or final gate is claimed.
+The reviewed candidate is not yet tag-ready; publication remains unauthorized.
+
+## Checkpoint — v0.17.0 pre-tag resource blocker — 2026-09-19
+
+**Candidate source**: `d0c6339`
+**State**: local validation BLOCKED; static re-review pending
+
+Latest memory is 62%, still below the unchanged threshold. The prior attempt
+ran no Go command. Four owned helper scripts and the failure sentinel remain
+under ignored `bin/v017-validation/` for a future authorized retry. Tag-free
+version smoke and final close validation are pending, not inferred from S6.
+
+**Action**: persist/push candidate notes and exact-version guard corrections
+with honest tracking. No runtime/installed assets/historical oracle/CI command
+changes; the thirteen research files remain untouched and every commit has the
+required trailer. No tag or release publication is authorized or performed.
+
 ## Revision Delivery — v0.17.0 boundary corrections — 2026-09-19
 
 **State**: authored; static re-review pending; local validation resource-blocked

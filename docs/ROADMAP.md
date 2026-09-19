@@ -1638,6 +1638,12 @@ blocked and no candidate readiness or tag is claimed.
 Both boundary fixes and concrete negative/older-format positive controls are
 authored. Numeric historical ordering preserves existing older undated notes;
 re-review remains pending and the resource timeout is not a test result.
+The corrected preparation checkpoint is being pushed with local validation
+blocked (latest memory 62%) and re-review pending. No tag/publication or
+completed version smoke is claimed; the release-preparation gate remains owed.
+Independent re-review now reports no significant issues through `d0c6339`.
+Candidate notes/parity are statically approved; resource-gated execution,
+version smoke and full local/native gates still precede tag readiness.
 
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.

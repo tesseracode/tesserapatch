@@ -4,6 +4,22 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep static review complete (2026-09-19)**: reviewer
+`8d2063c0-bf26-4d46-892a-cb2560fd4c1a` reports no significant issues through
+`d0c6339`; both boundary findings are closed. Candidate notes and guards are
+prepared and reviewed. Local validation is still resource-blocked: no test,
+version smoke or final gate has run. This is not tag readiness or permission
+to publish; remaining validation must complete first.
+
+**Release-prep validation BLOCKED (2026-09-19)**: candidate source is checkpointed
+through `d0c6339`, with boundary corrections under independent re-review.
+The first fresh resource gate timed out before any validation command; latest
+memory remains 62%. Candidate notes and controls are prepared, but the build
+version smoke, test suites and final gate are not complete. Preserve the failure
+sentinel until an authorized retry. No tag or release exists from this work.
+Push the honest candidate checkpoint so the preparation survives interruption;
+hosted results do not substitute for the pending local release-prep gate.
+
 **Release-prep boundary corrections authored (2026-09-19)**: selected-version
 recognition now catches linked/malformed duplicate candidates before strict
 heading validation. Historical headings must have a strictly older numeric
@@ -3694,7 +3710,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: In progress — pre-tag preparation only; publication not authorized
+- **Status**: Blocked — local resource admission; candidate prepared and statically reviewed
 - **Assigned**: 2026-09-19
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -11554,19 +11570,23 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Prepare dated candidate notes and retain current v0.17.0 changelog authority/
-   editor-exit parity with mutation controls. Do not mark the candidate shipped.
-2. Run resource-gated focused/full validation, version smoke, independent review
-   and hosted CI; final close gate uses the fresh release-preparation WAVE_BASE.
-   Create/push no tag without subsequent explicit publication authorization.
+1. Static review through `d0c6339` is complete. After resources recover, clear only
+   the owned failed sentinel and restart local release-prep validation from
+   formatting/full assets/RGA+compatibility targets, then vet/build/version smoke.
+2. Run complete CI-equivalent shards and the final gate using release-prep
+   WAVE_BASE `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`, with native CI and review
+   evidence on the final source. The tag-free version smoke uses existing
+   `make build VERSION=v0.17.0 BINARY=bin/v017-validation/tpatch-version` and
+   checks exact output `tpatch v0.17.0`. Do not tag/publish without authorization.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- Initial memory is 60%, below the mandatory Go-validation threshold.
-  Preparation can proceed; runtime validation must await its full resource window.
+- Local admission is blocked: first 600-second attempt at 57-61% never
+  qualified; latest free memory is 62%. No Go validation or version smoke ran.
+  Boundary corrections are statically approved, but the candidate is not tag-ready.
 
 - No S6 implementation, review, validation or cleanup blocker remains.
   Earlier resource stops, test failures and disclosure omissions are resolved;
