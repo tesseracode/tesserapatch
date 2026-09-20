@@ -1652,6 +1652,9 @@ The hosted failure is reproduced locally under fresh gates. A test-only fix
 now pins the prepare contract to its v0.16.0 owner, with duplicate/borrowed/
 missing-owner controls and the old lifecycle fixtures retained. Focused
 validation/review follow; no production or historical-note change.
+Corrected ownership/lifecycle/current-authority/soak targets now PASS at
+`2cd24f0`. Broader compatibility, vet/build/version smoke and independent review
+are next; full local/native readiness and explicit tag authorization remain.
 
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.

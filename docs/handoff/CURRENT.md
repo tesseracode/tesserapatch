@@ -4,6 +4,17 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep corrected targets PASS (2026-09-20)**: formatting and all selected
+authority, historical changelog lifecycle/ownership and RGA S6 soak/delta tests
+pass at `2cd24f0` (assets 2.247s, CLI 7.244s). The previously failing deleted-
+heading control now rejects misattributed history while all old requirements
+remain. Both commands qualified fresh 87%-free resource windows.
+
+Proceed with full assets, broader CLI compatibility targets, vet/build and
+the tag-free `VERSION=v0.17.0` smoke check, serially stopping at first failure.
+Independent correction review and new hosted CI remain required. No production
+code changed and no tag is created.
+
 **Historical heading failure reproduced; correction authored (2026-09-20)**:
 fresh-gated formatting passed and the exact hosted missing-heading test failed
 locally as expected (0.405s, false acceptance of migrated anchors). The prepare
@@ -5422,6 +5433,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Corrected September 20 targets PASS at `2cd24f0`: formatting clean, assets
+  2.247s/CLI 7.244s, including exact red-to-green heading case, new ownership
+  mutations, retained RGA/authority controls and cumulative soak. Fresh 87%
+  resource windows qualified. Later compatibility/vet/build/smoke/full gates
+  and correction review/native CI remain.
 
 - September 20 red proof: fresh formatting gate PASS, targeted old
   `TestS6ChangelogCompletenessSensitivity/dropped-heading` FAIL as expected

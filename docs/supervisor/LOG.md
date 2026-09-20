@@ -1,3 +1,18 @@
+## Targeted Result — v0.17.0 historical owner fix — 2026-09-20
+
+**Checkpoint**: `2cd24f0`
+**Result**: formatting and affected new/old targets PASS
+
+Assets 2.247s and CLI 7.244s pass with fresh 87%-free gates. The exact hosted
+dropped-heading case now rejects wrong ownership, and new borrowed/duplicate/
+missing-owner cases pass alongside retained lifecycle/D1-D13 controls,
+versioned authority guards and the cumulative soak. Runtime remains unchanged.
+
+**Action**: checkpoint/push the corrected candidate, request independent readonly
+review, and continue full assets/broader CLI compatibility, vet/build and an
+exact-output version smoke without tagging. Do not treat older failed hosted
+CI as current evidence; require a completed corrected-source run before closing.
+
 ## Reproduction and Correction — historical changelog ownership — 2026-09-20
 
 **Red checkpoint**: `0d30281` (test source unchanged from hosted failure)
