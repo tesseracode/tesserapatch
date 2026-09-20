@@ -9989,3 +9989,75 @@ must deliberately retain current-guidance coverage when moving Unreleased
 notes; it must not make the newly released contract an unchecked historical
 exception. GH #24 remains planning only. GH #13 still requires the separate
 ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0.
+
+---
+
+# 2026-09-20 — v0.17.0 pre-tag preparation — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `prepare-release-v0-17-0`
+- **Assigned**: 2026-09-19
+- **Status**: preparation ACCEPTED; terminal push/cleanup pending hosted completion
+- **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
+- **Validated/pushed range**:
+  `c2733e6997714ac20ab9cc1abe5f4c6207285ca1..103d22a1051008be1d98a69ecdb3a067093daf9b`
+- **Authorization**: pre-tag steps only; no tag or GitHub Release created
+
+## Work and Boundaries
+
+Candidate changelog notes are dated September 19 and explicitly describe
+preparation, not publication. README/SPEC labels agree. The public parity
+guard now selects the exact v0.17.0 contract rather than treating its graduated
+heading as exempt history. Old Unreleased controls remain on the same parser.
+Selected-version duplicates/linked headings and non-older history candidates
+refuse; current disclosure/overclaims remain tested, not satisfied from history.
+
+Independent review caught linked current-heading and newer-version historical
+escapes; both were corrected and reviewed. Hosted CI then caught an existing
+prepare completeness guard whose maximum-anchor heuristic let a deleted
+v0.16.0 heading transfer its anchors into v0.17.0. The exact failing sensitivity
+was reproduced red before correction. Real validation now pins the prepare
+owner to v0.16.0; the shared selector retains pre-release, in-flight, graduated
+and multi-digit lifecycle fixtures. Competing/duplicate/missing owners cannot
+borrow complete prose from another release, and all D1-D13 checks remain.
+
+Changed files: CHANGELOG, README, SPEC, `assets/recipe_authority_parity_test.go`,
+the changelog helper/fixtures in `internal/cli/prepare_s6_contract_test.go`, and
+tracking. No production Go, installed skills, historical notes/oracle,
+dependencies, CI commands or allowlist changed. Thirteen unrelated research
+files remain untouched. An accidental 84-line S6 log deletion was restored
+after confirming zero added reviewer lines and obtaining operator direction.
+
+## Validation and Review
+
+- Initial resource gate timed out before any Go command at 57-61% free;
+  it was not counted as a validation result or red proof.
+- September 20 retry reproduced the actual native `dropped-heading` failure
+  (CLI 0.405s), then passed the corrected old/new tests.
+- Focused assets/CLI checks pass (2.247s/7.244s); full assets and broader
+  compatibility pass (2.213s/264.865s). Vet and normal CLI build pass.
+- Existing `make build VERSION=v0.17.0` with an isolated ignored output path
+  produces exactly `tpatch v0.17.0`; no tag or global install is required.
+- The complete standalone partition passes 22/22 invocations and 38 package
+  rows: main CLI 629.295s/workflow 102.160s. Fresh 87-88%-free gates qualify.
+- Final explicit-base gate at `103d22a`: **8/8 PASS**, no warnings, including
+  its own full fresh partition. Thresholds, selectors and timeouts unchanged.
+- Independent review: initial boundary findings NEEDS REVISION → corrected
+  boundaries APPROVED at `d0c6339`; hosted ownership correction APPROVED
+  through `3134b9e`. All reported findings are closed.
+- Corrected-source hosted run `35527229013` completes SUCCESS at `3134b9e`,
+  all five required jobs passing. Gate-head run `35530925430` is preserved
+  until completion before terminal documentation push.
+
+## Close and Next Steps
+
+Preparation is accepted, not shipped. Terminal changes are tracking-only;
+owned ignored validation helpers/logs and the version-smoke binary are removed
+after the gate-head watcher completes. No test/source change follows the gate.
+
+Creating/pushing v0.17.0 and publishing the GitHub Release require separate
+explicit authorization. Keep candidate/published wording truthful and retain
+both current and historical contract guards when release metadata is finalized.
+GH #13 remains gated by shipped GH #15/v0.17.0 and its ADR-041 planning follow-up;
+GH #24 remains separate planning.

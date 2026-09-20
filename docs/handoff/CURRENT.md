@@ -2,7 +2,22 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
+
+**v0.17.0 pre-tag preparation ACCEPTED (2026-09-20)**: the final gate exits 0
+at pushed `103d22a1051008be1d98a69ecdb3a067093daf9b`: **8/8 PASS**, no warnings,
+including its own fresh full partition. Separate 22/22 shards, targeted tests,
+vet/build, exact tag-free version smoke and independent correction review pass.
+Corrected-source native run `35527229013` is green.
+
+The preparation archive is appended to HISTORY. Closing changes are tracking-
+only. Preserve gate-head run `35530925430` until it finishes, then remove only
+owned validation helpers/logs/smoke binary and push the terminal record.
+Candidate notes still explicitly reserve publication authorization. No v0.17.0
+tag or GitHub Release was created; accepted preparation is not permission to
+publish. Historical notes/oracle, runtime, CI commands and research are unchanged.
+
+### Release-preparation execution history (superseded)
 
 **v0.17.0 pre-tag candidate approved for final gate (2026-09-20)**:
 the complete script passes 22/22 invocations and 38 package-result rows
@@ -3774,7 +3789,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: Approved for final gate — full local/native candidate evidence passes; no tag authorization
+- **Status**: Complete — preparation accepted; terminal cleanup/push pending; no tag authorization
 - **Assigned**: 2026-09-19
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3782,6 +3797,13 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
+
+The corrected pre-tag candidate passed the complete final 8/8 gate at
+`103d22a`. The shared current-version guard and owner-pinned historical guard
+are independently reviewed and validated; version stamping prints exactly
+`tpatch v0.17.0` without a tag. Preparation is archived now. Terminal cleanup/
+push waits for gate-head hosted completion to avoid cancellation; publication
+remains a separate operator action.
 
 The corrected candidate's full script and native CI now pass. Main CLI
 629.295s/workflow 102.160s and every isolated shard completed, with 22 fresh
@@ -4805,6 +4827,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Terminal preparation close: CURRENT/HISTORY/ROADMAP/LOG only. No source,
+  docs contract, test or CI-command change follows the passing gate.
+  Owned ignored helpers/logs/smoke binary are removed at final durability close.
+
 - Release preparation: CHANGELOG, README, SPEC,
   `assets/recipe_authority_parity_test.go`, CURRENT/ROADMAP/LOG.
   Four ignored validation helpers are owned under `bin/v017-validation/`.
@@ -5470,6 +5496,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Final preparation gate PASS at `103d22a1051008be1d98a69ecdb3a067093daf9b`:
+  **8/8**, no warnings, including its own fresh 22-invocation partition.
+  Separate full script 22/22, targeted/compatibility/vet/build and exact version
+  smoke pass. Current-source hosted CI and independent review are complete.
+  No tag or production behavior change was needed to obtain this evidence.
 
 - Full release-prep script PASS: 22/22 invocations, 38 `ok` rows,
   main CLI 629.295s/workflow 102.160s, fresh 87-88%-free gates.
@@ -11674,33 +11706,34 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Run the final gate with release-prep WAVE_BASE
-   `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`, retaining fresh gates and its own
-   complete partition. Targeted/full-script/native/review/version smoke pass.
-2. Archive preparation and clean only owned helpers after the final gate
-   succeeds. Do not create/push a tag or publish without explicit authorization.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
+1. Preserve gate-head hosted run `35530925430` to completion, then remove owned
+   helpers/logs/smoke binary and push this terminal tracking. Preparation is
+   validated; no extra feature work is part of the close.
+2. Obtain explicit authorization before creating/pushing v0.17.0 or publishing.
+   Keep candidate-versus-published wording truthful; validate any later
+   release-metadata adjustment without weakening current/historical guards.
+3. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No implementation/review/resource/native-CI blocker remains on the corrected
-  candidate. Final gate completion is pending; older blockers below are historical.
-
-- Local admission is blocked: first 600-second attempt at 57-61% never
-  qualified; latest free memory is 62%. No Go validation or version smoke ran.
-  Boundary corrections are statically approved, but the candidate is not tag-ready.
-
-- No S6 implementation, review, validation or cleanup blocker remains.
-  Earlier resource stops, test failures and disclosure omissions are resolved;
-  exact-checkpoint hosted CI and the full local gate pass.
+- No preparation implementation/review/validation blocker remains. Terminal
+  cleanup/push preserves the in-flight gate-head CI run. Publication awaits
+  separate explicit authorization; prior resource/guard failures are resolved.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and
   the separate ADR-041 section-7 planning follow-up.
 
 ## Context for Next Agent
+
+- Accepted release-prep WAVE_BASE is `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`;
+  final gate passes at `103d22a`. No v0.17.0 tag/release is authorized yet.
+  Candidate labels and notes intentionally say not yet published. The current
+  changelog guard pins v0.17.0 while the historical prepare guard pins v0.16.0;
+  do not restore the old content-based or Unreleased-only selection shortcuts.
+  Owned `bin/v017-validation/` helpers/logs/smoke binary await final cleanup.
 
 - Accepted S6 WAVE_BASE is `c7b0b8cb67d38a90e454d402796ba4b2168d2629`;
   final gate passes at `c5052ea`. Release preparation needs its own assignment/

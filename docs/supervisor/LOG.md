@@ -1,3 +1,22 @@
+## Acceptance — v0.17.0 pre-tag preparation — 2026-09-20
+
+**Task**: `prepare-release-v0-17-0`
+**WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
+**Gate checkpoint**: `103d22a1051008be1d98a69ecdb3a067093daf9b`
+**Verdict**: preparation ACCEPTED; no tagging/publication authorization
+
+Final gate exits 0 with **8/8 PASS**, no warnings: clean tree, thirteen
+allowlisted files, pushed HEAD, nine correct trailers, one terminal field,
+formatting/vet/build and its own full fresh 22-invocation partition. Separate
+full shards, current/historical guard sensitivities, compatibility, version
+smoke and independent correction review pass. Native corrected-source run
+`35527229013` is green; no runtime/source-body change occurred during validation.
+
+**Action**: archive preparation to HISTORY and set CURRENT/ROADMAP ACCEPTED.
+Preserve gate-head CI `35530925430` before terminal tracking push, then remove
+only owned helpers/logs/smoke binary. Candidate remains explicitly unpublished;
+no tag/release or GH #13/GH #24 implementation is authorized by this acceptance.
+
 ## Final-Gate Dispatch — v0.17.0 pre-tag candidate — 2026-09-20
 
 **Validated source**: `3134b9e` (historical guard correction `2cd24f0`)

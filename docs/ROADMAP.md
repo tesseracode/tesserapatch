@@ -1619,8 +1619,18 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**v0.17.0 ✅ PREPARATION APPROVED — FINAL GATE PENDING — 2026-09-20**.
+**v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.
+**Validated/pushed range**:
+`c2733e6997714ac20ab9cc1abe5f4c6207285ca1..103d22a1051008be1d98a69ecdb3a067093daf9b`.
+Final gate **8/8 PASS**, no warnings; independent review, native corrected-source
+CI, separate full shards and exact tag-free version smoke pass. Preparation is
+archived in HISTORY; closing changes are tracking-only. Gate-head native CI
+is preserved before terminal cleanup/push. No tag/publication is authorized;
+v0.17.0 remains an unpublished candidate.
+
+Earlier gate-preparation record:
+
 Corrected-source hosted run `35527229013` passes all five required jobs;
 the complete local script passes 22/22 invocations with fresh gates.
 Targeted/compatibility/vet/build/version smoke and independent review pass.
