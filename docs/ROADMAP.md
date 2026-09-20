@@ -1625,8 +1625,9 @@ undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 `c2733e6997714ac20ab9cc1abe5f4c6207285ca1..103d22a1051008be1d98a69ecdb3a067093daf9b`.
 Final gate **8/8 PASS**, no warnings; independent review, native corrected-source
 CI, separate full shards and exact tag-free version smoke pass. Preparation is
-archived in HISTORY; closing changes are tracking-only. Gate-head native CI
-is preserved before terminal cleanup/push. No tag/publication is authorized;
+archived in HISTORY; closing changes are tracking-only. Gate-head native run
+`35530925430` passed all five required jobs at exact checkpoint `103d22a`;
+owned helpers/logs/smoke binary are removed. No tag/publication is authorized;
 v0.17.0 remains an unpublished candidate.
 
 Earlier gate-preparation record:

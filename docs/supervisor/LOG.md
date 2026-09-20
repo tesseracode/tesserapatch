@@ -1,3 +1,24 @@
+## Close — v0.17.0 pre-tag preparation — 2026-09-20
+
+**Verdict**: preparation ACCEPTED — validation and cleanup complete
+**Validated range**:
+`c2733e6997714ac20ab9cc1abe5f4c6207285ca1..103d22a1051008be1d98a69ecdb3a067093daf9b`
+
+Hosted run
+[35530925430](https://github.com/tesseracode/tesserapatch/actions/runs/35530925430)
+completed SUCCESS at the exact 8/8 gate checkpoint. All five required jobs
+passed and release was skipped; the run was not cancelled for closing docs.
+The existing Windows full-suite allowed-failure surface is distinct from
+required-job success.
+
+**Action taken**: archive complete, CURRENT has one ACCEPTED field and complete
+task, ROADMAP records the validated range. Four owned helper scripts, seven
+logs, one isolated version-smoke binary and empty directories are removed.
+Only terminal tracking changed after the validated checkpoint; runtime,
+installed skills, historical oracle/notes, CI and thirteen research files stay
+unchanged. Commit/push this close. No v0.17.0 tag or GitHub Release was created;
+publication still requires explicit operator authorization.
+
 ## Acceptance — v0.17.0 pre-tag preparation — 2026-09-20
 
 **Task**: `prepare-release-v0-17-0`

@@ -9998,7 +9998,7 @@ ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0.
 
 - **Task ID**: `prepare-release-v0-17-0`
 - **Assigned**: 2026-09-19
-- **Status**: preparation ACCEPTED; terminal push/cleanup pending hosted completion
+- **Status**: preparation ACCEPTED — exact-checkpoint local/native validation and cleanup complete
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Validated/pushed range**:
   `c2733e6997714ac20ab9cc1abe5f4c6207285ca1..103d22a1051008be1d98a69ecdb3a067093daf9b`
@@ -10047,14 +10047,15 @@ after confirming zero added reviewer lines and obtaining operator direction.
   boundaries APPROVED at `d0c6339`; hosted ownership correction APPROVED
   through `3134b9e`. All reported findings are closed.
 - Corrected-source hosted run `35527229013` completes SUCCESS at `3134b9e`,
-  all five required jobs passing. Gate-head run `35530925430` is preserved
-  until completion before terminal documentation push.
+  all five required jobs passing. Gate-head run `35530925430` also completes
+  SUCCESS on exact validated `103d22a`, all five required jobs passing and
+  release skipped, without cancellation for the terminal documentation push.
 
 ## Close and Next Steps
 
 Preparation is accepted, not shipped. Terminal changes are tracking-only;
-owned ignored validation helpers/logs and the version-smoke binary are removed
-after the gate-head watcher completes. No test/source change follows the gate.
+four owned ignored helper scripts, seven logs, the version-smoke binary and
+empty directories are removed. No test/source change follows the gate.
 
 Creating/pushing v0.17.0 and publishing the GitHub Release require separate
 explicit authorization. Keep candidate/published wording truthful and retain
