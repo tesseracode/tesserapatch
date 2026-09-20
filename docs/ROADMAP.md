@@ -1655,6 +1655,9 @@ validation/review follow; no production or historical-note change.
 Corrected ownership/lifecycle/current-authority/soak targets now PASS at
 `2cd24f0`. Broader compatibility, vet/build/version smoke and independent review
 are next; full local/native readiness and explicit tag authorization remain.
+Broader assets/CLI compatibility, vet/build and exact-output version smoke now
+PASS; independent correction review reports no remaining issue. Full shards
+and the explicit-base final gate begin next. No tag/publication is authorized.
 
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.

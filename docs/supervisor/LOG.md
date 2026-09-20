@@ -1,3 +1,20 @@
+## Review and Validation — v0.17.0 corrected pre-tag candidate — 2026-09-20
+
+**Reviewer**: `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`
+**Reviewed range**: `0f86fac..3134b9e` (test-only correction `2cd24f0`)
+**Verdict**: APPROVED (static review; no significant issues)
+
+Full assets pass (2.213s), broader RGA/PIB/AP CLI checks pass (264.865s), and
+vet/build pass. The existing Makefile builds a separate ignored smoke binary
+with `VERSION=v0.17.0`; its output is exactly `tpatch v0.17.0`. No tag or
+global installation was needed. Every command qualified a fresh 87-88%-free
+resource minute. The reviewer ran no Go commands.
+
+**Action**: checkpoint locally and run the unchanged complete 22-invocation
+script, followed by the fresh explicit-base final gate. Require corrected-source
+native CI; preserve in-flight runs before tracking-only pushes. No production,
+historical notes, publication authorization or resource-policy change.
+
 ## Targeted Result — v0.17.0 historical owner fix — 2026-09-20
 
 **Checkpoint**: `2cd24f0`

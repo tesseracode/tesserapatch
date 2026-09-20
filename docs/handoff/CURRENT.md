@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep compatibility/version PASS; correction review complete (2026-09-20)**:
+full assets (2.213s), broader RGA/PIB/AP CLI targets (264.865s), vet and CLI
+build pass. A fresh-gated tag-free `make build VERSION=v0.17.0` smoke produces
+exactly `tpatch v0.17.0`. Independent reviewer `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`
+reports no significant issues in the historical-owner correction through
+`3134b9e`. All windows qualified at 87-88% free, with no relaxed thresholds.
+
+Start the unchanged full 22-invocation script, then the explicit release-prep
+final gate. Current-source native CI must complete successfully; the prior
+`0f86fac` failed run is not reused. Do not cancel an in-flight native run for
+documentation-only progress commits. No tag or publication is authorized.
+
 **Release-prep corrected targets PASS (2026-09-20)**: formatting and all selected
 authority, historical changelog lifecycle/ownership and RGA S6 soak/delta tests
 pass at `2cd24f0` (assets 2.247s, CLI 7.244s). The previously failing deleted-
@@ -3749,7 +3761,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: In progress — resource retry; hosted historical-changelog guard correction
+- **Status**: In progress — compatibility/version smoke and correction review pass; full validation next
 - **Assigned**: 2026-09-19
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3757,6 +3769,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
+
+The historical-owner regression is corrected and independently reviewed.
+Full assets/broader compatibility and vet/build pass; exact release-version
+stamping is now proved using the existing Makefile override without creating
+a tag. Continue the established full shard/final-gate protocol on immutable
+test/doc source. All production code and old release notes remain unchanged.
 
 September 20 retry revealed completed hosted failures on both native Unix
 jobs in an existing changelog completeness sensitivity. The new versioned
@@ -5433,6 +5451,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 20 broader checks PASS: assets 2.213s, CLI compatibility 264.865s,
+  vet/build clean. Tag-free version smoke prints exactly `tpatch v0.17.0`.
+  Independent static correction review reports no significant issues.
+  Fresh 87-88%-free windows qualified per command. Full shards/final gate
+  and corrected-source native completion remain required.
 
 - Corrected September 20 targets PASS at `2cd24f0`: formatting clean, assets
   2.247s/CLI 7.244s, including exact red-to-green heading case, new ownership
