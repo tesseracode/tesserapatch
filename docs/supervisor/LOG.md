@@ -1,3 +1,20 @@
+## Final-Gate Dispatch — v0.17.0 pre-tag candidate — 2026-09-20
+
+**Validated source**: `3134b9e` (historical guard correction `2cd24f0`)
+**WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
+**State**: APPROVED for the preparation gate; publication not authorized
+
+Complete script PASS: 22/22 invocations, 38 package-result rows, main CLI
+629.295s/workflow 102.160s. Each command qualified a fresh 87-88%-free window.
+Hosted run `35527229013` completes SUCCESS on all five required jobs at the
+corrected source; release is skipped. Review, targeted/compatibility tests,
+vet/build and exact version-output smoke are also complete.
+
+**Action**: push the final-gate tracking checkpoint, then execute the explicit
+release-prep base gate with fresh formatting/vet/build and its own complete
+test partition. Archive/close preparation only after success. No production
+change, historical-note rewrite, release or tag is included.
+
 ## Review and Validation — v0.17.0 corrected pre-tag candidate — 2026-09-20
 
 **Reviewer**: `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`

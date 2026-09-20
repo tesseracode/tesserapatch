@@ -1619,8 +1619,15 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**v0.17.0 🚧 RELEASE PREPARATION — 2026-09-19**.
+**v0.17.0 ✅ PREPARATION APPROVED — FINAL GATE PENDING — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.
+Corrected-source hosted run `35527229013` passes all five required jobs;
+the complete local script passes 22/22 invocations with fresh gates.
+Targeted/compatibility/vet/build/version smoke and independent review pass.
+Final explicit-base gate remains; this is not release/tag authorization.
+
+Earlier preparation record:
+
 Operator authorized pre-tag work only: dated candidate notes, retained current
 changelog contract/disclosure guards and review/validation of a tag candidate.
 No tag or release may be published without separate explicit authorization.

@@ -2,7 +2,20 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**v0.17.0 pre-tag candidate approved for final gate (2026-09-20)**:
+the complete script passes 22/22 invocations and 38 package-result rows
+(main CLI 629.295s, workflow 102.160s) with fresh 87-88%-free gates. All five
+required hosted jobs pass on corrected source `3134b9e` in run `35527229013`.
+Independent correction review, targeted checks, vet/build and exact-output
+`tpatch v0.17.0` smoke already pass. No source changed during full validation.
+
+Push terminal-token preparation tracking and run
+`make wave-close-check WAVE_BASE=c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
+through fresh internal resource gates. APPROVED records final-gate readiness,
+not completion or tag authorization. The gate must run its own full partition.
+No release/tag is created by this pre-tag task.
 
 **Release-prep compatibility/version PASS; correction review complete (2026-09-20)**:
 full assets (2.213s), broader RGA/PIB/AP CLI targets (264.865s), vet and CLI
@@ -3761,7 +3774,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: In progress — compatibility/version smoke and correction review pass; full validation next
+- **Status**: Approved for final gate — full local/native candidate evidence passes; no tag authorization
 - **Assigned**: 2026-09-19
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3769,6 +3782,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
+
+The corrected candidate's full script and native CI now pass. Main CLI
+629.295s/workflow 102.160s and every isolated shard completed, with 22 fresh
+admission windows. All five hosted jobs completed at `3134b9e`; its prior
+failure is resolved rather than ignored. The explicit-base final gate is the
+remaining preparation step and runs a separate fresh partition.
 
 The historical-owner regression is corrected and independently reviewed.
 Full assets/broader compatibility and vet/build pass; exact release-version
@@ -5451,6 +5470,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Full release-prep script PASS: 22/22 invocations, 38 `ok` rows,
+  main CLI 629.295s/workflow 102.160s, fresh 87-88%-free gates.
+  Hosted `35527229013` completes SUCCESS at `3134b9e`, all five required
+  jobs pass, release skipped. Final explicit-base gate still pending.
 
 - September 20 broader checks PASS: assets 2.213s, CLI compatibility 264.865s,
   vet/build clean. Tag-free version smoke prints exactly `tpatch v0.17.0`.
@@ -11650,19 +11674,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Static review through `d0c6339` is complete. After resources recover, clear only
-   the owned failed sentinel and restart local release-prep validation from
-   formatting/full assets/RGA+compatibility targets, then vet/build/version smoke.
-2. Run complete CI-equivalent shards and the final gate using release-prep
-   WAVE_BASE `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`, with native CI and review
-   evidence on the final source. The tag-free version smoke uses existing
-   `make build VERSION=v0.17.0 BINARY=bin/v017-validation/tpatch-version` and
-   checks exact output `tpatch v0.17.0`. Do not tag/publish without authorization.
+1. Run the final gate with release-prep WAVE_BASE
+   `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`, retaining fresh gates and its own
+   complete partition. Targeted/full-script/native/review/version smoke pass.
+2. Archive preparation and clean only owned helpers after the final gate
+   succeeds. Do not create/push a tag or publish without explicit authorization.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
+
+- No implementation/review/resource/native-CI blocker remains on the corrected
+  candidate. Final gate completion is pending; older blockers below are historical.
 
 - Local admission is blocked: first 600-second attempt at 57-61% never
   qualified; latest free memory is 62%. No Go validation or version smoke ran.
