@@ -4,6 +4,19 @@
 
 **Cluster state**: IN PROGRESS
 
+**Historical heading failure reproduced; correction authored (2026-09-20)**:
+fresh-gated formatting passed and the exact hosted missing-heading test failed
+locally as expected (0.405s, false acceptance of migrated anchors). The prepare
+contract resolver now selects its explicit v0.16.0 owner rather than whichever
+release contains the most anchor text. Its shared version-selecting core retains
+the pre-release/graduated/multi-digit fixture modes; real validation pins v0.16.0.
+Duplicate owners and borrowed newer/older/Unreleased anchors refuse.
+
+New same-validator controls prove newer complete prose cannot replace an
+incomplete owning section. Historical notes and all D1-D13 requirements are
+unchanged. This is a test-only root-cause correction, awaiting focused execution
+and review; no runtime or release publication change.
+
 **Release-prep resource retry and hosted regression (2026-09-20)**:
 the operator freed resources. HEAD/origin remain `0f86fac`, tracked state
 is clean, research unchanged. Initial memory is 87%, load1 1.60, no Go tools;
@@ -5409,6 +5422,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- September 20 red proof: fresh formatting gate PASS, targeted old
+  `TestS6ChangelogCompletenessSensitivity/dropped-heading` FAIL as expected
+  (CLI 0.405s), matching hosted logs. Both windows qualified at 87% free.
+  The revised owner-pinned resolver is authored but not yet validated.
 
 - First release-prep admission attempt: exit 75 after 600 seconds at 57-61%
   free, before formatting/test/vet/build/smoke. Independent review identified

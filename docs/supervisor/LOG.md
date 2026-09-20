@@ -1,3 +1,21 @@
+## Reproduction and Correction — historical changelog ownership — 2026-09-20
+
+**Red checkpoint**: `0d30281` (test source unchanged from hosted failure)
+**Result**: exact failure reproduced; test-only correction authored
+
+Fresh 87%-free windows admitted formatting and the targeted old sensitivity.
+Formatting passed; `dropped-heading` fails with the same false-accept text as
+native CI (CLI 0.405s). No later stage ran. The old maximum-anchor heuristic
+is replaced with explicit contract-version selection: production-of-the-test
+path pins prepare to v0.16.0; shared-core fixtures retain Unreleased, in-flight,
+graduated and multi-digit versions without allowing another release to own it.
+
+All old D1-D13 checks remain. New wrong-input cases reject borrowed anchors
+from newer/older/Unreleased sections, duplicate owners and empty ownership.
+A competing newer section carrying every anchor cannot fill an owner's missing
+anchor. Historical CHANGELOG bytes and runtime source are unchanged.
+Checkpoint the correction, then targeted tests/review before broader validation.
+
 ## Validation Retry — v0.17.0 historical guard regression — 2026-09-20
 
 **Baseline**: `0f86face2f1c1041acdcd2a012d7d3aa37355580`

@@ -1779,11 +1779,11 @@ var (
 // s6ChangelogReleaseHeading is the canonical dated release heading `## Unreleased`
 // graduates into. The scope segment must be present and non-blank.
 var s6ChangelogReleaseHeading = regexp.MustCompile(
-	`^## v[0-9]+\.[0-9]+\.[0-9]+ — [0-9]{4}-[0-9]{2}-[0-9]{2} — \S.*$`,
+	`^## v([0-9]+\.[0-9]+\.[0-9]+) — [0-9]{4}-[0-9]{2}-[0-9]{2} — \S.*$`,
 )
 
 var s6ChangelogInFlightHeading = regexp.MustCompile(
-	`^## v[0-9]+\.[0-9]+\.[0-9]+ \(unreleased\) — \S.*$`,
+	`^## v([0-9]+\.[0-9]+\.[0-9]+) \(unreleased\) — \S.*$`,
 )
 
 type s6ChangelogDelta struct {
@@ -1791,7 +1791,7 @@ type s6ChangelogDelta struct {
 	anchor string
 }
 
-// s6ChangelogDeltas is the D1–D13 anchor set the first changelog section must
+// s6ChangelogDeltas is the D1–D13 anchor set the owning changelog section must
 // carry, whether that section is still `## Unreleased` or has graduated.
 func s6ChangelogDeltas() []s6ChangelogDelta {
 	return []s6ChangelogDelta{
@@ -1811,9 +1811,14 @@ func s6ChangelogDeltas() []s6ChangelogDelta {
 	}
 }
 
-// s6ChangelogContractSection returns the section carrying this wave's D1-D13
-// anchors. This survives both graduation and a later empty Unreleased section.
+// Pin the released prepare contract, so a missing heading cannot move its
+// anchors under a newer release and silently transfer ownership.
 func s6ChangelogContractSection(body string) (string, string, error) {
+	return s6ChangelogContractSectionForVersion(body, "0.16.0")
+}
+
+// An empty version selects Unreleased for the retained pre-release fixtures.
+func s6ChangelogContractSectionForVersion(body, version string) (string, string, error) {
 	lines := strings.Split(body, "\n")
 	title := -1
 	for index, line := range lines {
@@ -1834,32 +1839,35 @@ func s6ChangelogContractSection(body string) (string, string, error) {
 	if len(headings) == 0 {
 		return "", "", errS6ChangelogNoSection
 	}
-	bestHeading := ""
-	bestSection := ""
-	bestCount := 0
+	selectedHeading := ""
+	selectedSection := ""
 	for position, heading := range headings {
 		end := len(lines)
 		if position+1 < len(headings) {
 			end = headings[position+1]
 		}
 		section := strings.Join(lines[heading+1:end], "\n")
-		count := len(s6ChangelogDeltas()) -
-			len(s6ChangelogMissingDeltaAnchors(section))
-		if count > bestCount {
-			if lines[heading] != "## Unreleased" &&
-				!s6ChangelogInFlightHeading.MatchString(lines[heading]) &&
-				!s6ChangelogReleaseHeading.MatchString(lines[heading]) {
-				return "", "", fmt.Errorf("%w: %q", errS6ChangelogHeading, lines[heading])
-			}
-			bestHeading = lines[heading]
-			bestSection = section
-			bestCount = count
+		dated := s6ChangelogReleaseHeading.FindStringSubmatch(lines[heading])
+		inFlight := s6ChangelogInFlightHeading.FindStringSubmatch(lines[heading])
+		unreleased := lines[heading] == "## Unreleased"
+		if !unreleased && dated == nil && inFlight == nil &&
+			len(s6ChangelogMissingDeltaAnchors(section)) != len(s6ChangelogDeltas()) {
+			return "", "", fmt.Errorf("%w: %q", errS6ChangelogHeading, lines[heading])
 		}
+		owns := version == "" && unreleased ||
+			version != "" && (dated != nil && dated[1] == version || inFlight != nil && inFlight[1] == version)
+		if !owns {
+			continue
+		}
+		if selectedHeading != "" {
+			return "", "", fmt.Errorf("%w: duplicate contract version %q", errS6ChangelogHeading, version)
+		}
+		selectedHeading, selectedSection = lines[heading], section
 	}
-	if bestCount == 0 {
+	if selectedHeading == "" || len(s6ChangelogMissingDeltaAnchors(selectedSection)) == len(s6ChangelogDeltas()) {
 		return "", "", errS6ChangelogNoDeltaSection
 	}
-	return bestHeading, bestSection, nil
+	return selectedHeading, selectedSection, nil
 }
 
 // s6ChangelogMissingDeltaAnchors reports the D-numbers whose anchor is absent
@@ -1897,15 +1905,16 @@ func TestS6ChangelogContractSectionResolver(t *testing.T) {
 	accepted := []struct {
 		name    string
 		heading string
+		version string
 	}{
-		{"unreleased", "## Unreleased"},
-		{"versioned-unreleased", "## v0.16.0 (unreleased) — intent-bundle preparation"},
-		{"graduated-release", "## v0.16.0 — 2026-09-04 — intent-bundle preparation"},
-		{"graduated-release-multi-digit", "## v10.20.30 — 2027-12-31 — a scope"},
+		{"unreleased", "## Unreleased", ""},
+		{"versioned-unreleased", "## v0.16.0 (unreleased) — intent-bundle preparation", "0.16.0"},
+		{"graduated-release", "## v0.16.0 — 2026-09-04 — intent-bundle preparation", "0.16.0"},
+		{"graduated-release-multi-digit", "## v10.20.30 — 2027-12-31 — a scope", "10.20.30"},
 	}
 	for _, accept := range accepted {
 		t.Run(accept.name, func(t *testing.T) {
-			heading, section, err := s6ChangelogContractSection(withHeading(accept.heading))
+			heading, section, err := s6ChangelogContractSectionForVersion(withHeading(accept.heading), accept.version)
 			if err != nil {
 				t.Fatalf("resolver refused %q: %v", accept.heading, err)
 			}
@@ -1984,6 +1993,49 @@ func TestS6ChangelogContractSectionResolver(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestS6ChangelogContractSectionOwnership(t *testing.T) {
+	body := s6RepoFile(t, "CHANGELOG.md")
+	heading, section, err := s6ChangelogContractSection(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const owner = "## v0.16.0 — 2026-08-31 — prepare intent bundles and archive retention"
+	if heading != owner || len(s6ChangelogMissingDeltaAnchors(section)) != 0 {
+		t.Fatalf("current prepare contract is not owned by v0.16.0: %q", heading)
+	}
+	for name, wrong := range map[string]string{
+		"all-anchors-under-newer-version": "# Changelog\n\n## v0.17.0 — 2026-09-19 — newer scope\n" + section,
+		"all-anchors-under-unreleased":    "# Changelog\n\n## Unreleased\n" + section,
+		"all-anchors-under-older-version": "# Changelog\n\n## v0.15.0 — 2026-08-11 — older scope\n" + section,
+		"duplicate-owning-heading":        body + "\n" + owner + "\n" + section,
+		"no-anchors-under-owner":          "# Changelog\n\n" + owner + "\nNo prepare contract here.\n\n## v0.17.0 — 2026-09-19 — newer scope\n" + section,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := s6ChangelogContractSection(wrong); err == nil {
+				t.Fatal("same prepare validator borrowed anchors from a different or duplicate release")
+			}
+		})
+	}
+	// All anchors in a competing newer section must not win over the owner,
+	// including when the owner loses one required anchor.
+	newer := "## v0.18.0 — 2026-10-01 — future scope\n" + section + "\n"
+	withNewer := strings.Replace(body, owner, newer+owner, 1)
+	gotHeading, gotSection, err := s6ChangelogContractSection(withNewer)
+	if err != nil || gotHeading != owner || gotSection != section {
+		t.Fatalf("newer duplicate prose changed ownership: %q %v", gotHeading, err)
+	}
+	delta := s6ChangelogDeltas()[0]
+	incomplete := strings.Replace(withNewer, owner+"\n"+section,
+		owner+"\n"+strings.Replace(section, delta.anchor, "", 1), 1)
+	if incomplete == withNewer {
+		t.Fatal("missing owning anchor fixture did not mutate")
+	}
+	_, gotSection, err = s6ChangelogContractSection(incomplete)
+	if err != nil || fmt.Sprint(s6ChangelogMissingDeltaAnchors(gotSection)) != fmt.Sprint([]string{delta.id}) {
+		t.Fatalf("other release supplied the owner's missing anchor: %v %v", s6ChangelogMissingDeltaAnchors(gotSection), err)
 	}
 }
 
