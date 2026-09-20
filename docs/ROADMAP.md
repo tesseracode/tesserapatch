@@ -1644,6 +1644,10 @@ completed version smoke is claimed; the release-preparation gate remains owed.
 Independent re-review now reports no significant issues through `d0c6339`.
 Candidate notes/parity are statically approved; resource-gated execution,
 version smoke and full local/native gates still precede tag readiness.
+September 20 resource retry starts at 87% free/load1 1.60/no Go tools. Hosted
+CI exposes the old prepare changelog guard crediting v0.17.0 after v0.16.0's
+heading is removed. Reproduce and fix that test-only ownership fallback while
+preserving the old contract/fixtures; candidate remains untagged/unapproved.
 
 **S6 ✅ ACCEPTED — PUBLIC PARITY AND SOAK — 2026-09-17**.
 **WAVE_BASE**: `c7b0b8cb67d38a90e454d402796ba4b2168d2629`.

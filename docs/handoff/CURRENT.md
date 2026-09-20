@@ -4,6 +4,21 @@
 
 **Cluster state**: IN PROGRESS
 
+**Release-prep resource retry and hosted regression (2026-09-20)**:
+the operator freed resources. HEAD/origin remain `0f86fac`, tracked state
+is clean, research unchanged. Initial memory is 87%, load1 1.60, no Go tools;
+fresh continuous gates are still required. Hosted run `35456908279` fails
+Ubuntu/macOS on `TestS6ChangelogCompletenessSensitivity/dropped-heading`.
+The old prepare guard chooses the section with most anchor matches: after
+removing v0.16.0's heading it wrongly credits the containing new v0.17.0
+section. This is a test-guard regression, not a runtime CLI defect.
+
+Reproduce that exact failure locally before repairing ownership selection.
+Preserve historical notes, all D1-D13 requirements and sensitivity cases.
+Existing unrelated newer sections must not become the owner of the v0.16.0
+prepare contract. No later validation stage runs after a failing reproduction
+until the correction is explicitly checkpointed. No tag/publication.
+
 **Release-prep static review complete (2026-09-19)**: reviewer
 `8d2063c0-bf26-4d46-892a-cb2560fd4c1a` reports no significant issues through
 `d0c6339`; both boundary findings are closed. Candidate notes and guards are
@@ -3710,7 +3725,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: Blocked — local resource admission; candidate prepared and statically reviewed
+- **Status**: In progress — resource retry; hosted historical-changelog guard correction
 - **Assigned**: 2026-09-19
 - **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
 - **Release target**: `v0.17.0`; tagging/publication requires separate authorization
@@ -3718,6 +3733,12 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
 
 ## Session Summary
+
+September 20 retry revealed completed hosted failures on both native Unix
+jobs in an existing changelog completeness sensitivity. The new versioned
+heading exposes the old resolver's content-based ownership fallback. Scope
+includes the directly coupled test resolver and its regression controls;
+runtime and historical documentation are unchanged.
 
 Both static boundary findings have code/fixture corrections. Direct inspection
 also preserved this repository's older undated v0.5.x and v0.4.1-and-earlier

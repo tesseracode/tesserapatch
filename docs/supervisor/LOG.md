@@ -1,3 +1,19 @@
+## Validation Retry — v0.17.0 historical guard regression — 2026-09-20
+
+**Baseline**: `0f86face2f1c1041acdcd2a012d7d3aa37355580`
+**State**: resource retry; native CI failure requires a test-only correction
+
+The operator freed resources. Initial sample: 87% free, load1 1.60, no Go.
+Hosted run `35456908279` completed with Ubuntu/macOS failures only in
+`TestS6ChangelogCompletenessSensitivity/dropped-heading`: removing v0.16.0's
+heading leaves its anchors in the new v0.17.0 section and the old resolver
+incorrectly accepts that as the contract owner. Windows/observers succeed.
+
+**Action**: reproduce the exact old-guard failure under a fresh gate, then
+correct section ownership and retain all D1-D13/sensitivity assertions.
+No production code, historical notes, release tag or threshold change.
+The scoped correction must pass targeted tests/review before later validation.
+
 ## Review — v0.17.0 corrected release boundaries — 2026-09-19
 
 **Reviewer**: `8d2063c0-bf26-4d46-892a-cb2560fd4c1a`
