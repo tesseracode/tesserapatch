@@ -1638,6 +1638,8 @@ September 21: main run `35558943145` completes SUCCESS on all five required
 jobs at `d1d6c3f`. With the exact local 8/8 gate also green, the existing
 annotated tag is dispatched to origin under operator authorization. The
 tag-triggered release job must still finish before the status becomes SHIPPED.
+The annotated tag is now on origin with verified tag/peeled commit identity;
+no rewrite occurred. Tag CI and GitHub Release completion remain pending.
 
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.

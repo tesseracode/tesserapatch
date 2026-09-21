@@ -4,6 +4,13 @@
 
 **Cluster state**: APPROVED
 
+**v0.17.0 tag pushed (2026-09-21)**: origin now contains annotated tag object
+`e7c748ada40988fe72f47b638cb37d07e24f0ac3`, peeled to validated release commit
+`d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`. Both identities match the local
+tag; no tag rewrite occurred. Publication is in flight through the existing
+tag-triggered CI. Confirm its version-check steps and GitHub Release success
+before setting SHIPPED. Main/local validation already passed on these bytes.
+
 **v0.17.0 remote tag dispatch (2026-09-21)**: main run `35558943145` completed
 SUCCESS on exact release target `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`,
 all five required jobs passing. Local publication gate also passes 8/8.
@@ -3853,7 +3860,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: Approved — exact-commit local/native gates pass; remote tag dispatch
+- **Status**: Publication in flight — annotated v0.17.0 pushed; tag CI/release pending
 - **Assigned**: 2026-09-20
 - **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
 - **Release target**: `v0.17.0`; tagging/publication authorized by the operator

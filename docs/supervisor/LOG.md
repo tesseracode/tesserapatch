@@ -1,3 +1,14 @@
+## Tag Push Result — v0.17.0 — 2026-09-21
+
+Origin accepted the new annotated `v0.17.0` tag. Remote tag object
+`e7c748ada40988fe72f47b638cb37d07e24f0ac3` and peeled commit
+`d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8` match the immutable local tag.
+No tag rewrite or unvalidated source was published.
+
+**Action**: await the existing tag-triggered CI/version checks and release job.
+Record SHIPPED only after GitHub Release existence/non-draft status is verified.
+Final tracking, helper cleanup and main push follow that outcome.
+
 ## Tag Dispatch — v0.17.0 — 2026-09-21
 
 **Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`
