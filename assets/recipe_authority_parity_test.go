@@ -750,7 +750,7 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	good := string(raw)
-	const heading = "## v0.17.0 — 2026-09-19 — recipe generation authority"
+	const heading = "## v0.17.0 — 2026-09-20 — recipe generation authority"
 	boundary := strings.Index(good, "\n## v0.16.0 ")
 	if strings.Count(good, heading) != 1 || boundary < 0 {
 		t.Fatal("versioned mutation fixture must pin the actual current and historical headings")

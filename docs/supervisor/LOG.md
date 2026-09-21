@@ -1,3 +1,19 @@
+## Metadata Review — v0.17.0 publication — 2026-09-20
+
+**Reviewer**: coordinator (direct review of the complete bounded diff)
+**Verdict**: APPROVED for targeted metadata validation
+
+CHANGELOG date is September 20 and candidate caveats are removed after explicit
+authorization. README/SPEC labels identify v0.17.0. The sole Go delta changes
+the guard's expected date literal to match; validation logic and all existing
+mutation controls remain byte-identical. No runtime, installed skills, old
+release notes, dependency or CI edits.
+
+Four owned ignored resource helpers reproduce the existing strict gates;
+all seven shell controls pass. Run fresh-gated formatting, full assets,
+historical changelog checks and exact version smoke before tag preparation.
+No tag or publication yet; metadata approval is not a shipping claim.
+
 ## Publication Dispatch — v0.17.0 — 2026-09-20
 
 **Task**: `publish-v0-17-0`

@@ -2,12 +2,7 @@
 
 All notable changes to tpatch are recorded here.
 
-## v0.17.0 — 2026-09-19 — recipe generation authority
-
-Release-preparation candidate; the date above records preparation. Tag creation
-and publication remain pending explicit authorization. S0-S6 implementation,
-review and cumulative soak are accepted; this candidate's release checks are
-tracked separately.
+## v0.17.0 — 2026-09-20 — recipe generation authority
 
 ### Added
 
@@ -57,7 +52,7 @@ Capture-event evidence is unkeyed consistency, not authentication or history;
 readers reconstruct the proof, and C absence remains legacy even with E
 present. Landing/attestation is independent. GH #13 replay consumption and
 GH #24 operation-domain widening remain future, separate work; this does
-not add replay anchors, change the recipe schema or authorize a release.
+not add replay anchors or change the recipe schema.
 
 ## v0.16.0 — 2026-08-31 — prepare intent bundles and archive retention
 

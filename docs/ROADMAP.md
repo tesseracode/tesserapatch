@@ -1625,6 +1625,9 @@ Operator explicitly authorizes publishing. Finalize release metadata, validate
 without changing runtime/authority, then push an annotated tag and confirm the
 existing tag-triggered CI/GitHub Release. No GH #13 or GH #24 implementation.
 Thirteen research files and all historical authority remain untouched.
+Release date/candidate labels and the matching guard fixture literal are
+finalized; direct scope review finds no runtime or test-logic change. Targeted
+metadata/version validation precedes the annotated local tag and final gates.
 
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.

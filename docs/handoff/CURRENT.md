@@ -4,6 +4,14 @@
 
 **Cluster state**: IN PROGRESS
 
+**Publication metadata finalized (2026-09-20)**: CHANGELOG uses the authorized
+release date and no longer describes an unpublished candidate; README/SPEC
+labels match. The guard's sole code delta is the matching date literal in its
+fixture. All actual guard logic, runtime code, installed skills and historical
+notes are unchanged. Direct review of the complete small delta confirms scope.
+Targeted formatting/assets/historical-changelog checks and version smoke are
+next; no tag has been created yet.
+
 **v0.17.0 publication authorized (2026-09-20)**: the operator explicitly said
 `lets publish`. Fresh publication WAVE_BASE is
 `fee5845855128761d7ede09b99c97f7abe229aac`; HEAD/origin match, tracked tree is
@@ -3820,6 +3828,12 @@ WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
 
+Publication metadata is finalized in three documents and the matching guard
+date literal, with no behavior/validation-logic change. Four owned ignored
+resource helpers under `bin/v017-publication/` retain the same admission
+protocol; all seven shell controls pass. Parent owns the entire small delta,
+which was directly reviewed without a redundant delegation.
+
 Operator-authorized publication starts from the accepted/green pre-tag close.
 Finalize release metadata without changing runtime or contract semantics;
 tag publication must wait for the authorized release commit's checks.
@@ -4857,6 +4871,11 @@ remains blocked until that release is implemented, soaked and shipped.
   `docs/state-of-the-art/case-studies/copilot-api-cumulative-verify-2026-08/summary.md`.
 
 ## Files Changed
+
+- Authorized publication delta: CHANGELOG, README, SPEC, and one expected
+  heading/date literal in `assets/recipe_authority_parity_test.go`.
+  CURRENT/ROADMAP/LOG record the release phase; no runtime/guard-logic change.
+  Four ignored resource helpers are owned in `bin/v017-publication/`.
 
 - Terminal preparation close: CURRENT/HISTORY/ROADMAP/LOG only. No source,
   docs contract, test or CI-command change follows the passing gate.
