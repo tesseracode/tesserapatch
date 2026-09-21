@@ -1628,6 +1628,9 @@ Thirteen research files and all historical authority remain untouched.
 Release date/candidate labels and the matching guard fixture literal are
 finalized; direct scope review finds no runtime or test-logic change. Targeted
 metadata/version validation precedes the annotated local tag and final gates.
+Final metadata/current+historical parity/version smoke PASS. The local annotated
+tag will pin the approved commit; main is pushed without automatic tag-following
+for final local/native validation. Remote tag push and release remain pending.
 
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.

@@ -1,3 +1,20 @@
+## Release-Commit Approval — v0.17.0 — 2026-09-20
+
+**Metadata source**: `0ee3999`
+**Publication WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+**Verdict**: APPROVED for final candidate gates; publication authorized
+
+Formatting is empty, full assets pass (2.264s), historical changelog/digest
+targets pass (1.037s), and the version smoke prints exactly `tpatch v0.17.0`.
+All commands qualified fresh 87-88%-free resource windows. The code delta is
+only a date expectation; prior reviewed guard/runtime semantics are unchanged.
+
+**Action**: create annotated local `v0.17.0` at this approval commit; explicitly
+disable tag-following when pushing main. Run `make wave-close-check` with the
+publication base and await main native CI on this exact commit. Only after
+both succeed push the tag, then verify tag-version checks/GitHub Release.
+Do not mark SHIPPED or mutate/repoint the tag while publication is pending.
+
 ## Metadata Review — v0.17.0 publication — 2026-09-20
 
 **Reviewer**: coordinator (direct review of the complete bounded diff)

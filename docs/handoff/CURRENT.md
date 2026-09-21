@@ -2,7 +2,21 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**v0.17.0 release commit approved for publication gates (2026-09-20)**:
+formatting, full assets (2.264s), historical changelog/digest targets (1.037s)
+and exact `tpatch v0.17.0` version smoke pass. Every command qualified a fresh
+87-88%-free window. The complete metadata delta is directly reviewed; prior
+independent feature/guard approvals remain applicable because their logic is
+unchanged.
+
+Create the annotated local tag at this approval commit, push main with
+`push.followTags=false`, then run the publication-base final gate and await
+native CI for the same commit before pushing the tag. The existing workflow
+will perform tag-version checks and publish the GitHub Release. APPROVED is
+gate readiness, not SHIPPED; final publication confirmation still remains.
+
 
 **Publication metadata finalized (2026-09-20)**: CHANGELOG uses the authorized
 release date and no longer describes an unpublished candidate; README/SPEC
@@ -3819,7 +3833,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: In progress — publication explicitly authorized; metadata finalization
+- **Status**: Approved — final release commit validation before remote tag push
 - **Assigned**: 2026-09-20
 - **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
 - **Release target**: `v0.17.0`; tagging/publication authorized by the operator
@@ -3827,6 +3841,11 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
+
+Final metadata validation passes on `0ee3999`: current/historical guards and
+the exact release-version smoke remain green. Prepare the immutable local
+annotated tag target and branch-only push, then finish the final candidate gate
+and native CI. No tag has reached origin at this checkpoint.
 
 Publication metadata is finalized in three documents and the matching guard
 date literal, with no behavior/validation-logic change. Four owned ignored
@@ -5547,6 +5566,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Publication delta PASS: formatting empty; full assets 2.264s,
+  historical changelog/digest targets 1.037s; existing Makefile version override
+  outputs exactly `tpatch v0.17.0`. All invocations have fresh 87-88%-free gates.
+  Final local/native release-commit gates and tag-triggered publication remain.
 
 - Exact gate-head native run `35530925430` completes SUCCESS at `103d22a`,
   all five required jobs passing and release skipped. Local and hosted evidence
