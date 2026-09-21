@@ -4,6 +4,14 @@
 
 **Cluster state**: APPROVED
 
+**v0.17.0 local publication gate PASS (2026-09-20)**: the exact local annotated
+tag target `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8` passes the publication
+gate **8/8**, no warnings, including its own fresh partition. Annotated tag
+object is `e7c748ada40988fe72f47b638cb37d07e24f0ac3`; it has not reached origin.
+Main native run `35558943145` has four successful jobs and macOS still running.
+Preserve it, then push this same immutable tag only after all jobs succeed.
+The GitHub Release still does not exist; do not mark SHIPPED yet.
+
 **v0.17.0 release commit approved for publication gates (2026-09-20)**:
 formatting, full assets (2.264s), historical changelog/digest targets (1.037s)
 and exact `tpatch v0.17.0` version smoke pass. Every command qualified a fresh
@@ -3833,7 +3841,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: Approved — final release commit validation before remote tag push
+- **Status**: Approved — local 8/8 gate passed; main native CI pending before tag push
 - **Assigned**: 2026-09-20
 - **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
 - **Release target**: `v0.17.0`; tagging/publication authorized by the operator
@@ -3841,6 +3849,11 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
+
+The annotated local v0.17.0 tag pins the verified `d1d6c3f` release commit.
+The local publication gate passes 8/8 and main CI is waiting only on macOS.
+Do not repoint the tag or cancel the main run for tracking-only pushes.
+Tag-triggered validation/publication follows main success; no release yet.
 
 Final metadata validation passes on `0ee3999`: current/historical guards and
 the exact release-version smoke remain green. Prepare the immutable local
@@ -5566,6 +5579,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Publication final gate **8/8 PASS**, no warnings, at `d1d6c3f` using
+  WAVE_BASE `fee5845855128761d7ede09b99c97f7abe229aac`; full fresh partition
+  completes. Main CI `35558943145` still awaits macOS; four other jobs pass.
+  Remote v0.17.0 tag is absent.
 
 - Publication delta PASS: formatting empty; full assets 2.264s,
   historical changelog/digest targets 1.037s; existing Makefile version override

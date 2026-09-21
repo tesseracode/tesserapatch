@@ -1631,6 +1631,9 @@ metadata/version validation precedes the annotated local tag and final gates.
 Final metadata/current+historical parity/version smoke PASS. The local annotated
 tag will pin the approved commit; main is pushed without automatic tag-following
 for final local/native validation. Remote tag push and release remain pending.
+The exact tag target `d1d6c3f` now passes local **8/8**. Main hosted run
+`35558943145` awaits macOS with four successful jobs; the annotated tag remains
+local and immutable until native completion. GitHub publication is still pending.
 
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.

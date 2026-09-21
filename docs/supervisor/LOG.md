@@ -1,3 +1,19 @@
+## Local Gate Result — v0.17.0 publication — 2026-09-20
+
+**Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`
+**Annotated local tag object**: `e7c748ada40988fe72f47b638cb37d07e24f0ac3`
+**WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+**Result**: **8/8 PASS**, no warnings
+
+Formatting/vet/build and the gate's fresh full partition pass on the exact
+tagged commit; tracked tree clean, thirteen allowlisted entries and three
+valid commit trailers. The remote tag is confirmed absent. Main hosted run
+`35558943145` has four successful jobs and macOS still in progress.
+
+**Action**: commit tracking locally, preserve the main run and await completion
+before pushing the same tag. No tag rewrite, cancelled native validation or
+premature SHIPPED claim. Tag-triggered version checks and GitHub Release remain.
+
 ## Release-Commit Approval — v0.17.0 — 2026-09-20
 
 **Metadata source**: `0ee3999`
