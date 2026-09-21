@@ -4,6 +4,13 @@
 
 **Cluster state**: APPROVED
 
+**Tag watcher reconnected (2026-09-21)**: the first `gh run watch` exited on
+an API `unexpected EOF`, not a workflow failure. A fresh query confirms
+`35564108468` still in progress: Ubuntu/Windows and both observers succeed,
+Ubuntu's tag-version check passes, and macOS is still testing. Release lookup
+is 404 because the release job has not run yet. Reattach to the same run;
+do not rerun/modify/repoint the published tag or claim a failed release.
+
 **v0.17.0 tag pushed (2026-09-21)**: origin now contains annotated tag object
 `e7c748ada40988fe72f47b638cb37d07e24f0ac3`, peeled to validated release commit
 `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`. Both identities match the local

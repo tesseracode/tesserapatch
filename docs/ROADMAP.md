@@ -1640,6 +1640,9 @@ annotated tag is dispatched to origin under operator authorization. The
 tag-triggered release job must still finish before the status becomes SHIPPED.
 The annotated tag is now on origin with verified tag/peeled commit identity;
 no rewrite occurred. Tag CI and GitHub Release completion remain pending.
+The first watcher lost its API connection (unexpected EOF); fresh query confirms
+the tag workflow is still running, not failed. Four jobs and Ubuntu's version
+check pass; macOS remains pending. Reattach without rewriting/rerunning the tag.
 
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.

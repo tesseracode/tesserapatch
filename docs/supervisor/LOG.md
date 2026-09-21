@@ -1,3 +1,14 @@
+## Monitoring Recovery — v0.17.0 tag workflow — 2026-09-21
+
+The watcher exited 1 on GitHub API `unexpected EOF`. This is a client connection
+failure, not a workflow conclusion. A fresh API query confirms run `35564108468`
+remains in progress: Ubuntu/Windows and both observers succeed; Ubuntu's tag
+version check passes; macOS is still running. The release endpoint is 404 while
+the downstream release job has not run.
+
+**Action**: reattach to the same run. Do not rerun the workflow, move the tag,
+change source or mark SHIPPED before the native workflow actually finishes.
+
 ## Tag Push Result — v0.17.0 — 2026-09-21
 
 Origin accepted the new annotated `v0.17.0` tag. Remote tag object
