@@ -2,7 +2,27 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
+
+**v0.17.0 publication authorized (2026-09-20)**: the operator explicitly said
+`lets publish`. Fresh publication WAVE_BASE is
+`fee5845855128761d7ede09b99c97f7abe229aac`; HEAD/origin match, tracked tree is
+clean, and hosted run `35535624708` is green on the pre-tag close. No v0.17.0
+tag exists locally/remotely. Thirteen research files remain untouched.
+
+Finalize only release date/candidate labels and the matching date fixture;
+retain all authority guards and runtime behavior. Validate the metadata delta
+with fresh resource gates, prepare an annotated local tag, push the branch
+without auto-following tags, and complete final local/native candidate checks
+before pushing the tag. Tag push triggers the existing CI version checks and
+GitHub Release job; publication is complete only after that workflow succeeds.
+No GH #13/GH #24 implementation is part of this authorization.
+
+Initial resources: 87% free, load1 4.15, no Go tools. The full qualifying minute
+still precedes each Go invocation. The previously accepted preparation is
+archived; this is the authorized publication phase, not a repeat feature wave.
+
+### Accepted preparation (historical)
 
 **v0.17.0 pre-tag preparation ACCEPTED (2026-09-20)**: the final gate exits 0
 at pushed `103d22a1051008be1d98a69ecdb3a067093daf9b`: **8/8 PASS**, no warnings,
@@ -3787,18 +3807,22 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `prepare-release-v0-17-0`
+- **Task ID**: `publish-v0-17-0`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Prepare v0.17.0 notes, retained contract parity and validated tag candidate
-- **Status**: Complete — preparation validated and cleaned; publication awaits authorization
-- **Assigned**: 2026-09-19
-- **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`
-- **Release target**: `v0.17.0`; tagging/publication requires separate authorization
+- **Description**: Publish the accepted recipe-authority release as v0.17.0
+- **Status**: In progress — publication explicitly authorized; metadata finalization
+- **Assigned**: 2026-09-20
+- **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+- **Release target**: `v0.17.0`; tagging/publication authorized by the operator
 
-WAVE_BASE = c2733e6997714ac20ab9cc1abe5f4c6207285ca1
+WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
+
+Operator-authorized publication starts from the accepted/green pre-tag close.
+Finalize release metadata without changing runtime or contract semantics;
+tag publication must wait for the authorized release commit's checks.
 
 Exact-checkpoint native CI `35530925430` completed successfully at the same
 `103d22a` that passed the 8/8 gate. Owned helpers/logs/smoke binary are removed.
@@ -11718,18 +11742,20 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Obtain explicit authorization before creating/pushing v0.17.0 or publishing.
-   Keep candidate-versus-published wording truthful; validate any later
-   release-metadata adjustment without weakening current/historical guards.
+1. Finalize release metadata and matching date fixture; validate the bounded
+   delta and existing version stamp under fresh resource windows.
+2. Create an annotated local v0.17.0 tag, push only main and validate the final
+   release commit before pushing the tag. Confirm tag-triggered CI/version
+   checks and GitHub Release completion, then archive/push shipped tracking.
 2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
    the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
    implementation.
 
 ## Blockers
 
-- No preparation implementation, review, validation or cleanup blocker remains.
-  Publication awaits separate explicit authorization; prior resource/guard
-  failures are resolved and exact-checkpoint local/native evidence passes.
+- Publication is authorized; no known implementation blocker remains.
+  Final metadata/candidate validation and tag-triggered release completion
+  are still required. Do not mark SHIPPED before the release exists.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13 implementation is blocked on shipped GH #15 recipe authority and

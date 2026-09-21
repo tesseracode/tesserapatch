@@ -1,3 +1,22 @@
+## Publication Dispatch — v0.17.0 — 2026-09-20
+
+**Task**: `publish-v0-17-0`
+**Authorization**: operator — `lets publish`
+**WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+**State**: IN PROGRESS; not yet tagged or published
+
+HEAD/origin match the accepted preparation close, hosted run `35535624708`
+is green, tracked state is clean, and the release tag is absent locally/remotely.
+Only thirteen known research files are untracked.
+
+Finalize release date/candidate labels and matching guard fixture; do not
+change runtime, semantics, old notes, CI or dependency surfaces. Gate all Go
+commands as before. After targeted validation, annotate the local release tag
+and push main without automatic tag following; finish final local/native
+release-commit checks before pushing the tag. The existing tag workflow must
+pass its version checks and create the GitHub Release before SHIPPED tracking.
+No GH #13/GH #24 work or additional release is authorized.
+
 ## Close — v0.17.0 pre-tag preparation — 2026-09-20
 
 **Verdict**: preparation ACCEPTED — validation and cleanup complete

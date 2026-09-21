@@ -1619,6 +1619,13 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
+**v0.17.0 🚧 PUBLICATION AUTHORIZED — 2026-09-20**.
+**Publication WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`.
+Operator explicitly authorizes publishing. Finalize release metadata, validate
+without changing runtime/authority, then push an annotated tag and confirm the
+existing tag-triggered CI/GitHub Release. No GH #13 or GH #24 implementation.
+Thirteen research files and all historical authority remain untouched.
+
 **v0.17.0 ✅ PRE-TAG PREPARATION ACCEPTED — 2026-09-20**.
 **WAVE_BASE**: `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`.
 **Validated/pushed range**:
