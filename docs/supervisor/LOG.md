@@ -1,3 +1,18 @@
+## Tag Dispatch — v0.17.0 — 2026-09-21
+
+**Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`
+**Annotated tag object**: `e7c748ada40988fe72f47b638cb37d07e24f0ac3`
+**Authorization**: operator's `lets publish`, 2026-09-20
+
+Main run `35558943145` completes SUCCESS on all five required jobs at the
+same commit that passed the local 8/8 gate. The local tag is unchanged and
+the remote tag is absent. Later local commits contain only tracking.
+
+**Action**: push the existing annotated tag, verify remote object and peeled
+commit identities, then await tag CI's version checks and GitHub Release job.
+Do not move/recreate the tag or mark SHIPPED on a queued run. Release metadata
+was finalized September 20; native validation crossed midnight before tag push.
+
 ## Local Gate Result — v0.17.0 publication — 2026-09-20
 
 **Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`

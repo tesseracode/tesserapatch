@@ -4,6 +4,18 @@
 
 **Cluster state**: APPROVED
 
+**v0.17.0 remote tag dispatch (2026-09-21)**: main run `35558943145` completed
+SUCCESS on exact release target `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`,
+all five required jobs passing. Local publication gate also passes 8/8.
+The annotated local tag object `e7c748ada40988fe72f47b638cb37d07e24f0ac3` is
+unchanged and remote tag absence is confirmed. Push that existing tag now under
+the operator's publication authorization; do not repoint or recreate it.
+
+The September 20 changelog date records the finalized release metadata;
+validation crossed midnight before publication. Await the tag-triggered run's
+version checks and release job before claiming SHIPPED. Runtime/source/test
+bytes are unchanged from the successful main/local gates.
+
 **v0.17.0 local publication gate PASS (2026-09-20)**: the exact local annotated
 tag target `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8` passes the publication
 gate **8/8**, no warnings, including its own fresh partition. Annotated tag
@@ -3841,7 +3853,7 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: Approved — local 8/8 gate passed; main native CI pending before tag push
+- **Status**: Approved — exact-commit local/native gates pass; remote tag dispatch
 - **Assigned**: 2026-09-20
 - **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
 - **Release target**: `v0.17.0`; tagging/publication authorized by the operator
@@ -3849,6 +3861,11 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
+
+All five main native jobs pass on the immutable release target. The existing
+annotated tag is ready for the authorized remote push. Only tracking commits
+follow its target locally; tag/source identity is verified before dispatch.
+Tag-triggered workflow completion and release existence remain outstanding.
 
 The annotated local v0.17.0 tag pins the verified `d1d6c3f` release commit.
 The local publication gate passes 8/8 and main CI is waiting only on macOS.
