@@ -10062,3 +10062,76 @@ explicit authorization. Keep candidate/published wording truthful and retain
 both current and historical contract guards when release metadata is finalized.
 GH #13 remains gated by shipped GH #15/v0.17.0 and its ADR-041 planning follow-up;
 GH #24 remains separate planning.
+
+---
+
+# 2026-09-21 — v0.17.0 recipe generation authority — SHIPPED
+
+## Active Task
+
+- **Task ID**: `publish-v0-17-0`
+- **Assigned/authorized**: 2026-09-20, operator `lets publish`
+- **Status**: SHIPPED — release verified and owned helper cleanup complete
+- **Publication WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+- **Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`
+- **Annotated tag object**: `e7c748ada40988fe72f47b638cb37d07e24f0ac3`
+- **Release**: [v0.17.0](https://github.com/tesseracode/tesserapatch/releases/tag/v0.17.0)
+- **Published at**: `2026-09-21T06:26:50Z` (non-draft, non-prerelease)
+
+## Publication Work
+
+The operator authorized shipping after the separately accepted pre-tag
+preparation. Final metadata uses the September 20 authorization/finalization
+date: remove candidate caveats from CHANGELOG/README/SPEC and update the
+matching date literal in the changelog fixture. All guard logic, runtime Go,
+installed assets, dependencies, CI selectors and historical notes remain
+unchanged. The metadata diff was directly reviewed in full.
+
+After focused checks, an annotated local tag was created at the immutable
+approval commit. Main was pushed with automatic tag-following explicitly
+disabled; the remote tag stayed absent until both local and main native
+checks passed. The existing tag was then pushed without rewriting it.
+Remote tag object/peeled commit identities were verified.
+
+The first tag watcher disconnected with an API `unexpected EOF`. A fresh query
+showed the workflow still running, so monitoring reattached to the same run;
+no CI retry, tag movement or false failure/shipping claim followed the client
+error. The tag workflow subsequently completed successfully.
+
+Release title and notes were set from the tagged CHANGELOG bytes and verified
+to retain editor-exit and coverage-not-cross-base-safety disclosures. The
+existing workflow publishes no additional binary assets; source release
+publication is not described as a binary upload.
+
+## Validation
+
+- Fresh-gated formatting, full assets (2.264s) and historical changelog/digest
+  targets (1.037s) PASS after metadata finalization.
+- Existing Makefile version override produces exactly `tpatch v0.17.0`.
+- Explicit publication-base `wave-close-check`: **8/8 PASS**, no warnings,
+  including its own full fresh partition at `d1d6c3f`.
+- Main run [35558943145](https://github.com/tesseracode/tesserapatch/actions/runs/35558943145):
+  SUCCESS, all five required native jobs on the exact tag target.
+- Tag run [35564108468](https://github.com/tesseracode/tesserapatch/actions/runs/35564108468):
+  SUCCESS, all five native jobs, Ubuntu/macOS `Verify tag version` and
+  `Create GitHub Release` pass.
+- GitHub release API verifies public non-draft/non-prerelease v0.17.0 at
+  the published timestamp above. Local/remote annotated tag identities match.
+
+All local Go invocations retained fresh continuous >=80%-free/load1 <=5/no-Go
+admission and serial execution. The existing Windows full-suite allowed-failure
+surface is distinct from required-job success; no claim that every Windows
+case passed is made. No validated source/test byte changed during publication.
+
+## Close and Next Boundary
+
+CURRENT and ROADMAP are SHIPPED; this archive records the complete publication
+evidence. Only closing tracking commits follow the tag. Four owned ignored
+helper scripts, five logs, the smoke binary, derived note file and empty
+directories are removed; the thirteen research files remain untouched.
+Published notes exactly match the tagged changelog extraction.
+
+GH #15/v0.17.0 is shipped. GH #13 still needs the ADR-041 section-7 planning
+follow-up and a separate implementation assignment. GH #24 remains independent
+non-blocking planning. Do not move/recreate v0.17.0 or automatically dispatch
+either future implementation.

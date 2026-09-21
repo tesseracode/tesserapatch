@@ -2,7 +2,30 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: SHIPPED
+
+**v0.17.0 SHIPPED (2026-09-21)**:
+[GitHub Release](https://github.com/tesseracode/tesserapatch/releases/tag/v0.17.0)
+is published, non-draft and non-prerelease (published at `2026-09-21T06:26:50Z`).
+Annotated tag `v0.17.0` retains object
+`e7c748ada40988fe72f47b638cb37d07e24f0ac3` and release commit
+`d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`.
+
+Tag run `35564108468` completed SUCCESS: all five required native jobs,
+Ubuntu/macOS tag-version checks and Create GitHub Release pass. The release
+notes/title are set from the immutable tagged changelog, preserving the editor
+exit disclosure and coverage-not-replay boundary. Main CI and the local 8/8
+gate passed the same source before tag push. The API watcher disconnect was
+recovered without rerunning CI or rewriting the tag.
+
+The publication archive is appended to HISTORY. Four owned helper scripts,
+five logs, the smoke binary, derived note file and empty directories are removed.
+Closing changes are tracking-only; this is the terminal shipped record.
+No production source, tag target, historical oracle or research changed during
+publication. GH #15's shipped-release prerequisite is satisfied; GH #13 still
+needs the separate ADR-041 planning follow-up and an implementation assignment.
+
+### Publication execution history (superseded)
 
 **Tag watcher reconnected (2026-09-21)**: the first `gh run watch` exited on
 an API `unexpected EOF`, not a workflow failure. A fresh query confirms
@@ -3867,14 +3890,21 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
 - **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: Publication in flight — annotated v0.17.0 pushed; tag CI/release pending
+- **Status**: Complete — v0.17.0 published, verified and cleaned
 - **Assigned**: 2026-09-20
 - **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
-- **Release target**: `v0.17.0`; tagging/publication authorized by the operator
+- **Release**: `v0.17.0` — published from `d1d6c3f`, authorized by the operator
 
 WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
 
 ## Session Summary
+
+The authorized release is published. The annotated tag and peeled commit match
+the validated source; all required tag jobs, both platform version checks and
+the release job pass. Curated notes exactly match the tagged changelog extraction,
+not an uncommitted tree. The release is public/non-prerelease, with no attached
+binary assets added by the existing workflow. Archive and final tracking reflect
+SHIPPED; owned temporary files and empty directories are removed.
 
 All five main native jobs pass on the immutable release target. The existing
 annotated tag is ready for the authorized remote push. Only tracking commits
@@ -5610,6 +5640,12 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- FINAL publication PASS: local 8/8 gate and main run `35558943145` pass at
+  `d1d6c3f`; tag run `35564108468` passes all five required jobs, Ubuntu/macOS
+  `Verify tag version`, and `Create GitHub Release`. GitHub confirms non-draft/
+  non-prerelease v0.17.0, published `2026-09-21T06:26:50Z`, with unchanged
+  annotated tag/peeled commit identity. No tag rewrite or CI rerun occurred.
 
 - Publication final gate **8/8 PASS**, no warnings, at `d1d6c3f` using
   WAVE_BASE `fee5845855128761d7ede09b99c97f7abe229aac`; full fresh partition
@@ -11834,26 +11870,31 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. Finalize release metadata and matching date fixture; validate the bounded
-   delta and existing version stamp under fresh resource windows.
-2. Create an annotated local v0.17.0 tag, push only main and validate the final
-   release commit before pushing the tag. Confirm tag-triggered CI/version
-   checks and GitHub Release completion, then archive/push shipped tracking.
-2. Keep GH #24 as non-blocking broader-domain planning only. GH #13 needs
-   the ADR-041 section-7 planning follow-up and shipped GH #15/v0.17.0 before
-   implementation.
+1. No further v0.17.0 release operation or tag rewrite is needed.
+2. GH #15/v0.17.0 is shipped. GH #13 still needs the separate ADR-041 section-7
+   planning follow-up and a new implementation assignment; do not auto-dispatch.
+   GH #24 remains non-blocking broader-domain planning only.
 
 ## Blockers
 
-- Publication is authorized; no known implementation blocker remains.
-  Final metadata/candidate validation and tag-triggered release completion
-  are still required. Do not mark SHIPPED before the release exists.
+- No v0.17.0 implementation, validation, publication or cleanup blocker remains.
+  The release exists and all required jobs succeeded; the terminal record is
+  ready for its final main push.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
-- GH #13 implementation is blocked on shipped GH #15 recipe authority and
-  the separate ADR-041 section-7 planning follow-up.
+- GH #13's shipped-GH #15 prerequisite is satisfied. Its separate ADR-041
+  section-7 planning follow-up and implementation authorization remain outstanding.
 
 ## Context for Next Agent
+
+- v0.17.0 is published at immutable `d1d6c3f` with annotated tag object
+  `e7c748ada40988fe72f47b638cb37d07e24f0ac3`; do not move or recreate that tag.
+  Publication WAVE_BASE was `fee5845855128761d7ede09b99c97f7abe229aac`.
+  Current tracking commits follow the tagged release without altering its source.
+  Owned `bin/v017-publication/` helpers/logs/smoke/notes and empty directories
+  are removed; all thirteen research files remain untouched.
+
+### Accepted preparation context (historical)
 
 - Accepted release-prep WAVE_BASE is `c2733e6997714ac20ab9cc1abe5f4c6207285ca1`;
   final gate passes at `103d22a`. No v0.17.0 tag/release is authorized yet.

@@ -1619,8 +1619,22 @@ is in HISTORY. All 13 research files, allowlist, S3 pure core and public
 assets remain unchanged. S5/S6, domain widening and release/tag work remain
 undispatched; GH #13 still waits for shipped GH #15/v0.17.0.
 
-**v0.17.0 🚧 PUBLICATION AUTHORIZED — 2026-09-20**.
+**v0.17.0 ✅ SHIPPED — 2026-09-21**.
 **Publication WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`.
+**Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`.
+**Tag object**: `e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+[GitHub Release](https://github.com/tesseracode/tesserapatch/releases/tag/v0.17.0)
+published non-draft/non-prerelease at `2026-09-21T06:26:50Z`. Tag run
+`35564108468` passes all five native jobs, both Ubuntu/macOS tag-version checks
+and the release job; local gate **8/8** and main CI passed the exact same commit.
+Release notes exactly match the immutable tagged changelog extraction. Archive
+is in HISTORY; owned publication helpers/outputs are removed and closing work is
+tracking-only. GH #15 is shipped; GH #13 still
+requires the ADR-041 planning follow-up and a separate implementation assignment.
+GH #24 remains independent planning.
+
+Earlier publication record:
+
 Operator explicitly authorizes publishing. Finalize release metadata, validate
 without changing runtime/authority, then push an annotated tag and confirm the
 existing tag-triggered CI/GitHub Release. No GH #13 or GH #24 implementation.

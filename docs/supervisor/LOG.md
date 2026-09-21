@@ -1,3 +1,30 @@
+## Release — v0.17.0 SHIPPED — 2026-09-21
+
+**Authorization**: operator `lets publish`, 2026-09-20
+**Release commit**: `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`
+**Annotated tag**: `v0.17.0`, object `e7c748ada40988fe72f47b638cb37d07e24f0ac3`
+**Publication WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+**Verdict**: SHIPPED
+
+Tag run `35564108468` completed SUCCESS: all five required native jobs,
+Ubuntu/macOS tag-version checks and Create GitHub Release succeeded. The release
+API confirms public non-draft/non-prerelease v0.17.0, published
+`2026-09-21T06:26:50Z`. Tag/peeled commit identity matches the successful main
+run `35558943145` and local 8/8 gate; no tag rewrite or workflow rerun occurred.
+The watcher recovered from an API EOF without treating it as a CI failure.
+
+Curated release title/body are derived from the immutable tag's changelog and
+retain editor-exit and coverage-not-replay disclosures. The workflow attaches
+no binary assets; no binary-upload claim is made.
+
+**Action taken**: set the sole CURRENT canonical field and ROADMAP to SHIPPED;
+append publication evidence to HISTORY immediately. Four owned helper scripts,
+five logs, the smoke binary, derived release-note file and empty directories
+are removed. Published note bytes match the immutable tagged extraction.
+Push only terminal tracking; no release-source changes follow validation.
+The thirteen research files, runtime and historical authority are unchanged.
+GH #15's shipping prerequisite is satisfied; GH #13/24 work is not auto-dispatched.
+
 ## Monitoring Recovery — v0.17.0 tag workflow — 2026-09-21
 
 The watcher exited 1 on GitHub API `unexpected EOF`. This is a client connection
