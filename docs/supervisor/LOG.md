@@ -1,3 +1,23 @@
+## Native Correction Result — ADR index exact pin — 2026-09-23
+
+**Run**: `35825150850`, checkpoint `a9636e4`
+**Result**: ADR-041 failure resolved; ADR-index aggregate pin remains
+
+Ubuntu/macOS now fail only `TestS7Rev16PendingOwnerErratumGuardAndSensitivities`
+at the whole `## Index` current-hash comparison. The restored readiness tokens
+pass; ADR-041's six frozen-section checks also pass. The unchanged index guard
+pins the entire entries block, including ADR-037/041/042 status and the newly
+added ADR-043, so textual compatibility alone cannot permit the approved index
+updates. The earlier direct check missed this later aggregate guard.
+
+**Scope decision needed**: recommend minimal test-only maintenance of the
+current index hash plus same-validator mutation controls, preserving the old
+base hash, historical readiness assertions and every other guard. No production
+code or proposal implementation. Because the authorized task is documentation-
+only, ask the operator before editing test source. Alternative: keep the index
+fully frozen and move all current status/indexing to a separate document.
+Latest resource snapshot is 68%; no local Go command has run.
+
 ## Documentation Boundary Correction — 2026-09-23
 
 **Review**: coordinator direct review of the two-document metadata delta

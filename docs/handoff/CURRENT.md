@@ -12,11 +12,11 @@ All semantic review findings are closed; no runtime implementation is authorized
 Intake/dispatch CI `35816716435` completed SUCCESS on `2c1514c`, all five
 required jobs passing. It was preserved until completion before pushing the
 accepted planning/archives at `cd9279f`. Final-planning run `35823080400`
-failed two existing documentation guards. The bounded correction now preserves
-ADR-035's dated historical readiness snapshot alongside current shipped status,
-and moves ADR-041's follow-up backlink outside frozen sections. Exact pin/anchor
-checks pass; corrected-source native CI is pending. The accepted #13 contract
-and all tests remain unchanged.
+failed two existing documentation guards. The ADR-041 correction now passes.
+Run `35825150850` finds one remaining ADR-index whole-block hash pin after the
+readiness-token checks pass. Preserving the approved current index requires
+bounded test-only snapshot/guard maintenance or a frozen-index alternative;
+operator direction is required before expanding the documentation-only scope.
 
 The combined documentation/planning wave is **not mechanically closed**.
 The first fresh-resource admission attempt timed out after 600 seconds before
@@ -32,13 +32,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — documentation guard correction authored; native rerun and gated local close pending
+- **Status**: Blocked — operator scope decision for ADR-index test pin; local resources below threshold
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+Corrected-source CI resolves ADR-041 and the index readiness-token failure,
+but a later aggregate check pins the entire ADR index byte-for-byte. The prior
+non-Go check missed this aggregate layer. Recommend an explicit current-hash
+update with same-validator current-index mutations, leaving base hashes,
+readiness semantics and every other test unchanged. No test source is changed
+without operator approval; this would be documentation-guard maintenance only,
+not runtime implementation.
 
 Native CI found two integration errors in metadata placement/history, not in
 the accepted #13 decisions. Both are corrected in the documents only. The
@@ -118,6 +126,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   original bytes and pinned test digests; all four ADR-035 token requirements and
   its full original mutation anchor remain. Altered-section/old-index mutation
   checks still reject. This is non-Go evidence, not a claimed Go test run.
+- Native run `35825150850` FAIL at `a9636e4`: only the ADR-index whole-block
+  current SHA pin now fails on Ubuntu/macOS. ADR-041 and readiness-token
+  corrections pass; all other jobs succeed. Test-source disposition is pending.
 
 ## Next Steps
 
@@ -134,9 +145,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Document-boundary corrections are authored with exact pin/anchor checks passing;
-corrected-source native CI is pending. Local mechanical validation remains
-resource-blocked. No accepted #13 planning finding or operator choice remains.
+Operator approval is required for a narrow test-only ADR-index snapshot/guard
+update, or direction to keep the old index frozen. Local mechanical validation
+remains resource-blocked (latest 68% free). No #13 contract decision is reopened.
 
 ## Context for Next Agent
 

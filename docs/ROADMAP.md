@@ -1472,6 +1472,10 @@ The document-only correction is authored: dated historical readiness plus
 current shipped status, and the follow-up backlink outside frozen ADR sections.
 All six original section digests and the full index mutation anchor verify
 unchanged. New native CI is required; no Go result or runtime change is claimed.
+Run `35825150850` resolves ADR-041 and the readiness-token check but exposes
+the ADR index's whole-block current-hash pin. A minimal test-only snapshot/
+sensitivity update is recommended; operator scope approval is requested before
+editing tests. The accepted #13 plan and runtime remain unchanged.
 
 Earlier task progression (historical):
 
