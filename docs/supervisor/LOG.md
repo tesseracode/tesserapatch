@@ -1,3 +1,22 @@
+## Review — documentation research intake — 2026-09-22
+
+**Reviewer**: `fe74222d-a22c-4e34-96d7-f1dc558fc078`
+**Model verification**: explicit `gpt-5.4` task selection; runtime agent listing
+confirms `model: gpt-5.4`.
+**Range**: `6e8096e..0ca98db`
+**Verdict**: NEEDS REVISION — live handoff only
+
+The intake content has no reported substantive finding. The reviewer flags
+accumulated historical paragraphs in CURRENT's live Session Summary as HIGH
+(published versus pre-push instructions and obsolete 132-link count), and
+the active task's leftover closed-GH #15 issue/milestone fields as MEDIUM.
+
+**Action**: rotate CURRENT to a concise current-intake handoff, link the already
+archived release/S6 history and the exact superseded snapshot, use the validated
+141-link count, and mark this intake as operator-assigned without a GitHub issue.
+Preserve research and accepted historical archives; do not treat stale prose
+as a request to repeat publication. Re-review before intake closure.
+
 ## Validation Transition — documentation research intake — 2026-09-22
 
 **Result**: structural intake checks PASS; independent documentation review next
