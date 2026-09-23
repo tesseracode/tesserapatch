@@ -1,3 +1,20 @@
+## Native Intake Result and Planning Push — 2026-09-23
+
+**Run**: [35816716435](https://github.com/tesseracode/tesserapatch/actions/runs/35816716435)
+**Tested checkpoint**: `2c1514cffcbdc5527cf6aab4fc4cab2c2f1dc75b`
+**Result**: SUCCESS — all five required jobs pass; release skipped
+
+The in-flight intake/dispatch run completed without being cancelled for later
+planning-only commits. Its success covers the intake checkpoint, not the
+subsequent accepted ADR-043/ADR-037/PRD rev-7 amendment.
+
+**Action**: push the accepted planning and archive commits (acceptance at
+`cd9279f`) with this distinction intact; update GH #13 that its planning
+prerequisite is satisfied but implementation remains unassigned. Remove the
+owned completed-watcher log and empty directory. A fresh hosted run must cover
+the final planning source. The local mechanical gate remains resource-blocked;
+no Go command, runtime implementation or wave-close success is claimed here.
+
 ## Review and Planning Acceptance — GH #13 capture evidence — 2026-09-22
 
 **Reviewer**: `fe6aacf4-231d-487d-b1be-9460f333617d`

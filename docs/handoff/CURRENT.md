@@ -9,6 +9,11 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+Intake/dispatch CI `35816716435` completed SUCCESS on `2c1514c`, all five
+required jobs passing. It was preserved until completion before pushing the
+accepted planning/archives at `cd9279f`. That run does not certify the later
+amendment; final-planning-source native CI remains outstanding.
+
 The combined documentation/planning wave is **not mechanically closed**.
 The first fresh-resource admission attempt timed out after 600 seconds before
 any formatting/Go validation command. APPROVED describes the planning verdict,
@@ -30,6 +35,12 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The pending intake native run is now green, so the accepted planning and
+archive commits can be durably pushed without cancelling it. GH #13's issue
+will record planning acceptance while retaining the separate implementation
+assignment and resource-blocked mechanical close. The owned completed-watcher
+log and empty directory are removed; no new Go validation is run.
 
 All thirteen former untracked research files are durable documents with their
 paper-only statuses and evidence limits preserved. Research indexes/CLUSTERS
@@ -86,7 +97,8 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 - Resource admission: exit 75 after 600 seconds at 57-60% free memory, periods
   of load1 >5 and other active Go/test processes. No formatting/Go validation
   command ran in this session; no helper or background Go process was created.
-- Native CI at earlier intake checkpoints does not certify the final planning
+- Intake/dispatch native CI `35816716435` PASS at `2c1514c`, all five required
+  jobs, release skipped. It does not certify the subsequent accepted planning
   source. Final exact-source hosted/local wave-close evidence remains required.
 
 ## Next Steps

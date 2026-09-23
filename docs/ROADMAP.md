@@ -1460,6 +1460,11 @@ Complete the unchanged final gate when resources qualify, then request a
 separate #13 implementation assignment. WP-004 remains a separate later
 planning track, not automatically graduated.
 
+September 23: intake/dispatch native run `35816716435` completes SUCCESS at
+`2c1514c`, all five required jobs passing. Accepted planning at `cd9279f` and
+its archives are now being pushed; the intake run is not substituted for new
+planning-source CI or the still-resource-blocked local mechanical gate.
+
 Earlier task progression (historical):
 
 Operator authorizes documentation-only intake of thirteen historical research
