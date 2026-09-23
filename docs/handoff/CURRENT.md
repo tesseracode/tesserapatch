@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Current validation (2026-09-23)**: native run `35872519378` completed SUCCESS
+on corrected source `fb615c1`, all five required jobs passing. The isolated
+local build and targeted original/new guards pass. Only a complete local
+mechanical gate remains; it is being retried on a tracking-only successor,
+with exact failure reasons retained by the owned resource wrapper.
+
+### Earlier validation progression (historical)
+
 Intake/dispatch CI `35816716435` completed SUCCESS on `2c1514c`, all five
 required jobs passing. It was preserved until completion before pushing the
 accepted planning/archives at `cd9279f`. Final-planning run `35823080400`
@@ -25,8 +33,8 @@ invocation; the sentinel prevented all later Go commands. Its first diagnostics
 were suppressed by Makefile, so resource admission versus build failure is not
 retrospectively distinguished. A standalone fresh-gated build now passes at
 82% free, so no persistent build defect was reproduced. APPROVED describes
-planning/targeted approval, not a passing gate. Wait for the current hosted run
-before the tracking-only push and full gate retry.
+planning/targeted approval, not a passing gate. The hosted run has since
+completed successfully; the tracking-only push and full gate retry now follow.
 
 v0.17.0 remains published at immutable `d1d6c3f`; no release/tag change belongs
 to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTORY.md).
@@ -37,13 +45,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Approved for retry — standalone build passes; full gate/native completion pending
+- **Status**: Approved — corrected-source native CI passes; full local gate retry executing
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+Native CI is complete and green at `fb615c1`, covering the accepted plan and
+operator-authorized index guard correction. Push only tracking progress and
+rerun the complete local gate. The earlier interrupted attempt and passing
+isolated build are not substitutes for the gate's own fresh checks/partition.
+No source change or #13 implementation is included in this retry.
+
+### Earlier execution details (historical)
 
 The fresh-gated standalone build passed on unchanged source at 82% free.
 The initial gate's hidden failure cause cannot be recovered and is not relabeled
@@ -136,6 +152,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   comments preserve implementation boundaries.
 
 ## Test Results
+
+- Native `35872519378` PASS at `fb615c1`: all five required jobs succeed,
+  release skipped. Corrected-source hosted evidence is complete. Local full
+  gate retry remains separate and has not yet passed.
 
 - Diff checks PASS; no whitespace errors.
 - Intake checks: 141 local Markdown file targets exist; TWS JSON study IDs/

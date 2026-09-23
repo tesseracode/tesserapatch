@@ -1,3 +1,20 @@
+## Native Success and Final-Gate Retry — research/planning — 2026-09-23
+
+**Native run**: [35872519378](https://github.com/tesseracode/tesserapatch/actions/runs/35872519378)
+**Tested source**: `fb615c18ec8e61a0e8dc886e705b8e9afed6ae0d`
+**Result**: SUCCESS — all five required jobs pass; release skipped
+
+The corrected documentation/index guard is green on native Ubuntu/macOS/Windows
+and both observer jobs. The run was allowed to complete before a tracking-only
+push. The isolated local build also passed; the earlier incomplete gate remains
+historical rather than being promoted to a pass.
+
+**Action**: push the tracking-only successor and retry the complete final gate
+with WAVE_BASE `6e8096e03849617a240fa586b109e60f44fad69f`. Every internal Go
+invocation retains its fresh resource window and first-failure stop. The owned
+helper now retains failure classification despite Makefile redirection.
+No runtime, accepted planning, test logic or release/tag changes.
+
 ## Build Diagnosis — documentation/planning gate retry — 2026-09-23
 
 **Source**: unchanged `fb615c1`; tracking-only successor `e5a58f6`
