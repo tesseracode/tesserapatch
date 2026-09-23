@@ -5,10 +5,10 @@
 **Cluster state**: IN PROGRESS
 
 Research intake/backlog reconciliation is complete, archived and pushed at
-`c8344df`. The GH #13 rev-7/ADR-043 corrections are delivered and remain Proposed
-pending re-review. Explicit capture-selector checks, separate canonical identity
-recomputation, correct E4/E5 numbering and truthful interrupted-pair recovery
-are now specified. No runtime implementation is authorized.
+`c8344df`. GH #13's Proposed rev-7/ADR-043 has coordinator corrections for the
+last two review findings: the full capture-mismatch vocabulary and the distinct
+C-absent legacy envelope. Independent re-review remains. The first mechanical
+validation admission timed out; no Go or formatting command ran.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -29,50 +29,29 @@ WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
 
-All three independent findings and coordinator recovery wording have revisions
-in the same three planning files. E4 checks pair hash, capture mode, pathspecs
-and claim IDs in explicit order; paired inputs prove consistency now, not
-authenticated history. ROC-297 is shape-only and ROC-302 pins the separate
-canonical-digest identity validator. ROC-299/304-306 describe detectable mixed
-pairs, explicit restoration/absence and failed-recovery journal retention,
-not multi-file atomicity.
+The draft binds canonical capture-event digest in candidate identity, carries
+independent evidence through first-match gates and reconstructs current proof
+without claiming historical authentication. The operator chose this direction;
+ADR-043 records its rationale and honest alternative tradeoff.
 
-Coordinator structural checks pass with 306 contiguous rows:
-I62/C90/G77/U68/S9, nine byte-identical regions, fifteen gates and fourteen
-steps. Existing C1/C2/D2/D3 and historical rev-0..6 rows remain unchanged.
-Re-review is pending; the latest resource snapshot is 58% free/load1 5.32,
-so no Go validation has been attempted.
+First review required capture-selector comparisons, schema/recomputation
+separation and E4/E5 summary consistency; the coordinator also narrowed
+interrupted recovery claims. The implementer's correction expanded the matrix
+to 306 rows and passed structural checks. Re-review then found two residuals:
+§7.1 still narrowed pair mismatch to the hash alone, and C-absent crash cases
+wrongly inherited C-present pair refusal. Coordinator has corrected both
+directly in the refusal row and linked recovery paragraphs/cases.
 
-Independent `gpt-5.4` review is NEEDS REVISION on one high/two medium contract
-issues. Add explicit E/C capture-mode/pathspec/claim comparison, separate shape
-validation from canonical-digest recomputation, and align current rev-7 gate
-numbering. Also qualify ROC-299 so interrupted E/C pairs are detectable rather
-than falsely impossible. Return only the three planning files to the implementer.
+C-present mixed pairs refuse; genuinely absent C keeps ADR-041's missing-coverage
+verify warning/legacy apply behavior. Neither grants GH #13 candidate authority:
+journal recovery precedes phase 1, otherwise E1 refuses absent C. Successful
+rollback/recovery restores each artifact's bytes or individual absence; crash/
+failed rollback retains the journal. No intermediate multi-file atomicity claim.
 
-Coordinator added Proposed-only backlinks in ADR-041, the ADR index and CLUSTERS.
-The index's stale v0.16/S5 runtime-pending statements now point to shipped
-v0.16/v0.17 history. ADR-043 reserves number 043; next unused number is 044.
-No draft is marked accepted. Extended structural checks also verify unchanged
-C1/C2/D2/D3 regions, fourteen transaction steps and 132 planning-link targets.
-
-The verified `gpt-5.4` implementer delivered only ADR-043, ADR-037 and the
-companion PRD. The draft binds canonical E digest in candidate identity/schema,
-adds three capture-event refusal codes within a fifteen-gate inventory, and
-carries E through staged publication/snapshots/rollback/recovery. These are
-proposed contract changes, not accepted runtime behavior.
-
-Coordinator structural checks pass: all nine actual parity IDs
-`A,B,C1,C2,D1,D2,D3,E,F` are unique and byte-identical across ADR/PRD;
-ROC-001..301 are contiguous/unique with I61/C87/G76/U68/S9; `gatesPassed[15]`
-matches E1-E15. Prior rev-0..rev-6 revision-table rows remain byte-identical.
-Semantic first-match/recovery correctness still requires independent review;
-structural parity alone is not acceptance.
-
-Intake closed and pushed before planning dispatch. The operator selected
-`identity-digest`: add validated E's canonical SHA-256 to immutable candidate
-identity. Amend the accepted rev-6 ADR-037/PRD coherently and record the
-architecture rationale in ADR-043. The revision is proposed until independent
-review; no accepted shipped producer contract is silently widened.
+ADR-041/index/CLUSTERS backlinks remain Proposed. The first fresh resource gate
+waited 600 seconds at 57-60% free, with elevated load and other Go processes;
+exit 75 occurred before formatting or any Go command. No runtime validation
+is claimed. Semantic re-review and final wave checks remain outstanding.
 
 ### Completed intake context
 
@@ -142,10 +121,14 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 ## Test Results
 
 - Proposed amendment structural PASS: nine paired regions byte-identical;
-  301 contiguous ROC rows (I61/C87/G76/U68/S9); fifteen gates/proof array agree;
+  306 contiguous ROC rows (I62/C90/G77/U68/S9); fifteen gates/proof array agree;
   fourteen transaction steps, unchanged C1/C2/D2/D3 blocks, 132 planning-link
-  targets exist; historical rev-0..rev-6 revision rows unchanged. No Go execution or runtime
-  acceptance claim. Semantic review and remaining wave-close checks are pending.
+  targets exist; historical rev-0..rev-6 revision rows unchanged.
+- Resource admission: exit 75 after 600 seconds at 57-60% free with periods of
+  load1 >5 and other active Go/test processes. No Go/formatting validation
+  command ran. No helper file was created or other process terminated.
+- Semantic review and final wave-close checks remain pending; no accepted
+  runtime implementation or completed gate is claimed.
 
 - `git diff --check`: PASS.
 - Coordinator checks **141** in-repository Markdown file targets: all exist.
@@ -160,19 +143,18 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Next Steps
 
-1. Author the ADR-041 section-7 amendment and ADR-043 rationale for the selected
-   identity-digest direction; synchronize every affected ADR-037/PRD surface.
-2. Check document parity/counts and obtain independent OpenAI review; keep
-   changes Proposed until accepted. Final wave closure follows review/checks.
+1. Recheck corrected parity/counts and obtain independent OpenAI re-review;
+   keep the documents Proposed until review is approved.
+2. When resources qualify, run final wave checks without weakening admission
+   or treating structural document checks as a passing runtime suite.
 3. Do not implement GH #13 or auto-graduate WP-004. Their implementation/PRD
    assignments remain separate from this documentation/planning request.
 
 ## Blockers
 
-No intake blocker remains. Amendment corrections need independent re-review
-before acceptance. The latest resource snapshot is below the mandatory Go
-admission threshold; final mechanical checks must not bypass it. GH #24
-widening is not a prerequisite for this narrow amendment.
+No intake blocker remains. The final two contract corrections require re-review.
+Mechanical validation is resource-blocked (exit 75); no formatting/Go invocation
+started. GH #24 widening is not a prerequisite for this narrow amendment.
 
 ## Context for Next Agent
 

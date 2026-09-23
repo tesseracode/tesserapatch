@@ -2582,19 +2582,25 @@ candidate path and every feature artifact in step 8's snapshot set —
 `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
 `status.json` — is restored from `snapshots/`, the snapshotted
 `status.Apply` and `status.State` are restored with them, and every path
-recorded with an **absent marker is deleted**. E and C therefore come back
-together as bytes or together as absence; rollback never leaves a new E beside
-an old C or the reverse. The candidate returns to `status: pending`, with its
-`status.json` pointer restored.
+recorded with an **absent marker is deleted**. Successful completed rollback
+restores each E/C artifact to its own snapshotted bytes or absence; it leaves
+neither new artifact behind. Interrupted or failed rollback is not reported as
+complete and retains the journal. On success the candidate returns to
+`status: pending`, with its `status.json` pointer restored.
 
 **Per-file publication still means an interrupted E-before-C sequence can be
 observed on disk.** A crash or injected failure after the E write but before the
 C write may temporarily leave a new E beside an old C (or old absence), or the
 reverse during rollback. That is **not** treated as atomic multi-file
-publication and is **not** auto-repaired by readers. The planned reader
-behavior is to refuse the mismatched pair, surface the paired-binding failure
-nonzero/warning according to its existing envelope, and rely on the retained
-journal plus explicit rollback/recovery to restore the old pair or absence.
+publication and is **not** auto-repaired by readers. With C present, inconsistent
+E/C bindings refuse through the existing paired-binding envelope. With C
+genuinely absent, ADR-041's shipped readers retain `recipe-coverage-missing`
+(verify warning/rung 5 and unchanged legacy explicit apply), regardless of
+orphan E; absence is not a paired-binding error. GH #13 grants no candidate
+authority in either case: a pending journal first requires explicit recovery,
+and without one its E1 gate refuses missing C. A live failure attempts the
+existing rollback; a crash or failed rollback retains the journal for explicit
+recovery. Only completed restoration certifies the old per-artifact state.
 
 **A failure at step 11 or step 12 is a failure, not a warning.** A
 coverage-publication failure, a staged-artifact write failure or a

@@ -1504,6 +1504,10 @@ canonical identity recomputation guard and honest interrupted E/C recovery.
 Structural checks pass at 306 rows (I62/C90/G77/U68/S9), nine paired regions,
 fifteen gate slots and fourteen transaction steps; independent re-review is
 pending. No runtime/source implementation.
+Re-review identified two residuals: the hash-only refusal-catalog definition
+and an over-broad C-absent crash refusal. Coordinator corrected both without
+changing gate/row counts. Local mechanical admission timed out at 57-60% free
+before any Go command; structural documentation checks are not a full gate pass.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

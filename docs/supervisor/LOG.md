@@ -1,3 +1,26 @@
+## Re-review and Resource Blocker — GH #13 planning — 2026-09-22
+
+**Reviewer**: verified `gpt-5.4`, `fe6aacf4-231d-487d-b1be-9460f333617d`
+**Checkpoint**: `7c0e79a`
+**Verdict**: NEEDS REVISION (two bounded residuals)
+
+MEDIUM: PRD §7.1 still describes `capture-event-pair-mismatch` as hash-only,
+not the new ordered hash/mode/pathspec/claim-ID comparisons.
+HIGH: ROC-299's old-C-absent branch overclaims a paired-binding refusal;
+ADR-041 keeps genuinely absent C in verify's missing-coverage warning envelope
+regardless of orphan E. GH #13 itself still grants no candidate authority and
+obeys pending-journal recovery refusal before phase 1.
+
+Coordinator will correct these small linked rows/paragraphs directly, qualify
+successful versus interrupted rollback, and keep shared-producer/legacy
+behavior unchanged. The gate vocabulary/matrix cardinalities need no change.
+
+The first fresh resource-admission attempt also timed out after 600 seconds:
+free memory 57-60%, load1 sometimes >5, and other active Go/test processes were
+observed. No formatting/Go validation command was admitted by this session.
+Exit 75 is a resource blocker, not a failing document/runtime test. Do not
+terminate other users' processes or reuse this attempt as validation.
+
 ## Revision Delivery — GH #13 capture-evidence planning — 2026-09-22
 
 **Implementer**: verified `gpt-5.4` agent `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be`

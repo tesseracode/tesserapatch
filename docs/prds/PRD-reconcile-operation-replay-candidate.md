@@ -2338,9 +2338,11 @@ candidate path and every feature artifact in step 8's snapshot set —
 `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
 `status.json` — is restored from `snapshots/`, the snapshotted
 `status.Apply` and `status.State` are restored with them, and every path
-recorded with an absent marker is **deleted**. E and C therefore come back
-together as bytes or together as absence; rollback never leaves a new E beside
-an old C or the reverse. The candidate returns to `status: pending`. A failure
+recorded with an absent marker is **deleted**. Successful completed rollback
+restores each E/C artifact to its own snapshotted bytes or absence; it leaves
+neither new artifact behind. Interrupted or failed rollback is not reported as
+complete and retains the journal. On success the candidate returns to
+`status: pending`. A failure
 at step 11 or step 12 — an E-publication failure, a C-publication failure, a
 staged-artifact write failure or a state-transition failure — is a
 **failure**: it rolls back and returns non-zero. It is never a printed warning
@@ -2350,10 +2352,15 @@ beside a success line, and there is no success-shaped partial acceptance.
 observed on disk.** A crash or injected failure after the E write but before the
 C write may temporarily leave a new E beside an old C (or old absence), or the
 reverse during rollback. That is **not** an atomic multi-file publication
-claim and is **not** auto-repaired by readers. The planned reader behavior is
-to refuse the mismatched pair, surface the paired-binding failure through its
-existing envelope, and rely on the retained journal plus explicit
-rollback/recovery to restore the old pair or absence.
+claim and is **not** auto-repaired by readers. With C present, inconsistent
+E/C bindings refuse through the existing paired-binding envelope. With C
+genuinely absent, ADR-041's shipped readers retain `recipe-coverage-missing`
+(verify warning/rung 5 and unchanged legacy explicit apply), regardless of
+orphan E; absence is not a paired-binding error. GH #13 grants no candidate
+authority in either case: a pending journal first requires explicit recovery,
+and without one its E1 gate refuses missing C. A live failure attempts the
+existing rollback; a crash or failed rollback retains the journal for explicit
+recovery. Only completed restoration certifies the old per-artifact state.
 `AcceptShadow`'s best-effort refresh and prune (`internal/workflow/accept.go:110,128-131`)
 are explicitly not the model.
 
@@ -2826,7 +2833,7 @@ Listed in evaluation order: the preflight preconditions first, then E1-E15.
 | `coverage-incomplete` | phase-2 refusal, **E3** | `coverage_status` ≠ `complete` |
 | `capture-event-unusable` | phase-2 refusal, **E4** subcheck 1 | `recipe-capture-event.json` absent, unreadable, malformed or not canonically re-encodable after strict decode |
 | `capture-event-owner-mismatch` | phase-2 refusal, **E4** subcheck 2 | `event.feature` ≠ requested slug |
-| `capture-event-pair-mismatch` | phase-2 refusal, **E4** subcheck 3 | `event.coverage_sha256` ≠ SHA-256 of the exact raw C bytes |
+| `capture-event-pair-mismatch` | phase-2 refusal, **E4** pairing subchecks after usability/owner | First mismatch in this fixed order: `event.coverage_sha256` versus SHA-256 of exact raw C bytes; E versus C `capture.mode`; E versus C `capture.pathspecs`; E versus C `capture.claim_ids`. Report the first mismatching field. |
 | `binding-presence-drift` | phase-2 refusal, **E5** | either presence flag contradicted by recomputed readable existence, in either direction, across the paired artifacts |
 | `binding-hash-drift` | phase-2 refusal, **E6** | recomputed patch or raw on-disk recipe hash differs from C or E |
 | `recipe-undecodable` | phase-2 refusal, **E7** | the recipe's bytes are present and hash-correct but do not strict-decode |
@@ -3277,7 +3284,7 @@ IDs are contiguous `ROC-001` … `ROC-306`.
 | ROC-062 | G | Every gate is recomputed | Wrong-input fixture `eligibility-reads-stored-hashes` (a gate comparing stored values to each other rather than to recomputed ones) fails the same recomputation validator |
 | ROC-063 | C | E5 and E6 are reachable on the recipe side | A record claiming `recipe_present: true` beside an absent recipe, and one claiming `recipe_present: false` beside a readable recipe, each report `binding-presence-drift` — **not** `recipe-owner-mismatch` and **not** `recipe-undecodable`; and a readable recipe whose raw bytes differ from `recipe_sha256` reports `binding-hash-drift` even when it decodes cleanly and its `feature` matches |
 | ROC-064 | C | E7 precedes E8, and E8 is conditional | A recipe that is present and hash-correct but does not strict-decode reports `recipe-undecodable`; E8 is not evaluated for it at all, and no fixture can make an undecodable recipe report `recipe-owner-mismatch` |
-| ROC-065 | G | No gate shadows a later gate, and every code is reachable | Wrong-input fixture `combined-recipe-decode-and-owner-gate` (rev-1's single E4 asking both questions at once) fails the same gate-reachability validator: under it the `binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` fixtures above all report `recipe-owner-mismatch`, while the ordered configuration reports three distinct codes; wrong-input fixture `event-owner-checked-before-decode` makes `capture-event-owner-mismatch` shadow `capture-event-unusable`, and wrong-input fixture `event-pairing-checked-before-owner` makes `capture-event-pair-mismatch` shadow `capture-event-owner-mismatch`; each of the fifteen E-gate codes and both E4/E11 subcodes has a fixture reporting exactly it, so a code with no reaching fixture fails the row |
+| ROC-065 | G | No gate shadows a later gate, and every code is reachable | Wrong-input fixture `combined-recipe-decode-and-owner-gate` (rev-1's single E4 asking both questions at once) fails the same gate-reachability validator: under it the `binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` fixtures above all report `recipe-owner-mismatch`, while the ordered configuration reports three distinct codes; wrong-input fixture `event-owner-checked-before-decode` makes `capture-event-owner-mismatch` shadow `capture-event-unusable`, and wrong-input fixture `event-pairing-checked-before-owner` makes `capture-event-pair-mismatch` shadow `capture-event-owner-mismatch`; all eighteen distinct eligibility reason codes across fifteen gates (including E4's three codes and E11's two) have a fixture reporting exactly that code, so a code with no reaching fixture fails the row |
 
 ### 9.4 Candidate domain, the recipe-witness role and insertion-run derivation
 
@@ -3762,13 +3769,13 @@ shipped v0.17.0 prerequisite.
 | ROC-296 | G | No blind C→E, generation or current-parent substitution | Wrong-input fixtures `coverage-copied-into-event`, `generation-capture-substitutes-for-event` and `current-parent-scan-substitutes-for-parent-created-paths` each fail the same paired-input validator the accepted E/C path passes |
 | ROC-297 | U | Candidate schema binds four hashes | `candidate.json` carries `capture_event_sha256`, `coverage_sha256`, `patch_sha256` and `recipe_sha256` in `bindings`; omitting the first or adding a fifth mutable binding fails the same schema validator |
 | ROC-298 | I | Acceptance stages and publishes E before C | Step 7 stages both `recipe-capture-event.json` and `recipe-coverage.json`; step 11 writes E before C and never the reverse; a fixture that publishes C first or omits E fails the acceptance-order validator |
-| ROC-299 | C | Interrupted E-before-C publication may expose a mismatched pair until recovery | A forced failure after E write but before C write may leave a new E beside an old C (or old absence); paired readers refuse that state rather than auto-repairing it, the journal remains authoritative, and successful explicit recovery later restores or deletes the pair together |
+| ROC-299 | C | Interrupted publication preserves distinct C-present and C-absent read envelopes | If old C is present, new E beside old C produces the existing paired-binding refusal. If C is genuinely absent, orphan E remains `recipe-coverage-missing` (verify warning/rung 5; unchanged legacy explicit apply), not a paired-binding failure. GH #13 grants no candidate authority: a pending journal triggers `recovery-required` before phase 1; without a journal, E1 refuses absent C. Neither reader auto-repairs. |
 | ROC-300 | I | Truthful `no-capture` does not refuse a valid durable pair | A P6/P7-style no-capture record with a valid paired durable reference, validated E/C quartet and reconstructable commit may still pass E1-E15; a fixture that refuses solely because `capture.mode == no-capture` fails |
 | ROC-301 | G | The gate inventory stays fifteen and the proof array stays `[15]bool` | Wrong-input fixtures `phase2-proof-array-resized`, `feature-state-as-sixteenth-gate`, `event-owner-checked-before-decode` and `event-pairing-checked-before-owner` each fail the same gate-inventory validator: rev-7 changes the contents of E4-E11, not the closed cardinality of E1-E15 |
 | ROC-302 | G | Canonical E digest validator, not raw-byte hashing | Two valid E files whose raw bytes differ only by formatting but whose strict-decoded content is identical produce the same `capture_event_sha256` and the same candidate ID, while wrong-input fixture `raw-event-file-hash-used-as-identity` fails the same identity validator because it changes ID where the canonical validator does not |
 | ROC-303 | C | Capture descriptor field mismatches refuse in deterministic order | With C unchanged and a valid strict E edited only in `capture.mode`, only in `pathspecs`, or only in `claim_ids`, each invocation refuses with `capture-event-pair-mismatch`; the deterministic sub-order is pair-hash first, then `capture.mode`, then `pathspecs`, then `claim_ids`, and the first mismatching field is the one the diagnostic names |
-| ROC-304 | C | Between-E-and-C crash is a read refusal, not an atomicity mask | A crash or injected failure after writing E and before writing C leaves the journal on disk and may expose a mixed pair; readers refuse that pair under the paired-binding validator, do not claim atomic multi-file publication, and do not auto-repair or silently accept the newer E |
-| ROC-305 | I | Explicit no-marker recovery restores the exact old pair or absence | `--resume-candidate-recovery` on a no-marker journal restores the snapshotted old E and old C together, or deletes both to their recorded absent markers together, before removing the journal |
+| ROC-304 | C | Between-E-and-C crash is detectable, not an atomicity mask | A process crash after writing E and before writing C leaves the journal and may expose a mixed pair. C-present bindings refuse; genuinely absent C retains ROC-299's missing-coverage envelope. A caught live write failure attempts the existing rollback instead of requiring an unnecessary explicit resume; a crash or failed rollback retains recovery evidence. No reader auto-repairs, claims cross-file atomicity or grants candidate authority. |
+| ROC-305 | I | Successful explicit no-marker recovery restores each old artifact or its absence | `--resume-candidate-recovery` on a no-marker journal restores each snapshotted E/C artifact to its exact old bytes or deletes it if its own marker records absence, before removing the journal. Test both present, both absent and each one-sided absence without requiring a pre-existing valid pair or claiming intermediate writes are atomic. |
 | ROC-306 | C | Failed recovery preserves the journal and exits nonzero | A forced failure during explicit recovery leaves the journal in place, exits `1`, does not claim success, and does not clear or normalize a mismatched E/C pair on disk |
 
 ## 10. Rollout and release

@@ -168,12 +168,13 @@ Normative ADR-037 / PRD sections amended by this choice:
 
 Rejected.
 
-It would prove that GH #13 *noticed* E at acceptance time, but candidate
-identity, stale detection, rejection reuse and accepted-audit lookup would all
-remain silent about E drift.
-
-That is weaker than the operator-selected direction and reintroduces precisely
-the ambiguity ADR-041 §7 asked GH #13 to close.
+An independently stored immutable E binding could detect drift on recheck.
+However, keeping it outside the candidate identity would require additional
+rules for the same candidate ID's reuse, rejection lookup and accepted audit
+when that binding changes. The operator selected direct digest inclusion to
+reuse the existing content-addressed identity/collision rules instead.
+This is an identity/coherence tradeoff, not a claim that an immutable recheck
+is incapable of detecting changes.
 
 ### B — Raw E file hash
 
