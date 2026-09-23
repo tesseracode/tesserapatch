@@ -23,8 +23,10 @@ The combined documentation/planning wave is **not mechanically closed**.
 The gate at `fb615c1` passed checks 1-6 and vet, then failed in the build-stage
 invocation; the sentinel prevented all later Go commands. Its first diagnostics
 were suppressed by Makefile, so resource admission versus build failure is not
-yet distinguished. APPROVED describes planning and targeted guard approval,
-not a passing gate. A fresh-gated standalone build diagnosis follows.
+retrospectively distinguished. A standalone fresh-gated build now passes at
+82% free, so no persistent build defect was reproduced. APPROVED describes
+planning/targeted approval, not a passing gate. Wait for the current hosted run
+before the tracking-only push and full gate retry.
 
 v0.17.0 remains published at immutable `d1d6c3f`; no release/tag change belongs
 to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTORY.md).
@@ -35,7 +37,7 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — final gate stopped during build stage; targeted correction passes
+- **Status**: Approved for retry — standalone build passes; full gate/native completion pending
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
@@ -43,11 +45,12 @@ WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
 
-The final gate exited 2 after build-stage failure, with later commands prevented
-by the failure sentinel. Vet succeeded; first build diagnostics are unavailable
-because Makefile redirected them. The ignored helper now persists failure kind
-so a new timeout cannot be mistaken for a compiler error. Run only a fresh-gated
-standalone build diagnosis with visible output; keep source immutable.
+The fresh-gated standalone build passed on unchanged source at 82% free.
+The initial gate's hidden failure cause cannot be recovered and is not relabeled
+as a compiler error or proven timeout. The ignored helper now persists exact
+future failure kinds; all seven shell controls pass. Preserve in-progress native
+run `35872519378` before pushing the tracking-only successor and retrying the
+entire final gate, including its full fresh test partition.
 
 The approved test-only maintenance is complete and directly reviewed as a
 bounded one-file diff. It changes only the current ADR-index digest, adds a
@@ -166,6 +169,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   failed with suppressed initial diagnostics, make exit 2. Failure sentinel
   prevented subsequent Go retries/shards. Root cause not established by this
   output; no full-suite failure or completed gate is claimed.
+- Standalone build diagnosis PASS on unchanged source with a fresh 82%-free
+  window. No persistent compile defect reproduced; this does not complete the
+  prior gate. The ignored helper now records exact timeout/command-exit causes.
 
 ## Next Steps
 
@@ -182,10 +188,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-No content/review or targeted-test blocker remains. Final gate stopped during
-build-stage admission/execution with hidden diagnostics; isolated diagnosis and
-a complete retry remain. Native corrected-source CI is pending. No #13 contract
-decision is reopened and no implementation is dispatched.
+No content/review, targeted-test or reproduced build blocker remains. A complete
+final-gate retry is required; the current native run is preserved before pushing
+tracking-only changes. No #13 decision is reopened or implementation dispatched.
 
 ## Context for Next Agent
 

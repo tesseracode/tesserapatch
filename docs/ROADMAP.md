@@ -1487,6 +1487,9 @@ The gate at `fb615c1` passed checks 1-6 and vet, then stopped during the build
 invocation; its redirected first diagnostics do not establish timeout versus
 compiler failure. The sentinel blocked later Go commands. A fresh-gated
 standalone diagnosis will retain the exact failure kind; wave closure is pending.
+The standalone build now PASSES under a fresh 82%-free gate on unchanged source.
+The initial suppressed cause remains unconfirmed. Preserve current native CI
+before the tracking-only push and full mechanical retry; no partial gate pass.
 
 Earlier task progression (historical):
 

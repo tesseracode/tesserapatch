@@ -1,3 +1,18 @@
+## Build Diagnosis — documentation/planning gate retry — 2026-09-23
+
+**Source**: unchanged `fb615c1`; tracking-only successor `e5a58f6`
+**Result**: standalone CLI build PASS under a fresh 82%-free resource minute
+
+No persistent compile defect was reproduced. The original gate's redirected
+failure cause remains unknown; this passing build does not retroactively prove
+a timeout or complete the failed gate. The ignored helper now persists future
+resource-timeout versus command-exit causes and passes all seven shell controls.
+
+**Action**: preserve in-progress native run `35872519378` (Ubuntu/Windows and
+Ubuntu observer now successful; macOS test/observer pending), then push the
+tracking-only checkpoint and rerun the entire final gate. No source or accepted
+contract change. No implementation dispatch until the wave actually closes.
+
 ## Mechanical Gate Stop — documentation/planning wave — 2026-09-23
 
 **Checkpoint**: `fb615c18ec8e61a0e8dc886e705b8e9afed6ae0d`
