@@ -160,7 +160,7 @@ Normative ADR-037 / PRD sections amended by this choice:
 | ADR-037 D19/D20/D21 / PRD §6.10-§6.11 | `capture_event_sha256` in identity/schema/staleness/reuse |
 | ADR-037 D29/D29b/D30/D31 / PRD §6.14-§6.16 | E staged/snapshotted/published/rolled back/recovered with C |
 | PRD §7.1 | refusal vocabulary for paired E/C gating |
-| PRD §9 | appended ROC rows and updated totals |
+| PRD §9 | appended ROC-302…ROC-306 and updated totals/deltas |
 
 ## 6. Alternatives rejected
 
@@ -211,4 +211,3 @@ This ADR does **not**:
 
 The v0.17.0 producer prerequisite is already shipped and satisfied. After
 planning review, runtime implementation is still a **separate assignment**.
-

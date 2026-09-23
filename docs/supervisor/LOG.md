@@ -1,3 +1,24 @@
+## Revision Delivery — GH #13 capture-evidence planning — 2026-09-22
+
+**Implementer**: verified `gpt-5.4` agent `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be`
+**State**: Proposed corrections delivered; independent re-review next
+
+E4 now explicitly compares raw-C pairing hash then capture mode/pathspecs/claim
+IDs, with field-specific refusal fixtures and no authentication overclaim.
+ROC-297 is schema shape only; ROC-302 defines canonical-digest recomputation
+with format-distinct valid E and a wrong raw-hash identity input. Both current
+revision summaries match E4/E5. Interrupted E-before-C states are detectable
+mixed pairs, not impossible observations; restoration/absence and failed
+recovery/journal cases are explicit.
+
+Coordinator non-Go checks PASS: nine paired blocks; ROC-001..306 contiguous/
+unique, I62/C90/G77/U68/S9; fifteen gates/fourteen steps; historical revision
+rows and C1/C2/D2/D3 unchanged. No runtime execution claim. Latest machine sample
+58% free/load1 5.32 is below Go-admission requirements; no Go command attempted.
+
+**Action**: checkpoint and request re-review of the same bounded three-document
+delta; do not mark Accepted or implement candidates on structural checks alone.
+
 ## Review — GH #13 capture-evidence planning rev-7 — 2026-09-22
 
 **Reviewer**: `fe6aacf4-231d-487d-b1be-9460f333617d`

@@ -5,10 +5,10 @@
 **Cluster state**: IN PROGRESS
 
 Research intake/backlog reconciliation is complete, archived and pushed at
-`c8344df`. GH #13's Proposed rev-7/ADR-043 review requires revision: missing
-explicit capture-selector comparison, an impossible schema-validator claim,
-and inconsistent E4/E5 numbering. Coordinator also requires truthful interrupted
-E/C recovery wording. No runtime implementation is authorized.
+`c8344df`. The GH #13 rev-7/ADR-043 corrections are delivered and remain Proposed
+pending re-review. Explicit capture-selector checks, separate canonical identity
+recomputation, correct E4/E5 numbering and truthful interrupted-pair recovery
+are now specified. No runtime implementation is authorized.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -21,13 +21,27 @@ pre-release paragraphs are not active instructions.
 - **Milestone**: GH #13 / ADR-041 section 7 planning amendment
 - **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
 - **Description**: Bind independent capture evidence into replay-candidate gates, identity and recovery planning
-- **Status**: In progress — correcting independent planning findings; runtime undispatched
+- **Status**: Review — planning corrections delivered; runtime undispatched
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+All three independent findings and coordinator recovery wording have revisions
+in the same three planning files. E4 checks pair hash, capture mode, pathspecs
+and claim IDs in explicit order; paired inputs prove consistency now, not
+authenticated history. ROC-297 is shape-only and ROC-302 pins the separate
+canonical-digest identity validator. ROC-299/304-306 describe detectable mixed
+pairs, explicit restoration/absence and failed-recovery journal retention,
+not multi-file atomicity.
+
+Coordinator structural checks pass with 306 contiguous rows:
+I62/C90/G77/U68/S9, nine byte-identical regions, fifteen gates and fourteen
+steps. Existing C1/C2/D2/D3 and historical rev-0..6 rows remain unchanged.
+Re-review is pending; the latest resource snapshot is 58% free/load1 5.32,
+so no Go validation has been attempted.
 
 Independent `gpt-5.4` review is NEEDS REVISION on one high/two medium contract
 issues. Add explicit E/C capture-mode/pathspec/claim comparison, separate shape
@@ -155,9 +169,10 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Blockers
 
-No intake blocker remains. The GH #13 amendment has three independent review
-findings plus one coordinator recovery-claim correction to resolve before
-acceptance. GH #24 widening is not a prerequisite for this narrow amendment.
+No intake blocker remains. Amendment corrections need independent re-review
+before acceptance. The latest resource snapshot is below the mandatory Go
+admission threshold; final mechanical checks must not bypass it. GH #24
+widening is not a prerequisite for this narrow amendment.
 
 ## Context for Next Agent
 
