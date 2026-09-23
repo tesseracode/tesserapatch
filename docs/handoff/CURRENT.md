@@ -2,7 +2,32 @@
 
 ## Status
 
-**Cluster state**: SHIPPED
+**Cluster state**: IN PROGRESS
+
+**Research intake and backlog reconciliation dispatched (2026-09-22)**:
+the operator authorizes a documentation-only intake of the thirteen previously
+untracked research files, with accurate historical/current statuses and no
+implementation of their proposals. Fresh WAVE_BASE:
+`6e8096e03849617a240fa586b109e60f44fad69f` (fetched HEAD/origin agree; tracked
+tree clean, one worktree and no stashes). These files are now authorized intake
+scope, not cleanup targets. Preserve turn-log history and evidence uncertainty.
+
+Scope: refresh research caveats/references, reconcile TWS duration/evidence
+limitations without inventing observations, index all research, correct the
+stale CLUSTERS dashboard and retire resolved allowlist entries. Reconcile GH #15
+with shipped v0.17.0 and record remaining backlog priorities. Then undertake
+ADR-041 section 7's planning-only follow-up for GH #13 as a separately tracked
+phase; WP-004 is the preferred later planning track, not automatically graduated.
+No runtime, schema, CLI, dependency, installed-asset or release/tag changes.
+
+Model constraint: OpenAI/MAI only for this work. Delegated implementation and
+review calls explicitly select `gpt-5.4` rather than inheriting defaults;
+optional tools without reliable approved-model selection are not used.
+Coordinator owns CURRENT/ROADMAP/LOG/HISTORY and GitHub issue actions.
+The research implementer owns only the thirteen files, research indexes,
+CLUSTERS and `.wave-close-allowlist`; no agent commits or Go runs.
+
+### Published release (historical)
 
 **v0.17.0 SHIPPED (2026-09-21)**:
 [GitHub Release](https://github.com/tesseracode/tesserapatch/releases/tag/v0.17.0)
@@ -3886,18 +3911,24 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 
 ## Active Task
 
-- **Task ID**: `publish-v0-17-0`
+- **Task ID**: `research-intake-and-backlog-reconciliation`
 - **Milestone**: GH #15 / ADR-036
 - **Issue**: [GH #15](https://github.com/tesseracode/tesserapatch/issues/15)
-- **Description**: Publish the accepted recipe-authority release as v0.17.0
-- **Status**: Complete — v0.17.0 published, verified and cleaned
-- **Assigned**: 2026-09-20
-- **WAVE_BASE**: `fee5845855128761d7ede09b99c97f7abe229aac`
+- **Description**: Integrate historical research as documentation and reconcile the post-v0.17 backlog
+- **Status**: In progress — documentation intake only; proposals not implemented
+- **Assigned**: 2026-09-22
+- **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 - **Release**: `v0.17.0` — published from `d1d6c3f`, authorized by the operator
 
-WAVE_BASE = fee5845855128761d7ede09b99c97f7abe229aac
+WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The operator authorizes intake/backlog reconciliation followed by GH #13
+capture-evidence planning. Thirteen historical files were inspected in the
+preceding read-only assessment. Papers and turn logs are useful durable evidence,
+not executable authority; metadata/approval gaps and stale claims must remain
+explicit. The release is already archived and is not reopened.
 
 The authorized release is published. The annotated tag and peeled commit match
 the validated source; all required tag jobs, both platform version checks and
@@ -4965,6 +4996,10 @@ remains blocked until that release is implemented, soaked and shipped.
 
 ## Files Changed
 
+- Intake dispatch: CURRENT, ROADMAP and supervisor LOG. Implementation scope
+  is the thirteen known research files, their indexes, CLUSTERS and the allowlist.
+  New proposals remain paper-only; prior runtime/asset/test source is protected.
+
 - Authorized publication delta: CHANGELOG, README, SPEC, and one expected
   heading/date literal in `assets/recipe_authority_parity_test.go`.
   CURRENT/ROADMAP/LOG record the release phase; no runtime/guard-logic change.
@@ -5640,6 +5675,10 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Intake: baseline verified; no validation result yet. Validate documentation
+  links, JSON aggregate consistency, inventory/allowlist disposition and review
+  status. Run existing document-specific checks if applicable; no runtime change.
 
 - FINAL publication PASS: local 8/8 gate and main run `35558943145` pass at
   `d1d6c3f`; tag run `35564108468` passes all five required jobs, Ubuntu/macOS
@@ -11870,16 +11909,19 @@ at 471.544s. Formatting, vet and CLI build pass.
 
 ## Next Steps
 
-1. No further v0.17.0 release operation or tag rewrite is needed.
-2. GH #15/v0.17.0 is shipped. GH #13 still needs the separate ADR-041 section-7
-   planning follow-up and a new implementation assignment; do not auto-dispatch.
-   GH #24 remains non-blocking broader-domain planning only.
+1. Complete and review the bounded documentation intake; reconcile shipped
+   GH #15 and the stale dashboard without promoting exploratory work to accepted
+   implementation. Commit explicit paths and archive the intake at completion.
+2. Then scope the separately authorized ADR-041 section-7 planning follow-up
+   for GH #13, preserving ADR-039/040, D16 and no-autorepair boundaries.
+   Implementation remains undispatched; WP-004 follows as a separate proposal.
+3. GH #24 and GH #12/#14 remain planning; GH #18-22 need v0.17 re-baselining.
 
 ## Blockers
 
-- No v0.17.0 implementation, validation, publication or cleanup blocker remains.
-  The release exists and all required jobs succeeded; the terminal record is
-  ready for its final main push.
+- No intake blocker is known. Some source research has stale/unverified claims;
+  preserve those as historical evidence with explicit caveats, not new facts.
+  GH #13 planning decisions need independent review before implementation.
 - ADR-040 resolves the P2 writing-event conflict; ADR-039 governs the
   conservative v1 domain. GH #24 is separate non-blocking planning only.
 - GH #13's shipped-GH #15 prerequisite is satisfied. Its separate ADR-041

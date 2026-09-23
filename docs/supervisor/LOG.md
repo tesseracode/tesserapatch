@@ -1,3 +1,27 @@
+## Dispatch — research intake and backlog reconciliation — 2026-09-22
+
+**Task**: `research-intake-and-backlog-reconciliation`
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**State**: IN PROGRESS — documents/evidence only
+
+Operator authorizes integrating the thirteen known research files with accurate
+statuses and no proposal implementation, then ADR-041 §7's GH #13 planning
+follow-up. WP-004 is the preferred later planning track. Baseline HEAD/origin
+match, tracked tree is clean, one worktree/no stashes.
+
+Preserve append-only turn logs, historical measurements and explicit uncertainty;
+reconcile TWS duration without inventing provenance; keep aggregate development
+evidence distinct from a reconciliation dataset. Update indexes, CLUSTERS and
+allowlist disposition. Reconcile GH #15 release status/scope and queue the
+remaining issues; do not close planning issues merely because their prerequisite
+shipped. No runtime/installed asset/schema/dependency/tag change.
+
+**Model selection**: operator requires OpenAI/MAI only. Every task/review call
+explicitly selects `gpt-5.4`; do not assume inherited defaults or use optional
+features lacking reliable approved-model selection. Coordinator owns tracking/
+GitHub actions; implementer owns only the research intake files/indexes,
+CLUSTERS and allowlist, with no Go execution or commits.
+
 ## Release — v0.17.0 SHIPPED — 2026-09-21
 
 **Authorization**: operator `lets publish`, 2026-09-20

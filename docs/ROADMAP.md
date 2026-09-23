@@ -1443,6 +1443,23 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### Post-v0.17 research intake and backlog — 🚧 2026-09-22
+
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+Operator authorizes documentation-only intake of thirteen historical research
+files and backlog reconciliation, followed by ADR-041 §7's GH #13 planning
+amendment. WP-004 is the preferred subsequent planning track, not an automatic
+implementation assignment. All delegated calls explicitly select an OpenAI
+model; no Anthropic/Claude agents or unverified optional-agent defaults.
+
+Current queue: reconcile GH #15 as shipped under its accepted v0.17 scope;
+GH #13's release prerequisite is satisfied but its capture-event planning
+amendment is still required. GH #9/#17 are reliability work; GH #18-22 should
+be re-baselined on v0.17 before fixes; GH #24 is non-blocking completeness-domain
+planning; GH #12/#14 remain evidence-gated research. Refresh CLUSTERS/indexes
+so historical shipped work is not incorrectly presented as active blockers.
+No runtime or release scope is added by this intake.
+
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).
 **Order**: accept GH #15's producer contract, then plan GH #13 against that
