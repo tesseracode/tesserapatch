@@ -1,3 +1,15 @@
+## Backlink/Structure Check — GH #13 proposed amendment — 2026-09-22
+
+Coordinator adds Proposed-only ADR-041/ADR-index/CLUSTERS backlinks and corrects
+stale v0.16/S5 release-pending index notes. ADR-043 is reserved and 044 is the
+next unused number; no new contract acceptance is implied.
+
+Extended non-Go checks pass: nine identical marked regions, unchanged C1/C2/
+D2/D3 core blocks against the planning baseline, 301 contiguous typed rows,
+fifteen gate rows, fourteen transaction steps and 132 local planning-link
+targets. The independent semantic review remains in progress on immutable
+ADR-043/ADR-037/PRD content. No runtime validation is claimed from these checks.
+
 ## Delivery — GH #13 capture-evidence planning rev-7 — 2026-09-22
 
 **Implementer**: `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be`

@@ -28,6 +28,12 @@ WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
 
+Coordinator added Proposed-only backlinks in ADR-041, the ADR index and CLUSTERS.
+The index's stale v0.16/S5 runtime-pending statements now point to shipped
+v0.16/v0.17 history. ADR-043 reserves number 043; next unused number is 044.
+No draft is marked accepted. Extended structural checks also verify unchanged
+C1/C2/D2/D3 regions, fourteen transaction steps and 132 planning-link targets.
+
 The verified `gpt-5.4` implementer delivered only ADR-043, ADR-037 and the
 companion PRD. The draft binds canonical E digest in candidate identity/schema,
 adds three capture-event refusal codes within a fifteen-gate inventory, and
@@ -98,7 +104,8 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 ## Files Changed
 
 - Current planning scope: ADR-043, ADR-037 and the GH #13 companion PRD,
-  with reviewed backlinks/statuses/tracking. No source, asset, test or new
+  with Proposed backlinks in ADR-041, ADR index and CLUSTERS plus tracking.
+  No source, asset, test or new
   runtime schema implementation.
 
 - Thirteen imported files: recurring-patches PRD; WP-004/006/007 and their
@@ -115,7 +122,8 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 - Proposed amendment structural PASS: nine paired regions byte-identical;
   301 contiguous ROC rows (I61/C87/G76/U68/S9); fifteen gates/proof array agree;
-  historical rev-0..rev-6 revision rows unchanged. No Go execution or runtime
+  fourteen transaction steps, unchanged C1/C2/D2/D3 blocks, 132 planning-link
+  targets exist; historical rev-0..rev-6 revision rows unchanged. No Go execution or runtime
   acceptance claim. Semantic review and remaining wave-close checks are pending.
 
 - `git diff --check`: PASS.

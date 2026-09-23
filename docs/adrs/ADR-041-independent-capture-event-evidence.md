@@ -603,6 +603,14 @@ event; readers never manufacture a sidecar from old metadata.
 
 ## 7. Migration and GH #13 planning dependency
 
+**Follow-up status (2026-09-22)**: GH #15 shipped in v0.17.0. The separate
+planning response to the obligations below is Proposed in
+[ADR-043](./ADR-043-operation-candidate-capture-evidence.md) and synchronized
+ADR-037/companion PRD rev-7. The operator selected canonical E digest inclusion
+in candidate identity. This status backlink does not accept that proposal or
+authorize implementation; the dependency remains until independent review.
+The original S4 migration baseline below is historical, not current release state.
+
 S4 coverage is **unshipped** at this baseline. Its C-only records remain
 strictly decodable D3 records, but once the amended reader ships they lack
 required binding evidence: C-present/E-missing is rung 2 / D17 order 1,

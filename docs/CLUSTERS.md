@@ -51,7 +51,7 @@ backlog items, and accepted planning gates.
 
 | Artifact | Status | Gate cleared | Next bounded step |
 |---|---|---|---|
-| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) | **Accepted rev-6** | v0.17.0 shipped GH #15's prerequisite scope. | Apply the `ADR-041` §7 planning amendment before any GH #13 implementation assignment. |
+| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) + [ADR-043](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Proposed rev-7 amendment; rev-6 accepted baseline** | v0.17.0 shipped GH #15's prerequisite scope; operator selected canonical E digest in candidate identity. | Independently review the ADR-041 §7 amendment before a separate GH #13 implementation assignment. |
 
 ### ADR snapshot relevant to active/backlog work
 
@@ -62,13 +62,15 @@ backlog items, and accepted planning gates.
 | [ADR-026 patch amendment policy](./adrs/ADR-026-patch-amendment-policy.md) | **Shipped / live** | WP-002 Wave γ amendment policy; no longer pending. |
 | [ADR-041 independent capture-event evidence](./adrs/ADR-041-independent-capture-event-evidence.md) | **Accepted rev-1** | GH #15 planning amendment accepted; §7 names the follow-up dependency for GH #13 consumer planning. |
 | [ADR-042 ordered recipe no-op proof](./adrs/ADR-042-ordered-recipe-noop-proof.md) | **Accepted** | Highest accepted ADR number at this intake snapshot. |
+| [ADR-043 operation-candidate capture-evidence identity](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Proposed** | Operator-selected direction; paired ADR-037/PRD rev-7 under independent review. No runtime implementation. |
 | Capture-context privacy boundary (unassigned) | **Deferred** | Historical WP-002 v2 proposal, not an active blocker; any renewed work must reconcile with shipped ADR-027 rather than assume privacy design is absent. |
 
 ### Housekeeping notes
 
 - 2026-09-22 — The previous pending-ADR block was stale. `ADR-024`,
   `ADR-025`, and `ADR-026` are already accepted/live, and the next available
-  ADR number after this intake is **043**, not 024.
+  ADR number at intake was **043**, not 024; it is now assigned to the proposed
+  GH #13 capture-evidence amendment. The next unused number is **044**.
 - 2026-09-22 — `WP-004` is the preferred later planning track for dependency
   suggestions, but that preference does **not** auto-open a PRD.
 - 2026-09-22 — Parent/coordinator owns ROADMAP queueing, CURRENT/HISTORY/LOG
