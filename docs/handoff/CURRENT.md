@@ -9,9 +9,10 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
-**Current validation (2026-09-23)**: native run `35872519378` completed SUCCESS
-on corrected source `fb615c1`, all five required jobs passing. The isolated
-local build and targeted original/new guards pass. Only a complete local
+**Current validation (2026-09-23)**: native run `35883032058` completed SUCCESS
+on exact gate-retry checkpoint `082f5f8`, all five required jobs passing and
+release skipped. Earlier run `35872519378` also passed on corrected source
+`fb615c1`. The isolated local build and targeted original/new guards pass. Only a complete local
 mechanical gate remains. The retry at `082f5f8` passed checks 1-7, then check 8
 timed out at resource admission before its first test command. The saved failure
 record confirms this cause: other Go processes and load1 above 5 prevented a
@@ -63,9 +64,9 @@ it from an actual compiler/test failure. No partition command started.
 Other Go/test workloads and elevated load prevented a full healthy minute
 within 600 seconds; no unrelated process was stopped.
 
-Preserve in-progress native run `35883032058` before pushing the blocked-state
-record. Source is unchanged; four native jobs pass and macOS remains running.
-Do not automatically retry the local gate again until the operator clears
+Native run `35883032058` now completed successfully on the exact retry
+checkpoint, without cancellation. Push the blocked-state record; source is
+unchanged. Do not automatically retry the local gate again until the operator clears
 resource contention. A future attempt must run the complete gate, not combine
 these partial successes with another attempt.
 
@@ -175,8 +176,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   never admitted: persisted `resource-timeout before ... go test -p=1 ./...`
   after 600 seconds of competing Go workloads/load1 above 5. Make exits 2.
   No test assertion failed and zero shard commands ran. Final gate incomplete.
-- Gate-head native run `35883032058` remains in progress (four successful jobs,
-  macOS pending); earlier `35872519378` is green on identical source.
+- Gate-head native run `35883032058` PASS at `082f5f8`: all five required jobs
+  complete successfully; release skipped. Earlier `35872519378` is also green
+  on identical source. Native evidence is complete, not a local gate substitute.
 
 - Native `35872519378` PASS at `fb615c1`: all five required jobs succeed,
   release skipped. Corrected-source hosted evidence is complete. Local full
@@ -220,9 +222,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Let current hosted run `35883032058` finish and push blocked-state tracking
-   without cancelling that run. Preserve the owned `failed`/`failure-reason`.
-2. On an operator resource retry, clear only those owned failure markers and
+1. Preserve the owned `failed`/`failure-reason` until an operator resource retry.
+   Native run `35883032058` is complete and green; no further CI wait is needed.
+2. On that retry, clear only those owned failure markers and
    run the existing final mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned

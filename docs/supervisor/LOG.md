@@ -1,3 +1,20 @@
+## Native Retry Checkpoint PASS — research/planning — 2026-09-23
+
+**Run**: [35883032058](https://github.com/tesseracode/tesserapatch/actions/runs/35883032058)
+**Checkpoint**: `082f5f8f35acc4229ba1b780304c2ca2f9e246b6`
+**Result**: SUCCESS — all five required jobs pass; release skipped
+
+The hosted run on the exact local gate-retry checkpoint completed without
+cancellation. This confirms the corrected document/index guard on native CI;
+the existing allowed-failure Windows full-suite surface is not equated with
+every Windows case passing.
+
+**Action**: push the blocked-state tracking and preserve the owned `failed` /
+`failure-reason` markers. Local checks 1-7 passed, but check 8 admitted no test
+command because other Go workloads/load prevented the required quiet minute.
+No automatic local retry is started. Native success does not substitute for
+the requested complete local mechanical gate or authorize #13 implementation.
+
 ## Confirmed Resource Stop — research/planning final gate — 2026-09-23
 
 **Checkpoint**: `082f5f8f35acc4229ba1b780304c2ca2f9e246b6`
