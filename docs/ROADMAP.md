@@ -1446,6 +1446,12 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**Latest gate result (2026-09-23)**: retry at `082f5f8` passes checks 1-7.
+Check 8 never starts its first shard: the saved failure record confirms a
+600-second resource-admission timeout amid other Go processes and load1 above 5.
+No test assertion fails. Preserve failure markers for an operator resource
+retry; the accepted planning remains unchanged and implementation undispatched.
+
 **September 23 validation update**: corrected-source native run `35872519378`
 passes all five required jobs at `fb615c1`, and isolated local build/targeted
 guards pass. A complete local final-gate retry follows on tracking-only changes;

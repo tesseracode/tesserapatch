@@ -1,3 +1,26 @@
+## Confirmed Resource Stop — research/planning final gate — 2026-09-23
+
+**Checkpoint**: `082f5f8f35acc4229ba1b780304c2ca2f9e246b6`
+**Result**: checks 1-7 PASS; check 8 not started; make exits 2
+
+The persisted failure reason is `resource-timeout before: ... go test -p=1
+./... -count=1 -timeout 40m -skip ...`, identifying the first CI-equivalent shard.
+Its admission window exhausted 600 seconds while other Go/test processes were
+active and load1 rose above 5 (reported samples include 10.71). Memory was
+approximately 82%; free memory alone did not satisfy the gate. No test command
+in the partition started, and no test assertion failed in this attempt.
+
+Unlike the earlier suppressed build-stage failure, this cause is directly
+recorded. Do not run another automatic retry into the same contention, terminate
+other users' processes, or relax the no-active-Go/load constraints. Preserve the
+failure sentinel and failure-reason record until an operator resource retry.
+
+**Action**: record the blocker locally and let native run `35883032058` finish
+before the tracking-only push. Four jobs pass; macOS remains in progress. Native
+run `35872519378` already passed on identical test/planning source. The accepted
+#13 plan and targeted guards remain valid; mechanical wave closure is still
+incomplete and no implementation is dispatched.
+
 ## Native Success and Final-Gate Retry — research/planning — 2026-09-23
 
 **Native run**: [35872519378](https://github.com/tesseracode/tesserapatch/actions/runs/35872519378)

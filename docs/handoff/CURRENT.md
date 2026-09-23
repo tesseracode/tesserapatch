@@ -12,8 +12,11 @@ All semantic review findings are closed; no runtime implementation is authorized
 **Current validation (2026-09-23)**: native run `35872519378` completed SUCCESS
 on corrected source `fb615c1`, all five required jobs passing. The isolated
 local build and targeted original/new guards pass. Only a complete local
-mechanical gate remains; it is being retried on a tracking-only successor,
-with exact failure reasons retained by the owned resource wrapper.
+mechanical gate remains. The retry at `082f5f8` passed checks 1-7, then check 8
+timed out at resource admission before its first test command. The saved failure
+record confirms this cause: other Go processes and load1 above 5 prevented a
+continuous qualifying minute. No test assertion failed and no shard ran.
+Keep the sentinel/failure record until an operator resource retry.
 
 ### Earlier validation progression (historical)
 
@@ -45,13 +48,28 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Approved — corrected-source native CI passes; full local gate retry executing
+- **Status**: Blocked — checks 1-7 pass; first test-shard admission timed out
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The complete gate retry stopped solely on confirmed resource admission for
+check 8's first shard. Formatting, vet and build all passed in this attempt.
+The helper persisted the exact `resource-timeout before` command, distinguishing
+it from an actual compiler/test failure. No partition command started.
+Other Go/test workloads and elevated load prevented a full healthy minute
+within 600 seconds; no unrelated process was stopped.
+
+Preserve in-progress native run `35883032058` before pushing the blocked-state
+record. Source is unchanged; four native jobs pass and macOS remains running.
+Do not automatically retry the local gate again until the operator clears
+resource contention. A future attempt must run the complete gate, not combine
+these partial successes with another attempt.
+
+### Earlier retry preparation (historical)
 
 Native CI is complete and green at `fb615c1`, covering the accepted plan and
 operator-authorized index guard correction. Push only tracking progress and
@@ -153,6 +171,13 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- Latest gate `082f5f8`: checks **1-7 PASS**. Check 8's first test command was
+  never admitted: persisted `resource-timeout before ... go test -p=1 ./...`
+  after 600 seconds of competing Go workloads/load1 above 5. Make exits 2.
+  No test assertion failed and zero shard commands ran. Final gate incomplete.
+- Gate-head native run `35883032058` remains in progress (four successful jobs,
+  macOS pending); earlier `35872519378` is green on identical source.
+
 - Native `35872519378` PASS at `fb615c1`: all five required jobs succeed,
   release skipped. Corrected-source hosted evidence is complete. Local full
   gate retry remains separate and has not yet passed.
@@ -195,22 +220,26 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Push the corrected checkpoint and run the existing final mechanical gate with
+1. Let current hosted run `35883032058` finish and push blocked-state tracking
+   without cancelling that run. Preserve the owned `failed`/`failure-reason`.
+2. On an operator resource retry, clear only those owned failure markers and
+   run the existing final mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned
    ignored resource wrappers if needed. Do not cancel native runs for docs-only
    tracking pushes or credit a partial gate as complete.
-2. Once the wave is durably closed, request a separate bounded #13 implementation
+3. Once the wave is durably closed, request a separate bounded #13 implementation
    assignment (start with frozen regression evidence). Do not implement now.
-3. Keep WP-004 as a separate later read-only dependency-suggestion planning
+4. Keep WP-004 as a separate later read-only dependency-suggestion planning
    proposal; GH #24 widening and #12/#14 research remain separate. Re-baseline
    #18-22 reports on v0.17 before designing fixes.
 
 ## Blockers
 
-No content/review, targeted-test or reproduced build blocker remains. A complete
-final-gate retry is required; the current native run is preserved before pushing
-tracking-only changes. No #13 decision is reopened or implementation dispatched.
+Confirmed resource contention blocks first-shard admission despite passing
+formatting/vet/build. An operator resource retry is required for the full gate.
+No content/review/targeted-test/build failure remains; no #13 decision is reopened
+or implementation dispatched.
 
 ## Context for Next Agent
 
