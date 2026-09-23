@@ -1482,6 +1482,11 @@ Intake checks pass for 141 local link targets, JSON aggregates and explicit
 duration uncertainty. The thirteen files will be tracked; all corresponding
 exemptions and stale already-tracked WP-005 entries are retired. Independent
 documentation review is next; the intake does not implement any proposal.
+The intake task is now complete at `0ca98db` with concise live-handoff correction
+`2a4d2f4`. Independent review reported only handoff issues, now coordinator-
+verified as resolved. All thirteen files are tracked and the completed task is
+archived before the separately tracked GH #13 planning phase; the combined
+documentation/planning wave remains in progress.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

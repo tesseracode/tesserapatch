@@ -10135,3 +10135,58 @@ GH #15/v0.17.0 is shipped. GH #13 still needs the ADR-041 section-7 planning
 follow-up and a separate implementation assignment. GH #24 remains independent
 non-blocking planning. Do not move/recreate v0.17.0 or automatically dispatch
 either future implementation.
+
+---
+
+# 2026-09-22 — Research intake and backlog reconciliation — COMPLETE
+
+**Task**: `research-intake-and-backlog-reconciliation`
+**Documentation/planning WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**Intake implementation**: `0ca98db`
+**Live-handoff correction**: `2a4d2f4`
+
+All thirteen previously untracked research files are now durable documentation:
+WP-004/006/007 and their append-only turn logs; recurring-patches PRD; t3code
+dependency-analysis addendum; and five TWS aggregate development-study files.
+WP-004 remains paper-approved without automatic PRD graduation, WP-006/007
+remain Exploring, and recurring patches remain paper-approved but blocked on
+their unaccepted metadata-boundary ADR. No proposal or runtime change was made.
+
+Research indexes and CLUSTERS reflect shipped WP-003/ADRs and the post-v0.17
+queue, preserving older hotfix/singleton/superseded-paper dispositions. All
+thirteen allowlist exemptions are retired because the files are tracked;
+the WP-005 pair was already tracked and its stale entries are removed too.
+No active exemption remains and the mechanical sentinel is unchanged.
+
+TWS is explicitly aggregate historical development evidence, not a normal
+reconciliation-validator corpus. Its JSON reports seven days while the summary
+window spans five calendar dates; both remain preserved with explicit unresolved
+provenance. No missing feature/hunk/patch rows were invented, and old auto-lenient/
+automatic collision suggestions are not adopted as current safety policy.
+
+GH #15 is closed with v0.17 release evidence and the intentional ADR-036 D8
+anchor deferral. GH #13 remains open with its shipped prerequisite satisfied,
+but ADR-041 §7's planning amendment remains outstanding. The dated ROADMAP
+queue retains #9/#17 reliability, #18-22 re-baselining/planning and #12/#14/#24
+research boundaries. WP-004 is the preferred separate later planning track.
+
+Validation: diff check clean; 141 local Markdown file targets exist; TWS JSON
+parses, study IDs and counts agree (42 = 35 + 7; 18 tags). No Go/runtime test
+or standard reconciliation-study validation is claimed. Independent intake
+review reported no content finding, only contradictory accumulated CURRENT
+prose/counts and a leftover closed-GH #15 task reference. The coordinator
+rotated CURRENT to current-task-only content and verified both corrections.
+The previous full accumulated handoff is preserved in Git at `0ca98db`;
+accepted release/S6 archives already precede this entry.
+
+Implementer `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be` and reviewer
+`fe74222d-a22c-4e34-96d7-f1dc558fc078` were explicitly assigned `gpt-5.4`;
+runtime metadata independently confirms that model for both. No other optional
+AI agent/model was used. Coordinator owns issue actions/tracking/commits.
+
+The operator selected `identity-digest` for the next planning phase: include
+the independently validated capture event's canonical SHA-256 in candidate
+identity. The next phase must record that choice in an amending ADR and update
+GH #13 gates/identity/transaction/recovery/parity/matrices. Implementation is
+not dispatched. This completes the intake task, not the remaining combined
+documentation/planning wave or a new release.

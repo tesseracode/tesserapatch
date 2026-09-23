@@ -1,3 +1,22 @@
+## Intake Task Closure — research documentation — 2026-09-22
+
+**Implementation**: `0ca98db`; live-handoff correction: `2a4d2f4`
+**Disposition**: intake complete; continuing the authorized documentation/planning wave
+
+The independent reviewer reported only two live-handoff findings. Coordinator
+direct verification closes both: CURRENT now contains only current-intake
+instructions, the validated count is 141, and the active task has no GitHub issue
+rather than routing to closed GH #15. Published S6/release evidence remains in
+HISTORY; the entire superseded accumulated handoff is recoverable at `0ca98db`.
+This small correction was checked directly rather than invoking an unnecessary
+new model after the synchronous reviewer could not accept a follow-up.
+
+**Action**: archive the completed intake immediately and push its explicit-path
+commits before the GH #13 planning phase. All thirteen research files are now
+tracked; no allowlist exemptions remain. No proposal was implemented. The
+combined documentation/planning wave remains IN PROGRESS; final independent
+planning review and wave-close checks occur after the remaining authorized phase.
+
 ## Review — documentation research intake — 2026-09-22
 
 **Reviewer**: `fe74222d-a22c-4e34-96d7-f1dc558fc078`

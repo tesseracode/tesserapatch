@@ -4,10 +4,11 @@
 
 **Cluster state**: IN PROGRESS
 
-Documentation-only research intake and backlog reconciliation are implemented
-at `0ca98db`; independent review requested correction of the live handoff.
-The stale accumulated handoff has now been rotated to this current-task summary.
-Re-review remains before intake closure and the subsequent GH #13 planning phase.
+Documentation-only research intake and backlog reconciliation are complete
+at `0ca98db`, with the live-handoff correction at `2a4d2f4`.
+The independent review's two handoff findings are resolved by direct coordinator
+verification. The intake is archived; push precedes the GH #13 planning phase.
+The combined documentation/planning wave remains IN PROGRESS.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -20,7 +21,7 @@ pre-release paragraphs are not active instructions.
 - **Milestone**: Post-v0.17 documentation intake and backlog reconciliation
 - **Issue**: None; operator-assigned intake. GH #15 is closed; GH #13 is the next planning phase.
 - **Description**: Preserve historical research as documentation without implementing its proposals
-- **Status**: Review — handoff findings corrected, re-review pending
+- **Status**: Complete — research intake archived; GH #13 planning phase next
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
@@ -84,12 +85,12 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 - No Go/runtime test was run or claimed. The aggregate study is not represented
   as passing the normal reconciliation-dataset validator.
 - Independent intake review: no reported content finding; handoff consistency
-  HIGH and closed-issue routing MEDIUM are corrected here, pending re-review.
+  HIGH and closed-issue routing MEDIUM are corrected at `2a4d2f4` and directly
+  verified by the coordinator. Final planning-wave review remains separate.
 
 ## Next Steps
 
-1. Obtain re-review of this corrected handoff, archive intake and push its
-   explicit-path commits before starting GH #13 planning.
+1. Push the completed/archived intake before starting GH #13 planning.
 2. Scope the separately authorized ADR-041 section-7 amendment. Record the
    operator's identity-digest choice in an amending ADR and synchronize the
    ADR-037/companion PRD gates, identity, publication/recovery and acceptance
@@ -99,7 +100,7 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Blockers
 
-No intake content blocker is known. Handoff re-review is outstanding.
+No intake content or handoff blocker remains.
 GH #13 still needs its planning amendment before implementation; GH #24 widening
 is not a prerequisite for this narrow amendment.
 
