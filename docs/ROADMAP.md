@@ -1487,6 +1487,10 @@ The intake task is now complete at `0ca98db` with concise live-handoff correctio
 verified as resolved. All thirteen files are tracked and the completed task is
 archived before the separately tracked GH #13 planning phase; the combined
 documentation/planning wave remains in progress.
+**GH #13 planning amendment now in progress** after intake push `c8344df`:
+ADR-043 records canonical capture-event digest identity; ADR-037/PRD are revised
+together for evidence gates, binding, publication/recovery, parity and acceptance
+cases. No replay source code or broader operation domain is authorized.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

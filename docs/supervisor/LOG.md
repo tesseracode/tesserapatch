@@ -1,3 +1,24 @@
+## Dispatch — GH #13 independent capture-evidence planning — 2026-09-22
+
+**Task**: `plan-gh13-independent-capture-evidence`
+**Intake predecessor**: pushed `c8344df`
+**Combined documentation/planning WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**State**: IN PROGRESS — planning only
+
+The operator authorized this phase after intake and selected `identity-digest`.
+Write ADR-043 recording canonical E digest in candidate identity, amend ADR-037
+and its companion PRD together, and leave the new revision Proposed until
+independent review. Follow ADR-041 §7 completely: reachable ordered evidence
+gates, independently validated descriptor, immutable identity/rechecks, E-before-C
+stage/snapshot/publication/rollback/recovery, both P3 variants and parity/counts/
+acceptance matrices. Preserve ADR-039/040, D16 and no-autorepair.
+
+**Ownership/model**: reuse the verified `gpt-5.4` implementer, now owning only
+ADR-043/ADR-037/companion PRD. Parent owns tracking/backlinks/issues; no agent
+commits or Go runs. Use explicitly selected OpenAI review. No runtime, assets,
+schema implementation or WP-004 graduation. Additional substantial unresolved
+architecture choices must be escalated rather than silently assumed.
+
 ## Intake Task Closure — research documentation — 2026-09-22
 
 **Implementation**: `0ca98db`; live-handoff correction: `2a4d2f4`

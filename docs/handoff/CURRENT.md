@@ -4,11 +4,9 @@
 
 **Cluster state**: IN PROGRESS
 
-Documentation-only research intake and backlog reconciliation are complete
-at `0ca98db`, with the live-handoff correction at `2a4d2f4`.
-The independent review's two handoff findings are resolved by direct coordinator
-verification. The intake is archived; push precedes the GH #13 planning phase.
-The combined documentation/planning wave remains IN PROGRESS.
+Research intake/backlog reconciliation is complete, archived and pushed at
+`c8344df`. The separately authorized GH #13 planning follow-up is now active.
+This remains a documentation/planning wave; no replay implementation is authorized.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -17,17 +15,25 @@ pre-release paragraphs are not active instructions.
 
 ## Active Task
 
-- **Task ID**: `research-intake-and-backlog-reconciliation`
-- **Milestone**: Post-v0.17 documentation intake and backlog reconciliation
-- **Issue**: None; operator-assigned intake. GH #15 is closed; GH #13 is the next planning phase.
-- **Description**: Preserve historical research as documentation without implementing its proposals
-- **Status**: Complete — research intake archived; GH #13 planning phase next
+- **Task ID**: `plan-gh13-independent-capture-evidence`
+- **Milestone**: GH #13 / ADR-041 section 7 planning amendment
+- **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
+- **Description**: Bind independent capture evidence into replay-candidate gates, identity and recovery planning
+- **Status**: In progress — documentation amendment only; runtime remains undispatched
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+Intake closed and pushed before planning dispatch. The operator selected
+`identity-digest`: add validated E's canonical SHA-256 to immutable candidate
+identity. Amend the accepted rev-6 ADR-037/PRD coherently and record the
+architecture rationale in ADR-043. The revision is proposed until independent
+review; no accepted shipped producer contract is silently widened.
+
+### Completed intake context
 
 All thirteen previously untracked research files are now tracked in `0ca98db`.
 The intake preserves paper-only approval/exploration statuses, append-only turn
@@ -54,6 +60,18 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Current State
 
+- Planning ownership: implementer owns only new
+  `docs/adrs/ADR-043-operation-candidate-capture-evidence.md`, ADR-037 and its
+  companion PRD. Coordinator owns ADR-041's completion backlink, indexes/
+  dashboard/tracking and issue updates after the amendment is reviewed.
+- Preserve ADR-036 D3/schema, ADR-039 domain, ADR-040 semantics, D16 origin,
+  no-autorepair, existing candidate isolation/locking and legacy fallthrough.
+- Required planning surfaces: closed/reachable first-match eligibility gates;
+  E-derived reference/capture/exclusion inputs and offline reconstruction;
+  canonical E digest in identity/schema/reuse/staleness/acceptance;
+  staged E-before-C and complete snapshot/rollback/recovery set for both P3
+  variants; synchronized parity blocks, refusal counts and matrix updates.
+
 - No runtime, installed skill, test source, dependency, wire schema or release change.
 - Research artifacts are intake evidence, not implementation authority.
 - Backlog has eleven open issues after GH #15 closure.
@@ -64,6 +82,10 @@ SHA-256 into candidate identity in the subsequent planning amendment.
   feature is authorized by this work.
 
 ## Files Changed
+
+- Current planning scope: ADR-043, ADR-037 and the GH #13 companion PRD,
+  with reviewed backlinks/statuses/tracking. No source, asset, test or new
+  runtime schema implementation.
 
 - Thirteen imported files: recurring-patches PRD; WP-004/006/007 and their
   companion turn logs; t3code dependency-analysis addendum; five TWS aggregate
@@ -76,6 +98,10 @@ SHA-256 into candidate identity in the subsequent planning amendment.
   and planning comment added. No other issue was closed.
 
 ## Test Results
+
+- Current planning amendment: no result yet. Validate nine paired regions,
+  gate/refusal/acceptance counts, link targets, exact schema changes and
+  narrative consistency; independent OpenAI review before acceptance.
 
 - `git diff --check`: PASS.
 - Coordinator checks **141** in-repository Markdown file targets: all exist.
@@ -90,19 +116,18 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Next Steps
 
-1. Push the completed/archived intake before starting GH #13 planning.
-2. Scope the separately authorized ADR-041 section-7 amendment. Record the
-   operator's identity-digest choice in an amending ADR and synchronize the
-   ADR-037/companion PRD gates, identity, publication/recovery and acceptance
-   matrices. Preserve ADR-039/040, D16 and no-autorepair rules.
+1. Author the ADR-041 section-7 amendment and ADR-043 rationale for the selected
+   identity-digest direction; synchronize every affected ADR-037/PRD surface.
+2. Check document parity/counts and obtain independent OpenAI review; keep
+   changes Proposed until accepted. Final wave closure follows review/checks.
 3. Do not implement GH #13 or auto-graduate WP-004. Their implementation/PRD
    assignments remain separate from this documentation/planning request.
 
 ## Blockers
 
-No intake content or handoff blocker remains.
-GH #13 still needs its planning amendment before implementation; GH #24 widening
-is not a prerequisite for this narrow amendment.
+No intake blocker remains. The GH #13 amendment is in progress and requires
+review before implementation may be assigned. GH #24 widening is not a
+prerequisite for this narrow amendment.
 
 ## Context for Next Agent
 
