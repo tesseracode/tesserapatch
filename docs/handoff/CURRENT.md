@@ -14,14 +14,16 @@ required jobs passing. It was preserved until completion before pushing the
 accepted planning/archives at `cd9279f`. Final-planning run `35823080400`
 failed two existing documentation guards. The ADR-041 correction now passes.
 Run `35825150850` finds one remaining ADR-index whole-block hash pin after the
-readiness-token checks pass. Preserving the approved current index requires
-bounded test-only snapshot/guard maintenance or a frozen-index alternative;
-operator direction is required before expanding the documentation-only scope.
+readiness-token checks pass. The operator-approved `test-only-update` now
+passes locally: the current index hash is updated, historical pins/readiness
+checks are preserved, and deletion/false-implementation mutations fail through
+the same validator. Production code and accepted #13 planning remain unchanged.
 
 The combined documentation/planning wave is **not mechanically closed**.
-The first fresh-resource admission attempt timed out after 600 seconds before
-any formatting/Go validation command. APPROVED describes the planning verdict,
-not a passing wave-close gate. Retry only with the unchanged resource protocol.
+The earlier resource block has cleared for targeted checks, which passed after
+fresh qualifying minutes at 81% free memory. APPROVED describes planning and
+targeted guard maintenance approval, not a passing wave-close gate. The final
+gate and fresh native CI follow on the immutable corrected checkpoint.
 
 v0.17.0 remains published at immutable `d1d6c3f`; no release/tag change belongs
 to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTORY.md).
@@ -32,13 +34,26 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — operator scope decision for ADR-index test pin; local resources below threshold
+- **Status**: Approved for final gate — authorized guard correction and original sensitivities pass
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The approved test-only maintenance is complete and directly reviewed as a
+bounded one-file diff. It changes only the current ADR-index digest, adds a
+clarifying comment and two same-validator mutation cases with explicit target
+checks. The original full guard and frozen ADR-041 suite pass: CLI 0.770s,
+workflow 0.225s. Formatting is clean. Both commands qualified fresh 81%-free
+windows. Push the exact checkpoint, then run final mechanical/native checks.
+
+Operator approved the narrow test-only update. The independently computed current
+index digest matches the hosted failure's observed bytes. Update only that
+current hash and add same-validator controls for deleted ADR-043/current authority
+drift; retain all historical base pins and old assertions. Latest memory is 80%,
+but each Go command still requires a fresh continuous qualifying window.
 
 Corrected-source CI resolves ADR-041 and the index readiness-token failure,
 but a later aggregate check pins the entire ADR index byte-for-byte. The prior
@@ -89,10 +104,17 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 - Backlog: eleven open issues. #13's shipped and planning prerequisites are
   satisfied, but implementation requires completed wave closure and a new
   assignment. WP-004 remains the preferred separate subsequent planning track.
-- No runtime Go, installed asset, test source, dependency or CI-command change.
+- No runtime Go, installed asset, dependency or CI-command change. The operator
+  additionally authorized one test-only ADR-index pin/sensitivity maintenance file.
 - No previously untracked research remains; no active allowlist exemption.
 
 ## Files Changed
+
+- Authorized compatibility maintenance: `internal/cli/prepare_s7_rev16_test.go`,
+  current index SHA pin plus same-validator mutation controls only.
+- Four owned ignored resource wrappers/controls are restored under
+  `bin/research-planning-validation/` for the final gate; remove only these
+  helpers and their named logs/empty probe directory when the task closes.
 
 - Thirteen research imports: WP-004/006/007 with companion turn logs,
   recurring-patches PRD, t3code dependency-analysis, five TWS study files.
@@ -129,10 +151,14 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 - Native run `35825150850` FAIL at `a9636e4`: only the ADR-index whole-block
   current SHA pin now fails on Ubuntu/macOS. ADR-041 and readiness-token
   corrections pass; all other jobs succeed. Test-source disposition is pending.
+- Authorized correction local PASS: fresh-gated formatting is empty; original
+  index guard plus new same-validator sensitivities pass (CLI 0.770s), and
+  frozen ADR-041 section/sensitivity tests pass (workflow 0.225s). Both windows
+  qualified at 81% free, load1 <=5, no active Go tools. Final/native checks remain.
 
 ## Next Steps
 
-1. When resources are available, run the existing final mechanical gate with
+1. Push the corrected checkpoint and run the existing final mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned
    ignored resource wrappers if needed. Do not cancel native runs for docs-only
@@ -145,9 +171,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Operator approval is required for a narrow test-only ADR-index snapshot/guard
-update, or direction to keep the old index frozen. Local mechanical validation
-remains resource-blocked (latest 68% free). No #13 contract decision is reopened.
+No content/review or targeted-test blocker remains. The exact corrected-source
+native run and final mechanical gate are pending. No #13 contract decision is
+reopened and no implementation is dispatched.
 
 ## Context for Next Agent
 

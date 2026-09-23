@@ -1,3 +1,42 @@
+## Review and Targeted Result — authorized index guard maintenance — 2026-09-23
+
+**Reviewer**: coordinator, direct complete-diff review
+**Scope**: one current-hash constant/comment and two new sensitivity cases
+**Verdict**: APPROVED; targeted execution PASS
+
+Historical base hash, existing assertions and mutation fixtures are unchanged.
+The new test proves the same complete validator rejects removing ADR-043 and
+turning its no-implementation boundary into authorization, at the intended index
+pin. Explicit fixture-target checks prevent inert mutations.
+
+Fresh-gated formatting is empty; CLI original/new index guard tests pass in
+0.770s and workflow frozen ADR-041 tests pass in 0.225s. Both invocations
+qualified 81%-free/load1 <=5/no-Go windows. This resolves the two observed
+documentation guard failures locally without changing runtime or the plan.
+
+**Action**: checkpoint/push and run the final wave-close gate with original
+WAVE_BASE `6e8096e03849617a240fa586b109e60f44fad69f`, plus corrected-source
+native CI. Do not claim closure before those results; no #13 implementation.
+Owned ignored wrappers/controls are restored in `bin/research-planning-validation/`
+so each internal Go command receives a fresh resource window and nested test
+subprocesses do not self-deadlock. They are temporary validation helpers only.
+
+## Scope Authorization — ADR index guard maintenance — 2026-09-23
+
+**Operator decision**: `test-only-update`
+
+Operator authorizes the narrow test-only current snapshot update and sensitivity
+controls. Preserve the historical base hash, all readiness assertions and every
+other guard. Production code, accepted #13 planning and historical documents
+remain unchanged.
+
+The exact reviewed current `## Index` bytes independently hash to
+`0b484b0870f33c07967d3e65af55071fb905f2151e89f334ab93888fee7f93cb`, matching
+native CI's observed digest. Add same-validator wrong-input cases for removing
+ADR-043 and falsely granting implementation authority, with explicit mutation-
+target assertions. Latest memory is 80%; fresh continuous admission is still
+required before local Go validation.
+
 ## Native Correction Result — ADR index exact pin — 2026-09-23
 
 **Run**: `35825150850`, checkpoint `a9636e4`

@@ -1476,6 +1476,13 @@ Run `35825150850` resolves ADR-041 and the readiness-token check but exposes
 the ADR index's whole-block current-hash pin. A minimal test-only snapshot/
 sensitivity update is recommended; operator scope approval is requested before
 editing tests. The accepted #13 plan and runtime remain unchanged.
+Operator selected `test-only-update`: advance only the current index pin and
+add same-validator negative controls, preserving historical hashes and all
+other assertions. No runtime feature or planning-contract change is authorized.
+The bounded test-only correction now passes the original index guard, new
+same-validator mutations and frozen ADR-041 checks (CLI 0.770s/workflow 0.225s)
+under fresh 81%-free resource windows. Direct diff review confirms no test logic
+or old base pin was weakened. Final mechanical/native checks follow.
 
 Earlier task progression (historical):
 

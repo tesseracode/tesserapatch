@@ -677,6 +677,43 @@ func TestS7Rev16PendingOwnerErratumGuardAndSensitivities(t *testing.T) {
 	}
 }
 
+func TestS7Rev16CurrentADRIndexRemainsSensitive(t *testing.T) {
+	input := s7Rev16BaselineEvidence(t)
+	if err := validateS7Rev16Evidence(input); err != nil {
+		t.Fatalf("current index baseline: %v", err)
+	}
+	var row []byte
+	for _, line := range bytes.SplitAfter(input.index, []byte("\n")) {
+		if bytes.HasPrefix(line, []byte("- [ADR-043:")) {
+			if row != nil {
+				t.Fatal("duplicate ADR-043 mutation target")
+			}
+			row = line
+		}
+	}
+	const boundary = "no runtime implementation authority."
+	if row == nil || bytes.Count(row, []byte(boundary)) != 1 {
+		t.Fatal("current ADR-043 authority mutation target missing or ambiguous")
+	}
+	for name, replacement := range map[string][]byte{
+		"entry-removed": nil,
+		"authority-expanded": bytes.Replace(row, []byte(boundary),
+			[]byte("runtime implementation is authorized."), 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			wrong := input
+			wrong.index = bytes.Replace(input.index, row, replacement, 1)
+			if bytes.Equal(wrong.index, input.index) {
+				t.Fatal("index mutation did not change the fixture")
+			}
+			err := validateS7Rev16Evidence(wrong)
+			if err == nil || !strings.Contains(err.Error(), "ADR index current allowlist: adr-index-entries hash") {
+				t.Fatalf("same validator failed to reject the current-index body change at its pin: %v", err)
+			}
+		})
+	}
+}
+
 func s7Rev16BaselineEvidence(t *testing.T) s7Rev16Evidence {
 	t.Helper()
 	root := avpRepoRoot(t)
@@ -992,11 +1029,12 @@ func validateS7Rev16DocumentDiffs(input s7Rev16Evidence) error {
 		},
 		{
 			// Readiness: only the explicitly pinned Index block may move.
-			// Later slices add reviewed retention/domain/reason/capture decisions.
+			// Later slices add reviewed decisions; the current pin includes
+			// ADR-043 and the dated historical/current release dispositions.
 			label: "ADR index",
 			base:  input.baseIndex, current: input.index,
 			allowedRegions: []s7Rev16AllowedRegion{
-				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "5fe1ffa0647825da595916a32ced00c2a701da7e1c261a354b92e3a884fc688d"},
+				{label: "adr-index-entries", heading: "## Index", baseHash: "2c12ff44a6aa1d8efb52a1786982ee9bd9fbc0d45af76bf375c0c70d4a2f4bca", currentHash: "0b484b0870f33c07967d3e65af55071fb905f2151e89f334ab93888fee7f93cb"},
 			},
 		},
 	}
