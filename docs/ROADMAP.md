@@ -1443,9 +1443,25 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Post-v0.17 research intake and backlog — 🚧 2026-09-22
+### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**Current state**: research intake is complete/archived; ADR-043 and
+ADR-037/companion PRD rev-7 are accepted planning after independent `gpt-5.4`
+review of `0b0852b`. All semantic findings are closed. The matrix is
+306 rows (I62/C90/G77/U68/S9), nine paired regions, fifteen gate slots with
+eighteen distinct eligibility codes, and fourteen transaction steps.
+
+Only combined-wave mechanical closure remains resource-blocked: the first
+600-second admission attempt ended at 57-60% free, with periods of load1 >5
+and other active Go processes, before any formatting/Go validation command.
+No runtime or test source changed, and no runtime validation is claimed.
+Complete the unchanged final gate when resources qualify, then request a
+separate #13 implementation assignment. WP-004 remains a separate later
+planning track, not automatically graduated.
+
+Earlier task progression (historical):
+
 Operator authorizes documentation-only intake of thirteen historical research
 files and backlog reconciliation, followed by ADR-041 §7's GH #13 planning
 amendment. WP-004 is the preferred subsequent planning track, not an automatic
@@ -1463,7 +1479,7 @@ No runtime or release scope is added by this intake.
 | Backlog item | Post-v0.17 disposition (2026-09-22) |
 |---|---|
 | GH #15 | Closed completed with release evidence and explicit ADR-036 D8 anchor deferral; no false claim of persisted anchors. |
-| GH #13 | Open, next authorized planning phase: ADR-041 §7 amendment to ADR-037/companion PRD; replay implementation not dispatched. |
+| GH #13 | Open; ADR-041 §7 amendment accepted as ADR-043/ADR-037/PRD rev-7. Mechanical documentation-wave close and a separate implementation assignment remain; replay implementation not dispatched. |
 | GH #9 / #17 | Open reliability work: nested-repository gate visibility / full Windows suite. |
 | GH #18 / #19 / #20 | Open migration/provenance research; reproduce cumulative verification, manual provenance and legacy generation cases on v0.17 before proposing fixes. |
 | GH #21 / #22 | Open contract planning: explicit schema migrations / acknowledged overlap without safety bypass. Re-baseline historical reports first. |

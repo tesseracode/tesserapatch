@@ -1,3 +1,24 @@
+## Review and Planning Acceptance — GH #13 capture evidence — 2026-09-22
+
+**Reviewer**: `fe6aacf4-231d-487d-b1be-9460f333617d`
+**Model verification**: explicit selection and runtime metadata both `gpt-5.4`
+**Reviewed correction**: `0b0852b`
+**Verdict**: APPROVED (static only; no significant issues)
+
+All independent planning findings are closed: capture descriptors are explicitly
+paired; hash identity is recomputed rather than guessed by schema; gate summary/
+refusal vocabulary agree; mixed C-present bindings are distinct from the C-absent
+legacy warning envelope; successful restoration is distinct from interrupted/
+failed rollback. The selected canonical E digest is bound to candidate identity
+without authentication or cross-file atomicity claims.
+
+**Decision**: accept ADR-043 and ADR-037/companion PRD rev-7 as planning only.
+Update current companion revision labels, indexes and ADR-041's follow-up status.
+Archive the completed planning task immediately. The combined wave's mechanical
+close remains resource-blocked (exit 75 before any Go command) and is tracked
+separately; planning acceptance is not a passing runtime suite or implementation
+dispatch. WP-004 remains the preferred separate later planning track.
+
 ## Re-review and Resource Blocker — GH #13 planning — 2026-09-22
 
 **Reviewer**: verified `gpt-5.4`, `fe6aacf4-231d-487d-b1be-9460f333617d`

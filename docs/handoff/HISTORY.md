@@ -10190,3 +10190,67 @@ identity. The next phase must record that choice in an amending ADR and update
 GH #13 gates/identity/transaction/recovery/parity/matrices. Implementation is
 not dispatched. This completes the intake task, not the remaining combined
 documentation/planning wave or a new release.
+
+---
+
+# 2026-09-22 — GH #13 independent capture-evidence amendment — PLANNING ACCEPTED
+
+**Task**: `plan-gh13-independent-capture-evidence`
+**Predecessor**: intake archived/pushed `c8344df`; dispatch `2c1514c`
+**Combined WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**Initial draft**: `987a349`; first corrections `7c0e79a`; final reviewed
+semantic correction `0b0852b`
+**State**: accepted planning; combined-wave mechanical closure resource-blocked
+
+The operator selected `identity-digest`: bind strict-decoded/canonical-reencoded
+capture-event E's SHA-256 into candidate identity. ADR-043 records the existing-
+primitive analysis, alternative tradeoffs, and exact amendment surfaces.
+ADR-037 and its companion PRD are accepted rev-7 after independent static review.
+
+The amendment supplies ADR-041 §7's ordered E/C/readable-artifact checks, explicit
+mode/pathspec/claim pairing, independent descriptor/reference/observation/
+parent-exclusion reconstruction, canonical identity binding and candidate
+reuse/staleness/acceptance checks. Both P3 variants retain E-before-C shared
+publication; the fourteen-step candidate transaction stages/snapshots/restores E
+alongside C with individual absent markers. The complete-operation domain,
+ADR-040 reason semantics, D16, no-autorepair and current legacy envelopes stand.
+
+Review scoreboard (all task calls explicitly `gpt-5.4`, runtime-confirmed):
+
+- Initial independent review: HIGH missing capture-selector comparison;
+  MEDIUM schema-validator overclaim and E4/E5 summary mismatch.
+- Coordinator addition: no observable mixed pair is an impossible per-file
+  atomicity guarantee; qualify interruption and successful restoration.
+- Re-review: MEDIUM refusal map still hash-only; HIGH orphan E/C-absent crash
+  case incorrectly received hard paired-binding refusal.
+- Final review at `0b0852b`: APPROVED (static only), no significant issues.
+
+The final contract distinguishes C-present inconsistent pairs from genuinely
+absent C. The latter preserves verify's missing-coverage warning and legacy
+explicit apply even beside orphan E. GH #13 never gains candidate authority:
+journal recovery precedes phase 1; without a journal, E1 refuses missing C.
+Caught live failures attempt rollback; crashes/failed rollback retain recovery
+evidence. Successful recovery restores each artifact's exact bytes or its own
+absence; no intermediate atomicity or historical authentication is asserted.
+
+Non-Go checks: nine paired regions byte-identical, 306 contiguous/unique ROC
+rows (I62/C90/G77/U68/S9), fifteen gate slots with eighteen distinct eligibility
+codes, fourteen transaction steps. Old rev-0..6 revision rows and C1/C2/D2/D3
+regions remain unchanged. Local planning-link targets exist. Existing ROC IDs
+are retained, with thirteen new rows after the accepted 293-row baseline.
+
+The final mechanical admission attempt exhausted 600 seconds at 57-60% free
+memory, with elevated load and other active Go/test processes. Exit 75 occurred
+before any formatting/Go validation command; no runtime pass or completed close
+gate is claimed. No process outside this session was terminated.
+
+Implementer `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be` and reviewer
+`fe6aacf4-231d-487d-b1be-9460f333617d` both used explicitly selected and
+runtime-confirmed OpenAI `gpt-5.4`; no Claude or optional unverified model was used.
+Coordinator owns acceptance/status/backlinks/issues. No runtime, installed asset,
+test source, dependency, schema implementation or release change occurred.
+
+Next: complete the combined documentation wave's resource-gated local/native
+close, then obtain a separate bounded #13 implementation assignment. WP-004 is
+the preferred separate later planning track; it is not automatically graduated.
+GH #24 widening, other proposals and current replay behavior are not changed.

@@ -1,13 +1,13 @@
 # ADR-037 - Reconcile Operation-Replay Candidate Authority
 
-**Status**: Proposed rev-7 (rev-6 accepted baseline; pending independent review)
+**Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implementation undispatched
 **Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
 **Companion**:
 [PRD-reconcile-operation-replay-candidate](../prds/PRD-reconcile-operation-replay-candidate.md)
-rev-6 — **this ADR is normative where the two documents overlap**
+rev-7 — **this ADR is normative where the two documents overlap**
 **Depends on**:
 [ADR-010](./ADR-010-provider-conflict-resolver.md),
 [ADR-011](./ADR-011-feature-dependencies.md),
@@ -97,6 +97,12 @@ requires a separate post-review implementation assignment.
 | rev-7 | 2026-09-22 | **ADR-041 §7 planning amendment; operator-selected `identity-digest` direction.** The E1-E15 gate stays a closed fifteen-gate inventory, but now hard-refuses on a validated `artifacts/recipe-capture-event.json` companion before replay authority exists: E4 establishes a strict, readable, canonically re-encodable E and compares owner, paired C hash and `capture.mode` / `pathspecs` / `claim_ids` in fixed order; E5-E11 re-run bound-artifact, reference, observation, event-fact and parent-exclusion consistency from the paired E/C inputs without trusting generations or current parent state. `gatesPassed[15]` stays cardinality-stable, and the proof adds canonical `captureEventSHA256`. Candidate identity, schema, staleness and acceptance now bind `capture_event_sha256` — the SHA-256 of strict-decoded, canonically re-encoded E bytes — so formatting-only raw E rewrites do not mint a new candidate ID while semantic E changes do. Acceptance stages, snapshots, publishes, rolls back and recovers `artifacts/recipe-capture-event.json` together with `artifacts/recipe-coverage.json`, with E atomically preceding C inside the existing step-11 boundary and an explicit read-refusal/recovery story for crashes between those writes. ADR-043 records why canonical E digest was selected instead of a separate mutable recheck-only path. The v0.17.0 prerequisite is already satisfied; runtime implementation remains a separate assignment after review. Matrix rebuilt to **306** contiguous rows (I 62, C 90, G 77, U 68, S 9). **Proposed pending independent review.** |
 
 ## Context
+
+**Rev-7 acceptance (2026-09-22)**: the Proposed entry in the revision history
+above records the draft's initial state. Independent OpenAI-model review now
+approves the corrections through `0b0852b`; ADR-043 records the operator-selected
+identity direction. Rev-7 is the current accepted planning contract. No runtime
+implementation or completed mechanical wave-close check is implied.
 
 ### What phase 2 does today
 

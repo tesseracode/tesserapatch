@@ -1,13 +1,13 @@
 # PRD - Reconcile Operation-Replay Candidate
 
-**Status**: Proposed rev-7 (rev-6 accepted baseline; pending independent review)
+**Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implementation undispatched
 **Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
 **Architecture**:
 [ADR-037 - Reconcile Operation-Replay Candidate Authority](../adrs/ADR-037-reconcile-operation-replay-candidate-authority.md)
-rev-6 — **normative where the two documents overlap**
+rev-7 — **normative where the two documents overlap**
 **Depends on**:
 [ADR-010](../adrs/ADR-010-provider-conflict-resolver.md),
 [ADR-011](../adrs/ADR-011-feature-dependencies.md),
@@ -522,7 +522,13 @@ and §6.11 add.
 
 ## 6. Product contract
 
-**ADR-037 rev-6 is normative wherever these sections and its decisions
+**Rev-7 acceptance (2026-09-22)**: the Proposed rev-7 history entry describes
+the initial draft, not its current status. Independent OpenAI-model review
+approves the corrections through `0b0852b`, with ADR-043's operator-selected
+identity direction. Runtime implementation remains a separate assignment;
+the combined documentation wave's mechanical close is still resource-blocked.
+
+**ADR-037 rev-7 is normative wherever these sections and its decisions
 overlap.** Six blocks are reproduced **byte-identically** in both documents and
 are covered by a planning parity check at implementation time:
 

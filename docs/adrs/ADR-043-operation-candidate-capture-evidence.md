@@ -1,6 +1,6 @@
 # ADR-043 — Operation-candidate capture-evidence identity binding
 
-**Status**: Proposed — operator-selected direction; pending independent review
+**Status**: Accepted — operator-selected direction; independent planning review approved 2026-09-22
 **Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
@@ -160,7 +160,7 @@ Normative ADR-037 / PRD sections amended by this choice:
 | ADR-037 D19/D20/D21 / PRD §6.10-§6.11 | `capture_event_sha256` in identity/schema/staleness/reuse |
 | ADR-037 D29/D29b/D30/D31 / PRD §6.14-§6.16 | E staged/snapshotted/published/rolled back/recovered with C |
 | PRD §7.1 | refusal vocabulary for paired E/C gating |
-| PRD §9 | appended ROC-302…ROC-306 and updated totals/deltas |
+| PRD §9 | appended ROC-294…ROC-306 and updated totals/deltas |
 
 ## 6. Alternatives rejected
 
