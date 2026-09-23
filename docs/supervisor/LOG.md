@@ -1,3 +1,24 @@
+## Mechanical Gate Stop — documentation/planning wave — 2026-09-23
+
+**Checkpoint**: `fb615c18ec8e61a0e8dc886e705b8e9afed6ae0d`
+**Result**: make exits 2; no completed wave close
+
+Checks 1-6 pass and the step-7 vet branch succeeds. The build-stage invocation
+fails; the owned failure sentinel then prevents the Makefile's diagnostic
+retry and shard commands from starting. The Makefile redirects that first
+invocation's output, so the captured output alone cannot distinguish a
+resource-admission timeout from an actual build-command failure.
+
+The build artifact timestamp is unchanged from September 20; latest resources
+are 81% free with another active Go/test process. These observations do not
+prove which cause produced the first failure. Do not label it a compiler defect
+or claim a resource timeout without direct evidence.
+
+**Action**: add failure-kind persistence only to the ignored resource helper,
+retain all thresholds and first-failure behavior, then run the build alone
+behind a fresh qualifying minute with visible output. No production/test/
+accepted-planning changes. Native run `35872519378` remains in progress.
+
 ## Review and Targeted Result — authorized index guard maintenance — 2026-09-23
 
 **Reviewer**: coordinator, direct complete-diff review

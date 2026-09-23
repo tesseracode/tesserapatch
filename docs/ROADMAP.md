@@ -1483,6 +1483,10 @@ The bounded test-only correction now passes the original index guard, new
 same-validator mutations and frozen ADR-041 checks (CLI 0.770s/workflow 0.225s)
 under fresh 81%-free resource windows. Direct diff review confirms no test logic
 or old base pin was weakened. Final mechanical/native checks follow.
+The gate at `fb615c1` passed checks 1-6 and vet, then stopped during the build
+invocation; its redirected first diagnostics do not establish timeout versus
+compiler failure. The sentinel blocked later Go commands. A fresh-gated
+standalone diagnosis will retain the exact failure kind; wave closure is pending.
 
 Earlier task progression (historical):
 
