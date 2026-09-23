@@ -113,9 +113,12 @@ header is updated to **Status: Closed**.
 
 ## Index
 
-| ID | Title | Status |
-|---|---|---|
-| WP-001 | Feature-slice gap & intent-VCS direction | **Graduated** (2026-04-28) |
-| WP-002 | Capture and metadata foundation | **Graduated** (2026-05-16) |
-| WP-003 | Reconcile safety and middle-pass foundation | **Accepted paper cluster** |
-| WP-005 | Spec-driven workflows: OpenSpec, Spec Kit, and tpatch | **Graduated** (2026-08-13) |
+| ID | Paper | Turn log | Status |
+|---|---|---|---|
+| WP-001 | [Feature-slice gap & intent-VCS direction](./WP-001-feature-slice-gap.md) | [Turns](./WP-001-feature-slice-gap.turns.md) | **Graduated** (2026-04-28) |
+| WP-002 | [Capture and metadata foundation](./WP-002-capture-and-metadata-foundation.md) | — | **Graduated** (2026-05-16) |
+| WP-003 | [Reconcile safety and middle-pass foundation](./WP-003-reconcile-safety-and-middle-pass.md) | — | **Accepted paper cluster** |
+| WP-004 | [Auto feature dependency suggestions](./WP-004-auto-feature-dependencies.md) | [Turns](./WP-004-auto-feature-dependencies.turns.md) | **Approved paper research** (2026-06-25; no implementation authorized) |
+| WP-005 | [Spec-driven workflows: OpenSpec, Spec Kit, and tpatch](./WP-005-spec-driven-workflows.md) | [Turns](./WP-005-spec-driven-workflows.turns.md) | **Graduated** (2026-08-13) |
+| WP-006 | [tpatch substrate and non-Git mode](./WP-006-tpatch-substrate-and-non-git-mode.md) | [Turns](./WP-006-tpatch-substrate-and-non-git-mode.turns.md) | **Exploring** |
+| WP-007 | [Decision tickets and ticket tracking](./WP-007-decision-tickets-and-ticket-tracking.md) | [Turns](./WP-007-decision-tickets-and-ticket-tracking.turns.md) | **Exploring** |

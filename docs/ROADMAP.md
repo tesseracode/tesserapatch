@@ -1475,6 +1475,13 @@ No runtime or release scope is added by this intake.
 The GH #13 issue's old description remains historical; the September 22 update
 records v0.17's actual prerequisite and remaining amendment. This table is the
 current queue; older chronological dispatch paragraphs below remain history.
+Research intake is delivered and awaiting independent review. The operator chose
+canonical capture-event digest inclusion in GH #13 candidate identity for the
+subsequent planning amendment; this is not runtime implementation authorization.
+Intake checks pass for 141 local link targets, JSON aggregates and explicit
+duration uncertainty. The thirteen files will be tracked; all corresponding
+exemptions and stale already-tracked WP-005 entries are retired. Independent
+documentation review is next; the intake does not implement any proposal.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

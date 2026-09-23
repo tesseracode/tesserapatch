@@ -1,168 +1,84 @@
 # Active Clusters
 
-**Purpose**: live state dashboard for in-flight PRD clusters. Tells you "where
-are we right now" — what's accepted, what's implementing, what's blocked,
-which ADRs are pending.
+**Purpose**: live state dashboard for in-flight paper clusters, paper-only
+backlog items, and accepted planning gates.
 
-**Not** a historical shipping log (that's [`docs/ROADMAP.md`](./ROADMAP.md)).
-**Not** a decision audit trail (that's
-[`docs/supervisor/LOG.md`](./supervisor/LOG.md)). **Not** a gap-study
-narrative (those are `docs/whitepapers/`).
-
-This document is updated by the broker / supervisor at every cluster state
-transition — new PRD accepted, ADR assigned, wave kickoff, wave ship,
-implementation blocker.
+**Not** a historical shipping log (use [`docs/ROADMAP.md`](./ROADMAP.md)).
+**Not** a review receipt ledger (use
+[`docs/supervisor/LOG.md`](./supervisor/LOG.md)).
+**Not** a gap-study narrative (use `docs/whitepapers/` and
+`docs/state-of-the-art/`).
 
 **Cluster states**:
 - **Exploring** — whitepaper in flight; PRDs not yet drafted.
 - **Drafting** — PRDs being authored; cross-review cycle active.
-- **Accepted** — supervisor LOG entry approving the cluster; ADRs pending.
+- **Accepted** — planning approved; ADR or implementation dispatch still gated.
 - **Implementing** — at least one wave in flight.
-- **Shipped** — all waves shipped; closed to new work (file a follow-up
-  cluster instead).
+- **Shipped** — all approved waves shipped; closed to new scope.
 - **Closed** — superseded or rejected without shipping.
 
----
+## Snapshot — 2026-09-22
 
-## WP-001 — Feature-slice gap & intent-VCS direction
+### Shipped cluster lineage
 
-**Status**: Shipped (graduated 2026-04-28, T16)
-**Whitepaper**: [`docs/whitepapers/WP-001-feature-slice-gap.md`](./whitepapers/WP-001-feature-slice-gap.md)
-**Graduated to**: v0.7 cluster (`tpatch-land`, `record-auto-base`, `record-collision-detection`, `reconcile-lock-guard`), shipped as M17 / v0.8.0 (2026-05-12, tag `29a6732`).
-
-The original whitepaper. Documented the boundary-capture gap surfaced by
-Cases A1 (copilot-api) and A2 (t3code). Closed at Turn 16 with the
-four-PRD graduation. No remaining work.
-
-**Headline finding (T13 ratified)**: no data-model gap — the failure was
-recording boundaries, not splitting content.
-
----
-
-## WP-002 — Capture & metadata foundation *(T55 cluster)*
-
-**Status**: **Shipped** — Wave α (v0.9.0, 2026-05-14), Wave β + Wave γ bundled into **v0.10.0** (2026-05-23). All three waves shipped + externally APPROVED.
-**Whitepaper**: [`docs/whitepapers/WP-002-capture-and-metadata-foundation.md`](./whitepapers/WP-002-capture-and-metadata-foundation.md)
-**Supervisor acceptance**: 2026-05-13 (see `docs/supervisor/LOG.md`)
-**Cluster ADRs (final)**:
-  - `ADR-capture-context-privacy-boundary` — deferred (v2 work only; not blocking)
-  - [`ADR-024-patch-generation-manifest-boundary`](./adrs/ADR-024-patch-generation-manifest-boundary.md) — **shipped** (Wave β gate)
-  - [`ADR-026-patch-amendment-policy`](./adrs/ADR-026-patch-amendment-policy.md) — **shipped** (Wave γ gate)
-
-### PRDs
-
-| # | PRD | Wave | State |
+| Cluster | Source | Status | Notes |
 |---|---|---|---|
-| 1 | [`PRD-feature-file-claims`](./prds/PRD-feature-file-claims.md) | α | **Shipped** — v0.9.0-alpha-1 (2026-05-13) |
-| 2 | [`PRD-record-capture-modes`](./prds/PRD-record-capture-modes.md) | α | **Shipped** — v0.9.0-alpha-2 (2026-05-14) |
-| 3 | [`PRD-feature-patch-identity-metadata`](./prds/PRD-feature-patch-identity-metadata.md) | β | **Shipped** — v0.10.0 (2026-05-23) |
-| 4 | [`PRD-feature-patch-amend`](./prds/PRD-feature-patch-amend.md) | γ | **Shipped** — v0.10.0 (2026-05-23) |
+| WP-001 | [whitepaper](./whitepapers/WP-001-feature-slice-gap.md) | **Shipped** | Graduated 2026-04-28; downstream implementation lineage shipped in v0.8.0. |
+| WP-002 | [whitepaper](./whitepapers/WP-002-capture-and-metadata-foundation.md) | **Shipped** | Wave α shipped in v0.9.0; Waves β and γ shipped in v0.10.0; ADR-024 and ADR-026 are live. |
+| WP-003 | [whitepaper](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md) | **Shipped** | ADR-025 is accepted/live; all 9 PRDs shipped in the v0.11.0 lineage, followed by v0.11.1 stabilization. No active ADR blocker remains. |
+| WP-005 | [whitepaper](./whitepapers/WP-005-spec-driven-workflows.md) | **Graduated / shipped implementation** | Optional preparation workflow graduated to GH #16/#23; v0.16.0 shipped the intent-bundle and archive work. |
+| GH #15 | [recipe authority PRD](./prds/PRD-recipe-generation-authority.md) | **Shipped — v0.17.0** | Exact preimage/coverage/evidence authority shipped; no persisted anchors or GH #13 candidate implementation is implied. |
 
-### Implementation order (final)
-- **Wave α** (parallel, no internal deps): PRDs 1 + 2 — v0.9.0.
-- **Wave β** (depends on Wave α + ADR-024): PRD 3 — v0.10.0.
-- **Wave γ** (depends on Wave β + ADR-026): PRD 4 — v0.10.0.
+### Paper-only research / backlog
 
-### Cross-cluster relationships
-- Downstream consumer: WP-003 PRD 1 (reconcile-evidence) coordinates artifact schema with PRD 3 (`patch-generations.json`) to prevent drift. **WP-002 Wave β acceptance prerequisite for WP-003 is now satisfied.**
+| Artifact | Type | Status | Current constraint | Next bounded step |
+|---|---|---|---|---|
+| [WP-004 auto feature dependency suggestions](./whitepapers/WP-004-auto-feature-dependencies.md) | Whitepaper | **Approved paper research** (2026-06-25) | Research only; no implementation or automatic PRD graduation is authorized. | If dependency-suggestion planning reopens, use WP-004 as the preferred research seed and revalidate citations first. |
+| [WP-006 tpatch substrate and non-Git mode](./whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md) | Whitepaper | **Exploring** | Git-first recommendation only; no substrate interface or native non-Git VCS work is authorized. | Reopen only for narrow init/preflight planning that re-baselines current non-Git `prepare` behavior. |
+| [WP-007 decision tickets and ticket tracking](./whitepapers/WP-007-decision-tickets-and-ticket-tracking.md) | Whitepaper | **Exploring** | Recommends against adding decision tickets as a tpatch feature type. | Paper-only external/hybrid map experiment if explicitly requested; no tpatch CLI/schema work. |
+| [PRD-recurring-patches](./prds/PRD-recurring-patches.md) | PRD | **Approved (paper design)** | Implementation blocked on `ADR-recurring-patch-metadata-boundary`; v0.17 producer/event obligations still need explicit boundary treatment. | Draft and accept the boundary ADR before any implementation dispatch. |
+| [PRD-tpatch-hotfix](./prds/PRD-tpatch-hotfix.md) | PRD | **Draft** | Existing fast-path proposal remains unrouted; this intake does not promote it. | Refresh its baseline and route explicitly if selected. |
 
-### Blockers
-None. Cluster closed.
+### Preserved historical singletons
 
----
+| Artifact | Disposition |
+|---|---|
+| [PRD-patch-already-upstream-detector](./prds/PRD-patch-already-upstream-detector.md) | Shipped in M17/v0.8.0; defer-list cleanup in v0.8.1. |
+| [PRD-skill-doc-strategy](./prds/PRD-skill-doc-strategy.md) / ADR-020 | Shipped in May 2026; not a pending implementation. |
+| [Intent-VCS evaluation](./prds/PRD-intent-version-control-evaluation.md), [Git primitive mapping](./prds/PRD-tpatch-git-primitive-mapping.md), [feature slices](./prds/PRD-feature-slices-and-nested-changes.md) | Superseded exploration preserved under WP-001; not reopened by this snapshot. |
 
-## WP-003 — Reconcile safety & middle-pass *(T56 cluster)*
+### Accepted sequential planning queue
 
-**Status**: **Wave α SHIPPED** (2026-05-26 — PRDs 1 + 6 landed at commits `4f9277e..8d4665f`; APPROVED by user's parallel external; APPROVED WITH NOTES by supervisor-external — three test-coverage carry-forwards documented in `docs/supervisor/LOG.md`). Wave β is now unblocked.
-**Whitepaper**: [`docs/whitepapers/WP-003-reconcile-safety-and-middle-pass.md`](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md)
-**Origin**: t3code v0.0.23 case study (first structural middle-pass study, false-positive `upstreamed` verdicts on `session-search` and `copilot-skill-controls`).
-**Cluster ADR plan**: single cluster ADR — `ADR-025-reconcile-evidence-and-revision-schema` (covers PRDs 1, 2, 3; PRDs 4–9 ship under the same ADR).
-
-### Cross-cluster prerequisite
-
-**WP-002 Wave β must reach acceptance before WP-003 PRD 1 implementation
-can start.** Both clusters define per-feature evidence artifacts
-(`patch-generations.json` vs `reconcile-evidence.jsonl`); their schemas
-must not drift.
-
-### PRDs (dependency tree, not flat list)
-
-```
-1 (verdict-evidence) ──┬── 2 (upstreamed-confirmation-gate) ── 4 (retirement-state-audit)
-                       │
-                       ├── 3 (revision-pass-log) ── 5 (study-validation)
-                       │
-                       └── 6 (file-novelty-classifier) ── 7 (hunk-overlap-detector) ── 8 (blocked-verdict-taxonomy) ── 9 (path-restructure-detector)
-```
-
-| # | PRD | Wave (proposed) | State |
+| Artifact | Status | Gate cleared | Next bounded step |
 |---|---|---|---|
-| 1 | [`PRD-reconcile-verdict-evidence`](./prds/PRD-reconcile-verdict-evidence.md) | α | **Shipped** — Wave α (2026-05-26, commits `4f9277e..8d4665f`; APPROVED WITH NOTES — F1/F2/F3 test-coverage carry-forwards in LOG) |
-| 2 | [`PRD-upstreamed-confirmation-gate`](./prds/PRD-upstreamed-confirmation-gate.md) | β | Approved |
-| 3 | [`PRD-reconcile-revision-pass-log`](./prds/PRD-reconcile-revision-pass-log.md) | β | Approved |
-| 4 | [`PRD-reconcile-retirement-state-audit`](./prds/PRD-reconcile-retirement-state-audit.md) | γ | Approved |
-| 5 | [`PRD-reconcile-study-validation`](./prds/PRD-reconcile-study-validation.md) | γ | Approved |
-| 6 | [`PRD-reconcile-file-novelty-classifier`](./prds/PRD-reconcile-file-novelty-classifier.md) | α | **Shipped** — Wave α (2026-05-26, commits `4f9277e..8d4665f`) |
-| 7 | [`PRD-reconcile-hunk-overlap-detector`](./prds/PRD-reconcile-hunk-overlap-detector.md) | β | Approved |
-| 8 | [`PRD-reconcile-blocked-verdict-taxonomy`](./prds/PRD-reconcile-blocked-verdict-taxonomy.md) | γ | Approved |
-| 9 | [`PRD-reconcile-path-restructure-detector`](./prds/PRD-reconcile-path-restructure-detector.md) | γ | Approved |
+| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) | **Accepted rev-6** | v0.17.0 shipped GH #15's prerequisite scope. | Apply the `ADR-041` §7 planning amendment before any GH #13 implementation assignment. |
 
-### Blockers
-- `ADR-025` unwritten — blocks Wave α start.
-- ~~WP-002 Wave β unwritten — blocks PRD 1 implementation even if `ADR-025` ships first.~~ **Cleared 2026-05-23 (v0.10.0 release).**
+### ADR snapshot relevant to active/backlog work
 
----
-
-## Singletons (not part of a cluster)
-
-These are PRDs that exist in `docs/prds/` but aren't part of an active cluster.
-
-| PRD | State | Notes |
+| ADR | Status | Notes |
 |---|---|---|
-| [`PRD-tpatch-hotfix`](./prds/PRD-tpatch-hotfix.md) | Drafted (OX47) | Sibling fast-path verb; trailer-block coordinated with `PRD-tpatch-land`. Awaiting routing. |
-| [`PRD-patch-already-upstream-detector`](./prds/PRD-patch-already-upstream-detector.md) | Drafted (OX47, unsolicited) | Post-M14 research; phase-1.5 detector. **Shipped as M17 Wave D** (v0.8.0). Defer-list cleanup landed v0.8.1. |
-| [`PRD-skill-doc-strategy`](./prds/PRD-skill-doc-strategy.md) + ADR-020 | Shipped | feat-skill-doc-references-user-visible shipped 2026-05-14 rev-1. |
+| [ADR-024 patch generation manifest boundary](./adrs/ADR-024-patch-generation-manifest-boundary.md) | **Shipped / live** | WP-002 Wave β boundary; no longer pending. |
+| [ADR-025 reconcile evidence and revision schema](./adrs/ADR-025-reconcile-evidence-and-revision-schema.md) | **Accepted / live** | WP-003 cluster ADR; all nine PRDs shipped under it. |
+| [ADR-026 patch amendment policy](./adrs/ADR-026-patch-amendment-policy.md) | **Shipped / live** | WP-002 Wave γ amendment policy; no longer pending. |
+| [ADR-041 independent capture-event evidence](./adrs/ADR-041-independent-capture-event-evidence.md) | **Accepted rev-1** | GH #15 planning amendment accepted; §7 names the follow-up dependency for GH #13 consumer planning. |
+| [ADR-042 ordered recipe no-op proof](./adrs/ADR-042-ordered-recipe-noop-proof.md) | **Accepted** | Highest accepted ADR number at this intake snapshot. |
+| Capture-context privacy boundary (unassigned) | **Deferred** | Historical WP-002 v2 proposal, not an active blocker; any renewed work must reconcile with shipped ADR-027 rather than assume privacy design is absent. |
 
-### Exploratory PRDs superseded by WP-001 (do not edit)
+### Housekeeping notes
 
-- [`PRD-intent-version-control-evaluation`](./prds/PRD-intent-version-control-evaluation.md)
-- [`PRD-tpatch-git-primitive-mapping`](./prds/PRD-tpatch-git-primitive-mapping.md)
-- [`PRD-feature-slices-and-nested-changes`](./prds/PRD-feature-slices-and-nested-changes.md)
-
-These remain in place as historical exploration; WP-001 is listed in their
-"Supersedes" header. One-way link.
-
----
-
-## Pending ADRs (cross-cluster view)
-
-| ADR slug or number | Cluster | Blocks | Owner |
-|---|---|---|---|
-| `ADR-capture-context-privacy-boundary` | WP-002 (deferred to v2) | Free-text reason persistence, agent-context retention | Implementer of v2 claims work; not currently blocking |
-| `ADR-patch-generation-manifest-boundary` | WP-002 Wave β | `PRD-feature-patch-identity-metadata` implementation | Implementer of Wave β |
-| `ADR-patch-amendment-policy` | WP-002 Wave γ | `PRD-feature-patch-amend` implementation | Implementer of Wave γ |
-| `ADR-025-reconcile-evidence-and-revision-schema` | WP-003 (entire cluster) | All 9 WP-003 PRDs (Wave α onward) | Implementer of Wave α |
-
-ADRs 021, 022, 023 are **already used** by unrelated work (land global
-metadata carve-out, detector default deferral, hotfix auto-drop deferral).
-The next available numbered slot is **024**.
-
----
+- 2026-09-22 — The previous pending-ADR block was stale. `ADR-024`,
+  `ADR-025`, and `ADR-026` are already accepted/live, and the next available
+  ADR number after this intake is **043**, not 024.
+- 2026-09-22 — `WP-004` is the preferred later planning track for dependency
+  suggestions, but that preference does **not** auto-open a PRD.
+- 2026-09-22 — Parent/coordinator owns ROADMAP queueing, CURRENT/HISTORY/LOG
+  updates, issue actions, and any future implementation dispatch.
 
 ## How to update this file
 
-- When a PRD is **drafted**: add row, state = "Draft."
-- When a cluster is **accepted** (supervisor LOG entry posted): flip
-  cluster header to "Accepted"; link the LOG entry.
-- When a PRD enters **implementation**: flip per-PRD state to "Implementing"
-  or "Shipping" with the slice tag.
-- When a wave **ships**: flip per-PRD state to "Shipped." If the entire
-  cluster shipped, flip cluster header to "Shipped" and reference the
-  ROADMAP.md milestone.
-- When an **ADR is drafted**: move from "pending" → "drafted." Update the
-  Pending ADRs table.
-- When a **cross-cluster blocker** is introduced or cleared: update the
-  blocker line on both clusters involved.
-
-Avoid prose updates. Tables and dated bullets only. The narrative belongs
-in whitepapers and supervisor LOG.
+- Keep this file to tables and dated bullets only.
+- Mirror shipped state from `docs/ROADMAP.md`; do not use this file as the
+  historical source of truth.
+- When a paper or PRD stops being a blocker, flip it here instead of leaving it
+  in a stale pending bucket.
+- Record active planning gates, not full implementation narratives.

@@ -4,6 +4,31 @@
 
 **Cluster state**: IN PROGRESS
 
+**Intake validation complete; independent review next (2026-09-22)**:
+coordinator checks 141 in-repository Markdown file targets, JSON parsing and
+TWS aggregate counts; preserves both reported duration 7 and derived five-date
+window as explicitly unresolved evidence. The allowlist has no remaining active
+entries: all thirteen paths are being tracked and the two WP-005 paths were
+already tracked. The stale dashboard also preserves old hotfix/singleton/
+superseded-paper dispositions rather than dropping them.
+
+No Go test, full-suite or new reconciliation-study validation is claimed.
+This intake changes documents/JSON evidence and sentinel exemptions, not runtime
+or test source. Independent review uses an explicitly selected OpenAI model
+before closing/pushing intake and starting the separately tracked GH #13 phase.
+
+**Research intake delivered; identity direction selected (2026-09-22)**:
+the implementer delivered all thirteen files plus indexes/dashboard/allowlist,
+retaining paper-only gates and historical uncertainty. Runtime agent metadata
+confirms explicitly requested `gpt-5.4`; no inherited model assumption.
+Intake validation/review follows before the planning phase.
+
+For GH #13's later planning amendment the operator selected `identity-digest`:
+bind independently validated E's canonical SHA-256 into candidate identity.
+The amendment must carry that choice through reuse, acceptance and recovery,
+with alternatives/rationale and exact failure ordering. No runtime work is
+authorized by the choice.
+
 **Backlog reconciliation recorded (2026-09-22)**: GH #15 is closed as completed
 under the accepted v0.17.0 scope, with an explicit release-evidence comment.
 The comment does not claim persisted anchors shipped: ADR-036 D8 intentionally
@@ -3936,6 +3961,11 @@ WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
 
+Research intake is delivered. The agent reported JSON parse, 132 local Markdown
+links and diff checks; coordinator verification/review remains. The full original
+thirteen-file set will become tracked documentation, with stale allowlist entries
+removed only because intake/tracked ownership now covers them.
+
 GitHub backlog now matches the accepted shipping scope: close #15 with deliberate
 deferrals, leave #13 open with precise capture-evidence planning requirements.
 All research intake remains documentation-only; model selection is explicit.
@@ -5691,6 +5721,11 @@ remains blocked until that release is implemented, soaked and shipped.
   ledger rows still map to the same six exact top-level targets.
 
 ## Test Results
+
+- Intake: diff check PASS; 141 in-repo Markdown file targets exist; JSON parse,
+  42=35+7 features and 18 release-tag aggregate counts PASS; reported 7-day/
+  derived five-date conflict remains explicit. No active allowlist entries.
+  No Go command or claimed full reconciliation-dataset validation.
 
 - Intake: baseline verified; no validation result yet. Validate documentation
   links, JSON aggregate consistency, inventory/allowlist disposition and review

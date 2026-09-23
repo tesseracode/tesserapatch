@@ -33,7 +33,7 @@ The motivating question is:
 | Research roadmap | Durable tracker for exploratory fronts and candidate PRD/ADR sequencing independent of implementation handoff. | Living; refresh when research is added or promoted. |
 | Search/planning notes | Algorithms for choosing application order and candidate relocations without asking an LLM. | Living; refresh when a candidate planner PRD is opened. |
 | Experiment guides | Collection protocols for case studies that can validate or falsify the research. | Snapshot per experiment design; refresh when the data schema changes. |
-| Case-study datasets | Recorded reconcile experiments that test the structural middle-pass hypotheses against real upstream transitions. | Living index; append one folder per study. |
+| Case-study datasets | Recorded reconcile experiments plus clearly labeled aggregate historical workflow studies that inform planning without pretending to be reconcile-validator corpora. | Living index; append one folder per study and state the evidence limits. |
 | Synthesis notes | tpatch-specific bridge from the research into possible future PRDs/ADRs. | Snapshot per research pass, then superseded by PRDs/ADRs. |
 
 ## What does not go here
@@ -54,6 +54,9 @@ The motivating question is:
   or PRDs that define that behavior.
 - External sources should be named in `## References`; URLs are included when
   stable and public.
+- Case-study imports should state their evidence limits and whether normal
+  validator inputs such as `features.jsonl`, `hunks.jsonl`, and `patches.jsonl`
+  are actually present.
 - End with `## Open questions` and `## Disputes`.
 - Filename: kebab-case. No numeric prefix unless the doc becomes a numbered
   series.
@@ -71,5 +74,5 @@ The motivating question is:
 | [search-based-patch-application.md](search-based-patch-application.md) | Snapshot research | Non-LLM search/planning strategies for patch ordering and relocation. |
 | [storage-substrate-and-versioned-data.md](storage-substrate-and-versioned-data.md) | Snapshot research | Storage substrate and versioned-data prior art; concludes authoritative tpatch state should remain tracked files, with indexes/caches as derived projections only. |
 | [experiment-guide-structural-middle-pass.md](experiment-guide-structural-middle-pass.md) | Snapshot guide | Case-study protocol for collecting keypoints, k-grams, AST/vector data, apply outcomes, and evaluation metrics. |
-| [case-studies/](case-studies/) | Living dataset index | Recorded structural middle-pass case studies and imported experiment artifacts. |
+| [case-studies/](case-studies/) | Living dataset index | Reconcile case studies plus clearly labeled imported workflow studies with explicit evidence limits. |
 | [tpatch-middle-pass-synthesis.md](tpatch-middle-pass-synthesis.md) | Snapshot synthesis | A possible future "structural/search planner" seam for tpatch. |

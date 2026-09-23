@@ -1,3 +1,52 @@
+## Validation Transition — documentation research intake — 2026-09-22
+
+**Result**: structural intake checks PASS; independent documentation review next
+
+Coordinator verifies 141 local Markdown file targets, both JSON files, shared
+study ID, 42 features = 35 implemented + 7 remaining, and 18 tag counts.
+Historical reported duration 7 and the derived five-date summary window remain
+explicitly disputed. No per-feature/hunk/patch record is fabricated and no normal
+reconciliation-validator result is claimed.
+
+Allowlist removals have exact dispositions: thirteen researched paths become
+tracked; the WP-005 pair was already tracked. Header/mechanical gate remain.
+CLUSTERS keeps historical hotfix/singleton/superseded proposal dispositions
+while correcting shipped WP-003/ADRs. Diff checks pass; no runtime/test/installed
+asset/schema change or Go command. Stage by explicit path, then independently
+review using explicitly selected `gpt-5.4`.
+
+## Operator Direction — GH #13 capture-event identity — 2026-09-22
+
+**Decision**: `identity-digest` (operator-selected)
+
+For the subsequent ADR-041 §7 planning amendment, include the independently
+validated event's canonical SHA-256 in candidate identity. Do not keep a stable
+ID across a changed bound event by relying only on a separate mutable recheck.
+This extends the existing content-addressed identity pattern; the planning
+document must state canonical-byte/strict-decode semantics, reuse/acceptance
+revalidation and failure ordering explicitly. Record alternatives and rationale
+in the amending ADR; no runtime candidate implementation is authorized.
+
+## Implementation Delivery — historical research intake — 2026-09-22
+
+**Implementer**: `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be`
+**Model verification**: task explicitly selected `gpt-5.4`; `read_agent` runtime
+metadata reports `model: gpt-5.4`. No child agents or optional AI tools used.
+**State**: delivered; coordinator validation/independent review pending
+
+Owned docs/indexes/dashboard/allowlist updates are complete. WP-004 remains
+approved paper research; WP-006/007 Exploring; recurring PRD paper-approved but
+ADR-gated. TWS duration conflict is explicitly retained, not invented away, and
+aggregate development evidence is separated from reconciliation-validator
+inputs. Local provider detail is generalized without changing measured outcomes.
+The agent reports diff/JSON/link checks and no credentials found; these are
+bounded intake checks, not a general security audit. No Go commands or commits.
+
+**Action**: validate and stage exact delivered paths, independently review using
+an explicit OpenAI model, then close/push intake before GH #13 planning begins.
+All thirteen paths plus already-tracked WP-005 exemptions have tracked removal
+disposition: intake or stale tracked entry. No blanket sentinel bypass is added.
+
 ## Backlog Reconciliation — post-v0.17.0 — 2026-09-22
 
 **Action taken**: close GH #15 as completed under accepted ADR-036/039/040/041/042,
