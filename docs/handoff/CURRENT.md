@@ -4,6 +4,18 @@
 
 **Cluster state**: IN PROGRESS
 
+**Backlog reconciliation recorded (2026-09-22)**: GH #15 is closed as completed
+under the accepted v0.17.0 scope, with an explicit release-evidence comment.
+The comment does not claim persisted anchors shipped: ADR-036 D8 intentionally
+defers those, #13 owns independent candidate derivation, #24 owns broader-domain
+planning, and #19 retains manual/historical provenance adoption.
+
+GH #13 remains open. Its issue now records the satisfied release prerequisite
+and the remaining ADR-041 §7 planning-only amendment
+([comment](https://github.com/tesseracode/tesserapatch/issues/13#issuecomment-5788640706)).
+No other issue is silently closed, no runtime work is dispatched, and no current
+v0.17 reproduction is claimed for #18-22.
+
 **Research intake and backlog reconciliation dispatched (2026-09-22)**:
 the operator authorizes a documentation-only intake of the thirteen previously
 untracked research files, with accurate historical/current statuses and no
@@ -3923,6 +3935,10 @@ guards, and ADR-035's decisions D1–D21 stand exactly as accepted.
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+GitHub backlog now matches the accepted shipping scope: close #15 with deliberate
+deferrals, leave #13 open with precise capture-evidence planning requirements.
+All research intake remains documentation-only; model selection is explicit.
 
 The operator authorizes intake/backlog reconciliation followed by GH #13
 capture-evidence planning. Thirteen historical files were inspected in the

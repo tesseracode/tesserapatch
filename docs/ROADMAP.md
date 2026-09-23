@@ -1460,6 +1460,22 @@ planning; GH #12/#14 remain evidence-gated research. Refresh CLUSTERS/indexes
 so historical shipped work is not incorrectly presented as active blockers.
 No runtime or release scope is added by this intake.
 
+| Backlog item | Post-v0.17 disposition (2026-09-22) |
+|---|---|
+| GH #15 | Closed completed with release evidence and explicit ADR-036 D8 anchor deferral; no false claim of persisted anchors. |
+| GH #13 | Open, next authorized planning phase: ADR-041 §7 amendment to ADR-037/companion PRD; replay implementation not dispatched. |
+| GH #9 / #17 | Open reliability work: nested-repository gate visibility / full Windows suite. |
+| GH #18 / #19 / #20 | Open migration/provenance research; reproduce cumulative verification, manual provenance and legacy generation cases on v0.17 before proposing fixes. |
+| GH #21 / #22 | Open contract planning: explicit schema migrations / acknowledged overlap without safety bypass. Re-baseline historical reports first. |
+| GH #24 | Non-blocking broader complete-operation-domain planning; not folded into the GH #13 amendment. |
+| GH #12 / #14 | Evidence-gated retention / verified reorder-reparent research; no implementation authorized. |
+| WP-004 | Preferred subsequent planning proposal: narrow read-only dependency suggestions; intake is not PRD graduation. |
+| Recurring patches, WP-006, WP-007, hotfix | Preserve paper-design/exploration/draft statuses and explicit gates; no automatic implementation queue. |
+
+The GH #13 issue's old description remains historical; the September 22 update
+records v0.17's actual prerequisite and remaining amendment. This table is the
+current queue; older chronological dispatch paragraphs below remain history.
+
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).
 **Order**: accept GH #15's producer contract, then plan GH #13 against that

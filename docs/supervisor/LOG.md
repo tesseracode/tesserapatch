@@ -1,3 +1,19 @@
+## Backlog Reconciliation — post-v0.17.0 — 2026-09-22
+
+**Action taken**: close GH #15 as completed under accepted ADR-036/039/040/041/042,
+with v0.17 release/main/tag CI evidence. The closure explicitly distinguishes
+shipped exact-preimage/coverage/publication work from deliberately unpersisted
+anchors (ADR-036 D8), GH #13 candidate authority, GH #24 broader-domain planning
+and GH #19 manual/historical adoption.
+
+GH #13 remains open with its release prerequisite satisfied and ADR-041 §7
+planning work explicitly outstanding:
+[comment](https://github.com/tesseracode/tesserapatch/issues/13#issuecomment-5788640706).
+No replay implementation is dispatched. GH #9/#17 reliability and #18-22
+re-baselining/planning remain open; #12/#14/#24 are not implemented by intake.
+ROADMAP now contains the dated current queue, distinct from old dispatch history.
+WP-004 remains the preferred separate next planning track.
+
 ## Dispatch — research intake and backlog reconciliation — 2026-09-22
 
 **Task**: `research-intake-and-backlog-reconciliation`
