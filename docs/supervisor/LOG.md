@@ -1,3 +1,47 @@
+## Documentation Boundary Correction — 2026-09-23
+
+**Review**: coordinator direct review of the two-document metadata delta
+**Result**: exact pin/anchor checks PASS; native/local Go validation pending
+
+ADR-035's index row now explicitly labels the guarded August 30 readiness text
+as historical and separately states its current shipped-v0.16.0 disposition.
+All four original token expectations and the complete negative-test replacement
+anchor remain intact. ADR-041's accepted-follow-up backlink now lives above the
+normative sections, leaving §7 and every other frozen section byte-identical
+to the accepted baseline.
+
+Non-Go checks verify all six frozen ADR-041 sections against their exact test
+SHA-256s and original bytes; altered bytes still differ. The index's original
+mutation still removes required tokens and is not neutralized by the current
+status annotation. Diff checks pass; test code, pins, runtime, ADR-037/043 and
+the accepted #13 PRD are unchanged. An initial one-off inspection script had a
+syntax typo; the corrected script completed, and no failed check was credited.
+
+**Action**: checkpoint/push the bounded documentation fix and obtain new native
+CI. No local Go invocation is attempted at the current 63%-free resource
+snapshot. Static planning acceptance stands; the wave remains mechanically
+unclosed until corrected-source native and gated local checks pass.
+
+## Native Planning Failure — historical documentation boundaries — 2026-09-23
+
+**Run**: `35823080400`, checkpoint `664d4d6`
+**Result**: Ubuntu/macOS Test failed; Windows and both observer jobs succeeded
+
+Two document-only integrations conflict with existing historical guards:
+`TestS7Rev16PendingOwnerErratumGuardAndSensitivities` expects ADR-035's guarded
+readiness snapshot, while the index changed that snapshot into current release
+status; `TestRGAS5ContractCaptureEvidenceAndSensitivities` pins ADR-041 §7's
+accepted decision text, and the new follow-up backlink was inserted inside it.
+The accepted #13 amendment itself is not implicated by either failure.
+
+**Action**: preserve the ADR-035 historical readiness snapshot with an explicit
+date/history label and separate current shipped disposition in the same index
+entry; move ADR-041's current follow-up note into unpinned document metadata.
+Keep the frozen normative sections, all test logic and every mutation anchor
+unchanged. Verify the exact pins/anchors directly, then obtain fresh native CI.
+Local Go validation remains resource-blocked (latest sample 63% free); no new
+Go test or passing mechanical gate is claimed. No Claude/optional model used.
+
 ## Native Intake Result and Planning Push — 2026-09-23
 
 **Run**: [35816716435](https://github.com/tesseracode/tesserapatch/actions/runs/35816716435)

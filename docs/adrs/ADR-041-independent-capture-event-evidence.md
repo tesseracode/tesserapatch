@@ -18,6 +18,16 @@ as enumerated in §9
 [ADR-037](./ADR-037-reconcile-operation-replay-candidate-authority.md),
 [PRD-reconcile-operation-replay-candidate](../prds/PRD-reconcile-operation-replay-candidate.md)
 
+**Follow-up status (2026-09-22)**: GH #15 shipped in v0.17.0. The separate
+planning response to the obligations in §7 is accepted in
+[ADR-043](./ADR-043-operation-candidate-capture-evidence.md) and synchronized
+ADR-037/companion PRD rev-7. The operator selected canonical E digest inclusion
+in candidate identity. Independent OpenAI-model review approved the amendment
+on 2026-09-22; the planning dependency is satisfied. This does not authorize
+implementation or claim completion of the resource-blocked mechanical wave close.
+The original S4 migration baseline in §7 is historical, not current release state;
+its accepted decision text remains preserved below.
+
 The operator selected the independent-evidence direction. Independent rev-0
 review required binary-payload and parent-exclusion corrections; rev-1 closes
 both findings and is APPROVED. The supervisor accepts this concrete contract
@@ -602,15 +612,6 @@ remediation output. A missing E can be fixed only by an honest new producer
 event; readers never manufacture a sidecar from old metadata.
 
 ## 7. Migration and GH #13 planning dependency
-
-**Follow-up status (2026-09-22)**: GH #15 shipped in v0.17.0. The separate
-planning response to the obligations below is accepted in
-[ADR-043](./ADR-043-operation-candidate-capture-evidence.md) and synchronized
-ADR-037/companion PRD rev-7. The operator selected canonical E digest inclusion
-in candidate identity. Independent OpenAI-model review approved the amendment
-on 2026-09-22; the planning dependency is satisfied. This does not authorize
-implementation or claim completion of the resource-blocked mechanical wave close.
-The original S4 migration baseline below is historical, not current release state.
 
 S4 coverage is **unshipped** at this baseline. Its C-only records remain
 strictly decodable D3 records, but once the amended reader ships they lack

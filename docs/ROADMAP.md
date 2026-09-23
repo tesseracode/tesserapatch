@@ -1464,6 +1464,14 @@ September 23: intake/dispatch native run `35816716435` completes SUCCESS at
 `2c1514c`, all five required jobs passing. Accepted planning at `cd9279f` and
 its archives are now being pushed; the intake run is not substituted for new
 planning-source CI or the still-resource-blocked local mechanical gate.
+Final-planning run `35823080400` fails the ADR-035 historical-readiness token
+and ADR-041 §7 frozen-section guards. Correct only metadata placement/history
+labels, preserving existing guard logic and the accepted #13 contract; new
+hosted confirmation and local mechanical closure remain required.
+The document-only correction is authored: dated historical readiness plus
+current shipped status, and the follow-up backlink outside frozen ADR sections.
+All six original section digests and the full index mutation anchor verify
+unchanged. New native CI is required; no Go result or runtime change is claimed.
 
 Earlier task progression (historical):
 

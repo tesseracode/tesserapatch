@@ -11,8 +11,12 @@ All semantic review findings are closed; no runtime implementation is authorized
 
 Intake/dispatch CI `35816716435` completed SUCCESS on `2c1514c`, all five
 required jobs passing. It was preserved until completion before pushing the
-accepted planning/archives at `cd9279f`. That run does not certify the later
-amendment; final-planning-source native CI remains outstanding.
+accepted planning/archives at `cd9279f`. Final-planning run `35823080400`
+failed two existing documentation guards. The bounded correction now preserves
+ADR-035's dated historical readiness snapshot alongside current shipped status,
+and moves ADR-041's follow-up backlink outside frozen sections. Exact pin/anchor
+checks pass; corrected-source native CI is pending. The accepted #13 contract
+and all tests remain unchanged.
 
 The combined documentation/planning wave is **not mechanically closed**.
 The first fresh-resource admission attempt timed out after 600 seconds before
@@ -28,13 +32,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — mechanical validation admission; content/review accepted
+- **Status**: Blocked — documentation guard correction authored; native rerun and gated local close pending
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+Native CI found two integration errors in metadata placement/history, not in
+the accepted #13 decisions. Both are corrected in the documents only. The
+old ADR-035 readiness snapshot is clearly labelled historical with current
+shipped state separately stated; the ADR-041 follow-up status is in metadata
+outside all frozen normative bodies. Exact non-Go pin checks pass; all existing
+test logic and negative mutation anchors remain unchanged. No runtime or
+planning-schema correction was required.
 
 The pending intake native run is now green, so the accepted planning and
 archive commits can be durably pushed without cancelling it. GH #13's issue
@@ -97,9 +109,15 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 - Resource admission: exit 75 after 600 seconds at 57-60% free memory, periods
   of load1 >5 and other active Go/test processes. No formatting/Go validation
   command ran in this session; no helper or background Go process was created.
-- Intake/dispatch native CI `35816716435` PASS at `2c1514c`, all five required
-  jobs, release skipped. It does not certify the subsequent accepted planning
-  source. Final exact-source hosted/local wave-close evidence remains required.
+- Intake/dispatch native CI `35816716435` PASS at `2c1514c`.
+- Final-planning CI `35823080400` FAIL at `664d4d6` on Ubuntu/macOS: ADR-035
+  guarded readiness token missing and ADR-041 §7 accepted-section digest changed.
+  Windows and both observers pass. These are actual test failures, not a watcher
+  disconnect. Final corrected-source hosted/local evidence remains required.
+- Document correction checks PASS: all six frozen ADR-041 sections equal their
+  original bytes and pinned test digests; all four ADR-035 token requirements and
+  its full original mutation anchor remain. Altered-section/old-index mutation
+  checks still reject. This is non-Go evidence, not a claimed Go test run.
 
 ## Next Steps
 
@@ -116,8 +134,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Only mechanical validation resources/native exact-source completion remain.
-No planning finding or unresolved operator architecture choice remains.
+Document-boundary corrections are authored with exact pin/anchor checks passing;
+corrected-source native CI is pending. Local mechanical validation remains
+resource-blocked. No accepted #13 planning finding or operator choice remains.
 
 ## Context for Next Agent
 
