@@ -1495,6 +1495,10 @@ Proposed rev-7/ADR-043 are delivered. Structural checks confirm nine byte-equal
 regions, 301 contiguous acceptance rows (I61/C87/G76/U68/S9), fifteen ordered
 gate rows/proof-array cardinality, and unchanged historical revision rows.
 Independent semantic review is pending; proposed content is not yet accepted.
+Independent `gpt-5.4` review requires revision for missing capture-selector
+pair comparison, schema-versus-recomputation authority and E4/E5 summary drift.
+Coordinator adds the interrupted-pair recovery wording correction. Rev-7
+remains Proposed; implementation is not dispatched.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

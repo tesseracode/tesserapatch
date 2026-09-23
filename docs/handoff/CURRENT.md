@@ -5,9 +5,10 @@
 **Cluster state**: IN PROGRESS
 
 Research intake/backlog reconciliation is complete, archived and pushed at
-`c8344df`. GH #13's planning follow-up is drafted as Proposed rev-7 plus ADR-043,
-awaiting independent review. This remains a documentation/planning wave; no
-replay implementation is authorized.
+`c8344df`. GH #13's Proposed rev-7/ADR-043 review requires revision: missing
+explicit capture-selector comparison, an impossible schema-validator claim,
+and inconsistent E4/E5 numbering. Coordinator also requires truthful interrupted
+E/C recovery wording. No runtime implementation is authorized.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -20,13 +21,19 @@ pre-release paragraphs are not active instructions.
 - **Milestone**: GH #13 / ADR-041 section 7 planning amendment
 - **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
 - **Description**: Bind independent capture evidence into replay-candidate gates, identity and recovery planning
-- **Status**: Review — proposed amendment delivered; runtime remains undispatched
+- **Status**: In progress — correcting independent planning findings; runtime undispatched
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+Independent `gpt-5.4` review is NEEDS REVISION on one high/two medium contract
+issues. Add explicit E/C capture-mode/pathspec/claim comparison, separate shape
+validation from canonical-digest recomputation, and align current rev-7 gate
+numbering. Also qualify ROC-299 so interrupted E/C pairs are detectable rather
+than falsely impossible. Return only the three planning files to the implementer.
 
 Coordinator added Proposed-only backlinks in ADR-041, the ADR index and CLUSTERS.
 The index's stale v0.16/S5 runtime-pending statements now point to shipped
@@ -148,9 +155,9 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Blockers
 
-No intake blocker remains. The GH #13 amendment is in progress and requires
-review before implementation may be assigned. GH #24 widening is not a
-prerequisite for this narrow amendment.
+No intake blocker remains. The GH #13 amendment has three independent review
+findings plus one coordinator recovery-claim correction to resolve before
+acceptance. GH #24 widening is not a prerequisite for this narrow amendment.
 
 ## Context for Next Agent
 

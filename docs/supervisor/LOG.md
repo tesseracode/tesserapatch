@@ -1,3 +1,29 @@
+## Review — GH #13 capture-evidence planning rev-7 — 2026-09-22
+
+**Reviewer**: `fe6aacf4-231d-487d-b1be-9460f333617d`
+**Model verification**: explicit task selection and runtime `read_agent`
+metadata both report `gpt-5.4`.
+**Checkpoint**: `987a349`
+**Verdict**: NEEDS REVISION (static contract review; no Go commands)
+
+1. HIGH: capture mode/pathspecs/claim IDs are called authoritative inputs but no
+   live gate explicitly compares E's capture descriptor with C. Add ordered
+   comparison and field-specific wrong-input cases without claiming historical
+   authenticity of coordinated edits.
+2. MEDIUM: ROC-297 assigns raw-versus-canonical digest provenance to a schema
+   validator; shape validation cannot determine hash derivation. Separate shape
+   from actual identity recomputation and pin the latter with a sensitive case.
+3. MEDIUM: the new rev-7 summary places owner/pair mismatch at E5, while the
+   normative table puts them inside E4 and uses E5 for readable-presence drift.
+
+Coordinator also flags ROC-299's "no observable state" mixed-pair wording:
+E-before-C per-file writes can expose an interrupted pair; only successful
+rollback/recovery restores it. Preserve ADR-041's honest non-transaction limit.
+
+**Action**: return only the three planning documents to the verified OpenAI
+implementer; preserve old revision history, update affected parity/matrix/count
+surfaces and add concrete wrong-input cases. No runtime or accepted status.
+
 ## Backlink/Structure Check — GH #13 proposed amendment — 2026-09-22
 
 Coordinator adds Proposed-only ADR-041/ADR-index/CLUSTERS backlinks and corrects
