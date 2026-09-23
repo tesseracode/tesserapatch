@@ -1,3 +1,24 @@
+## Delivery — GH #13 capture-evidence planning rev-7 — 2026-09-22
+
+**Implementer**: `e50ddbe5-44d6-4d7e-9cd2-8cab288dc8be`
+**Model verification**: runtime `read_agent` confirms `gpt-5.4`
+**State**: Proposed; independent semantic review pending
+
+Only ADR-043, ADR-037 and the companion PRD are authored. The draft binds
+canonical capture-event digest in identity, adds three E refusal codes,
+retains fifteen gate slots and fourteen transaction steps, and includes E in
+publication/snapshot/rollback/recovery planning. No runtime implementation.
+
+Coordinator independently verifies nine paired regions
+`A,B,C1,C2,D1,D2,D3,E,F`, byte-identical across documents; ROC-001..301 unique/
+contiguous, I61/C87/G76/U68/S9; E1-E15 and `[15]bool` agree; old rev-0..6
+revision-table rows are unchanged. These checks establish structure, not the
+semantic reachability or correctness of new recovery claims.
+
+**Action**: checkpoint Proposed documents and request a complete independent
+OpenAI-model planning review. Parent owns status/index/backlink updates after
+findings are resolved. No Go command or new accepted contract is claimed.
+
 ## Dispatch — GH #13 independent capture-evidence planning — 2026-09-22
 
 **Task**: `plan-gh13-independent-capture-evidence`

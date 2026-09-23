@@ -1,7 +1,7 @@
 # ADR-037 - Reconcile Operation-Replay Candidate Authority
 
-**Status**: Accepted rev-6
-**Date**: 2026-09-02
+**Status**: Proposed rev-7 (rev-6 accepted baseline; pending independent review)
+**Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
@@ -25,6 +25,9 @@ confirmation-gate contract —
 [PRD-reconcile-verdict-evidence](../prds/PRD-reconcile-verdict-evidence.md),
 [PRD-upstreamed-confirmation-gate](../prds/PRD-upstreamed-confirmation-gate.md),
 [PRD-confirm-upstreamed-human-review-path](../prds/PRD-confirm-upstreamed-human-review-path.md)
+**Related**:
+[ADR-041](./ADR-041-independent-capture-event-evidence.md) rev-1 and
+[ADR-043](./ADR-043-operation-candidate-capture-evidence.md) (proposed operator-selected direction)
 **Amends**:
 1. **`SPEC.md:444-448` only** — and **all three** of its phase-2 rows.
    `→ All already-present → UPSTREAMED` (`:446`) becomes CG-qualified (D2);
@@ -74,11 +77,9 @@ local contract, which this ADR **does not reuse and does not re-specify**;
 schema and strict decoder, D8's no-persisted-anchor scope reduction, and D9's
 recompute-at-read rule.
 
-**Blocked by**: GH #15 / ADR-036 implementation **shipped in v0.17.0**. No
-GH #13 implementation slice may start before that release exists — the
-consumer contract has nothing to consume until `artifacts/recipe-coverage.json`
-is written by a real producer (`internal/` contains **no** coverage code
-today).
+**Prerequisite shipped**: GH #15 / ADR-036 implementation **shipped in
+v0.17.0**. This rev-7 remains planning-only; any GH #13 runtime work still
+requires a separate post-review implementation assignment.
 
 **Target release**: v0.18.0, separate from GH #15's v0.17.0.
 
@@ -93,6 +94,7 @@ today).
 | rev-4 | 2026-09-02 | **D2's call-site inventory corrected from nine to TEN** (F1, blocking): `saveReconcileArtifacts` is called at `internal/workflow/reconcile.go:383,432,455,480,524,536,564,570,583,596`; rev-3 omitted `:570`, the phase-3.5 call whose third argument is spelled `phase35` rather than `result`. *(rev-4 called `phase35` "the distinct `*ReconcileResult` returned by `tryPhase35`"; rev-6 corrects that: `tryPhase35` takes `result` as its ninth parameter (`:1363`) and returns that same pointer from all ten of its returns, so `phase35` is a distinct variable name bound to the same object.)* Every nine-call claim is replaced with the ten-site list in parity block A (byte-identically with the PRD), in this table, in D34, in the implementation order and in the references, and `:570` is stated to pass `phase35` and, exactly like every existing and legacy call, a **`nil`** proof. **D2 defines how the new phase-2 verdict-bearing attempt reaches the evidence stream, and forbids emitting two** (opt. 1): the evaluator builds the attempt in the same statement that mints the proof and stages it in one new unexported `phase2Verdict *store.ReconcileEvidence` field on `ReconcileResult` *(superseded by rev-5's ordered `verdictAttempts` list)* (`:19-85`; `attemptedAt` `:74-84` is the shipped precedent, and `encoding/json` ignores unexported fields so `reconcile-session.json` (`:775-776`) is unaffected); `proof != nil` **iff** `result.phase2Verdict != nil`; and `persistReconcileEvidence` (`:766`, defined `:812`) appends the staged attempt **in place of** the entry it would have derived through `evidencePhaseAndKind` (`:1161-1176`). Exactly **one** verdict-bearing `phase-2` entry therefore exists on the authoritative all-present arm (`:451-457`), which D25 shows is the only arm where a collision is possible; the legacy builder is unmodified and runs verbatim everywhere else. **D2's cross-check names the entry it grades, not one it writes** (opt. 2): the gate grades `result.phase2Verdict`, already appended at `:766` before the gate runs at `:771`, and the only line the gate itself appends is its separate supporting `phase-3.5` / `manual-review` entry (`:1033-1035,1069-1070`), unchanged in phase, kind, fields and firing condition. **The positive and anti-duplicate cases are pinned** (opt. 3) by the companion PRD's ROC-290 and ROC-291 and by D2's source guard, extended to the staged attempt's single assignment site and single read site. No decision is added, removed or renumbered: the set stays **D1-D36** plus D7b, D9.1, D12b, D20b and D29b (41 decision blocks), and the nine parity regions are unchanged in identity and count. |
 | rev-5 | 2026-09-02 | **D2's staging carrier becomes an ordered list, and candidate-ready becomes a staging arm** (B1, blocking): rev-4's singular `phase2Verdict *store.ReconcileEvidence` could carry one entry on one arm, so the candidate-ready outcome — whose `result.Phase` is `phase-2-operation-candidate` and therefore *also* takes `evidencePhaseAndKind`'s `phase-2` prefix branch (`internal/workflow/reconcile.go:1167-1168`) — would have had the legacy builder derive a **duplicate** `phase-2` verdict entry and would have had **no carrier** for the phase-4 textual-conflict verdict D25's own worked shape requires. D2 replaces the field with one unexported ordered `verdictAttempts []store.ReconcileEvidence` on `ReconcileResult` (`:19-85`), still ignored by `encoding/json` on the `attemptedAt` precedent (`:74-84`), and pins **three** legal configurations: (1) every other and legacy arm stages nothing and the shipped single derived builder runs unchanged; (2) the authoritative all-present arm stages **exactly one** qualifying phase-2 verdict-bearing `recipe-operation-match` attempt, built in the same statement that mints the proof; (3) the candidate-ready arm stages **exactly two** ordered attempts before save — `[1]` `phase-2` / `recipe-operation-match` / `still_needed` / `high` for the independently proved candidate and `[2]` `phase-4` / `forward-apply` / `blocked` / `low` for why ordinary patch replay could not win — and mints **no** proof. `persistReconcileEvidence` (`:766`, defined `:812`) emits the staged list **in place of** the entry it would have derived through `evidencePhaseAndKind` (`:1161-1176`), so `result.Phase` may stay `phase-2-operation-candidate` with no duplication. The biconditional is re-scoped to `proof != nil` **iff configuration 2**, so a proof is **never** paired with candidate-ready, and any illegal configuration is treated as no proof and no staging at all. D2's source guard is widened to **six** axes — single assignment site, single mutation site, single persist read site, no serialization, pairwise-distinct `attempt_id`s and strictly increasing phase order. **D25 names the two routes** a phase-2 finding takes: **staged substitution** on the two arms whose terminal `result.Phase` derives `phase-2`, and **direct append** on the fallthrough arms where no collision is possible; its per-arm table, class table and append-order statement follow. **D24** records that the candidate-ready pair's second attempt reuses the existing `phase-4` / `forward-apply` enum pair at the shipped `:846-849` confidence rung, so the no-new-enum claim covers both staged attempts. **D34** and the implementation order carry the renamed ordered field. **D36** now states the marker-parser mechanism, not just the conclusion: a marker is recognized only when its ID matches the closed nine-value set, so neither this ADR's `<ID>` illustration nor the companion PRD §6.0's is read as an unpaired `begin`. Parity block `A` changes identically on both sides. No decision is added, removed or renumbered: the set stays **D1-D36** plus D7b, D9.1, D12b, D20b and D29b (41 decision blocks), and the nine parity regions are unchanged in identity and count. |
 | rev-6 | 2026-09-02 | **D2's `:570` argument claim corrected: `phase35` is a distinct variable *name*, not a distinct object** (blocking): rev-4 and rev-5 said `internal/workflow/reconcile.go:570` passes "the distinct `*ReconcileResult` returned by `tryPhase35`". The shipped source says otherwise — `tryPhase35` (`:569`, defined `:1354-1364`) takes the pipeline's `result` as its **ninth parameter** (`:1363`), mutates it in place and returns **that same pointer** from every one of its ten returns, each literally `return result` (`:1373,1381,1389,1436,1475,1491,1497,1502,1508,1513`). `phase35` and `result` name **one object**; `:570` differs from the other nine call sites in argument spelling only and, like every existing and legacy call, stages no attempt and passes a **`nil`** proof. The corrected statement replaces the old one in parity block A (byte-identically with the companion PRD), in this table's rev-4 row, in D34, in the implementation order and in the references. The ten-site inventory, the proof route, D2's three staging configurations and the CG1-CG7 class are untouched — only the *reason* `:570` was singled out changes. **D25 gains the dual-sink invariant**: every verdict-bearing attempt reaches `reconcile-evidence.jsonl` (via `store.AppendReconcileEvidence`, `:876`) **and** the in-memory `result.Evidence` slice in the same relative order, on **both** routes — staged substitution inherits it from the shipped `:766` / `:880` shape, and the direct-append route must do it explicitly — so `reconcile-session.json`'s serialized `evidence` array (`:775-776`) is never a strict subset of the JSONL; the companion PRD's ROC-208 pins it at runtime. The companion PRD additionally scopes ROC-290's and ROC-281's S0 byte-identity claims to D25's **gate-off** per-arm row, since the gate-on ineligible fallthrough takes the direct-append route and carries an intentional phase-2 evidence delta while still emitting one verdict-bearing entry per phase. No decision is added, removed or renumbered: the set stays **D1-D36** plus D7b, D9.1, D12b, D20b and D29b (41 decision blocks), and the nine parity regions are unchanged in identity and count. |
+| rev-7 | 2026-09-22 | **ADR-041 §7 planning amendment; operator-selected `identity-digest` direction.** The E1-E15 gate stays a closed fifteen-gate inventory, but now hard-refuses on a validated `artifacts/recipe-capture-event.json` companion before replay authority exists: E4 establishes a strict, readable, canonically re-encodable E; E5 rejects owner or pair mismatches; E6-E11 re-run bound-artifact, reference, observation, event-fact and parent-exclusion consistency from the paired E/C inputs without trusting generations or current parent state. `gatesPassed[15]` stays cardinality-stable, and the proof adds canonical `captureEventSHA256`. Candidate identity, schema, staleness and acceptance now bind `capture_event_sha256` — the SHA-256 of strict-decoded, canonically re-encoded E bytes — so formatting-only raw E rewrites do not mint a new candidate ID while semantic E changes do. Acceptance stages, snapshots, publishes, rolls back and recovers `artifacts/recipe-capture-event.json` together with `artifacts/recipe-coverage.json`, with E atomically preceding C inside the existing step-11 boundary. ADR-043 records why canonical E digest was selected instead of a separate mutable recheck-only path. The v0.17.0 prerequisite is already satisfied; runtime implementation remains a separate assignment after review. Matrix rebuilt to **301** contiguous rows (I 61, C 87, G 76, U 68, S 9). **Proposed pending independent review.** |
 
 ## Context
 
@@ -264,8 +266,9 @@ high-confidence `reverse-apply` (`:1055-1060`), and demotes everything else
 **The gate gains exactly one new confirming authority class, and this PRD and
 ADR-037 D2 state it identically.** The gate confirms a `recipe-operation-match`
 entry **if and only if all seven** of the following hold, and it learns all
-seven from **one typed in-process value**, never from a stored field. This is
-**parity block A**.
+seven from **one typed in-process value**, never from a stored field. In rev-7
+that proof also binds the canonical `capture_event_sha256` of the validated E
+descriptor the candidate ID will later use. This is **parity block A**.
 
 **The graded entry is named, and it is new.** CG5-CG7 are conditions on
 **one** entry: the **new GH #13 phase-2 verdict-bearing
@@ -420,7 +423,7 @@ never rebuilt.
 | # | Confirmation condition |
 |---|---|
 | CG1 | the gate was handed a non-nil `phase2AuthorityProof` minted by this feature's GH #13 phase-2 evaluator **in this invocation** — not read back from a prior run, not rebuilt from an evidence line, and not produced by the legacy evaluator (D12b / §6.4) |
-| CG2 | the proof records that every ADR-036 binding passed the E1-E15 gate (D4 / §6.5) with every value **independently recomputed**, never read |
+| CG2 | the proof records that every paired ADR-036/ADR-041 binding passed the rev-7 E1-E15 gate (D4 / §6.5) with every value **independently recomputed**, never read |
 | CG3 | the proof records that every normalized effect of the canonical patch was independently recomputed **present** at the named upstream commit under the D10 / §6.7 classification |
 | CG4 | the proof's derivation counts are **zero** candidate operations, **zero** applicable classifications and **zero** conflicting classifications |
 | CG5 | the entry being graded is the **single** staged entry of `result.verdictAttempts` — the new GH #13 phase-2 verdict-bearing entry above — and its `match_origin == upstream` (`internal/store/reconcile_evidence.go:63`) |
@@ -442,6 +445,7 @@ change this: the proof is a parameter and nothing else. Both signatures change:
 type phase2AuthorityProof struct {
     upstreamCommit   string // 40-hex, the commit E1-E15 and the classifier used
     referenceCommit  string // 40-hex, ADR-036 reference.commit
+    captureEventSHA256 string // SHA-256 of the strict-decoded, canonically re-encoded recipe-capture-event E
     coverageSHA256   string // recomputed, not read
     patchSHA256      string // recomputed, not read
     recipeSHA256     string // recomputed over raw on-disk bytes
@@ -481,7 +485,11 @@ Its rules are absolute:
   with no exported constructor, no setter and no zero-value path to a
   confirming state. The one qualifying verdict-bearing attempt above is built
   and staged in that **same statement**, so proof and entry are minted together
-  or not at all;
+  or not at all. The proof's `referenceCommit`, `captureEventSHA256`,
+  `coverageSHA256`, `patchSHA256`, `recipeSHA256`, `effectDigest` and counts
+  are all derived from the validated E/C pair and the offline reconstruction it
+  authorizes, never from a generation record, copied C label or current-parent
+  scan;
 - it is **threaded, never stored**. The evaluator hands it to
   `saveReconcileArtifacts`, which passes it to the gate as its fourth argument
   in the same invocation. All **ten** shipped call sites
@@ -508,7 +516,7 @@ Its rules are absolute:
   the current `result`: that
   entry's `phase`, `evidence_kind`, `confidence`, `match_origin`,
   `pre_reconcile_presence`, `upstream_commit` and `upstream_commit_refs`,
-  together with the proof's two commits, three binding hashes, effect count,
+  together with the proof's two commits, four binding hashes, effect count,
   effect digest and three classification counts, must all agree. Any
   disagreement fails CG1-CG7 and takes the shipped unconfirmed branch. The gate
   never grades one entry against a proof minted for another. **The gate does
@@ -630,21 +638,31 @@ every feature whose recipe drifted. That is a regression dressed as a feature.
 The shipped code already gets this right; the SPEC prose is what needs the
 amendment.
 
-### D4 - Eligibility is fifteen recomputed gates over ADR-036's own strict decoder
+### D4 - Eligibility is fifteen recomputed gates over ADR-036's decoder and ADR-041's typed event companion
 
-Phase 2 decodes `artifacts/recipe-coverage.json` with **ADR-036 D3's own strict
-semantic decoder** — not a private re-implementation and not a weaker one. That
-decoder already refuses every internally contradictory record
-(`docs/adrs/ADR-036-recipe-coverage-authority.md:1065-1076`), so those
-contradictions fail at E1 as decode failures and get no separate gate.
+Phase 2 now validates a **paired** authority set: ADR-036's
+`artifacts/recipe-coverage.json` (**C**) and ADR-041's
+`artifacts/recipe-capture-event.json` (**E**). C still decodes through
+**ADR-036 D3's own strict semantic decoder** — not a private re-implementation
+and not a weaker one. E strict-decodes through ADR-041's exact typed schema,
+then re-encodes canonically to derive `capture_event_sha256`. Candidate
+identity binds that **canonical** digest, not the raw E file bytes, so a
+formatting-only JSON rewrite that preserves exact field values keeps the same
+identity while any semantic E change does not.
 
-rev-0's `coverage-reason-outstanding`, `effect-axis-unknown` and zero-effect
-rows were unreachable for exactly that reason and are removed. What survives is
-**recomputation**: any value the decoder cannot check because it is a claim
-*about other bytes* is re-derived and compared.
+ADR-036's decoder already refuses every internally contradictory coverage
+record (`docs/adrs/ADR-036-recipe-coverage-authority.md:1065-1076`), so those
+contradictions still fail at E1 as decode failures and get no separate gate.
+What survives is **recomputation**: any value C or E cannot prove from its own
+bytes is re-derived and compared from the bound patch, recipe, offline
+reference tree and validated E descriptor. No gate trusts a generation record,
+current parent state or a copied C field as substitute authority.
 
-The gate set is closed and ordered; the first failure records its reason and
-falls through (D3).
+The gate set stays closed, ordered and fifteen rows wide; the first failure
+records its reason and falls through (D3). Historical rev-6 references to
+"E1-E15" mean the accepted baseline inventory only. rev-7 preserves the
+fifteen-gate cardinality and the `gatesPassed[15]` proof shape, but E4-E11 now
+cover the paired E/C contract rather than the rev-6 coverage-only subset.
 
 <!-- parity-block:B:begin -->
 | # | Gate | Reason code | Why it is reachable |
@@ -652,91 +670,84 @@ falls through (D3).
 | E1 | coverage present, readable, and strict-decodes under ADR-036 D3, **including** its contradiction refusals | `coverage-unusable` | absent, unreadable, malformed or internally contradictory bytes |
 | E2 | `coverage.feature` == the requested slug | `coverage-owner-mismatch` | the envelope owner is not checked by the decoder |
 | E3 | `coverage_status == complete` | `coverage-incomplete` | a truthfully incomplete record decodes fine |
-| E4 | `patch_present` / `recipe_present` recomputed from **readable existence**, matching in **both** directions | `binding-presence-drift` | either file may have appeared or disappeared since publication, and readability may have changed either way |
-| E5 | `patch_sha256` over exact raw patch bytes; `recipe_sha256` over exact **raw on-disk** recipe bytes | `binding-hash-drift` | bytes may have changed since publication, decodable or not |
-| E6 | the **on-disk** recipe strict-decodes — `recipe_decodable` recomputed by **attempting the decode**, and true | `recipe-undecodable` | the stored flag is a claim about other bytes |
-| E7 | **conditional on E6**: the decoded recipe's `feature` == `coverage.feature` | `recipe-owner-mismatch` | the recipe on disk may have changed owner since publication; only a decoded recipe has a readable `feature` |
-| E8 | `reference.kind == commit`, 40-hex, the object **reconstructs offline in this repository**, and `preimage_set_sha256` recomputes over that reconstructed tree | `reference-not-reconstructable` | the object may be absent locally |
-| E9 | every `effect_sha256` and `patch_fragment_sha256` recomputes equal, and `ordinal` is gapless strict-grammar record order | `effect-binding-drift` | a hand-forged or buggy record can state hashes the decoder cannot verify |
-| E10 | every recipe operation is assigned to an effect, is a supported ADR-036 write-file witness, and carries **no** `created_by` (`internal/workflow/implement.go:49`) | `recipe-unsupported` | the on-disk recipe is re-read and re-checked (D7 / §6.6) |
-| E11 | `recipe-stale.json` absent | `recipe-stale-marker-present` | a preserved drift marker (`internal/workflow/recipe_autogen.go:184-198`) |
-| E12 | supersession authorizes nothing (D32 / §6.19) | `supersession-not-authority` | a superseded feature can carry complete coverage |
-| E13 | no hard-blocked parent in the ADR-011 DAG (D32 / §6.19) | `parent-blocked` | a child can carry complete coverage |
+| E4 | E present, readable and strict-decodes under ADR-041; its canonical re-encode is available for `capture_event_sha256`; within the same gate, `event.feature` == the requested slug and `event.coverage_sha256 == SHA256(raw C bytes)` | `capture-event-unusable`, `capture-event-owner-mismatch`, or `capture-event-pair-mismatch` | absent, unreadable, malformed, wrong-owner and one-way C/E pairing failures are distinct live conditions |
+| E5 | `patch_present` / `recipe_present` recomputed from **readable existence**, matching in **both** directions across the bound artifacts, C and E | `binding-presence-drift` | either file may appear, disappear or change readability since publication |
+| E6 | `patch_sha256` over exact raw patch bytes and `recipe_sha256` over exact **raw on-disk** recipe bytes, matching **both** C and E | `binding-hash-drift` | patch or recipe bytes may change since publication, decodable or not |
+| E7 | the **on-disk** recipe strict-decodes — `recipe_decodable` recomputed by **attempting the decode**, and true | `recipe-undecodable` | the stored flag is a claim about other bytes |
+| E8 | **conditional on E7**: the decoded recipe's `feature` == `coverage.feature` | `recipe-owner-mismatch` | the recipe on disk may have changed owner since publication; only a decoded recipe has a readable `feature` |
+| E9 | validated C/E `reference.kind == commit`, 40-hex, the object **reconstructs offline in this repository**, and `preimage_set_sha256` recomputes over that reconstructed tree | `reference-not-reconstructable` | the object may be absent locally, or the paired reference/digest fields may disagree |
+| E10 | validated E observations, event facts, observation-availability ceiling, fragment hashes, ordinals and recomputed S1 projection agree with C and the canonical patch | `effect-binding-drift` | a hand-forged or buggy record can state hashes, observations or event facts the paired validator cannot reproduce |
+| E11 | validated `parent_created_paths` plus actual event facts yield only supported ADR-036 witnesses, and `recipe-stale.json` is absent | `recipe-unsupported` or `recipe-stale-marker-present` | unsupported witnesses, copied current-parent state or a live stale marker remain distinct candidate-ineligibility failures |
+| E12 | supersession authorizes nothing (D32 / §6.19) | `supersession-not-authority` | a superseded feature can carry a complete pair |
+| E13 | no hard-blocked parent in the ADR-011 DAG (D32 / §6.19) | `parent-blocked` | a child can carry a complete pair |
 | E14 | exactly one slug and `--cumulative-legacy` unset | `derivation-mode-unsupported` | invocation shape |
 | E15 | no resolver shadow is staged for this slug (`Reconcile.ShadowPath` empty, `internal/store/types.go:381`) | `shadow-pending` | two staged answers may not coexist (D21 / §6.11) |
 
-**The order is what makes every code reachable, and rev-1's was not.** rev-1
-put a combined "the recipe decodes **and** its `feature` matches" gate at E4,
-ahead of the presence, hash and decodability gates. That single gate consumed
-every recipe-side failure first: a missing recipe, a drifted recipe and an
-undecodable recipe all reported `recipe-owner-mismatch`, so
-`binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` were
-unreachable on the recipe side. rev-2 splits it into four ordered questions
-that a recipe file answers in the only order it can answer them:
+**The order is what keeps every code reachable, and rev-7 preserves that
+property while adding E.** E4 runs its own fixed sub-order — usability, then
+owner, then one-way pairing hash — because owner or pair checks are meaningless
+on malformed bytes. E8 stays conditional on E7 for the same reason: an
+undecodable recipe has no readable owner field. E11 likewise checks the stale
+marker before witness support so a live marker never disappears behind a later
+support error.
 
-1. **E4 — does a readable file exist, on both sides, as the record claims?**
-   Readable existence is the ADR-036 D9 collapse of absence and unreadability;
-   a mismatch in either direction is drift.
-2. **E5 — are its raw bytes the bytes that were bound?** The recipe hash is
-   over raw on-disk bytes precisely so this question is answerable before, and
-   independently of, decoding.
-3. **E6 — do those bytes strict-decode?** This is the only gate that may
-   report `recipe-undecodable`.
-4. **E7 — does the decoded record name the right owner?** E7 is **conditional
-   on E6**: it is evaluated only when E6 succeeded, because an undecodable file
-   has no `feature` field to compare. E7 can therefore never shadow E6, and E6
-   can never shadow E4 or E5.
-
-**Evaluation is strictly first-match and the reported reason is
-deterministic.** A record that would fail several gates reports the
-**lowest-numbered** one, always — a fixture failing E3 and E11 reports
-`coverage-incomplete`, and a fixture failing E5 and E6 reports
-`binding-hash-drift`. No gate is skipped except E7 under the stated condition,
-and no gate may be reordered by an implementation.
+**Evaluation is strictly first-match and the reported reason is deterministic.**
+A record that would fail several gates reports the **lowest-numbered** failing
+gate, and within E4 or E11 it reports the first failing sub-check of that gate.
+A fixture failing E3 and E11 reports `coverage-incomplete`; one failing E6 and
+E7 reports `binding-hash-drift`; one with malformed E bytes and the wrong slug
+reports `capture-event-unusable`. No gate is skipped except E8 under the stated
+condition, and no gate or sub-check may be reordered by an implementation.
 
 **Every gate is recomputed, never read.** An implementation that trusts
-`coverage_status`, `recipe_decodable`, `patch_present` or any `*_sha256` as
-stated has not satisfied the gate that names it.
+`coverage_status`, `patch_present`, `recipe_decodable`, any stored digest, a
+generation ID, a current parent state walk or C copied into a synthetic E has
+not satisfied the gate that names it.
 
-**E9 and E10 are recomputation defenses.** ADR-036's decoder cannot verify a
-hash over a *different* file, and predicate 5's operation assignment is a
-producer-side statement. If either fails on a record the decoder accepted, the
-record is a lie and phase 2 refuses; the codes are not reachable through any
-honest producer. **E7 is a recomputation defense in the same sense** — a
-truthful `recipe-owner-mismatch` already makes the record `incomplete` and
-refuses at E3, so E7 fires only against a record whose claimed completeness
-does not survive re-reading the recipe.
+**E10 and E11 are the paired recomputation defenses.** ADR-036's decoder cannot
+verify hashes over a different file, and ADR-041 deliberately keeps
+`parent_created_paths`, event facts and observation availability as independent
+inputs rather than C-derived labels. If any of them fail on a record the two
+strict decoders accepted, the pair is lying and phase 2 refuses.
 <!-- parity-block:B:end -->
 
-**Rationale.** ADR-036 D4 and D9 require exactly this. Making the gate a closed
-ordered table means an implementation cannot satisfy nine of fifteen and claim
-the contract — and making every row *reachable* means the table is a
-specification rather than a wish list, which is what rev-0's sixteen-row
-version was not, and what rev-1's ordering silently undid on the recipe side:
-a table whose rows are all present but whose order makes three of them
-unreachable is the same defect wearing a different hat.
+**Rationale.** ADR-036 D4/D9 and ADR-041 §3-§4 now require exactly this paired
+inventory. Making the gate a closed ordered table means an implementation
+cannot satisfy nine of fifteen and claim the contract — and making every code
+and sub-code *reachable* means the table is a specification rather than a wish
+list. rev-7's `capture_event_sha256` direction keeps that discipline: the
+digest is usable only after the strict E decoder and canonical encoder both
+succeed, so identity cannot be computed from a malformed or merely copied
+descriptor.
 
-**Alternatives rejected.** Keeping a `coverage-reason-outstanding` gate "for
-defense in depth": a gate that cannot fire cannot be tested, and an untestable
-row in an ordered table is worse than no row. Writing a second, more permissive
-decoder so those rows become reachable: that weakens ADR-036, which is
-forbidden. Keeping rev-1's combined decode-and-owner gate and simply
-documenting that three later codes are unreachable: an ordered table whose
-documented codes cannot fire is a specification that lies about its own
-vocabulary, and the split costs nothing — the recipe file answers the four
-questions in that order anyway. Making E7 unconditional: an undecodable recipe
-has no `feature` field, so an unconditional E7 either re-decodes (duplicating
-E6) or reports a mismatch it did not observe.
+**Alternatives rejected.** Treating E as optional or "only a later recheck":
+rejected by ADR-041 §7, because GH #13 would then still accept on a pair C
+never independently binds. Hashing raw E bytes for identity: rejected, because
+formatting-only JSON rewrites would mint new candidate IDs without changing any
+validated field. Reconstructing E from C or from current parent state:
+rejected, because ADR-041 makes those independent descriptor inputs precisely so
+readers cannot do that. Making E8 unconditional: an undecodable recipe has no
+`feature` field, so an unconditional owner check either re-decodes (duplicating
+E7) or reports a mismatch it did not observe.
 
 ### D5 - Both trees are reconstructed offline; producer scope and generation IDs are context only
 
-Phase 2 reconstructs **two** commits: ADR-036's `reference.commit` (the base
-the coverage's effects are bound to) and the resolved `upstreamCommit`. Both
-must already exist in the local object database. **No lazy fetch, no network,
-no ref advance** — every Git subprocess on this path carries
+Phase 2 reconstructs **two** commits: the validated paired `reference.commit`
+from E/C (the base the effects are bound to) and the resolved `upstreamCommit`.
+Both must already exist in the local object database. **No lazy fetch, no
+network, no ref advance** — every Git subprocess on this path carries
 `GIT_NO_LAZY_FETCH=1` (D12). A reference commit that is not present is
 `reference-not-reconstructable` and falls through; it is not an invitation to
 go get it.
+
+The authoritative descriptor inputs are the validated E/C pair: E's
+`reference`, `capture`, `parent_created_paths`, event facts and observation
+availability ceiling, plus C's strict effect record and the exact canonical
+patch and recipe bytes they bind. The consumer never substitutes a generation
+capture, a current-parent scan or a copied C label for those inputs. A truthful
+`no-capture` record is therefore **not** rejected solely for its mode: if the
+paired reference is durable and independently reconstructable, the mode remains
+context while the proof still stands or falls on the actual bound inputs.
 
 Three fields are explicitly **advisory context, never authority**:
 
@@ -747,13 +758,17 @@ Three fields are explicitly **advisory context, never authority**:
   `consumer-derivation-required` is a statement that the producer withheld
   cross-base authority, which is precisely the authority this ADR derives for
   itself.
+- `capture.mode` — event context, not replay authority. It explains how the
+  producer observed the event; it does not by itself authorize or forbid
+  cross-base reconstruction once the paired reference and bindings validate.
 - patch-generation identifiers (`pg_<12hex>`, ADR-024) — diagnostics. They
   prove which run wrote a patch, never which bytes are on disk now.
 
-**Rationale.** ADR-036 D4 states the rule and this decision makes it
-operational: a consumer that reads `cross_base_status: reference-tree-only` and
-skips its own proof has re-created the failure the adjacent-CLI-args case study
-documents (`docs/adrs/ADR-036-recipe-coverage-authority.md:1547-1558`).
+**Rationale.** ADR-036 D4 and ADR-041 §4 state the rule and this decision makes
+it operational: a consumer that reads `cross_base_status: reference-tree-only`,
+copies C into a synthetic E, reloads current parent state or substitutes a
+generation capture has re-created the very authority gap the pair was added to
+close.
 
 ### D6 - Candidate persistence is single-slug only in v1
 
@@ -911,6 +926,10 @@ For an additive modification, phase 2 parses the effect's fragment with the
 **same** ADR-036 D1 strict grammar that produced the coverage record — not a
 second parser, not `strings.Fields`, and not any of the lenient readers ADR-036
 D1 retired.
+
+The effect rows it walks are the ones validated under D4's paired E/C
+contract. No current-parent scan, generation capture or copied C observation
+may swap in a different boundary input once E10 accepted the descriptor.
 
 From the fragment it computes **maximal `+` runs**: each maximal consecutive
 sequence of `+` lines in the fragment body, in fragment order, one-based within
@@ -1124,7 +1143,9 @@ path present with different bytes is **conflict** (`creation-conflict`).
 **Every operation in one candidate is derived and classified against one
 immutable upstream snapshot**, captured once before the first classification
 and not re-read during derivation. Operations are never classified against a
-partially-mutated intermediate.
+partially-mutated intermediate. The same ceiling applies to observation
+availability: a later-read body may validate a persisted hash, but it may not
+promote an E-unobserved side into candidate authority for this invocation.
 
 **Rationale.** Descending application (A7) is the standard invariant for
 offset-based edits and is what makes "derive all, then apply all" equivalent to
@@ -1191,6 +1212,11 @@ object exists **locally**; (2) validates and contains its path with
 it is about to hold; and (3) sets `GIT_NO_LAZY_FETCH=1` — the shipped
 `gitutil.NoLazyFetchEnv` constant (`internal/gitutil/trailers.go:41`) — on
 **every** Git subprocess it or its returned root spawns.
+
+These roots consume the validated paired `reference.commit` and
+`upstreamCommit`; they do **not** branch on `capture.mode`. A truthful
+`no-capture` record remains admissible when D4 already established a durable
+reference commit and a valid paired E/C proof.
 
 Every subsequent read or write takes the typed root value, so passing `s.Root`
 elsewhere is a compile error rather than a review finding. Store reads
@@ -1495,13 +1521,20 @@ candidate_id = "rc_" + first 12 lowercase hex of SHA-256(canonical JSON of the i
 
 The identity tuple is **exactly**: `schema_version`, `feature`,
 `source_feature_state` (D7b), `upstream_commit`, `reference_commit`,
-`coverage_sha256`, `patch_sha256`, `recipe_sha256`, `derivation_mode`, the
+`capture_event_sha256`, `coverage_sha256`, `patch_sha256`, `recipe_sha256`,
+`derivation_mode`, the
 **ascending-sorted** list of derived-operation proof hashes, and the
 **ascending-sorted** list of effect-map proof hashes. Each derived-operation proof hash is SHA-256 over the canonical
 JSON of `{kind, path, effect_ordinal, effect_sha256, run_ordinals,
 insertion_sha256, insertion_size, boundary_proof_sha256}`; each effect-map
 proof hash is SHA-256 over the canonical JSON of `{effect_ordinal,
 effect_sha256, path, resolution, operation_ordinals, reason_codes}`.
+
+`capture_event_sha256` is SHA-256 of the strict-decoded, canonically
+re-encoded ADR-041 E bytes. It is **not** a raw file hash: whitespace-only or
+formatting-only raw E rewrites that preserve exact field values keep the same
+digest, while duplicate members, unknown fields, unsupported versions and any
+other strict-decode failure prevent the digest from existing at all.
 
 The tuple contains **no** candidate diff hash, **no** candidate tree hash,
 **no** status and **no** self-reference to `candidate_id`, and no timestamp.
@@ -1541,7 +1574,7 @@ when the upstream moves. A later reconcile that recomputes the same ID records
 `candidate-already-accepted` and falls through **before** creating anything;
 any changed binding — including `source_feature_state` — mints a different ID
 and a new candidate normally, which is the ordinary path after an accept
-because acceptance republishes all three bindings (D30).
+because acceptance republishes all four bindings (D30).
 
 **Rationale.** This is the third instance of one house pattern — ADR-024's
 `pg_<12hex>` and ADR-025 D3's `re_<12hex>` are the siblings — chosen for the
@@ -1572,6 +1605,7 @@ prompt and no secret:
   "reference_commit": "<40 lowercase hex>",
   "derivation_mode": "single-slug",
   "bindings": {
+    "capture_event_sha256": "<64 lowercase hex>",
     "coverage_sha256": "<64 lowercase hex>",
     "patch_sha256": "<64 lowercase hex>",
     "recipe_sha256": "<64 lowercase hex>"
@@ -1787,8 +1821,10 @@ candidate for good.
    `recovery-required` (D29b). Nothing else in this list runs, nothing is
    pruned, and the lock is released before the refusal returns.
 2. **Staleness check.** With no journal present, a **pending** candidate whose
-   `upstream_commit`, whose three binding hashes or whose bound
-   `source_feature_state` (D7b) no longer matches the current resolution is
+   `upstream_commit`, whose four binding hashes — `capture_event_sha256`,
+   `coverage_sha256`, `patch_sha256`, `recipe_sha256` — or whose bound
+   `source_feature_state` (D7b) no longer matches the current validated
+   E/C/artifact resolution is
    marked `stale` in `state.json`, its `worktree/` is pruned safely
    (`git worktree remove` then directory removal, the `pruneShadowPath` shape
    at `internal/gitutil/shadow.go:309`, in the candidate namespace), its
@@ -1920,8 +1956,9 @@ proved that such a snapshot is wrong on the day it is written.
 
 1. appends a rejection record to
    `.tpatch/reconcile-candidates/<slug>/rejected.jsonl` — `candidate_id`,
-   `source_feature_state`, `upstream_commit`, `reference_commit` and the three
-   binding hashes, no bodies, no timestamp;
+   `source_feature_state`, `upstream_commit`, `reference_commit` and the four
+   binding hashes (`capture_event_sha256`, `coverage_sha256`,
+   `patch_sha256`, `recipe_sha256`), no bodies, no timestamp;
 2. sets `state.json` to `status: rejected` and prunes `worktree/`, retaining
    the immutable `candidate.json`;
 3. clears the `status.json` pointer;
@@ -2445,9 +2482,10 @@ makes a snapshot-and-restore journal sufficient.
     `state.status == pending`, and require the feature's current
     `status.State` to equal the bound `source_feature_state` and to still be a
     permitted state.
- 4. Re-run the E1-E15 eligibility gate and re-derive every operation, the
-    candidate bytes and the candidate ID from the bound inputs; require the
-    recomputed identity tuple, candidate diff hash and candidate tree hash to
+ 4. Re-run the E1-E15 eligibility gate over the current validated E/C pair and
+    re-derive every operation, the candidate bytes and the candidate ID from
+    the bound inputs; require the recomputed identity tuple — including
+    `capture_event_sha256` — candidate diff hash and candidate tree hash to
     equal the stored values.
  5. Re-materialize the candidate worktree, re-apply the complete operation set
     all-or-nothing, re-run the postcondition and idempotency proofs, and run
@@ -2456,11 +2494,13 @@ makes a snapshot-and-restore journal sufficient.
     validate the exact per-path compare-and-swap on every candidate path.
  7. Precompute and stage into `staged/` the complete residual patch, the new
     recipe, the recipe provenance, the ADR-024 generation entry carrying
-    `base_commit = upstream_commit`, and the complete coverage record whose
-    `reference.commit` and `preimage_set_sha256` derive from that same commit.
+    `base_commit = upstream_commit`, the canonical `recipe-capture-event.json`,
+    and the complete coverage record whose `reference.commit` and
+    `preimage_set_sha256` derive from that same commit.
  8. Snapshot into `snapshots/` every live candidate path and every feature
     artifact this transaction will replace — `artifacts/post-apply.patch`,
     `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`,
+    `artifacts/recipe-capture-event.json`,
     `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
     `status.json` — plus the pre-transaction `status.Apply` and `status.State`
     values, writing an explicit absent marker for every path the candidate
@@ -2471,7 +2511,9 @@ makes a snapshot-and-restore journal sufficient.
     refusing `candidate-cas-failed` on any mismatch; then, with nothing else
     between, perform the first live write: apply the candidate's create and
     modify operations to the live worktree.
-11. Publish the staged feature artifacts, with the coverage record written
+11. Publish the staged feature artifacts, writing
+    `artifacts/recipe-capture-event.json` atomically before
+    `artifacts/recipe-coverage.json`, and `artifacts/recipe-coverage.json`
     last.
 12. Write `state.json` with `status: accepted`, set `status.Apply.BaseCommit`
     to `upstream_commit` with the matching completion fields, update the
@@ -2530,13 +2572,14 @@ truthful, and §9.11 pins each of them.
 **Failure before the step-13 commit marker rolls back both sides.** Every live
 candidate path and every feature artifact in step 8's snapshot set —
 `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`,
-`artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`,
-`artifacts/patch-generations.json` and `status.json` — is restored from
-`snapshots/`, the snapshotted `status.Apply` and `status.State` are restored
-with them, and every path recorded with an **absent marker is deleted** —
-without the marker, a rollback would leave a created file behind and call it
-success. The candidate returns to `status: pending`, with its `status.json`
-pointer restored.
+`artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`,
+`artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
+`status.json` — is restored from `snapshots/`, the snapshotted
+`status.Apply` and `status.State` are restored with them, and every path
+recorded with an **absent marker is deleted**. E and C therefore come back
+together as bytes or together as absence; rollback never leaves a new E beside
+an old C or the reverse. The candidate returns to `status: pending`, with its
+`status.json` pointer restored.
 
 **A failure at step 11 or step 12 is a failure, not a warning.** A
 coverage-publication failure, a staged-artifact write failure or a
@@ -2578,7 +2621,7 @@ guess:
 
 | Journal state | Action |
 |---|---|
-| commit marker **absent** | deterministically roll back from `snapshots/`: restore every snapshotted live path and every snapshotted artifact — `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the recorded `status.Apply` and `status.State` — delete every path recorded with an absent marker, set `state.json` back to `pending`, restore the `status.json` candidate pointer, and remove the journal |
+| commit marker **absent** | deterministically roll back from `snapshots/`: restore every snapshotted live path and every snapshotted artifact — `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the recorded `status.Apply` and `status.State` — delete every path recorded with an absent marker, set `state.json` back to `pending`, restore the `status.json` candidate pointer, and remove the journal |
 | commit marker **present** | the transaction is committed; complete step 14's cleanup — prune the worktree, clear the pointer, remove `snapshots/`, `staged/` and the journal |
 
 There is no implicit recovery-on-next-run, no heuristic, no partial replay and
@@ -2590,18 +2633,18 @@ tree still needs restoring" from "the live tree is already correct and only
 bookkeeping is left". Guessing that bit from file presence would risk undoing a
 completed acceptance.
 
-### D30 - Successful acceptance publishes complete coverage; ADR-036 D15 P3 restated in full
+### D30 - Successful acceptance publishes a complete E/C pair; ADR-036 D15 P3 restated in full
 
-Acceptance publishes coverage through **ADR-036 D15's single shared publication
-API**. **This restates ADR-036 D15's producer P3 in full as two variants over
-one enum value and one schema version**, and is reproduced byte-identically in
-the companion PRD §6.16.
+Acceptance publishes the ADR-041/ADR-036 pair through **ADR-036 D15's single
+shared publication API**: E first, C last. **This restates ADR-036 D15's
+producer P3 in full as two variants over one enum value and one schema
+version**, and is reproduced byte-identically in the companion PRD §6.16.
 
 <!-- parity-block:F:begin -->
 | Variant | Trigger | Writes | Coverage |
 |---|---|---|---|
-| `resolver-accept` | `AcceptShadow` → `RefreshAfterAccept` | `artifacts/post-apply.patch` unconditionally (`internal/workflow/refresh.go:82`); **no** recipe regeneration, by design (`:20-24`); an ADR-024 generation entry only when the patch bytes changed (`:93,102`) | **incomplete**, carrying `producer-patch-rewrite` **and** `recipe-not-regenerated` — unchanged from ADR-036 D15 |
-| `operation-candidate-accept` | `AcceptOperationCandidate` | the **residual** canonical patch, a regenerated `apply-recipe.json`, truthful `recipe-provenance.json`, an ADR-024 generation entry, and the coverage record — all derived together from one bound snapshot and staged before the first live write | **complete**: no `operation-missing`, no outstanding reason, every effect `represented` |
+| `resolver-accept` | `AcceptShadow` → `RefreshAfterAccept` | `artifacts/post-apply.patch` unconditionally (`internal/workflow/refresh.go:82`); **no** recipe regeneration, by design (`:20-24`); an ADR-024 generation entry only when the patch bytes changed (`:93,102`); `artifacts/recipe-capture-event.json`; then `artifacts/recipe-coverage.json` last | **truthful ADR-040 / ADR-036 semantics**: `producer-patch-rewrite` and `recipe-not-regenerated` appear only when their conditions actually hold; the resolver path does not invent them unconditionally |
+| `operation-candidate-accept` | `AcceptOperationCandidate` | the **residual** canonical patch, a regenerated `apply-recipe.json`, truthful `recipe-provenance.json`, an ADR-024 generation entry, `artifacts/recipe-capture-event.json`, and `artifacts/recipe-coverage.json` last — all derived together from one bound snapshot and staged before the first live write | **complete pair**: no `operation-missing`, no outstanding reason, every effect `represented` |
 <!-- parity-block:F:end -->
 
 Both variants use the **same** `producer: reconcile-accept` enum value and the
@@ -2639,17 +2682,18 @@ seven producers (`docs/adrs/ADR-036-recipe-coverage-authority.md:1960-1966`):
 
 | Producer | GH #15 assigns regeneration to GH #13 | What GH #13 v1 actually does |
 |---|---|---|
-| P3 `reconcile-accept` (`:1962`) | yes | **discharged for the `operation-candidate-accept` variant only.** The `resolver-accept` variant stays `incomplete` by design |
+| P3 `reconcile-accept` (`:1962`) | yes | **discharged for the `operation-candidate-accept` variant only.** The `resolver-accept` variant republishes E then C under ADR-040 / ADR-036 semantics, but still does not regenerate the recipe |
 | P4 `cycle` (`:1963`) | yes | **not addressed.** No gate, no publication path, no matrix row; the deferral table below keeps it open |
 | P5 `apply --mode done` (`:1964`) | yes | **not addressed.** Same as P4 |
 | P6 `implement` (`:1965`), whose incomplete records carry `canonical-patch-missing` | yes | **not addressed.** Such a record is `incomplete`, so E3 refuses it and the feature falls through |
 | P7 `artifact-edit` (`:1966`), whose records carry `manual-bound-artifact-edit` | yes | **not addressed.** Same as P6 |
 
-**GH #13 v1 regenerates coverage in exactly one circumstance: a successful
-operation-candidate acceptance.** It is a *by-product* of a proved, accepted,
-human-authorized rewrite — never a repair pass. There is no code path in this
-document that regenerates a recipe, a patch or a coverage record for a feature
-whose inputs are ineligible, and there is deliberately no auto-repair: an
+**GH #13 v1 regenerates the paired E/C artifacts in exactly one circumstance:
+a successful operation-candidate acceptance.** It is a *by-product* of a
+proved, accepted, human-authorized rewrite — never a repair pass. There is no
+code path in this document that regenerates a recipe, a patch, a capture-event
+record or a coverage record for a feature whose inputs are ineligible, and
+there is deliberately no auto-repair: an
 `incomplete` record from P4, P5, P6 or P7 refuses at E3 and the feature falls
 through with today's behavior. Closing the remaining four fifths of the
 ownership statement needs a regeneration contract of its own, which the
@@ -2671,11 +2715,11 @@ variants, including the resolver variant's exact write set and its conditional
 generation append, is what stops a future reader inferring that the resolver
 path changed.
 
-### D31 - Coverage, artifact and state failure is never warning-only
+### D31 - Capture-event, coverage, artifact and state failure is never warning-only
 
-A failure to publish coverage, to write a staged artifact or to record the
-state transition is **returned to the caller and exits non-zero**. It is never
-a printed warning beside a success line.
+A failure to publish E, to publish C, to write a staged artifact or to record
+the state transition is **returned to the caller and exits non-zero**. It is
+never a printed warning beside a success line.
 
 There is **no success-shaped partial acceptance**. Either the transaction
 completes and the surface says so, or it rolls back (or enters
@@ -2759,7 +2803,7 @@ implementation shortcut:
 
 ### D34 - Behavior changes are gated and disclosed
 
-Three shipped behaviors change with this feature, and each is disclosed rather
+Four shipped behaviors change with this feature, and each is disclosed rather
 than asserted away:
 
 1. **The legacy all-present arm stops being authoritative** (D12b). Gated by
@@ -2786,27 +2830,31 @@ than asserted away:
 3. **`status.Reconcile` gains a carried-forward field** (D20b). With no
    candidate anywhere the `omitempty` pointer is absent and the serialization
    stays byte-identical; the shared merge changes no other field.
+4. **Candidate identity and acceptance bind the paired E descriptor** (D19,
+   D29, D30). `candidate.json` adds `capture_event_sha256`, pending-candidate
+   staleness now validates the paired E/C quartet, and acceptance snapshots,
+   publishes, rolls back and recovers `recipe-capture-event.json` together with
+   `recipe-coverage.json`, always E before C.
 
 Everything else is byte-identical with the gate off, and byte-identical with
-the gate on for any repository whose features have no eligible ADR-036
-coverage — which is every repository until v0.17.0 ships and producers run.
+the gate on for any repository whose features have no eligible paired ADR-041 /
+ADR-036 input.
 
 **Rationale.** rev-0 claimed the all-present arm was unchanged while proposing
 to change it, and claimed default byte identity for evidence entries that
 necessarily mint new attempt IDs. A behavior change that is written down and
 defaulted off is reviewable; one that is asserted not to exist is not.
 
-### D35 - Implementation is blocked until v0.17.0 ships
+### D35 - The v0.17.0 prerequisite is satisfied; implementation remains separately assigned
 
-No implementation slice may begin before GH #15 ships in v0.17.0. Today
-`internal/` contains **zero** coverage code: `recipe-coverage.json`,
-`recipe_coverage`, `CoverageProducer` and `reconcile-accept` have no
-implementation-side match anywhere in `internal/` or `cmd/`. There is nothing
-to consume.
+GH #15 already shipped in v0.17.0, so the consumer contract now has real
+producer artifacts to consume. This rev-7 is still a **planning amendment**,
+not runtime authority: no implementation slice starts from this document until
+it is independently reviewed and the coordinator opens a separate assignment.
 
-The companion PRD's slice S0 freezes the shipped baseline **before** any
-production change, and the slices run **sequentially**, not in parallel — the
-whole feature converges on `internal/workflow/reconcile.go` and
+The companion PRD's slice S0 still freezes the shipped baseline **before** any
+production change, and the slices still run **sequentially**, not in parallel
+— the whole feature converges on `internal/workflow/reconcile.go` and
 `internal/cli/cobra.go`, which `AGENTS.md`'s Parallel-Implementer Discipline
 makes a hard trigger for sequential execution.
 
@@ -2820,7 +2868,8 @@ the `phase2AuthorityProof` carrier (D2 / §6.2), E1-E15 in their reachable order
 `source_feature_state` (D20 / §6.10), the fourteen transaction steps (D29 /
 §6.14), and the ADR-036 D15 P3 two-variant table (D30 / §6.16).
 
-**rev-3 delimits them.** Each region is wrapped, in both documents, in
+**rev-3 delimits them, and rev-7 keeps the same closed ID set.** Each region is
+wrapped, in both documents, in
 
 ```
 <!-- parity-block:<ID>:begin -->
@@ -2838,6 +2887,9 @@ itself a marked region: the parser recognizes a marker only when its ID matches
 that closed nine-value set exactly, so it skips this illustration here and the
 identical one in the companion PRD §6.0 rather than reading either as an
 unpaired `begin`.
+
+rev-7 changes the bytes of `A`, `B`, `D1`, `E` and `F`, identically on both
+sides, and preserves `C1`, `C2`, `D2` and `D3` byte-identically.
 
 **Nine regions carry six blocks** because block C's rule set and its limit
 table, and block D's two schemas and enum paragraph, are separated in both
@@ -3009,9 +3061,9 @@ their boundaries makes the check implementable without a heuristic.
    portable advisory-lock abstraction with its linux/darwin/windows primitives,
    its stub for every other target and its filesystem-class refusal, and the
    candidate namespace.
-3. The eligibility gate E1-E15 in D4's order over ADR-036's strict decoder,
-   D7b's feature-state precondition, and the `operation_candidate_enabled`
-   config gate.
+3. The eligibility gate E1-E15 in D4's order over the paired ADR-036 /
+   ADR-041 strict decoders, D7b's feature-state precondition, and the
+   `operation_candidate_enabled` config gate.
 4. Insertion-run derivation, line-record splitting, the A1-A8 alignment rules
    with their first-match evaluation order and the exact `F`/`G` unanimity
    procedure, the L1-L3 limits, and three-state classification — with D9.1's
@@ -3087,7 +3139,7 @@ a stated v1 answer, not an unanswered question.
 | Superseded-feature candidates | Ineligible (E12) | ADR-028's supersession model itself changes |
 | Hard-parent-blocked child candidates | Skipped (E13) | ADR-011 gains a partial-replay model |
 | Recipe/coverage regeneration for `cycle` (P4) and `apply --mode done` (P5) | Untouched; ADR-036's deferral row stays open for both | A publication path for those producers is designed; D30 discharges only the `operation-candidate-accept` variant of P3 |
-| Recipe regeneration on the `resolver-accept` path | Unchanged; still `incomplete` with `producer-patch-rewrite` + `recipe-not-regenerated` | `RefreshAfterAccept` gains a recipe regenerator, which is a GH #15-surface change |
+| Recipe regeneration on the `resolver-accept` path | Unchanged; the resolver path republishes E then C under ADR-040 / ADR-036 semantics and still does **not** regenerate the recipe | `RefreshAfterAccept` gains a recipe regenerator, which is a GH #15-surface change |
 | Committing on the operator's behalf | Never | Never |
 
 ## References

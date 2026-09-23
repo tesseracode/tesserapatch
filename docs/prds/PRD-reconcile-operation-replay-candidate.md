@@ -1,7 +1,7 @@
 # PRD - Reconcile Operation-Replay Candidate
 
-**Status**: Accepted rev-6
-**Date**: 2026-09-02
+**Status**: Proposed rev-7 (rev-6 accepted baseline; pending independent review)
+**Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
@@ -29,6 +29,9 @@ envelope,
 (Approved), and
 [PRD-confirm-upstreamed-human-review-path](./PRD-confirm-upstreamed-human-review-path.md)
 (Accepted)
+**Related**:
+[ADR-041](../adrs/ADR-041-independent-capture-event-evidence.md) rev-1 and
+[ADR-043](../adrs/ADR-043-operation-candidate-capture-evidence.md) (proposed operator-selected direction)
 **Amends**: the accepted confirmation-gate contract
 ([PRD-upstreamed-confirmation-gate](./PRD-upstreamed-confirmation-gate.md) §3,
 [PRD-confirm-upstreamed-human-review-path](./PRD-confirm-upstreamed-human-review-path.md))
@@ -43,8 +46,9 @@ shadow-worktree atomicity model and provider-resolution contract — rev-2
 **removes ADR-010 from the amended set**, because the phase-2 terminality
 sentence that changes lives in `SPEC.md` §7, not in ADR-010, and nothing in
 ADR-010's own decisions is re-specified here.
-**Blocked by**: GH #15 shipped in **v0.17.0**. No implementation slice starts
-before that release exists.
+**Prerequisite shipped**: GH #15 shipped in **v0.17.0**. This rev-7 remains
+planning-only; runtime implementation still requires a separate post-review
+assignment.
 **Target release**: v0.18.0, separate from GH #15's v0.17.0
 
 ## 0. Revision history
@@ -58,6 +62,7 @@ before that release exists.
 | rev-4 | 2026-09-02 | **The `saveReconcileArtifacts` call-site inventory is corrected from nine to TEN** (F1, blocking): the shipped function is called at `internal/workflow/reconcile.go:383,432,455,480,524,536,564,570,583,596`, and rev-3 omitted `:570` — the phase-3.5 call, whose third argument is spelled `phase35` rather than `result`. *(rev-4 called `phase35` "the distinct `*ReconcileResult` returned by `tryPhase35`, not the pipeline's `result`"; rev-6 corrects that: `tryPhase35` takes `result` as its ninth parameter (`:1363`) and returns that same pointer from all ten of its returns, so `phase35` is a distinct variable name bound to the same object.)* Every nine-call claim is replaced with the ten-site list in parity block A (byte-identically on both sides), in this table, in §0.3's R1 row, in §8's S6 slice, in ROC-282 and in §12's claims audit; `:570` is stated to pass `phase35` and, exactly like every existing and legacy call, a **`nil`** proof, so only the GH #13 all-present path ever passes a minted proof. **The new phase-2 verdict-bearing attempt replaces the legacy derived entry rather than joining it** (opt. 1): the evaluator builds it in the same statement that mints the proof and stages it in one new unexported `phase2Verdict *store.ReconcileEvidence` field on `ReconcileResult` (`:19-85`, with `attemptedAt` `:74-84` as the shipped precedent); `proof != nil` **iff** `result.phase2Verdict != nil`; *(rev-4's singular field and its unconditional biconditional are superseded by rev-5's ordered `verdictAttempts` list and its configuration-2-only pairing.)* and `persistReconcileEvidence` (`:766`) emits the staged attempt **in place of** the entry it would have derived through `evidencePhaseAndKind` (`:1161-1176`), so **exactly one** verdict-bearing `phase-2` entry exists on the authoritative all-present arm, in the shipped `:766` position — the legacy builder is untouched and still runs verbatim on every non-authoritative arm (§6.2, §6.17). **The gate grades an entry it does not write** (opt. 2): the cross-check is against "the exact verdict-bearing entry **it is grading**", already appended at `:766` before the gate runs at `:771`; the only line the gate itself appends is its separate supporting `phase-3.5` / `manual-review` entry (`:1033-1035,1069-1070`). **Positive and anti-duplicate cases pinned** (opt. 3): ROC-290 and ROC-291 in the new §9.14, plus §6.2's source guard extended to the staged attempt's single assignment site and single read site. The two prose references to the delimiter template in §0 and §0.3 are normalized from a literal `X` to `<ID>`, matching ADR-037 and §6.0's own template, so the marker inventory is one-sided nowhere and ROC-278's symmetry claim holds. No other contract changes: no decision, gate, limit, transaction step, flag count or parity region is added, removed or renumbered, and only region `A` changes — identically on both sides. Matrix rebuilt to **291** contiguous rows (I 58, C 85, G 73, U 66, S 9). |
 | rev-5 | 2026-09-02 | **The singular staging field is replaced by an ordered list, and the candidate-ready arm becomes a staging arm** (B1, blocking): rev-4's `phase2Verdict *store.ReconcileEvidence` could carry only one entry and only on the all-present arm, so candidate-ready — whose `result.Phase` is `phase-2-operation-candidate` and therefore *also* takes `evidencePhaseAndKind`'s `phase-2` prefix branch (`internal/workflow/reconcile.go:1167-1168`) — would have had the legacy builder derive a **duplicate** `phase-2` verdict entry and would have had **no carrier at all** for its required phase-4 textual-conflict verdict. rev-5 replaces the field with one unexported ordered `verdictAttempts []store.ReconcileEvidence` on `ReconcileResult` (`:19-85`), still ignored by `encoding/json` on the `attemptedAt` precedent (`:74-84`), and pins **three** legal configurations: (1) every other arm stages nothing and the shipped single derived builder runs unchanged; (2) the authoritative all-present arm stages **exactly one** qualifying phase-2 verdict-bearing `recipe-operation-match` attempt, paired biconditionally with the minted `phase2AuthorityProof`; (3) the candidate-ready arm stages **exactly two** ordered attempts before save — `[1]` phase-2 / `recipe-operation-match` / `still_needed` / `high` for the independently proved candidate and `[2]` phase-4 / `forward-apply` / `blocked` / `low` for why ordinary patch replay could not win — and mints **no** proof. `persistReconcileEvidence` (`:766`) emits the staged list **in place of** the entry it would have derived through `evidencePhaseAndKind` (`:1161-1176`), so `result.Phase` may stay `phase-2-operation-candidate` with no duplication; the biconditional is now proof-non-nil **iff** configuration 2, so a proof is **never** paired with candidate-ready; and any illegal configuration is treated as no proof and no staging at all. The source guard is widened to **six** axes — single assignment site, single mutation site, single persist read site, no serialization, pairwise-distinct `attempt_id`s and strictly increasing phase order — and §6.17 / D25 name the two routes by which a phase-2 finding reaches the JSONL: **staged substitution** on the two arms whose terminal `result.Phase` derives `phase-2`, and **direct append** on the fallthrough arms, where no collision is possible. Parity block `A` and D25 change identically on both sides; §6.17's example, per-arm table and confidence ladder, ROC-038, ROC-175, ROC-208, ROC-209, ROC-210, ROC-211, ROC-221, ROC-281, ROC-283, ROC-290 and ROC-291 follow, and ROC-292 / ROC-293 pin the candidate-ready positive and defect cases. **§9's preamble ID range is corrected** (B2): it stopped at `ROC-289` while the matrix already ran to `ROC-291`; it now reads `ROC-001` … `ROC-293`, recounted after rev-5's additions. **Every remaining "entry the gate is about to write / being written" is replaced** (B3) by "the exact verdict-bearing entry **it is grading**" — in §8's S6 slice and ROC-038, joining parity block A's rev-4 correction — with the accompanying statement that the only line the gate appends is its own separate supporting `phase-3.5` / `manual-review` entry (`:1033-1035,1069-1070`). §6.0 gains ADR-037 D36's carve-out that the literal `<ID>` template is **not** a marked region, and both documents now state that the marker parser recognizes only the closed nine-ID set, so neither illustration is read as an unpaired `begin`. No other contract changes: no decision, gate, limit, transaction step, flag count or parity region is added, removed or renumbered, and only region `A` changes — identically on both sides. Matrix rebuilt to **293** contiguous rows (I 59, C 85, G 74, U 66, S 9). |
 | rev-6 | 2026-09-02 | **The `:570` argument claim is corrected: `phase35` is a distinct variable *name*, not a distinct object** (blocking): rev-4 and rev-5 described `internal/workflow/reconcile.go:570`'s third argument as "the distinct `*ReconcileResult` returned by `tryPhase35`". The shipped source says otherwise — `tryPhase35` (`:569`, defined `:1354-1364`) takes the pipeline's `result` as its **ninth parameter** (`:1363`), mutates it in place, and returns **that same pointer** from every one of its ten returns, each literally `return result` (`:1373,1381,1389,1436,1475,1491,1497,1502,1508,1513`). `phase35` and `result` therefore name **one object**, and `:570` differs from the other nine call sites in argument spelling only; like every existing and legacy call it stages no attempt and passes a **`nil`** proof. The corrected statement replaces the old one in parity block A (byte-identically on both sides), in this table's rev-4 row, in §0.3's R1 row, in §0.4's F1 row, in §8's S6 slice, in ROC-282 and in §12's claims audit, whose phase-3.5 row is rewritten against the real signature and returns; the same correction lands in ADR-037's revision history, parity block A, D34, implementation order and references. The ten-site inventory, the proof route, the three staging configurations and the CG1-CG7 class are untouched — only the *reason* `:570` was singled out changes. **Three adjacent notes are folded in.** (1) ROC-290's "byte-identical to the S0 golden" is scoped to the **gate-off** arm (§6.17 per-arm table row 2) alone; with the gate **on**, a legacy or ineligible all-present result takes row 4's direct-append route and carries an **intentional** phase-2 evidence delta against S0 while still emitting exactly one verdict-bearing entry per phase, and a fixture asserting S0 byte identity there fails. (2) ROC-281's legacy `low` / `unknown` / `[]` entry and its S0 byte identity are likewise scoped to `operation_candidate_enabled` **off**; the gate-on ineligible fallthrough uses the direct phase-2 append of row 4. (3) §6.17 and ADR-037 D25 now pin that **both** routes write **both** sinks in one order — every verdict-bearing attempt reaches `reconcile-evidence.jsonl` (via `store.AppendReconcileEvidence`, `:876`) **and** `result.Evidence` in the same relative order, which staged substitution inherits from the shipped `:766` / `:880` shape and the direct-append route must do explicitly, so `reconcile-session.json`'s serialized `evidence` array (`:775-776`) never becomes a strict subset of the JSONL; ROC-208 is amended to pin it at runtime, and the omit-the-`result.Evidence`-half implementation fails that row. No contract, decision, gate, limit, transaction step, flag count or parity region is added, removed or renumbered; no new matrix row is required. Matrix stays at **293** contiguous rows (I 59, C 85, G 74, U 66, S 9). |
+| rev-7 | 2026-09-22 | **ADR-041 §7 planning amendment; operator-selected `identity-digest` direction.** The E1-E15 gate remains a closed fifteen-gate inventory, but now hard-refuses on a validated `artifacts/recipe-capture-event.json` companion before replay authority exists: E4 establishes a strict, readable, canonically re-encodable E; E5 rejects owner or pair mismatches; E6-E11 recompute bound-artifact, reference, observation, event-fact and parent-exclusion consistency from the paired E/C inputs without trusting generations or current parent state. `gatesPassed[15]` stays cardinality-stable, and the proof adds canonical `captureEventSHA256`. Candidate identity, schema, staleness and acceptance now bind `capture_event_sha256` — the SHA-256 of strict-decoded, canonically re-encoded E bytes — so formatting-only raw E rewrites do not mint a new candidate ID while semantic E changes do. Acceptance stages, snapshots, publishes, rolls back and recovers `artifacts/recipe-capture-event.json` together with `artifacts/recipe-coverage.json`, with E atomically preceding C inside the existing step-11 boundary. ADR-043 records why canonical E digest was selected instead of a separate mutable recheck-only path. The v0.17.0 prerequisite is already satisfied; runtime implementation remains a separate assignment after review. Matrix rebuilt to **301** contiguous rows (I 61, C 87, G 76, U 68, S 9). **Proposed pending independent review.** |
 
 ## 0.1 Review response — rev-0 findings
 
@@ -147,7 +152,7 @@ it. **Every row is a change to this document or to ADR-037; none is deferred.**
 | opt. 2 | §9.13's rev-2 addition itemization sums to twenty-nine against a real delta of twenty-seven | The totals section (§9.14 at rev-3, renumbered §9.15 when rev-4's rows became §9.14) corrects the itemization to the real delta: four carrier rows, not five, and five lock rows, not six — the two extra were rev-1 rows **corrected** in rev-2, not added. rev-3's own delta is itemized the same way and re-checked against the totals table |
 | opt. 3 | The `SPEC.md` amendment names only the conflict row | §6.3 names **all three** phase-2 bullets the amendment rewrites: the all-present arm becomes a **CG-qualified** confirmation rather than an unconditional `UPSTREAMED`; the conflict arm is a **nonterminal classification**, not an overall return; and the mixed arm surfaces a candidate **only at a phase-4 textual conflict**, otherwise yielding to the stronger later outcome. §8's S9 edits all three |
 | opt. 4 | The source-derived flag enumeration would sweep in Cobra's auto-registered `help` flag | §6.12: `help` is excluded **by name** from the behavioral set, because Cobra registers it during execution rather than at `reconcileCmd` construction and it is not an operator behavior switch. The behavioral set stays exactly the fifteen flags registered at `internal/cli/cobra.go:2520-2542`, so the count remains `5 × 15 = 75` plus `10`, **85**. ROC-289 pins the exclusion, and a build that counts `help` reports `90` and fails |
-| opt. 5 | The rollback snapshot list was not exhaustive | §6.14 step 8 names the set: `artifacts/post-apply.patch`, `apply-recipe.json`, `recipe-provenance.json`, `recipe-coverage.json`, `patch-generations.json` and `status.json`, plus the pre-transaction `status.Apply` / `status.State` values and an explicit absent marker for every created path and every artifact that does not exist yet. ROC-250 and ROC-251 are corrected to the same list |
+| opt. 5 | The rollback snapshot list was not exhaustive | §6.14 step 8 names the set: `artifacts/post-apply.patch`, `apply-recipe.json`, `recipe-provenance.json`, `recipe-capture-event.json`, `recipe-coverage.json`, `patch-generations.json` and `status.json`, plus the pre-transaction `status.Apply` / `status.State` values and an explicit absent marker for every created path and every artifact that does not exist yet. ROC-250 and ROC-251 are corrected to the same list |
 | opt. 6 | The parity blocks had no machine-extractable boundaries | §6.0 defines the delimiters: every block is wrapped in `<!-- parity-block:<ID>:begin -->` / `<!-- parity-block:<ID>:end -->` in **both** documents, the guard compares **only** the bytes between a matching pair, and a missing, duplicated or unpaired marker fails the check. The enclosed bytes are unchanged and remain identical; the nine marked regions are A, B, C1, C2, D1, D2, D3, E and F |
 | opt. 7 | "At least as rich as the phase-4 path" was measured in detector entries | §6.17 restates the claim over **semantic fields** — every effect, its path, its resolution and its reason codes, plus the phase-2 verdict entry's own fields — and explicitly disclaims equality of evidence line counts, which would require forcing blocked-only detectors to run on a non-blocked outcome |
 
@@ -563,6 +568,8 @@ The rules are mechanical:
   order, in each document. A missing marker, a duplicated ID, an unpaired
   marker, an ID present in one document and not the other, or any byte
   difference inside a pair fails the check;
+- rev-7 changes the bytes of `A`, `B`, `D1`, `E` and `F`, identically on both
+  sides, and preserves `C1`, `C2`, `D2` and `D3` byte-identically;
 - the enclosed bytes are what the two documents must agree on. rev-3 changes
   the contents of `A` and `E`, identically on both sides, and leaves the other
   seven regions unchanged; rev-5 changes only `A`, again identically on both
@@ -618,8 +625,9 @@ and `rejected-upstreamed` (`:1089-1090`). That behavior is pinned by
 **The gate gains exactly one new confirming authority class, and this PRD and
 ADR-037 D2 state it identically.** The gate confirms a `recipe-operation-match`
 entry **if and only if all seven** of the following hold, and it learns all
-seven from **one typed in-process value**, never from a stored field. This is
-**parity block A**.
+seven from **one typed in-process value**, never from a stored field. In rev-7
+that proof also binds the canonical `capture_event_sha256` of the validated E
+descriptor the candidate ID will later use. This is **parity block A**.
 
 **The graded entry is named, and it is new.** CG5-CG7 are conditions on
 **one** entry: the **new GH #13 phase-2 verdict-bearing
@@ -774,7 +782,7 @@ never rebuilt.
 | # | Confirmation condition |
 |---|---|
 | CG1 | the gate was handed a non-nil `phase2AuthorityProof` minted by this feature's GH #13 phase-2 evaluator **in this invocation** — not read back from a prior run, not rebuilt from an evidence line, and not produced by the legacy evaluator (D12b / §6.4) |
-| CG2 | the proof records that every ADR-036 binding passed the E1-E15 gate (D4 / §6.5) with every value **independently recomputed**, never read |
+| CG2 | the proof records that every paired ADR-036/ADR-041 binding passed the rev-7 E1-E15 gate (D4 / §6.5) with every value **independently recomputed**, never read |
 | CG3 | the proof records that every normalized effect of the canonical patch was independently recomputed **present** at the named upstream commit under the D10 / §6.7 classification |
 | CG4 | the proof's derivation counts are **zero** candidate operations, **zero** applicable classifications and **zero** conflicting classifications |
 | CG5 | the entry being graded is the **single** staged entry of `result.verdictAttempts` — the new GH #13 phase-2 verdict-bearing entry above — and its `match_origin == upstream` (`internal/store/reconcile_evidence.go:63`) |
@@ -796,6 +804,7 @@ change this: the proof is a parameter and nothing else. Both signatures change:
 type phase2AuthorityProof struct {
     upstreamCommit   string // 40-hex, the commit E1-E15 and the classifier used
     referenceCommit  string // 40-hex, ADR-036 reference.commit
+    captureEventSHA256 string // SHA-256 of the strict-decoded, canonically re-encoded recipe-capture-event E
     coverageSHA256   string // recomputed, not read
     patchSHA256      string // recomputed, not read
     recipeSHA256     string // recomputed over raw on-disk bytes
@@ -835,7 +844,11 @@ Its rules are absolute:
   with no exported constructor, no setter and no zero-value path to a
   confirming state. The one qualifying verdict-bearing attempt above is built
   and staged in that **same statement**, so proof and entry are minted together
-  or not at all;
+  or not at all. The proof's `referenceCommit`, `captureEventSHA256`,
+  `coverageSHA256`, `patchSHA256`, `recipeSHA256`, `effectDigest` and counts
+  are all derived from the validated E/C pair and the offline reconstruction it
+  authorizes, never from a generation record, copied C label or current-parent
+  scan;
 - it is **threaded, never stored**. The evaluator hands it to
   `saveReconcileArtifacts`, which passes it to the gate as its fourth argument
   in the same invocation. All **ten** shipped call sites
@@ -862,7 +875,7 @@ Its rules are absolute:
   the current `result`: that
   entry's `phase`, `evidence_kind`, `confidence`, `match_origin`,
   `pre_reconcile_presence`, `upstream_commit` and `upstream_commit_refs`,
-  together with the proof's two commits, three binding hashes, effect count,
+  together with the proof's two commits, four binding hashes, effect count,
   effect digest and three classification counts, must all agree. Any
   disagreement fails CG1-CG7 and takes the shipped unconfirmed branch. The gate
   never grades one entry against a proof minted for another. **The gate does
@@ -1052,25 +1065,29 @@ soak-gated decision (§10, §11).
 
 ### 6.5 Independent eligibility: fifteen gates, closed and ordered
 
-Coverage is decoded with **ADR-036 D3's own strict semantic decoder**, not a
-private re-implementation and not a weaker one. That decoder already refuses
-every internally contradictory record — `complete` beside a non-empty
-`reasons`, a non-`represented` disposition, a non-empty `reason_codes`, an
-empty `effects` array, `object_kind: unknown`, `content_kind: unknown`,
-`patch_present: false`, `recipe_present: false`, `recipe_decodable: false`, an
-unobserved required side or a non-`commit` reference, and the converse
-`incomplete` record with all of those satisfied
-(`docs/adrs/ADR-036-recipe-coverage-authority.md:1065-1076`).
+Phase 2 now validates a **paired** authority set: ADR-036's
+`artifacts/recipe-coverage.json` (**C**) and ADR-041's
+`artifacts/recipe-capture-event.json` (**E**). C still decodes with
+**ADR-036 D3's own strict semantic decoder**, not a private re-implementation
+and not a weaker one. E strict-decodes under ADR-041's exact typed schema, then
+re-encodes canonically to derive `capture_event_sha256`. Candidate identity
+binds that **canonical** digest, not the raw E file bytes, so a formatting-only
+JSON rewrite that preserves exact field values keeps the same identity while a
+semantic E change does not.
 
-**Those contradictions therefore fail at E1, as decode failures, and have no
-separate gate.** rev-0's `coverage-reason-outstanding`, `effect-axis-unknown`
-and zero-effect refusals were unreachable rows for exactly this reason; they
-are removed from the reachable vocabulary. What survives is recomputation: a
-value the decoder cannot check because it is a claim *about other bytes* is
-re-derived and compared.
+Coverage contradictions still fail at E1, because ADR-036's decoder already
+refuses every internally contradictory record. What survives is
+**recomputation**: any value C or E cannot prove from its own bytes is
+re-derived from the bound patch, recipe, offline reference tree and validated E
+descriptor. No gate trusts a generation ID, current parent state or copied C
+content as substitute authority.
 
-The gate set is closed and ordered. The first failing gate records its reason
-and falls through. **This is parity block B.**
+The gate set stays closed, ordered and fifteen rows wide. The first failing
+gate records its reason and falls through. Historical rev-6 references to
+"E1-E15" mean the accepted baseline only. rev-7 preserves the fifteen-gate
+cardinality and the `gatesPassed[15]` proof shape, but E4-E11 now cover the
+paired E/C contract rather than the rev-6 coverage-only subset. **This is
+parity block B.**
 
 <!-- parity-block:B:begin -->
 | # | Gate | Reason code | Why it is reachable |
@@ -1078,61 +1095,55 @@ and falls through. **This is parity block B.**
 | E1 | coverage present, readable, and strict-decodes under ADR-036 D3, **including** its contradiction refusals | `coverage-unusable` | absent, unreadable, malformed or internally contradictory bytes |
 | E2 | `coverage.feature` == the requested slug | `coverage-owner-mismatch` | the envelope owner is not checked by the decoder |
 | E3 | `coverage_status == complete` | `coverage-incomplete` | a truthfully incomplete record decodes fine |
-| E4 | `patch_present` / `recipe_present` recomputed from **readable existence**, matching in **both** directions | `binding-presence-drift` | either file may have appeared or disappeared since publication, and readability may have changed either way |
-| E5 | `patch_sha256` over exact raw patch bytes; `recipe_sha256` over exact **raw on-disk** recipe bytes | `binding-hash-drift` | bytes may have changed since publication, decodable or not |
-| E6 | the **on-disk** recipe strict-decodes — `recipe_decodable` recomputed by **attempting the decode**, and true | `recipe-undecodable` | the stored flag is a claim about other bytes |
-| E7 | **conditional on E6**: the decoded recipe's `feature` == `coverage.feature` | `recipe-owner-mismatch` | the recipe on disk may have changed owner since publication; only a decoded recipe has a readable `feature` |
-| E8 | `reference.kind == commit`, 40-hex, the object **reconstructs offline in this repository**, and `preimage_set_sha256` recomputes over that reconstructed tree | `reference-not-reconstructable` | the object may be absent locally |
-| E9 | every `effect_sha256` and `patch_fragment_sha256` recomputes equal, and `ordinal` is gapless strict-grammar record order | `effect-binding-drift` | a hand-forged or buggy record can state hashes the decoder cannot verify |
-| E10 | every recipe operation is assigned to an effect, is a supported ADR-036 write-file witness, and carries **no** `created_by` (`internal/workflow/implement.go:49`) | `recipe-unsupported` | the on-disk recipe is re-read and re-checked (D7 / §6.6) |
-| E11 | `recipe-stale.json` absent | `recipe-stale-marker-present` | a preserved drift marker (`internal/workflow/recipe_autogen.go:184-198`) |
-| E12 | supersession authorizes nothing (D32 / §6.19) | `supersession-not-authority` | a superseded feature can carry complete coverage |
-| E13 | no hard-blocked parent in the ADR-011 DAG (D32 / §6.19) | `parent-blocked` | a child can carry complete coverage |
+| E4 | E present, readable and strict-decodes under ADR-041; its canonical re-encode is available for `capture_event_sha256`; within the same gate, `event.feature` == the requested slug and `event.coverage_sha256 == SHA256(raw C bytes)` | `capture-event-unusable`, `capture-event-owner-mismatch`, or `capture-event-pair-mismatch` | absent, unreadable, malformed, wrong-owner and one-way C/E pairing failures are distinct live conditions |
+| E5 | `patch_present` / `recipe_present` recomputed from **readable existence**, matching in **both** directions across the bound artifacts, C and E | `binding-presence-drift` | either file may appear, disappear or change readability since publication |
+| E6 | `patch_sha256` over exact raw patch bytes and `recipe_sha256` over exact **raw on-disk** recipe bytes, matching **both** C and E | `binding-hash-drift` | patch or recipe bytes may change since publication, decodable or not |
+| E7 | the **on-disk** recipe strict-decodes — `recipe_decodable` recomputed by **attempting the decode**, and true | `recipe-undecodable` | the stored flag is a claim about other bytes |
+| E8 | **conditional on E7**: the decoded recipe's `feature` == `coverage.feature` | `recipe-owner-mismatch` | the recipe on disk may have changed owner since publication; only a decoded recipe has a readable `feature` |
+| E9 | validated C/E `reference.kind == commit`, 40-hex, the object **reconstructs offline in this repository**, and `preimage_set_sha256` recomputes over that reconstructed tree | `reference-not-reconstructable` | the object may be absent locally, or the paired reference/digest fields may disagree |
+| E10 | validated E observations, event facts, observation-availability ceiling, fragment hashes, ordinals and recomputed S1 projection agree with C and the canonical patch | `effect-binding-drift` | a hand-forged or buggy record can state hashes, observations or event facts the paired validator cannot reproduce |
+| E11 | validated `parent_created_paths` plus actual event facts yield only supported ADR-036 witnesses, and `recipe-stale.json` is absent | `recipe-unsupported` or `recipe-stale-marker-present` | unsupported witnesses, copied current-parent state or a live stale marker remain distinct candidate-ineligibility failures |
+| E12 | supersession authorizes nothing (D32 / §6.19) | `supersession-not-authority` | a superseded feature can carry a complete pair |
+| E13 | no hard-blocked parent in the ADR-011 DAG (D32 / §6.19) | `parent-blocked` | a child can carry a complete pair |
 | E14 | exactly one slug and `--cumulative-legacy` unset | `derivation-mode-unsupported` | invocation shape |
 | E15 | no resolver shadow is staged for this slug (`Reconcile.ShadowPath` empty, `internal/store/types.go:381`) | `shadow-pending` | two staged answers may not coexist (D21 / §6.11) |
 
-**The order is what makes every code reachable, and rev-1's was not.** rev-1
-put a combined "the recipe decodes **and** its `feature` matches" gate at E4,
-ahead of the presence, hash and decodability gates. That single gate consumed
-every recipe-side failure first: a missing recipe, a drifted recipe and an
-undecodable recipe all reported `recipe-owner-mismatch`, so
-`binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` were
-unreachable on the recipe side. rev-2 splits it into four ordered questions
-that a recipe file answers in the only order it can answer them:
+**The order is what keeps every code reachable, and rev-7 preserves that
+property while adding E.** E4 runs its own fixed sub-order — usability, then
+owner, then one-way pairing hash — because owner or pair checks are meaningless
+on malformed bytes. E8 stays conditional on E7 for the same reason: an
+undecodable recipe has no readable owner field. E11 likewise checks the stale
+marker before witness support so a live marker never disappears behind a later
+support error.
 
-1. **E4 — does a readable file exist, on both sides, as the record claims?**
-   Readable existence is the ADR-036 D9 collapse of absence and unreadability;
-   a mismatch in either direction is drift.
-2. **E5 — are its raw bytes the bytes that were bound?** The recipe hash is
-   over raw on-disk bytes precisely so this question is answerable before, and
-   independently of, decoding.
-3. **E6 — do those bytes strict-decode?** This is the only gate that may
-   report `recipe-undecodable`.
-4. **E7 — does the decoded record name the right owner?** E7 is **conditional
-   on E6**: it is evaluated only when E6 succeeded, because an undecodable file
-   has no `feature` field to compare. E7 can therefore never shadow E6, and E6
-   can never shadow E4 or E5.
-
-**Evaluation is strictly first-match and the reported reason is
-deterministic.** A record that would fail several gates reports the
-**lowest-numbered** one, always — a fixture failing E3 and E11 reports
-`coverage-incomplete`, and a fixture failing E5 and E6 reports
-`binding-hash-drift`. No gate is skipped except E7 under the stated condition,
-and no gate may be reordered by an implementation.
+**Evaluation is strictly first-match and the reported reason is deterministic.**
+A record that would fail several gates reports the **lowest-numbered** failing
+gate, and within E4 or E11 it reports the first failing sub-check of that gate.
+A fixture failing E3 and E11 reports `coverage-incomplete`; one failing E6 and
+E7 reports `binding-hash-drift`; one with malformed E bytes and the wrong slug
+reports `capture-event-unusable`. No gate is skipped except E8 under the stated
+condition, and no gate or sub-check may be reordered by an implementation.
 
 **Every gate is recomputed, never read.** An implementation that trusts
-`coverage_status`, `recipe_decodable`, `patch_present` or any `*_sha256` as
-stated has not satisfied the gate that names it.
+`coverage_status`, `patch_present`, `recipe_decodable`, any stored digest, a
+generation ID, a current parent state walk or C copied into a synthetic E has
+not satisfied the gate that names it.
 
-**E9 and E10 are recomputation defenses.** ADR-036's decoder cannot verify a
-hash over a *different* file, and predicate 5's operation assignment is a
-producer-side statement. If either fails on a record the decoder accepted, the
-record is a lie and phase 2 refuses; the codes are not reachable through any
-honest producer. **E7 is a recomputation defense in the same sense** — a
-truthful `recipe-owner-mismatch` already makes the record `incomplete` and
-refuses at E3, so E7 fires only against a record whose claimed completeness
-does not survive re-reading the recipe.
+**E10 and E11 are the paired recomputation defenses.** ADR-036's decoder cannot
+verify hashes over a different file, and ADR-041 deliberately keeps
+`parent_created_paths`, event facts and observation availability as independent
+inputs rather than C-derived labels. If any of them fail on a record the two
+strict decoders accepted, the pair is lying and phase 2 refuses.
 <!-- parity-block:B:end -->
+
+The replay consumer proves against the **validated E/C pair**, not against C
+alone. `coverage.producer`, `cross_base_status`, `capture.mode` and generation
+IDs stay contextual, while E's `reference`, `capture`,
+`parent_created_paths`, event facts and observation-availability ceiling become
+load-bearing paired inputs. A truthful `no-capture` record is therefore **not**
+rejected merely for its mode: if the paired durable reference and exact bound
+artifacts validate, the record remains eligible on the strength of those
+validated inputs, not on a live capture.
 
 ### 6.6 The bounded v1 candidate domain, and what the persisted recipe is for
 
@@ -1352,6 +1363,11 @@ upstream blob byte-equal to the effect postimage is **present**, an absent path
 is **applicable**, and a present path with different bytes is
 `creation-conflict`.
 
+Every boundary and creation classification is derived under the same validated
+E observation-availability ceiling. A later-read body may validate a persisted
+hash, but it may not promote an E-unobserved side into candidate authority for
+this invocation.
+
 **Hard resource limits — closed constants, no tuning, no configuration.** These
 three constants are **parity block C** as well; they are compiled-in literals
 with no flag, no config key and no environment override.
@@ -1541,6 +1557,11 @@ Each constructor, and nothing else, may take a bare `string` root. Each:
    (`internal/gitutil/trailers.go:41`) — on **every** Git subprocess it or its
    returned root spawns.
 
+These roots consume the validated paired `reference.commit` and
+`upstreamCommit`; they do **not** branch on `capture.mode`. A truthful
+`no-capture` record remains admissible when §6.5 already established a durable
+reference commit and a valid paired E/C proof.
+
 Every subsequent read or write takes the typed root value. Passing `s.Root` to
 anything else in the candidate package is a compile error, not a review
 finding. Store reads go through `*store.Store` and are an explicitly separate,
@@ -1596,7 +1617,8 @@ candidate_id = "rc_" + first 12 lowercase hex of SHA-256(canonical JSON of the i
 
 The identity tuple is **exactly** `schema_version`, `feature`,
 `source_feature_state`, `upstream_commit`, `reference_commit`,
-`coverage_sha256`, `patch_sha256`, `recipe_sha256`, `derivation_mode`, the
+`capture_event_sha256`, `coverage_sha256`, `patch_sha256`, `recipe_sha256`,
+`derivation_mode`, the
 **ascending-sorted** list of derived-operation proof hashes, and the
 **ascending-sorted** list of effect-map proof hashes. Each derived-operation
 proof hash is SHA-256 over the canonical JSON of `{kind, path, effect_ordinal,
@@ -1604,6 +1626,12 @@ effect_sha256, run_ordinals, insertion_sha256, insertion_size,
 boundary_proof_sha256}`; each effect-map proof hash is SHA-256 over the
 canonical JSON of `{effect_ordinal, effect_sha256, path, resolution,
 operation_ordinals, reason_codes}`.
+
+`capture_event_sha256` is SHA-256 of the strict-decoded, canonically
+re-encoded ADR-041 E bytes. It is **not** a raw file hash: whitespace-only or
+formatting-only raw E rewrites that preserve exact field values keep the same
+digest, while duplicate members, unknown fields, unsupported versions and any
+other strict-decode failure prevent the digest from existing at all.
 
 `source_feature_state` is the permitted `store.FeatureState` observed at
 derivation (§6.6a), so the same bindings derived while the feature was
@@ -1636,6 +1664,7 @@ timestamp, no source body, no record body, no index and no offset:
   "reference_commit": "<40 lowercase hex>",
   "derivation_mode": "single-slug",
   "bindings": {
+    "capture_event_sha256": "<64 lowercase hex>",
     "coverage_sha256": "<64 lowercase hex>",
     "patch_sha256": "<64 lowercase hex>",
     "recipe_sha256": "<64 lowercase hex>"
@@ -1744,7 +1773,7 @@ the same question twice. Changed bindings — a new upstream commit, a new
 residual patch, a regenerated recipe, a new coverage record, or a different
 `source_feature_state` — mint a **different** ID and a new candidate normally,
 which is the ordinary path after a successful accept because acceptance
-republishes all three bindings (§6.16).
+republishes all four bindings (§6.16).
 
 **`candidate.patch`** is a reviewable unified diff and may contain diff source
 exactly as `artifacts/post-apply.patch` does. It is for humans and
@@ -1777,8 +1806,10 @@ pipeline runs the candidate preflight in this order:
    `recovery-required` (§6.15). Nothing else in this list runs, nothing is
    pruned, and the lock is released before the refusal returns.
 2. **Staleness check.** With no journal present, a **pending** candidate whose
-   `upstream_commit`, whose three binding hashes or whose bound
-   `source_feature_state` no longer matches the current resolution is marked
+   `upstream_commit`, whose four binding hashes — `capture_event_sha256`,
+   `coverage_sha256`, `patch_sha256`, `recipe_sha256` — or whose bound
+   `source_feature_state` no longer matches the current validated E/C/artifact
+   resolution is marked
    `stale` in `state.json`, its `worktree/` is pruned safely (the
    `pruneShadowPath` shape at `internal/gitutil/shadow.go:309`, in the
    candidate namespace), its immutable `candidate.json` is **retained for
@@ -2211,9 +2242,10 @@ byte-identically in ADR-037 D29.**
     `state.status == pending`, and require the feature's current
     `status.State` to equal the bound `source_feature_state` and to still be a
     permitted state.
- 4. Re-run the E1-E15 eligibility gate and re-derive every operation, the
-    candidate bytes and the candidate ID from the bound inputs; require the
-    recomputed identity tuple, candidate diff hash and candidate tree hash to
+ 4. Re-run the E1-E15 eligibility gate over the current validated E/C pair and
+    re-derive every operation, the candidate bytes and the candidate ID from
+    the bound inputs; require the recomputed identity tuple — including
+    `capture_event_sha256` — candidate diff hash and candidate tree hash to
     equal the stored values.
  5. Re-materialize the candidate worktree, re-apply the complete operation set
     all-or-nothing, re-run the postcondition and idempotency proofs, and run
@@ -2222,11 +2254,13 @@ byte-identically in ADR-037 D29.**
     validate the exact per-path compare-and-swap on every candidate path.
  7. Precompute and stage into `staged/` the complete residual patch, the new
     recipe, the recipe provenance, the ADR-024 generation entry carrying
-    `base_commit = upstream_commit`, and the complete coverage record whose
-    `reference.commit` and `preimage_set_sha256` derive from that same commit.
+    `base_commit = upstream_commit`, the canonical `recipe-capture-event.json`,
+    and the complete coverage record whose `reference.commit` and
+    `preimage_set_sha256` derive from that same commit.
  8. Snapshot into `snapshots/` every live candidate path and every feature
     artifact this transaction will replace — `artifacts/post-apply.patch`,
     `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`,
+    `artifacts/recipe-capture-event.json`,
     `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
     `status.json` — plus the pre-transaction `status.Apply` and `status.State`
     values, writing an explicit absent marker for every path the candidate
@@ -2237,7 +2271,9 @@ byte-identically in ADR-037 D29.**
     refusing `candidate-cas-failed` on any mismatch; then, with nothing else
     between, perform the first live write: apply the candidate's create and
     modify operations to the live worktree.
-11. Publish the staged feature artifacts, with the coverage record written
+11. Publish the staged feature artifacts, writing
+    `artifacts/recipe-capture-event.json` atomically before
+    `artifacts/recipe-coverage.json`, and `artifacts/recipe-coverage.json`
     last.
 12. Write `state.json` with `status: accepted`, set `status.Apply.BaseCommit`
     to `upstream_commit` with the matching completion fields, update the
@@ -2292,12 +2328,15 @@ truthful, and §9.11 pins each of them.
 **Failure before the step-13 commit marker rolls back both sides.** Every live
 candidate path and every feature artifact in step 8's snapshot set —
 `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`,
-`artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`,
-`artifacts/patch-generations.json` and `status.json` — is restored from
-`snapshots/`, the snapshotted `status.Apply` and `status.State` are restored
-with them, and every path recorded with an absent marker is **deleted**. The
-candidate returns to `status: pending`. A failure at step 11 or step 12 — a coverage-publication
-failure, a staged-artifact write failure or a state-transition failure — is a
+`artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`,
+`artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and
+`status.json` — is restored from `snapshots/`, the snapshotted
+`status.Apply` and `status.State` are restored with them, and every path
+recorded with an absent marker is **deleted**. E and C therefore come back
+together as bytes or together as absence; rollback never leaves a new E beside
+an old C or the reverse. The candidate returns to `status: pending`. A failure
+at step 11 or step 12 — an E-publication failure, a C-publication failure, a
+staged-artifact write failure or a state-transition failure — is a
 **failure**: it rolls back and returns non-zero. It is never a printed warning
 beside a success line, and there is no success-shaped partial acceptance.
 `AcceptShadow`'s best-effort refresh and prune (`internal/workflow/accept.go:110,128-131`)
@@ -2330,24 +2369,25 @@ any other:
 
 | Journal state | Action |
 |---|---|
-| commit marker **absent** | deterministically roll back from `snapshots/`: restore every snapshotted live path and every snapshotted artifact — `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the recorded `status.Apply` and `status.State` — delete every path recorded with an absent marker, set `state.json` back to `pending`, restore the `status.json` candidate pointer, and remove the journal |
+| commit marker **absent** | deterministically roll back from `snapshots/`: restore every snapshotted live path and every snapshotted artifact — `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the recorded `status.Apply` and `status.State` — delete every path recorded with an absent marker, set `state.json` back to `pending`, restore the `status.json` candidate pointer, and remove the journal |
 | commit marker **present** | the transaction is committed; complete steps 14's cleanup — prune the worktree, clear the pointer, remove `snapshots/`, `staged/` and the journal |
 
 There is no implicit recovery-on-next-run, no heuristic, no partial replay and
 no inference from timestamps or file presence beyond the marker itself. A
 resume that cannot complete leaves the journal in place and exits `1`.
 
-### 6.16 Coverage publication on acceptance
+### 6.16 Capture-event and coverage publication on acceptance
 
-Acceptance publishes through **ADR-036 D15's single shared publication API**.
-**This restates ADR-036 D15's producer P3 in full as two variants over one enum
-value and one schema version, and is parity block F.**
+Acceptance publishes the ADR-041/ADR-036 pair through **ADR-036 D15's single
+shared publication API**: E first, C last. **This restates ADR-036 D15's
+producer P3 in full as two variants over one enum value and one schema
+version, and is parity block F.**
 
 <!-- parity-block:F:begin -->
 | Variant | Trigger | Writes | Coverage |
 |---|---|---|---|
-| `resolver-accept` | `AcceptShadow` → `RefreshAfterAccept` | `artifacts/post-apply.patch` unconditionally (`internal/workflow/refresh.go:82`); **no** recipe regeneration, by design (`:20-24`); an ADR-024 generation entry only when the patch bytes changed (`:93,102`) | **incomplete**, carrying `producer-patch-rewrite` **and** `recipe-not-regenerated` — unchanged from ADR-036 D15 |
-| `operation-candidate-accept` | `AcceptOperationCandidate` | the **residual** canonical patch, a regenerated `apply-recipe.json`, truthful `recipe-provenance.json`, an ADR-024 generation entry, and the coverage record — all derived together from one bound snapshot and staged before the first live write | **complete**: no `operation-missing`, no outstanding reason, every effect `represented` |
+| `resolver-accept` | `AcceptShadow` → `RefreshAfterAccept` | `artifacts/post-apply.patch` unconditionally (`internal/workflow/refresh.go:82`); **no** recipe regeneration, by design (`:20-24`); an ADR-024 generation entry only when the patch bytes changed (`:93,102`); `artifacts/recipe-capture-event.json`; then `artifacts/recipe-coverage.json` last | **truthful ADR-040 / ADR-036 semantics**: `producer-patch-rewrite` and `recipe-not-regenerated` appear only when their conditions actually hold; the resolver path does not invent them unconditionally |
+| `operation-candidate-accept` | `AcceptOperationCandidate` | the **residual** canonical patch, a regenerated `apply-recipe.json`, truthful `recipe-provenance.json`, an ADR-024 generation entry, `artifacts/recipe-capture-event.json`, and `artifacts/recipe-coverage.json` last — all derived together from one bound snapshot and staged before the first live write | **complete pair**: no `operation-missing`, no outstanding reason, every effect `represented` |
 <!-- parity-block:F:end -->
 
 Both variants use the **same** `producer: reconcile-accept` enum value and the
@@ -2385,17 +2425,18 @@ seven producers (`docs/adrs/ADR-036-recipe-coverage-authority.md:1960-1966`):
 
 | Producer | GH #15 assigns regeneration to GH #13 | What GH #13 v1 actually does |
 |---|---|---|
-| P3 `reconcile-accept` (`:1962`) | yes | **discharged for the `operation-candidate-accept` variant only.** The `resolver-accept` variant stays `incomplete` by design |
+| P3 `reconcile-accept` (`:1962`) | yes | **discharged for the `operation-candidate-accept` variant only.** The `resolver-accept` variant republishes E then C under ADR-040 / ADR-036 semantics, but still does not regenerate the recipe |
 | P4 `cycle` (`:1963`) | yes | **not addressed.** No gate, no publication path, no matrix row; §11 keeps it deferred |
 | P5 `apply --mode done` (`:1964`) | yes | **not addressed.** Same as P4 |
 | P6 `implement` (`:1965`), whose incomplete records carry `canonical-patch-missing` | yes | **not addressed.** Such a record is `incomplete`, so E3 refuses it and the feature falls through |
 | P7 `artifact-edit` (`:1966`), whose records carry `manual-bound-artifact-edit` | yes | **not addressed.** Same as P6 |
 
-**GH #13 v1 regenerates coverage in exactly one circumstance: a successful
-operation-candidate acceptance.** It is a *by-product* of a proved, accepted,
-human-authorized rewrite — never a repair pass. There is no code path in this
-document that regenerates a recipe, a patch or a coverage record for a feature
-whose inputs are ineligible, and there is deliberately no auto-repair: an
+**GH #13 v1 regenerates the paired E/C artifacts in exactly one circumstance:
+a successful operation-candidate acceptance.** It is a *by-product* of a
+proved, accepted, human-authorized rewrite — never a repair pass. There is no
+code path in this document that regenerates a recipe, a patch, a capture-event
+record or a coverage record for a feature whose inputs are ineligible, and
+there is deliberately no auto-repair: an
 `incomplete` record from P4, P5, P6 or P7 refuses at E3 and the feature falls
 through with today's behavior. Closing the remaining four fifths of the
 ownership statement needs a regeneration contract of its own, which §11 carries
@@ -2697,8 +2738,9 @@ but no per-effect mapping fails it.
 
 `--reject-candidate`, under the per-feature lock for the whole action (§6.13),
 (1) appends `candidate_id`, `source_feature_state`, `upstream_commit`,
-`reference_commit` and the three binding hashes to `rejected.jsonl` — no bodies,
-no timestamp; (2) sets `state.json` to `status: rejected` and prunes
+`reference_commit` and the four binding hashes (`capture_event_sha256`,
+`coverage_sha256`, `patch_sha256`, `recipe_sha256`) to `rejected.jsonl` —
+no bodies, no timestamp; (2) sets `state.json` to `status: rejected` and prunes
 `worktree/`, retaining the immutable `candidate.json`; (3) clears the
 `status.json` pointer; (4) **changes no lifecycle state**. A candidate at
 `accepted` is not rejectable: it refuses `candidate-not-pending` (§6.10).
@@ -2766,14 +2808,17 @@ Listed in evaluation order: the preflight preconditions first, then E1-E15.
 | `coverage-unusable` | phase-2 refusal, **E1** | absent, unreadable, malformed or internally contradictory coverage — including every ADR-036 D3 contradiction refusal |
 | `coverage-owner-mismatch` | phase-2 refusal, **E2** | `coverage.feature` ≠ requested slug |
 | `coverage-incomplete` | phase-2 refusal, **E3** | `coverage_status` ≠ `complete` |
-| `binding-presence-drift` | phase-2 refusal, **E4** | either presence flag contradicted by recomputed readable existence, either direction |
-| `binding-hash-drift` | phase-2 refusal, **E5** | recomputed patch or raw on-disk recipe hash differs |
-| `recipe-undecodable` | phase-2 refusal, **E6** | the recipe's bytes are present and hash-correct but do not strict-decode |
-| `recipe-owner-mismatch` | phase-2 refusal, **E7** (conditional on E6) | the decoded recipe's `feature` ≠ `coverage.feature`; a recomputation defense |
-| `reference-not-reconstructable` | phase-2 refusal, **E8** | non-`commit` kind, malformed hex, absent local object, or `preimage_set_sha256` mismatch |
-| `effect-binding-drift` | phase-2 refusal, **E9** | any `effect_sha256` / `patch_fragment_sha256` / ordinal mismatch; a recomputation defense |
-| `recipe-unsupported` | phase-2 refusal, **E10** | an operation is unassigned, is not a supported witness, or carries `created_by`; a recomputation defense |
-| `recipe-stale-marker-present` | phase-2 refusal, **E11** | `recipe-stale.json` on disk |
+| `capture-event-unusable` | phase-2 refusal, **E4** subcheck 1 | `recipe-capture-event.json` absent, unreadable, malformed or not canonically re-encodable after strict decode |
+| `capture-event-owner-mismatch` | phase-2 refusal, **E4** subcheck 2 | `event.feature` ≠ requested slug |
+| `capture-event-pair-mismatch` | phase-2 refusal, **E4** subcheck 3 | `event.coverage_sha256` ≠ SHA-256 of the exact raw C bytes |
+| `binding-presence-drift` | phase-2 refusal, **E5** | either presence flag contradicted by recomputed readable existence, in either direction, across the paired artifacts |
+| `binding-hash-drift` | phase-2 refusal, **E6** | recomputed patch or raw on-disk recipe hash differs from C or E |
+| `recipe-undecodable` | phase-2 refusal, **E7** | the recipe's bytes are present and hash-correct but do not strict-decode |
+| `recipe-owner-mismatch` | phase-2 refusal, **E8** (conditional on E7) | the decoded recipe's `feature` ≠ `coverage.feature`; a recomputation defense |
+| `reference-not-reconstructable` | phase-2 refusal, **E9** | non-`commit` kind, malformed hex, absent local object, paired reference-field mismatch, or `preimage_set_sha256` mismatch |
+| `effect-binding-drift` | phase-2 refusal, **E10** | paired observation / event-fact / fragment-hash / ordinal / projection mismatch; a recomputation defense |
+| `recipe-stale-marker-present` | phase-2 refusal, **E11** subcheck 1 | `recipe-stale.json` on disk |
+| `recipe-unsupported` | phase-2 refusal, **E11** subcheck 2 | an operation is unassigned, is not a supported witness, depends on a copied current-parent exclusion, or carries `created_by`; a recomputation defense |
 | `supersession-not-authority` | phase-2 refusal, **E12** | superseded feature; the ADR-029 D7 downgrade grants nothing |
 | `parent-blocked` | phase-2 refusal, **E13** | hard-blocked parent in the DAG |
 | `derivation-mode-unsupported` | phase-2 refusal, **E14** | multi-slug or `--cumulative-legacy` |
@@ -2785,11 +2830,11 @@ Listed in evaluation order: the preflight preconditions first, then E1-E15.
 the zero-effect arm of `effect-binding-drift` (predicate 1 requires at least
 one effect). All three now fail at E1 as `coverage-unusable`.
 
-**Reordered in rev-2 so that every recipe-side code is reachable**: the
-recipe's presence (E4), raw-byte hash (E5), decodability (E6) and decoded owner
-(E7) are four ordered questions instead of rev-1's single combined E4, which
-consumed all four and reported `recipe-owner-mismatch` for every one of them
-(§6.5).
+**rev-7 keeps the fifteen-gate count but repurposes E4-E11 around the paired
+E/C contract.** The exact sub-order matters: E4 runs usability → owner →
+pairing; E8 stays conditional on E7; E11 runs stale-marker absence before
+witness support. Historical rev-6 references to E1-E15 mean the accepted
+coverage-only baseline; the live rev-7 inventory is the table above.
 
 ### 7.2 Domain, derivation and alignment refusals (§6.6, §6.7)
 
@@ -3133,7 +3178,7 @@ semantically wrong input, named in the Observable column.** A fixture that only
 asserts a token is present, a count matches or a string appears does not satisfy
 a semantic guard and does not belong in this matrix.
 
-IDs are contiguous `ROC-001` … `ROC-293`.
+IDs are contiguous `ROC-001` … `ROC-301`.
 
 ### 9.1 Phase-2 evaluation boundary, outcomes and terminality
 
@@ -3170,7 +3215,7 @@ IDs are contiguous `ROC-001` … `ROC-293`.
 | ROC-024 | C | Shipped gate demotion reproduced | With the gate off, `buildOperationUpstreamedCandidateFixture` (`internal/workflow/reconcile_evidence_integration_test.go:235`) still yields `blocked` / `rejected-upstreamed` with reason `missing-upstream-commit-ref`, exactly as `:459` asserts today |
 | ROC-025 | I | CG1-CG7 satisfied confirms | An all-present feature whose seven conditions all hold returns `store.ReconcileUpstreamed` with `review_verdict: confirmed-upstreamed`, `StateUpstreamMerged`, and a revision entry linking the gate evidence attempt |
 | ROC-026 | C | CG1 rejects replayed and legacy entries | A `recipe-operation-match` entry read back from a prior invocation's `reconcile-evidence.jsonl`, and one produced by `evaluateRecipeOperations` (`internal/workflow/reconcile.go:611`), each fail to confirm whatever their counters say |
-| ROC-027 | C | CG2 rejects an ungated record | An all-present derivation whose coverage failed any of E1-E15 does not confirm |
+| ROC-027 | C | CG2 rejects an ungated record | An all-present derivation whose paired E/C gate failed any of E1-E15 does not confirm |
 | ROC-028 | C | CG3 rejects a read presence claim | A derivation that took `present` from the coverage record instead of recomputing it at the upstream commit does not confirm |
 | ROC-029 | C | CG4 rejects a nonzero count | One applicable or one conflicting classification anywhere in the feature does not confirm |
 | ROC-030 | C | CG5 and CG6 reject weak origins | `match_origin` of `fork`, `sibling-feature`, `mixed` or `unknown` (`internal/store/reconcile_evidence.go:63-68`), and `pre_reconcile_presence` of `not-checked`, `absent` or `unknown` (`:73-77`), each independently fail to confirm |
@@ -3197,23 +3242,23 @@ IDs are contiguous `ROC-001` … `ROC-293`.
 | ROC-046 | C | E2 envelope owner mismatch | `coverage.feature` naming another slug is `coverage-owner-mismatch`, even when every hash recomputes |
 | ROC-047 | C | E3 incomplete coverage | `coverage_status: incomplete` refuses with `coverage-incomplete` |
 | ROC-048 | G | E3 completeness is not eligibility | Wrong-input fixture `complete-status-authorizes-replay` (an eligibility path short-circuiting on `coverage_status: complete` and skipping E4-E15) fails the same eligibility validator |
-| ROC-049 | C | E7 recipe owner mismatch | An on-disk recipe that decodes but whose `feature` differs from `coverage.feature` is `recipe-owner-mismatch`, recomputed by decoding the file rather than reading predicate 3; a record whose recipe does **not** decode reports `recipe-undecodable` at E6 instead, never this code |
-| ROC-050 | C | E4 presence drift in both directions | `patch_present: true` beside a missing patch, `recipe_present: false` beside a readable recipe, a recipe that becomes unreadable and one that becomes readable are all `binding-presence-drift` |
-| ROC-051 | C | E5 patch hash drift | One byte changed in `post-apply.patch` is `binding-hash-drift` |
-| ROC-052 | C | E5 recipe raw-byte hash | The recipe hash is recomputed over **raw on-disk bytes**, so a semantically equivalent reserialization with different bytes drifts |
-| ROC-053 | C | E6 recipe undecodable | A present, hash-correct recipe that does not strict-decode is `recipe-undecodable`, regardless of `recipe_decodable: true` in the record |
-| ROC-054 | G | E6 decodability is recomputed, not read | Wrong-input fixture `trusts-recipe-decodable-flag` (an eligibility path reading the stored flag instead of attempting the decode) fails the same recomputation validator |
-| ROC-055 | C | E8 reference refusals | A non-`commit` `reference.kind`, a well-formed 40-hex commit absent from the local object database (with **no** fetch attempted), and a reconstructable commit whose recomputed `preimage_set_sha256` differs each refuse with `reference-not-reconstructable` |
-| ROC-056 | C | E9 fragment hash drift | A hand-forged record whose `patch_fragment_sha256` does not recompute over the bound patch refuses with `effect-binding-drift`, even though the decoder accepted it |
-| ROC-057 | C | E9 ordinal gap | Ordinals `1, 2, 4` refuse; `1, 2, 3` in strict-grammar record order pass |
-| ROC-058 | C | E10 unsupported recipe shapes | An operation carrying `created_by` (`internal/workflow/implement.go:49`), one assigned to no effect, and one that is not a supported write-file witness each refuse with `recipe-unsupported` |
-| ROC-059 | C | E11 stale marker present | `recipe-stale.json` on disk refuses with `recipe-stale-marker-present`, despite verify's `warn`/exit `0` |
+| ROC-049 | C | E8 recipe owner mismatch | An on-disk recipe that decodes but whose `feature` differs from `coverage.feature` is `recipe-owner-mismatch`, recomputed by decoding the file rather than reading predicate 3; a record whose recipe does **not** decode reports `recipe-undecodable` at E7 instead, never this code |
+| ROC-050 | C | E5 presence drift in both directions | `patch_present: true` beside a missing patch, `recipe_present: false` beside a readable recipe, a recipe that becomes unreadable and one that becomes readable are all `binding-presence-drift` |
+| ROC-051 | C | E6 patch hash drift | One byte changed in `post-apply.patch` is `binding-hash-drift` |
+| ROC-052 | C | E6 recipe raw-byte hash | The recipe hash is recomputed over **raw on-disk bytes**, so a semantically equivalent reserialization with different bytes drifts |
+| ROC-053 | C | E7 recipe undecodable | A present, hash-correct recipe that does not strict-decode is `recipe-undecodable`, regardless of `recipe_decodable: true` in the record |
+| ROC-054 | G | E7 decodability is recomputed, not read | Wrong-input fixture `trusts-recipe-decodable-flag` (an eligibility path reading the stored flag instead of attempting the decode) fails the same recomputation validator |
+| ROC-055 | C | E9 reference refusals | A non-`commit` `reference.kind`, a well-formed 40-hex commit absent from the local object database (with **no** fetch attempted), a paired C/E reference mismatch, and a reconstructable commit whose recomputed `preimage_set_sha256` differs each refuse with `reference-not-reconstructable` |
+| ROC-056 | C | E10 fragment and projection drift | A hand-forged record whose `patch_fragment_sha256` does not recompute over the bound patch, whose E observations are copied from another feature, or whose event facts disagree with the paired C projection refuses with `effect-binding-drift`, even though the strict decoders accepted the bytes |
+| ROC-057 | C | E10 ordinal gap | Ordinals `1, 2, 4` refuse; `1, 2, 3` in strict-grammar record order pass |
+| ROC-058 | C | E11 unsupported recipe shapes | An operation carrying `created_by` (`internal/workflow/implement.go:49`), one assigned to no effect, one that is not a supported write-file witness, or one made spuriously supported only by recomputing current parent state instead of using validated `parent_created_paths` each refuse with `recipe-unsupported` |
+| ROC-059 | C | E11 stale marker present | `recipe-stale.json` on disk refuses with `recipe-stale-marker-present`, despite verify's `warn`/exit `0` and even when the witness assignment would otherwise pass |
 | ROC-060 | G | Warning class is never eligibility | Wrong-input fixture `verify-warn-implies-eligible` (an eligibility path gating on a verify exit status instead of recomputing) fails the same eligibility validator on every warning-class state of §6.3 |
-| ROC-061 | U | Gate order is the stated order, and is strictly first-match | A record failing two gates reports the **lowest-numbered** gate's code: a fixture failing E3 and E11 reports `coverage-incomplete`, one failing E5 and E6 reports `binding-hash-drift`, and one failing E4 and E7 reports `binding-presence-drift`; an implementation that reorders any gate fails the row |
+| ROC-061 | U | Gate order is the stated order, and is strictly first-match | A record failing two gates reports the **lowest-numbered** gate's code: a fixture failing E3 and E11 reports `coverage-incomplete`, one failing E6 and E7 reports `binding-hash-drift`, and one failing E5 and E8 reports `binding-presence-drift`; within E4 and E11 the first failing sub-check wins; an implementation that reorders any gate or sub-check fails the row |
 | ROC-062 | G | Every gate is recomputed | Wrong-input fixture `eligibility-reads-stored-hashes` (a gate comparing stored values to each other rather than to recomputed ones) fails the same recomputation validator |
-| ROC-063 | C | E4 and E5 are reachable on the recipe side | A record claiming `recipe_present: true` beside an absent recipe, and one claiming `recipe_present: false` beside a readable recipe, each report `binding-presence-drift` — **not** `recipe-owner-mismatch` and **not** `recipe-undecodable`; and a readable recipe whose raw bytes differ from `recipe_sha256` reports `binding-hash-drift` even when it decodes cleanly and its `feature` matches |
-| ROC-064 | C | E6 precedes E7, and E7 is conditional | A recipe that is present and hash-correct but does not strict-decode reports `recipe-undecodable`; E7 is not evaluated for it at all, and no fixture can make an undecodable recipe report `recipe-owner-mismatch` |
-| ROC-065 | G | No gate shadows a later gate, and every code is reachable | Wrong-input fixture `combined-recipe-decode-and-owner-gate` (rev-1's single E4 asking both questions at once) fails the same gate-reachability validator: under it the `binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` fixtures above all report `recipe-owner-mismatch`, while the ordered configuration reports three distinct codes; and each of the fifteen E-gate codes has a fixture reporting exactly it, so a code with no reaching fixture fails the row |
+| ROC-063 | C | E5 and E6 are reachable on the recipe side | A record claiming `recipe_present: true` beside an absent recipe, and one claiming `recipe_present: false` beside a readable recipe, each report `binding-presence-drift` — **not** `recipe-owner-mismatch` and **not** `recipe-undecodable`; and a readable recipe whose raw bytes differ from `recipe_sha256` reports `binding-hash-drift` even when it decodes cleanly and its `feature` matches |
+| ROC-064 | C | E7 precedes E8, and E8 is conditional | A recipe that is present and hash-correct but does not strict-decode reports `recipe-undecodable`; E8 is not evaluated for it at all, and no fixture can make an undecodable recipe report `recipe-owner-mismatch` |
+| ROC-065 | G | No gate shadows a later gate, and every code is reachable | Wrong-input fixture `combined-recipe-decode-and-owner-gate` (rev-1's single E4 asking both questions at once) fails the same gate-reachability validator: under it the `binding-presence-drift`, `binding-hash-drift` and `recipe-undecodable` fixtures above all report `recipe-owner-mismatch`, while the ordered configuration reports three distinct codes; wrong-input fixture `event-owner-checked-before-decode` makes `capture-event-owner-mismatch` shadow `capture-event-unusable`, and wrong-input fixture `event-pairing-checked-before-owner` makes `capture-event-pair-mismatch` shadow `capture-event-owner-mismatch`; each of the fifteen E-gate codes and both E4/E11 subcodes has a fixture reporting exactly it, so a code with no reaching fixture fails the row |
 
 ### 9.4 Candidate domain, the recipe-witness role and insertion-run derivation
 
@@ -3359,7 +3404,7 @@ IDs are contiguous `ROC-001` … `ROC-293`.
 | ROC-183 | C | Rejected ID is checked before creation | A derivation whose ID is already in `rejected.jsonl` records `candidate-rejected` and falls through **without** creating a directory or a worktree |
 | ROC-184 | G | No inferred retry | Wrong-input fixture `reject-then-regenerate` (a reconcile that recreates a rejected ID without an explicit clear) fails the same rejection-durability validator |
 | ROC-185 | I | `--clear-candidate-rejections` does exactly one thing | It truncates the slug's `rejected.jsonl` and changes no state, no pointer, no artifact and no candidate |
-| ROC-186 | U | Permitted feature states, checked outside the E-gate set | A feature at `applied` and one at `blocked` (`internal/store/types.go:13,17`) each reach E1; every other `store.FeatureState` — `requested`, `analyzed`, `defined`, `implementing`, `active`, `reconciling`, `reconciling-shadow`, `upstream_merged`, `rejected`, `unapplied` — records `candidate-feature-state-unsupported` and falls through **without reaching E1**; and wrong-input fixture `feature-state-as-sixteenth-gate` (an eligibility table carrying a state row inside E1-E15) fails the same gate-inventory validator, which asserts the closed set is exactly the fifteen coverage-binding recomputations |
+| ROC-186 | U | Permitted feature states, checked outside the E-gate set | A feature at `applied` and one at `blocked` (`internal/store/types.go:13,17`) each reach E1; every other `store.FeatureState` — `requested`, `analyzed`, `defined`, `implementing`, `active`, `reconciling`, `reconciling-shadow`, `upstream_merged`, `rejected`, `unapplied` — records `candidate-feature-state-unsupported` and falls through **without reaching E1**; and wrong-input fixture `feature-state-as-sixteenth-gate` (an eligibility table carrying a state row inside E1-E15) fails the same gate-inventory validator, which asserts the closed set is exactly the fifteen paired E/C binding recomputations |
 | ROC-187 | U | The bound state is recorded in three places, and binding it changes nothing | `source_feature_state` appears in the identity tuple, in `candidate.json` and in the `status.json` pointer, and the three agree; a candidate whose pointer and artifact disagree refuses at decode; and a candidate-ready reconcile of a `blocked` feature leaves `status.State` at `blocked` with `status.Notes` byte-identical |
 | ROC-188 | C | Feature-state drift refuses acceptance; a matching state accepts to applied | With a candidate bound at `blocked`, transitioning the feature to `rejected`, to `unapplied`, to `upstream_merged`, to `reconciling-shadow` or to `applied` and then running `--accept-candidate` refuses with `candidate-feature-state-changed`, exit `3`, naming both states — and no journal, snapshot, staged artifact or live path is written. With the state unchanged the acceptance succeeds and leaves `status.State` at `store.StateApplied` (`internal/store/types.go:13`), whether the bound state was `applied` or `blocked` |
 | ROC-189 | C | An accepted directory is immutable audit, and its identity does not regenerate | After acceptance, the directory retains `candidate.json`, `state.json` at `accepted` and `candidate.patch`, has no `worktree/`, `staged/`, `snapshots/` or journal, has no `status.json` pointer, is never marked `stale` by a later preflight, and refuses `--reject-candidate` with `candidate-not-pending`; a reconcile that recomputes the same ID records `candidate-already-accepted` and falls through **before** creating a directory or worktree, while any changed binding — including `source_feature_state` — mints a different ID and a new candidate normally |
@@ -3434,12 +3479,12 @@ IDs are contiguous `ROC-001` … `ROC-293`.
 | ROC-243 | C | Created-path collision refuses | An untracked file at a candidate-created path refuses with `candidate-path-occupied` and destroys nothing |
 | ROC-244 | I | Unrelated dirt is allowed | Uncommitted edits outside the candidate path set do not block acceptance and are untouched by it |
 | ROC-245 | G | CAS is the acceptance authority, and it is re-run | Wrong-input fixtures `accept-skips-cas-on-ancestor-head` (an acceptance path treating a passing ancestry check as sufficient) and `accept-skips-cas-recheck` (a path that validates at step 6 only and writes at step 10 without re-validating) each fail the same precondition validator that the two-pass configuration passes |
-| ROC-246 | C | Binding change refuses | A coverage, patch or recipe byte changed since derivation refuses with `candidate-binding-changed` |
+| ROC-246 | C | Binding change refuses | A semantic E change, a coverage-byte change, a patch-byte change or a recipe-byte change since derivation refuses with `candidate-binding-changed` |
 | ROC-247 | I | Alignment re-derived at accept | Acceptance recomputes the alignment and candidate bytes from the bound inputs and compares the identity tuple, diff hash and tree hash; a path that trusts the stored proof hashes alone fails the row |
 | ROC-248 | G | Stored proofs are not authority | Wrong-input fixture `accept-trusts-stored-proof-hashes` (acceptance skipping re-derivation because the stored hashes match) fails the same acceptance-authority validator |
 | ROC-249 | U | Staging precedes the first live write | Every staged artifact — residual patch, recipe, provenance, generation entry, coverage record — exists under `staged/` before step 10 begins |
-| ROC-250 | U | Snapshots cover the named set and carry absent markers | `snapshots/` holds every live candidate path plus `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the pre-transaction `status.Apply` and `status.State`; every path the candidate creates and every one of those artifacts that does not yet exist carries an explicit absent marker; a missing member fails the row |
-| ROC-251 | C | Rollback restores both sides | A forced failure after step 10 restores modified paths from snapshots, **deletes** every path recorded absent, restores `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json` — including the `operation_candidate` pointer and the pre-transaction `status.Apply` / `status.State` — and leaves `state.json` at `pending` |
+| ROC-250 | U | Snapshots cover the named set and carry absent markers | `snapshots/` holds every live candidate path plus `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json`, together with the pre-transaction `status.Apply` and `status.State`; every path the candidate creates and every one of those artifacts that does not yet exist carries an explicit absent marker; a missing member fails the row |
+| ROC-251 | C | Rollback restores both sides | A forced failure after step 10 restores modified paths from snapshots, **deletes** every path recorded absent, restores `artifacts/post-apply.patch`, `artifacts/apply-recipe.json`, `artifacts/recipe-provenance.json`, `artifacts/recipe-capture-event.json`, `artifacts/recipe-coverage.json`, `artifacts/patch-generations.json` and `status.json` — including the `operation_candidate` pointer and the pre-transaction `status.Apply` / `status.State` — and leaves `state.json` at `pending` |
 | ROC-252 | C | Ordinary rollback exits 3 | A rolled-back acceptance returns `acceptance-rolled-back` with the failing step named and exit `3`; no success line is printed |
 | ROC-253 | C | Failed rollback exits 1 and retains the journal | With the rollback itself forced to fail, the command returns `acceptance-rollback-failed`, exits `1`, and the next command refuses with `recovery-required` |
 | ROC-254 | C | Publication, artifact and state failure all roll back | A forced coverage-publication failure at step 11 rolls back and returns `coverage-publication-failed` with exit `3`; a forced staged-artifact write failure and a forced state-transition failure each roll back and exit non-zero; there is no warning-class rendering and no success-shaped partial acceptance anywhere |
@@ -3448,11 +3493,11 @@ IDs are contiguous `ROC-001` … `ROC-293`.
 | ROC-257 | I | Resume completes with a commit marker | The same command on a journal carrying the commit marker finishes step 14's cleanup and does **not** roll back |
 | ROC-258 | G | Recovery is never implicit | Wrong-input fixture `journal-auto-resumed-on-next-run` (a reconcile that completes or rolls back a journal without the explicit flag) fails the same recovery validator |
 | ROC-259 | U | No atomicity claim | No surface, doc line or artifact field claims filesystem-wide atomicity; the guarantee printed is journaled, rollback-capable and explicitly recoverable |
-| ROC-260 | I | Coverage published through the shared API | Successful acceptance publishes through ADR-036 D15's single publication entry point with `producer: reconcile-accept` and `capture.mode: reconcile` |
-| ROC-261 | U | P3 variant without schema change | The published record is `coverage_status: complete`, the `producer` enum gains no value, `schema_version` stays `1`, `reference.kind` is `commit`, `reference.commit` equals the `upstream_commit` the CAS validated against, and `preimage_set_sha256` recomputes over that same commit's tree |
+| ROC-260 | I | E then C published through the shared API | Successful acceptance publishes through ADR-036 D15's single publication entry point with `producer: reconcile-accept` and `capture.mode: reconcile`, writing `recipe-capture-event.json` before `recipe-coverage.json` and never the reverse |
+| ROC-261 | U | P3 candidate variant without schema change | The published E/C pair keeps `producer: reconcile-accept`, `capture.mode: reconcile` and `schema_version: 1`; the coverage record is `coverage_status: complete`, `reference.kind` is `commit`, `reference.commit` equals the `upstream_commit` the CAS validated against, and `preimage_set_sha256` recomputes over that same commit's tree |
 | ROC-262 | I | Residual patch excludes absorbed effects | The new canonical patch is the `upstreamCommit` → candidate-result diff restricted to the candidate path set, and the new recipe and coverage explain it with no `operation-missing` and no outstanding reason |
-| ROC-263 | C | The resolver variant is unchanged | An `AcceptShadow` acceptance still publishes the incomplete `resolver-accept` variant with `producer-patch-rewrite` and `recipe-not-regenerated`, byte-identically to the S0 golden |
-| ROC-264 | I | Accepted feature is eligible again | Reconciling the accepted feature against a later upstream passes E1-E15 on the freshly published coverage, so the feature does not degrade |
+| ROC-263 | C | The resolver variant keeps ADR-040 semantic truth | An `AcceptShadow` acceptance republishes E then C through the shared API, but still does **not** regenerate the recipe; `producer-patch-rewrite` and `recipe-not-regenerated` appear only when ADR-040 / ADR-036 say they do, and a fixture that adds them unconditionally fails the row |
+| ROC-264 | I | Accepted feature is eligible again | Reconciling the accepted feature against a later upstream passes E1-E15 on the freshly published E/C pair, so the feature does not degrade |
 | ROC-265 | I | Step 12 rewrites the apply base, and the manifest agrees with it | After a successful acceptance, `status.Apply.BaseCommit` (`internal/store/types.go:366`) equals the accepted `upstream_commit`, `Apply.CompletedAt` is set, `Apply.HasPatch` and `Apply.HasRecipe` are `true`, and `status.State` is `store.StateApplied`; the ADR-024 entry staged at step 7 and published at step 11 carries the same `base_commit` with `capture.mode: reconcile`, appended through the shared `AppendPatchGenerationForFeature` (`internal/workflow/patch_generations.go:31`) rather than a new writer; and a forced mismatch between the three — status, manifest and coverage `reference.commit` — refuses the transaction and rolls back |
 | ROC-266 | I | The six base readers observe the new base | The next reconcile's `persistReconcileEvidence` (`internal/workflow/reconcile.go:821`), file-novelty (`:888,899,903`), hunk-overlap (`:917,924,931,935`), path-restructure (`:951,965,978`), blocked-classification (`:1005`) and confirmation-gate (`:1037`) reads all stamp the accepted `upstream_commit`; a fixture where any of them still reports the pre-accept base fails the row |
 | ROC-267 | G | A stale base is a defect, and rollback restores the apply block | Wrong-input fixture `accept-leaves-stale-base-commit` (an acceptance that publishes the residual patch and coverage but leaves `status.Apply.BaseCommit` unchanged) fails the same base-consistency validator, and its next-reconcile novelty and overlap classifications differ from the correct configuration's; and a forced failure after step 12 restores the pre-transaction `status.Apply` and `status.State` from `snapshots/` along with the artifacts, leaving no partially updated base |
@@ -3510,12 +3555,12 @@ reviewed rows.
 
 | Kind | Count |
 |---|---|
-| `I` integration/runtime | 59 |
-| `C` failure/concurrency | 85 |
-| `G` semantic guard | 74 |
-| `U` unit/schema | 66 |
+| `I` integration/runtime | 61 |
+| `C` failure/concurrency | 87 |
+| `G` semantic guard | 76 |
+| `U` unit/schema | 68 |
 | `S` security/privacy | 9 |
-| **Total** | **293** |
+| **Total** | **301** |
 
 **Change against rev-0's 212 rows.** Removed in rev-1: the eight byte-window
 anchor rows (`anchor-not-found`, `anchor-ambiguous`, `anchor-disagreement`,
@@ -3662,14 +3707,51 @@ unchanged.
 and the production validator it must fail**, which is the standard §9's
 preamble sets.
 
+**Change against rev-6's 293 rows.** `301 − 293 = 8`: eight rows added
+(ROC-294 … ROC-301, all in §9.16), none removed, and the rev-7 corrections are
+load-bearing but non-renumbering. The additions sum to `2 + 2 + 2 + 2 = 8`:
+
+| Added in rev-7 | Rows |
+|---|---|
+| E companion / canonical-digest identity rows — ROC-294, ROC-295 | 2 |
+| E/C substitution and refusal-guard rows — ROC-296, ROC-301 | 2 |
+| E-before-C publication / recovery rows — ROC-298, ROC-299 | 2 |
+| schema and no-capture durable-reference rows — ROC-297, ROC-300 | 2 |
+| **Total** | **8** |
+
+The rev-7 corrections without renumbering are: ROC-049 … ROC-065 (gate numbers,
+sub-checks and paired E/C vocabulary), ROC-186 (the fifteen gates are now the
+paired E/C binding recomputations), ROC-201 (rejection log now records four
+binding hashes), ROC-250 and ROC-251 (snapshot/rollback sets now include
+`recipe-capture-event.json`), ROC-260 … ROC-264 (E-before-C publication,
+resolver semantic-truth carry-forward and accepted-feature re-eligibility over
+the published pair), plus the rollout/claims-audit corrections for the already
+shipped v0.17.0 prerequisite.
+
+**Kind deltas for rev-7**: `I` 59 → 61 (ROC-298, ROC-300); `C` 85 → 87
+(ROC-294, ROC-299); `G` 74 → 76 (ROC-296, ROC-301); `U` 66 → 68
+(ROC-295, ROC-297); `S` unchanged at 9.
+
+### 9.16 Capture-event binding, identity and recovery
+
+| ID | Kind | Case | Observable |
+|---|---|---|---|
+| ROC-294 | C | E unusable hard-refuses candidate authority | An absent, unreadable, malformed or non-canonically re-encodable `recipe-capture-event.json` refuses with `capture-event-unusable`; candidate derivation falls through, but the overall reconcile still follows the shipped nonterminal envelope |
+| ROC-295 | U | Canonical E digest, not raw E bytes, enters identity | Two semantically identical E files with different formatting produce the same `capture_event_sha256` and the same candidate ID, while a semantic E change produces a different digest; duplicate members, unknown fields or unsupported versions prevent the digest from existing |
+| ROC-296 | G | No blind C→E, generation or current-parent substitution | Wrong-input fixtures `coverage-copied-into-event`, `generation-capture-substitutes-for-event` and `current-parent-scan-substitutes-for-parent-created-paths` each fail the same paired-input validator the accepted E/C path passes |
+| ROC-297 | U | Candidate schema binds four hashes | `candidate.json` carries `capture_event_sha256`, `coverage_sha256`, `patch_sha256` and `recipe_sha256` in `bindings`; omitting the first, adding a fifth mutable binding, or hashing raw E bytes instead of canonical E fails the same schema validator |
+| ROC-298 | I | Acceptance stages and publishes E before C | Step 7 stages both `recipe-capture-event.json` and `recipe-coverage.json`; step 11 writes E before C and never the reverse; a fixture that publishes C first or omits E fails the acceptance-order validator |
+| ROC-299 | C | Rollback and recovery restore E with C | A forced failure after E write but before C write, and a recovery resume on a no-marker journal, restore or delete `recipe-capture-event.json` together with `recipe-coverage.json`; no observable state leaves a new E beside an old C or the reverse |
+| ROC-300 | I | Truthful `no-capture` does not refuse a valid durable pair | A P6/P7-style no-capture record with a valid paired durable reference, validated E/C quartet and reconstructable commit may still pass E1-E15; a fixture that refuses solely because `capture.mode == no-capture` fails |
+| ROC-301 | G | The gate inventory stays fifteen and the proof array stays `[15]bool` | Wrong-input fixtures `phase2-proof-array-resized`, `feature-state-as-sixteenth-gate`, `event-owner-checked-before-decode` and `event-pairing-checked-before-owner` each fail the same gate-inventory validator: rev-7 changes the contents of E4-E11, not the closed cardinality of E1-E15 |
+
 ## 10. Rollout and release
 
 - **Target `v0.18.0`**, separate from GH #15's `v0.17.0`. ADR-036 D12 already
   separated them and this PRD does not reopen that.
-- **Implementation is blocked until v0.17.0 ships.** Today `internal/` and
-  `cmd/` contain **zero** matches for `recipe-coverage.json`, `recipe_coverage`,
-  `CoverageProducer`, `RecipeCoverage` or `reconcile-accept`. There is nothing
-  to consume.
+- **The v0.17.0 prerequisite is already satisfied.** This rev-7 remains
+  planning-only; runtime implementation still requires a separate
+  post-review assignment, but it no longer waits on release publication.
 - **Slices run sequentially** (§8). Every slice touches
   `internal/workflow/reconcile.go` and most touch `internal/cli/cobra.go`;
   `AGENTS.md`'s Parallel-Implementer Discipline makes same-file overlap a hard
@@ -3685,8 +3767,8 @@ preamble sets.
   the gate **on** is named in §6.4 and carried as a second, explicit
   expectation in S0/S7 rather than an edit to the existing one.
 - **Default posture is unchanged behavior even with the gate on.** A repository
-  with no ADR-036 coverage — which is every repository until v0.17.0 lands and
-  producers run — refuses at E1 and falls through, producing today's outcomes.
+  with no eligible paired ADR-041 / ADR-036 input refuses at E1 or E4 and
+  falls through, producing today's nonterminal outcomes.
 - **Unsupported platforms degrade to today's behavior.** Runtime support is
   `linux`, `darwin` and `windows` only. On every other target — including every
   BSD — the preflight and candidate finalization record `lock-unsupported` and
@@ -3731,7 +3813,7 @@ Each row is a real deferral with a stated v1 answer.
 | Regenerating coverage for P6 (`implement`) and P7 (`artifact-edit`) records | Untouched; such records are `incomplete`, so E3 refuses and the feature falls through | The regeneration contract GH #15's PRD `:3674-3678` assigns to GH #13 is designed; GH #13 v1 regenerates only as a by-product of a successful operation-candidate accept |
 | Regenerating coverage for features GH #15 left incomplete | Out of scope here; those features are simply ineligible | A separate regeneration contract is accepted (ADR-036 §13 names GH #13 as a candidate owner) |
 | Recipe/coverage regeneration for `cycle` (P4) and `apply --mode done` (P5) | Untouched; ADR-036's deferral row stays open for both | A publication path for those producers is designed; GH #13 discharges only the `operation-candidate-accept` variant of P3 |
-| Recipe regeneration on the `resolver-accept` path | Unchanged; still `incomplete` with `producer-patch-rewrite` + `recipe-not-regenerated` | `RefreshAfterAccept` gains a recipe regenerator, which is a GH #15-surface change |
+| Recipe regeneration on the `resolver-accept` path | Unchanged; the resolver path republishes E then C under ADR-040 / ADR-036 semantics and still does **not** regenerate the recipe | `RefreshAfterAccept` gains a recipe regenerator, which is a GH #15-surface change |
 | `ensure-directory` in the candidate domain | Not modeled; a recipe carrying one cannot reach a `complete` ADR-036 record, so the feature refuses at E3 | A creation genuinely needs an empty directory **and** ADR-036 gains a representation for it |
 | Committing on the operator's behalf | Never | Never |
 
@@ -3908,7 +3990,7 @@ object. Every other row is unchanged and no row is added.
 | `operation-not-reclassifiable` covers `append-file` and `replace-in-file` | `docs/adrs/ADR-036-recipe-coverage-authority.md:1141` |
 | ADR-036 D8 persists no anchor and defers to GH #13 | `docs/adrs/ADR-036-recipe-coverage-authority.md:1518-1541` |
 | ADR-036 D8 names the adjacent-args case as the proof they differ | `docs/adrs/ADR-036-recipe-coverage-authority.md:1547-1558` |
-| ADR-036 D15 P3 is `reconcile-accept` with incomplete coverage | `docs/adrs/ADR-036-recipe-coverage-authority.md:1962` |
+| ADR-036 D15 P3 is the `reconcile-accept` producer, and ADR-040 later constrains its reason semantics | `docs/adrs/ADR-036-recipe-coverage-authority.md:1962`, `docs/adrs/ADR-040-p2-publication-reason-semantics.md:17-37` |
 | ADR-036 defers recipe regeneration for `reconcile-accept` to GH #13 | `docs/adrs/ADR-036-recipe-coverage-authority.md:3048` |
 | GH #15's PRD enumerates the consumer boundary | `docs/prds/PRD-recipe-generation-authority.md:2098-2145` |
 | GH #15's PRD §6.14 owns the ten-row consumer table, **seven** of whose rows are warning-class with exit `0` | `docs/prds/PRD-recipe-generation-authority.md:2098`, table `:2140-2151` **(rev-2)** |
@@ -3921,7 +4003,7 @@ object. Every other row is unchanged and no row is added.
 | ADR-030 D2/D6/D7 define `--cumulative-legacy` semantics | `docs/adrs/ADR-030-multi-slug-reconcile-derivation-mode.md:35-42,65-76` |
 | ADR-010 D2 makes the shadow worktree the unit of atomicity | `docs/adrs/ADR-010-provider-conflict-resolver.md:31-40` |
 | The adjacent-args case study's correct resolutions | `docs/state-of-the-art/case-studies/adjacent-cli-args-conflict-2026-08/summary.md` §2 |
-| No coverage implementation exists in the tree | zero matches for `recipe-coverage.json` / `recipe_coverage` / `CoverageProducer` / `reconcile-accept` under `internal/` and `cmd/` |
+| ADR-041 defines the paired capture-event artifact and its path | `docs/adrs/ADR-041-independent-capture-event-evidence.md:46-48,92` |
 | No Git tree-hash helper exists | no `WriteTree` / `mktree` / `hash-object` wrapper under `internal/gitutil/` |
 | No per-feature reconcile mutex exists | no lock acquisition in the reconcile `RunE` (`internal/cli/cobra.go:2303-2519`) |
 | No `LockFileEx` binding exists | zero matches for `LockFileEx` under `internal/` |
@@ -3931,8 +4013,9 @@ object. Every other row is unchanged and no row is added.
 
 The implementer inheriting this PRD must not assume:
 
-- that ADR-036 coverage exists in code — it does not, and slice S0 runs against
-  a tree where E1 refuses for every feature;
+- that GH #15's shipped producer code already solves the paired E/C consumer
+  contract — it does not, and rev-7 is precisely the planning amendment that
+  adds E-derived gates, identity and recovery binding;
 - that the all-present arm is terminal today — the confirmation gate demotes it
   (§2.7), and only CG1-CG7 changes that;
 - that `confidence: high` on an operation match is a confirmation;
@@ -3971,8 +4054,8 @@ The implementer inheriting this PRD must not assume:
   window, and the journal plus rollback are the recovery answer (§6.14);
 - that the step-6 CAS may stand in for the step-10 recheck;
 - that `golang.org/x/sys` may be added for `LockFileEx`;
-- that E1-E15 may be reordered, or that E7 may be evaluated for a recipe E6
-  refused;
+- that E1-E15 may be reordered, that E4's subchecks may be reordered, or that
+  E8 may be evaluated for a recipe E7 refused;
 - that a terminal candidate action may accept `--upstream-ref` or any other
   reconcile-local behavioral flag, or that the exclusivity set may be a
   hardcoded list of flag names (§6.12);
@@ -3980,8 +4063,9 @@ The implementer inheriting this PRD must not assume:
   `candidate-not-idempotent` (§6.8);
 - that GH #13 v1 repairs P4, P5, P6 or P7 coverage — it does not, and it
   regenerates only on a successful operation-candidate accept (§6.16);
-- that `coverage_status: complete`, `producer`, `cross_base_status` or a
-  patch-generation ID carries authority;
+- that `coverage_status: complete`, `producer`, `cross_base_status`,
+  `capture_event_sha256` by itself, or a patch-generation ID carries
+  authority;
 - that a verify `warn` with exit `0` is a grant;
 - that phase-2 `BLOCKED` may return — it may not, and a terminal phase-2 blocked
   arm is a regression against the shipped fallthrough;

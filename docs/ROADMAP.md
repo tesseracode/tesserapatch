@@ -1491,6 +1491,10 @@ documentation/planning wave remains in progress.
 ADR-043 records canonical capture-event digest identity; ADR-037/PRD are revised
 together for evidence gates, binding, publication/recovery, parity and acceptance
 cases. No replay source code or broader operation domain is authorized.
+Proposed rev-7/ADR-043 are delivered. Structural checks confirm nine byte-equal
+regions, 301 contiguous acceptance rows (I61/C87/G76/U68/S9), fifteen ordered
+gate rows/proof-array cardinality, and unchanged historical revision rows.
+Independent semantic review is pending; proposed content is not yet accepted.
 
 **Dispatch**: 2026-09-01.
 **WAVE_BASE**: `897cff9822173fc9b62f56466feb4e60fc0f5a27` (`v0.16.0`).

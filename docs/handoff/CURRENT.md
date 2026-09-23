@@ -5,8 +5,9 @@
 **Cluster state**: IN PROGRESS
 
 Research intake/backlog reconciliation is complete, archived and pushed at
-`c8344df`. The separately authorized GH #13 planning follow-up is now active.
-This remains a documentation/planning wave; no replay implementation is authorized.
+`c8344df`. GH #13's planning follow-up is drafted as Proposed rev-7 plus ADR-043,
+awaiting independent review. This remains a documentation/planning wave; no
+replay implementation is authorized.
 
 v0.17.0 is already published from `d1d6c3f`; do not republish or move its tag.
 Its accepted work, evidence and release are recorded in [HISTORY](HISTORY.md).
@@ -19,13 +20,26 @@ pre-release paragraphs are not active instructions.
 - **Milestone**: GH #13 / ADR-041 section 7 planning amendment
 - **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)
 - **Description**: Bind independent capture evidence into replay-candidate gates, identity and recovery planning
-- **Status**: In progress — documentation amendment only; runtime remains undispatched
+- **Status**: Review — proposed amendment delivered; runtime remains undispatched
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The verified `gpt-5.4` implementer delivered only ADR-043, ADR-037 and the
+companion PRD. The draft binds canonical E digest in candidate identity/schema,
+adds three capture-event refusal codes within a fifteen-gate inventory, and
+carries E through staged publication/snapshots/rollback/recovery. These are
+proposed contract changes, not accepted runtime behavior.
+
+Coordinator structural checks pass: all nine actual parity IDs
+`A,B,C1,C2,D1,D2,D3,E,F` are unique and byte-identical across ADR/PRD;
+ROC-001..301 are contiguous/unique with I61/C87/G76/U68/S9; `gatesPassed[15]`
+matches E1-E15. Prior rev-0..rev-6 revision-table rows remain byte-identical.
+Semantic first-match/recovery correctness still requires independent review;
+structural parity alone is not acceptance.
 
 Intake closed and pushed before planning dispatch. The operator selected
 `identity-digest`: add validated E's canonical SHA-256 to immutable candidate
@@ -99,9 +113,10 @@ SHA-256 into candidate identity in the subsequent planning amendment.
 
 ## Test Results
 
-- Current planning amendment: no result yet. Validate nine paired regions,
-  gate/refusal/acceptance counts, link targets, exact schema changes and
-  narrative consistency; independent OpenAI review before acceptance.
+- Proposed amendment structural PASS: nine paired regions byte-identical;
+  301 contiguous ROC rows (I61/C87/G76/U68/S9); fifteen gates/proof array agree;
+  historical rev-0..rev-6 revision rows unchanged. No Go execution or runtime
+  acceptance claim. Semantic review and remaining wave-close checks are pending.
 
 - `git diff --check`: PASS.
 - Coordinator checks **141** in-repository Markdown file targets: all exist.
