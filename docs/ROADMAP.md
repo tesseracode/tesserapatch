@@ -1446,6 +1446,12 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 27 resource check**: the operator-requested 600-second admission
+probe stayed at 77-78% free memory; load was within limits and no Go tools
+were active. Exit 75 before any Go/formatting/final-gate command. Native CI
+`35892843594` is green at unchanged `4968b05`; local mechanical closure is
+still pending resources. No implementation or accepted planning change.
+
 **Native confirmation (2026-09-23)**: run `35883032058` completes SUCCESS at
 exact local gate-retry checkpoint `082f5f8`, all five required jobs passing.
 Only the local full gate remains incomplete; its first-shard admission timeout

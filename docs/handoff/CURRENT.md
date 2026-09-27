@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Latest resource check (2026-09-27)**: the operator requested a new admission
+check. HEAD/origin remain `4968b05`, tracked state is clean and native run
+`35892843594` completed SUCCESS at that checkpoint. Free memory stayed at
+77-78% throughout the 600-second wait; load1 stayed below 5 and no active Go
+tools were observed. The >=80% continuous minute did not qualify (exit 75).
+The probe gated only `/usr/bin/true`; no Go/formatting command or final gate
+started. Keep the owned failure markers for the next operator resource retry.
+
 **Current validation (2026-09-23)**: native run `35883032058` completed SUCCESS
 on exact gate-retry checkpoint `082f5f8`, all five required jobs passing and
 release skipped. Earlier run `35872519378` also passed on corrected source
@@ -49,13 +57,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — checks 1-7 pass; first test-shard admission timed out
+- **Status**: Blocked — September 27 resource check stayed at 77-78% free; no validation started
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The latest resource-only attempt did not qualify: memory remained 77-78%
+despite acceptable load and no competing Go processes. No code, test, planning
+document or validation behavior changed, and no prior incomplete gate is
+promoted to a pass. The required native evidence remains green; only the local
+complete mechanical close is pending a qualifying resource window.
+
+### Earlier gate execution (historical)
 
 The complete gate retry stopped solely on confirmed resource admission for
 check 8's first shard. Formatting, vet and build all passed in this attempt.
@@ -172,6 +188,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 27 resource-only probe: exit 75 after 600 seconds at 77-78% free,
+  load1 <=5 and no active Go tools. No Go/formatting/final-gate command started.
+  Native run `35892843594` is completed SUCCESS at unchanged `4968b05`.
+
 - Latest gate `082f5f8`: checks **1-7 PASS**. Check 8's first test command was
   never admitted: persisted `resource-timeout before ... go test -p=1 ./...`
   after 600 seconds of competing Go workloads/load1 above 5. Make exits 2.
@@ -238,8 +258,8 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Confirmed resource contention blocks first-shard admission despite passing
-formatting/vet/build. An operator resource retry is required for the full gate.
+The latest admission check is blocked by free memory below 80%, not by load
+or an observed active Go process. An operator resource retry is required for the full gate.
 No content/review/targeted-test/build failure remains; no #13 decision is reopened
 or implementation dispatched.
 

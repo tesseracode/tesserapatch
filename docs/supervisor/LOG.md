@@ -1,3 +1,20 @@
+## Resource Check — research/planning close — 2026-09-27
+
+**Checkpoint**: `4968b059d25474a85b71059f9b7a806f3abf45b2`
+**Result**: admission BLOCKED; no validation command started
+
+The operator requested another resource check. Fetch confirms identical
+HEAD/origin and clean tracked state; current native run `35892843594` is
+completed SUCCESS. The existing gate then waited 600 seconds for its required
+minute: free memory stayed at 77-78%, load1 remained below 5 and no active Go
+tools were observed. It exited 75 before the gated no-op; no Go, formatting
+or final mechanical gate ran. This attempt is neither a test failure nor a pass.
+
+**Action**: retain exact failure markers and the bounded resource-check log;
+record/push the unchanged resource blocker. No threshold relaxation, process
+termination, runtime/test change or implementation dispatch. Retry the full
+gate only once a new operator resource window can satisfy all requirements.
+
 ## Native Retry Checkpoint PASS — research/planning — 2026-09-23
 
 **Run**: [35883032058](https://github.com/tesseracode/tesserapatch/actions/runs/35883032058)
