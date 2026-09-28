@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Final-gate retry authorized (2026-09-28)**: the operator requested another
+attempt. HEAD/origin are `f372176`, tracked/untracked status is clean, and
+native run `36308230046` completed SUCCESS on that checkpoint. Initial
+resources are 80% free, load1 3.43, no active Go tools. This snapshot does not
+replace a continuous qualifying minute. Clear only the owned previous failure
+markers and run the complete gate with fresh per-command windows, stopping on
+first failure. No source, test, plan or resource-policy change.
+
 **Latest resource check (2026-09-27)**: the operator requested a new admission
 check. HEAD/origin remain `4968b05`, tracked state is clean and native run
 `35892843594` completed SUCCESS at that checkpoint. Free memory stayed at
@@ -57,13 +65,20 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — September 27 resource check stayed at 77-78% free; no validation started
+- **Status**: Approved — September 28 full final-gate retry executing behind fresh resource windows
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+September 28 retry starts on unchanged, native-green `f372176`. The initial
+resource snapshot meets the numeric thresholds but every Go invocation must
+independently qualify for the full continuous minute. Preserve first-failure
+stop and exact failure classification; no partial earlier gate is reused.
+
+### September 27 resource result (historical)
 
 The latest resource-only attempt did not qualify: memory remained 77-78%
 despite acceptable load and no competing Go processes. No code, test, planning
@@ -188,6 +203,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 28 retry: source unchanged; native `36308230046` at `f372176`
+  completed SUCCESS. Initial 80%-free/load1 3.43/no-Go snapshot only; final
+  gate is starting and no new local pass is yet claimed.
+
 - September 27 resource-only probe: exit 75 after 600 seconds at 77-78% free,
   load1 <=5 and no active Go tools. No Go/formatting/final-gate command started.
   Native run `35892843594` is completed SUCCESS at unchanged `4968b05`.
@@ -242,26 +261,23 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Preserve the owned `failed`/`failure-reason` until an operator resource retry.
-   Native run `35883032058` is complete and green; no further CI wait is needed.
-2. On that retry, clear only those owned failure markers and
-   run the existing final mechanical gate with
+1. The operator authorized a September 28 retry. Clear only the owned
+   `failed`/`failure-reason` and run the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned
    ignored resource wrappers if needed. Do not cancel native runs for docs-only
    tracking pushes or credit a partial gate as complete.
-3. Once the wave is durably closed, request a separate bounded #13 implementation
+2. Once the wave is durably closed, request a separate bounded #13 implementation
    assignment (start with frozen regression evidence). Do not implement now.
-4. Keep WP-004 as a separate later read-only dependency-suggestion planning
+3. Keep WP-004 as a separate later read-only dependency-suggestion planning
    proposal; GH #24 widening and #12/#14 research remain separate. Re-baseline
    #18-22 reports on v0.17 before designing fixes.
 
 ## Blockers
 
-The latest admission check is blocked by free memory below 80%, not by load
-or an observed active Go process. An operator resource retry is required for the full gate.
-No content/review/targeted-test/build failure remains; no #13 decision is reopened
-or implementation dispatched.
+No content/review/targeted-test/build failure remains. The full gate is retrying
+under the operator's authorization; resource qualification and successful
+completion are still required. No #13 decision is reopened or implementation dispatched.
 
 ## Context for Next Agent
 

@@ -1,3 +1,19 @@
+## Final-Gate Retry — research/planning close — 2026-09-28
+
+**Checkpoint**: `f372176f030c296a8e9e8aed3ccc95a8cda2d397`
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**State**: operator-authorized complete gate retry
+
+HEAD/origin match and both tracked/untracked status are clean. Native run
+`36308230046` is completed SUCCESS. Initial resources are 80% free, load1 3.43,
+no active Go tools. Every Go command must still qualify a fresh continuous
+minute; initial samples never substitute for that condition.
+
+**Action**: clear only owned failure markers, verify the helper's shell controls,
+checkpoint/push tracking and execute the complete explicit-base gate. Preserve
+failure classification, serial execution and first-failure stop. No runtime,
+test-source, accepted planning or resource-policy change; no #13 implementation.
+
 ## Resource Check — research/planning close — 2026-09-27
 
 **Checkpoint**: `4968b059d25474a85b71059f9b7a806f3abf45b2`
