@@ -17,8 +17,10 @@ all later Go commands, including the shard script. Make exits 2; no compiler
 error or test assertion failure is reported.
 
 The gate is still incomplete. Preserve the exact markers and stop automatic
-local retries. Native run `36394494062` is in progress on the same checkpoint;
-allow it to finish before a documentation-only tracking push.
+local retries. Native run `36394494062` completed SUCCESS on the same checkpoint:
+all five required jobs pass, release skipped. It finished without cancellation;
+the blocked-state tracking can now be pushed. Native success does not replace
+the incomplete local mechanical gate.
 
 **Final-gate retry authorized (2026-09-28)**: the operator requested another
 attempt. HEAD/origin are `f372176`, tracked/untracked status is clean, and
@@ -89,7 +91,8 @@ Formatting and vet passed, but the resource wrapper could not admit the build
 within its 600-second window. Its persisted classification distinguishes this
 from a build-command failure despite Makefile's generic "go build errors" label.
 No build or shard command started afterward. Source and accepted planning are
-unchanged; preserve the native CI run and wait for a new operator resource retry.
+unchanged. Native run `36394494062` now passes at exact checkpoint `be9fa03`;
+preserve local failure markers and wait for a new operator resource retry.
 
 ### September 27 resource result (historical)
 
@@ -220,7 +223,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   after 600 seconds. Persisted reason names `go build ./cmd/tpatch` before
   execution; failure sentinel prevents later commands. Make exit 2, no compiler
   error/test assertion failure. No completed mechanical gate is claimed.
-- Native `36394494062` is still in progress at `be9fa03`; no success claim yet.
+- Native `36394494062` PASS at `be9fa03`: all five required jobs complete
+  successfully; release skipped. The exact-checkpoint native evidence is green,
+  but the incomplete local gate is not credited as a pass.
 
 - September 28 retry: source unchanged; native `36308230046` at `f372176`
   completed SUCCESS. Initial 80%-free/load1 3.43/no-Go snapshot only; final
@@ -280,8 +285,8 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Preserve native run `36394494062` to completion and push the blocked-state
-   tracking without cancelling it. Keep owned `failed`/`failure-reason` markers.
+1. Native run `36394494062` is complete and green. Keep the owned
+   `failed`/`failure-reason` markers until a new operator resource retry.
 2. On a new operator resource retry, clear only those owned markers and run
    the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,

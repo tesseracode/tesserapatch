@@ -1,3 +1,19 @@
+## Native Checkpoint PASS — research/planning — 2026-09-28
+
+**Run**: [36394494062](https://github.com/tesseracode/tesserapatch/actions/runs/36394494062)
+**Checkpoint**: `be9fa032827c6613c28d07094704c5ac59a0adc3`
+**Result**: SUCCESS — all five required jobs pass; release skipped
+
+The native run completed without cancellation on the exact local gate-retry
+checkpoint. Required-job success is distinct from the existing Windows full-suite
+allowed-failure surface; no claim is made that every Windows case passed.
+
+**Action**: push the blocked-state tracking and retain the owned `failed` /
+`failure-reason` markers. Remove only the completed watcher log. No automatic
+local retry follows: the latest local build was never admitted, so the full
+mechanical close remains incomplete despite green hosted CI. No source,
+test logic, accepted contract or #13 implementation change.
+
 ## Confirmed Build Admission Stop — research/planning — 2026-09-28
 
 **Checkpoint**: `be9fa032827c6613c28d07094704c5ac59a0adc3`

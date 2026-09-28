@@ -1446,6 +1446,11 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 28 native result**: run `36394494062` completes SUCCESS at the
+exact gate-retry checkpoint `be9fa03`, all five required jobs passing. The
+local build-admission timeout remains the mechanical-close blocker; no further
+local retry is running and no implementation is dispatched.
+
 **September 28 gate result**: `be9fa03` passes checks 1-6 and vet, then its
 build resource gate times out after 600 seconds before `go build` executes.
 The saved reason confirms admission failure, not a compiler error; no shard
