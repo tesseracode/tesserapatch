@@ -1,3 +1,20 @@
+## Confirmed Build Admission Stop — research/planning — 2026-09-28
+
+**Checkpoint**: `be9fa032827c6613c28d07094704c5ac59a0adc3`
+**Result**: checks 1-6 and vet PASS; build/test execution not started
+
+The owned `failure-reason` explicitly records
+`resource-timeout before: /opt/homebrew/bin/go build ./cmd/tpatch`.
+Build admission exhausted 600 seconds without its fresh qualifying minute.
+Makefile's generic "go build errors" label does not mean the compiler ran:
+the sentinel blocks the diagnostic retry and every subsequent Go command,
+including the shard script. Make exits 2; no test assertion failure occurs.
+
+**Action**: stop local retries and preserve the exact failure markers. Record
+the unchanged-source blocker; let native run `36394494062` finish before
+pushing tracking-only updates. No threshold relaxation, unrelated-process
+termination, code/guard/contract change, or #13 implementation dispatch.
+
 ## Final-Gate Retry — research/planning close — 2026-09-28
 
 **Checkpoint**: `f372176f030c296a8e9e8aed3ccc95a8cda2d397`

@@ -9,6 +9,17 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Latest gate result (2026-09-28)**: retry at `be9fa03` passes checks 1-6
+and vet. The saved failure record confirms `resource-timeout before:
+/opt/homebrew/bin/go build ./cmd/tpatch`: the build never starts because its
+fresh qualifying minute is unavailable within 600 seconds. The sentinel blocks
+all later Go commands, including the shard script. Make exits 2; no compiler
+error or test assertion failure is reported.
+
+The gate is still incomplete. Preserve the exact markers and stop automatic
+local retries. Native run `36394494062` is in progress on the same checkpoint;
+allow it to finish before a documentation-only tracking push.
+
 **Final-gate retry authorized (2026-09-28)**: the operator requested another
 attempt. HEAD/origin are `f372176`, tracked/untracked status is clean, and
 native run `36308230046` completed SUCCESS on that checkpoint. Initial
@@ -65,7 +76,7 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Approved — September 28 full final-gate retry executing behind fresh resource windows
+- **Status**: Blocked — September 28 build admission timed out; build/tests never started
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
@@ -73,10 +84,12 @@ WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
 
-September 28 retry starts on unchanged, native-green `f372176`. The initial
-resource snapshot meets the numeric thresholds but every Go invocation must
-independently qualify for the full continuous minute. Preserve first-failure
-stop and exact failure classification; no partial earlier gate is reused.
+September 28's full retry at `be9fa03` stopped at the build admission gate.
+Formatting and vet passed, but the resource wrapper could not admit the build
+within its 600-second window. Its persisted classification distinguishes this
+from a build-command failure despite Makefile's generic "go build errors" label.
+No build or shard command started afterward. Source and accepted planning are
+unchanged; preserve the native CI run and wait for a new operator resource retry.
 
 ### September 27 resource result (historical)
 
@@ -203,6 +216,12 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 28 full retry: checks 1-6 and vet PASS; build admission times out
+  after 600 seconds. Persisted reason names `go build ./cmd/tpatch` before
+  execution; failure sentinel prevents later commands. Make exit 2, no compiler
+  error/test assertion failure. No completed mechanical gate is claimed.
+- Native `36394494062` is still in progress at `be9fa03`; no success claim yet.
+
 - September 28 retry: source unchanged; native `36308230046` at `f372176`
   completed SUCCESS. Initial 80%-free/load1 3.43/no-Go snapshot only; final
   gate is starting and no new local pass is yet claimed.
@@ -261,23 +280,26 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. The operator authorized a September 28 retry. Clear only the owned
-   `failed`/`failure-reason` and run the complete existing mechanical gate with
+1. Preserve native run `36394494062` to completion and push the blocked-state
+   tracking without cancelling it. Keep owned `failed`/`failure-reason` markers.
+2. On a new operator resource retry, clear only those owned markers and run
+   the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned
    ignored resource wrappers if needed. Do not cancel native runs for docs-only
    tracking pushes or credit a partial gate as complete.
-2. Once the wave is durably closed, request a separate bounded #13 implementation
+3. Once the wave is durably closed, request a separate bounded #13 implementation
    assignment (start with frozen regression evidence). Do not implement now.
-3. Keep WP-004 as a separate later read-only dependency-suggestion planning
+4. Keep WP-004 as a separate later read-only dependency-suggestion planning
    proposal; GH #24 widening and #12/#14 research remain separate. Re-baseline
    #18-22 reports on v0.17 before designing fixes.
 
 ## Blockers
 
-No content/review/targeted-test/build failure remains. The full gate is retrying
-under the operator's authorization; resource qualification and successful
-completion are still required. No #13 decision is reopened or implementation dispatched.
+Confirmed resource admission blocks the build stage; the build and test
+partition did not start in this attempt. No content/review/targeted-test
+failure remains. A new qualifying resource window and full gate completion
+are required; no #13 decision is reopened or implementation dispatched.
 
 ## Context for Next Agent
 
