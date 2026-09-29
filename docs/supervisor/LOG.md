@@ -1,3 +1,18 @@
+## Resource Check — research/planning close — 2026-09-29
+
+**Checkpoint**: `009ee45ca762399cc8a27bfff620064302dd2fc6`
+**Result**: resource admission BLOCKED; no Go command started
+
+Operator requested admission after freeing resources. Fetch confirms unchanged
+HEAD/origin and clean tree; native run `36405089424` is green. The existing
+gate waited 600 seconds for its full qualifying minute: memory remained at
+78-79%, load1 remained below 5, and no active Go tools were observed. It exited
+75 before its gated no-op, so no test/build/formatting validation was run.
+
+**Action**: retain the exact failure markers and probe log, record/push the
+resource-only outcome and stop. No thresholds, source, test logic, accepted
+planning or implementation scope changed. The complete local gate remains owed.
+
 ## Native Checkpoint PASS — research/planning — 2026-09-28
 
 **Run**: [36394494062](https://github.com/tesseracode/tesserapatch/actions/runs/36394494062)

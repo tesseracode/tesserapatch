@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Latest resource check (2026-09-29)**: the operator freed resources and
+requested admission. HEAD/origin remain `009ee45`, the tree is clean and
+native run `36405089424` is green. The full 600-second probe stayed at
+78-79% free memory; load1 stayed below 5 and no active Go tools were observed.
+The required >=80% minute never qualified (exit 75). The gated command was
+only `/usr/bin/true`; no Go test, build or formatting validation started.
+Keep the owned failure markers; source, planning and thresholds are unchanged.
+
 **Latest gate result (2026-09-28)**: retry at `be9fa03` passes checks 1-6
 and vet. The saved failure record confirms `resource-timeout before:
 /opt/homebrew/bin/go build ./cmd/tpatch`: the build never starts because its
@@ -78,13 +86,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — September 28 build admission timed out; build/tests never started
+- **Status**: Blocked — September 29 resource probe stayed at 78-79% free; no validation started
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+September 29 resource admission did not qualify despite the operator's resource
+release. Memory alone remained below threshold throughout ten minutes; load
+and active-process conditions were acceptable. No code/test/guard change and no
+new Go invocation occurred. Latest exact-checkpoint native CI is green, while
+the complete local mechanical close remains outstanding.
+
+### Earlier September 28 gate result (historical)
 
 September 28's full retry at `be9fa03` stopped at the build admission gate.
 Formatting and vet passed, but the resource wrapper could not admit the build
@@ -219,6 +235,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 29 resource-only probe: exit 75 after 600 seconds at 78-79% free,
+  load1 <=5/no active Go tools. No Go/formatting/build/test command started.
+  Native `36405089424` is completed SUCCESS on unchanged `009ee45`.
+
 - September 28 full retry: checks 1-6 and vet PASS; build admission times out
   after 600 seconds. Persisted reason names `go build ./cmd/tpatch` before
   execution; failure sentinel prevents later commands. Make exit 2, no compiler
@@ -301,10 +321,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Confirmed resource admission blocks the build stage; the build and test
-partition did not start in this attempt. No content/review/targeted-test
-failure remains. A new qualifying resource window and full gate completion
-are required; no #13 decision is reopened or implementation dispatched.
+Latest resource admission is blocked by 78-79% free memory, below the required
+80%. No content/review/targeted-test failure remains. A new qualifying resource
+window and full gate completion are required; no #13 decision is reopened or
+implementation dispatched.
 
 ## Context for Next Agent
 

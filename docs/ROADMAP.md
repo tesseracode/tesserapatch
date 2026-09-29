@@ -1446,6 +1446,11 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 29 resource check**: the ten-minute operator-requested probe stayed
+at 78-79% free memory with acceptable load and no Go tools. Exit 75 before any
+Go validation command. Native `36405089424` is green at unchanged `009ee45`;
+local closure still awaits a qualifying resource window, without policy changes.
+
 **September 28 native result**: run `36394494062` completes SUCCESS at the
 exact gate-retry checkpoint `be9fa03`, all five required jobs passing. The
 local build-admission timeout remains the mechanical-close blocker; no further
