@@ -1,3 +1,24 @@
+## Second-Shard Admission Stop — research/planning — 2026-09-30
+
+**Checkpoint**: `c358632522876f4ea070f1daddd80fb4e0186c2d`
+**Result**: checks 1-7 and invocation 1 PASS; invocation 2 not admitted
+
+The persisted failure record names
+`go test -p=1 ./internal/cli -count=1 -timeout 40m -run ^TestS7ARRev(11|12|13|14|15).*$`
+as the command that did not start after a 600-second admission timeout.
+The unchanged serial script reached its second command, so the first completed
+successfully. No test assertion failure occurred and no remaining shard ran.
+
+Timeout samples show about 83% free memory and load1 below 5, but active Go/test
+processes kept resetting the no-active-Go minute. Memory recovery alone cannot
+satisfy this condition. The Makefile only prints the final forty captured lines;
+no unavailable per-package timing is invented for the passing first invocation.
+
+**Action**: retain the failure markers, stop automatic local retries, and record
+the partial result without crediting a full gate. Native run `36741650041` has
+four successful jobs and macOS pending; preserve it before a tracking-only push.
+No process termination, source/guard/contract change or #13 implementation.
+
 ## Final-Gate Retry — research/planning close — 2026-09-30
 
 **Checkpoint**: `c860cbcba384a7684344d89b6fc673f67ce2dd4d`

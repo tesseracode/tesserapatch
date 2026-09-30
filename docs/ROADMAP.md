@@ -1446,6 +1446,12 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 30 gate result**: `c358632` passes checks 1-7 and the first test
+invocation. The second shard's admission times out after 600 seconds of active
+Go/test processes; timeout samples show ~83% free memory and load within limits.
+No test assertion fails, but 1/22 invocations is not a complete partition.
+Native run `36741650041` is preserved until completion before the tracking push.
+
 **September 30 retry**: operator freed more resources. Clean/native-green
 `c860cbc` starts at 84% free, load1 5.43 and no Go tools. The complete gate
 waits for the unchanged full per-command resource window; no partial results

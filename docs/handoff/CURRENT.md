@@ -9,6 +9,18 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Latest gate result (2026-09-30)**: at `c358632`, checks 1-7 and the first
+CI-equivalent test invocation passed. Admission for invocation 2
+(`TestS7ARRev(11|12|13|14|15)`) timed out after 600 seconds. The persisted
+failure reason identifies that command before execution; no test assertion
+failed and the remaining twenty-one invocations did not run.
+
+Reported timeout samples show about 83% free memory and acceptable load, but
+active Go/test processes repeatedly reset the required quiet minute. Stop
+automatic local retries and preserve the failure markers. Native run
+`36741650041` has four successful jobs and macOS still running; preserve it
+before pushing tracking-only results. A complete gate pass is still owed.
+
 **Final-gate retry authorized (2026-09-30)**: the operator freed additional
 resources. HEAD/origin are `c860cbc`, the tree is clean, and native run
 `36538702068` completed SUCCESS at that checkpoint. Initial memory is 84%
@@ -94,13 +106,26 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Approved — September 30 full-gate retry; fresh resource windows required
+- **Status**: Blocked — first shard passed; second-shard resource admission timed out
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+September 30's retry progressed through formatting/vet/build and the first
+whole-package shard. The next isolated CLI shard was never admitted: active
+Go/test processes prevented the required continuous no-Go window despite free
+memory and load meeting their thresholds in the reported timeout samples.
+The complete partition is not credited from this partial pass.
+
+Source and accepted planning are unchanged. Keep the exact failure record;
+do not kill unowned processes or weaken admission. Let native CI finish before
+the blocked-state push, and await a new operator resource retry for the entire
+mechanical gate.
+
+### September 30 retry preparation (historical)
 
 September 30's authorized retry starts on clean, native-green `c860cbc`.
 Memory has recovered to 84%, but load must also settle below the existing
@@ -251,6 +276,13 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 30 gate: checks **1-7 PASS**, first test invocation PASS; resource
+  admission for `TestS7ARRev(11|12|13|14|15)` (invocation 2 of 22) times out
+  before command execution. Persisted `resource-timeout before` proves the
+  stop is admission, not an assertion failure. Make exit 2; no complete gate.
+- Native `36741650041` remains in progress at exact checkpoint `c358632`
+  with four jobs passing and macOS pending.
+
 - September 30 retry: initial 84%-free/load1 5.43/no-Go snapshot; no qualifying
   minute or local result claimed yet. Native `36538702068` is completed green
   on unchanged `c860cbc`. Full local gate is being restarted.
@@ -325,8 +357,8 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Native run `36394494062` is complete and green. Keep the owned
-   `failed`/`failure-reason` markers until a new operator resource retry.
+1. Preserve native run `36741650041` until completion before the tracking-only
+   push. Keep owned `failed`/`failure-reason` until a new operator resource retry.
 2. On a new operator resource retry, clear only those owned markers and run
    the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
@@ -341,9 +373,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-No content/review/targeted-test failure remains. The authorized September 30
-retry still requires a continuous qualifying resource window before each Go
-command and successful full-gate completion. No #13 decision is reopened or
+Active Go/test processes blocked second-shard admission after the first shard
+passed. No content/review or test assertion failure remains. A full quiet resource
+window and complete gate retry are required; no #13 decision is reopened or
 implementation dispatched.
 
 ## Context for Next Agent
