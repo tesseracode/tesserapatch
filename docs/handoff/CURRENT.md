@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Final-gate retry authorized (2026-09-30)**: the operator freed additional
+resources. HEAD/origin are `c860cbc`, the tree is clean, and native run
+`36538702068` completed SUCCESS at that checkpoint. Initial memory is 84%
+free and no Go tools are active; load1 5.43 is above the limit. The complete
+gate will wait for each fresh 60-second qualifying window, never treating the
+memory-only improvement as admission. Clear only the owned failure markers;
+no source, test, accepted-plan or resource-policy change.
+
 **Latest resource check (2026-09-29)**: the operator freed resources and
 requested admission. HEAD/origin remain `009ee45`, the tree is clean and
 native run `36405089424` is green. The full 600-second probe stayed at
@@ -86,13 +94,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — September 29 resource probe stayed at 78-79% free; no validation started
+- **Status**: Approved — September 30 full-gate retry; fresh resource windows required
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+September 30's authorized retry starts on clean, native-green `c860cbc`.
+Memory has recovered to 84%, but load must also settle below the existing
+limit for a continuous minute with no active Go tools. Run the entire gate,
+including its own fresh test partition; preserve first-failure stop and
+failure-kind recording. No previous partial gate is substituted.
+
+### September 29 resource result (historical)
 
 September 29 resource admission did not qualify despite the operator's resource
 release. Memory alone remained below threshold throughout ten minutes; load
@@ -235,6 +251,10 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- September 30 retry: initial 84%-free/load1 5.43/no-Go snapshot; no qualifying
+  minute or local result claimed yet. Native `36538702068` is completed green
+  on unchanged `c860cbc`. Full local gate is being restarted.
+
 - September 29 resource-only probe: exit 75 after 600 seconds at 78-79% free,
   load1 <=5/no active Go tools. No Go/formatting/build/test command started.
   Native `36405089424` is completed SUCCESS on unchanged `009ee45`.
@@ -321,9 +341,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Blockers
 
-Latest resource admission is blocked by 78-79% free memory, below the required
-80%. No content/review/targeted-test failure remains. A new qualifying resource
-window and full gate completion are required; no #13 decision is reopened or
+No content/review/targeted-test failure remains. The authorized September 30
+retry still requires a continuous qualifying resource window before each Go
+command and successful full-gate completion. No #13 decision is reopened or
 implementation dispatched.
 
 ## Context for Next Agent

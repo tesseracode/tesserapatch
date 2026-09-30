@@ -1446,6 +1446,11 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 30 retry**: operator freed more resources. Clean/native-green
+`c860cbc` starts at 84% free, load1 5.43 and no Go tools. The complete gate
+waits for the unchanged full per-command resource window; no partial results
+or memory-only snapshots count as admission. No source/contract change.
+
 **September 29 resource check**: the ten-minute operator-requested probe stayed
 at 78-79% free memory with acceptable load and no Go tools. Exit 75 before any
 Go validation command. Native `36405089424` is green at unchanged `009ee45`;

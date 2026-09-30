@@ -1,3 +1,19 @@
+## Final-Gate Retry — research/planning close — 2026-09-30
+
+**Checkpoint**: `c860cbcba384a7684344d89b6fc673f67ce2dd4d`
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**State**: operator-authorized complete retry
+
+HEAD/origin match and the tree is clean. Native run `36538702068` is green.
+Initial free memory is 84%, with no active Go tools, but load1 is 5.43.
+Every command must wait for >=80% free, load1 <=5 and no Go tools continuously
+for 60 seconds; no condition or timeout is relaxed.
+
+**Action**: verify helper controls, clear only owned failure markers, checkpoint/
+push retry tracking, and run the full explicit-base mechanical gate. Preserve
+serial execution, first-failure stop and persisted failure classification.
+No source/test/accepted-planning change or #13 implementation dispatch.
+
 ## Resource Check — research/planning close — 2026-09-29
 
 **Checkpoint**: `009ee45ca762399cc8a27bfff620064302dd2fc6`
