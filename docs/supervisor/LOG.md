@@ -1,3 +1,19 @@
+## Native Checkpoint PASS — research/planning — 2026-09-30
+
+**Run**: [36741650041](https://github.com/tesseracode/tesserapatch/actions/runs/36741650041)
+**Checkpoint**: `c358632522876f4ea070f1daddd80fb4e0186c2d`
+**Result**: SUCCESS — all five required jobs pass; release skipped
+
+The hosted run completed without cancellation on the exact retry checkpoint.
+Required-job success is distinct from the existing Windows full-suite allowed-
+failure surface. No source or accepted planning change followed validation.
+
+**Action**: push blocked-state tracking, remove only the completed watcher log,
+and retain the owned failure markers. Local checks 1-7 and the first shard pass;
+the second shard was not admitted due to active Go/test processes. Native
+success does not complete the requested local mechanical gate. No automatic
+retry, process termination or #13 implementation dispatch.
+
 ## Second-Shard Admission Stop — research/planning — 2026-09-30
 
 **Checkpoint**: `c358632522876f4ea070f1daddd80fb4e0186c2d`

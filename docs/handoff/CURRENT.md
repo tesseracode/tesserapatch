@@ -18,8 +18,10 @@ failed and the remaining twenty-one invocations did not run.
 Reported timeout samples show about 83% free memory and acceptable load, but
 active Go/test processes repeatedly reset the required quiet minute. Stop
 automatic local retries and preserve the failure markers. Native run
-`36741650041` has four successful jobs and macOS still running; preserve it
-before pushing tracking-only results. A complete gate pass is still owed.
+`36741650041` now completed SUCCESS at the exact `c358632` checkpoint: all
+five required jobs passed and release was skipped. It finished without
+cancellation, so the blocked-state record can be pushed. A complete local
+gate pass is still owed; hosted success is not substituted for it.
 
 **Final-gate retry authorized (2026-09-30)**: the operator freed additional
 resources. HEAD/origin are `c860cbc`, the tree is clean, and native run
@@ -121,9 +123,9 @@ memory and load meeting their thresholds in the reported timeout samples.
 The complete partition is not credited from this partial pass.
 
 Source and accepted planning are unchanged. Keep the exact failure record;
-do not kill unowned processes or weaken admission. Let native CI finish before
-the blocked-state push, and await a new operator resource retry for the entire
-mechanical gate.
+do not kill unowned processes or weaken admission. Native CI now passes on the
+same checkpoint; push blocked-state tracking and await a new operator resource
+retry for the entire mechanical gate.
 
 ### September 30 retry preparation (historical)
 
@@ -280,8 +282,9 @@ absent C. No authentication, automatic repair or operation-domain expansion.
   admission for `TestS7ARRev(11|12|13|14|15)` (invocation 2 of 22) times out
   before command execution. Persisted `resource-timeout before` proves the
   stop is admission, not an assertion failure. Make exit 2; no complete gate.
-- Native `36741650041` remains in progress at exact checkpoint `c358632`
-  with four jobs passing and macOS pending.
+- Native `36741650041` PASS at exact checkpoint `c358632`: all five required
+  jobs succeeded and release was skipped. This is complete native evidence,
+  not a claim that the local 1/22 partition attempt completed.
 
 - September 30 retry: initial 84%-free/load1 5.43/no-Go snapshot; no qualifying
   minute or local result claimed yet. Native `36538702068` is completed green
@@ -357,8 +360,8 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Preserve native run `36741650041` until completion before the tracking-only
-   push. Keep owned `failed`/`failure-reason` until a new operator resource retry.
+1. Native run `36741650041` is complete and green. Keep the owned
+   `failed`/`failure-reason` until a new operator resource retry.
 2. On a new operator resource retry, clear only those owned markers and run
    the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,

@@ -1446,6 +1446,11 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**September 30 native result**: run `36741650041` completes SUCCESS at exact
+gate-retry checkpoint `c358632`, all five required jobs passing. The local
+second-shard admission timeout remains the only mechanical-close blocker;
+no automatic retry or runtime implementation is running.
+
 **September 30 gate result**: `c358632` passes checks 1-7 and the first test
 invocation. The second shard's admission times out after 600 seconds of active
 Go/test processes; timeout samples show ~83% free memory and load within limits.
