@@ -1526,6 +1526,10 @@ hook. Extend its existing nil-in-production proof, not just its allowlist, with
 assignment/escape/initializer/signature rejection controls; then rerun. This
 larger workload peaked near 8.37 GiB sampled RSS on the current 32 GiB Mac,
 so the AP-only figure is not a full-suite resource estimate.
+AQ guard correction `6984043` is implemented, but its targeted rerun was blocked
+before formatting by 600 seconds at 77-78% admission metric (load within limit,
+no Go tools). Do not claim validation or relax the original local 80% policy
+without operator authorization. No automatic retry; full acceptance remains open.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

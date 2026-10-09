@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — AP PASS; correcting AQ nil-hook proof after full-suite feedback
+- **Status**: Blocked — AP PASS; AQ guard fix awaits local resource admission and full validation
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -202,6 +202,10 @@ in production before classifying it; it retains exact call inventory and all
 forbidden-gate controls. New negative fixtures reject activated/escaped/mistyped
 hooks. The first-shard peak was about 8.37 GiB RSS sum, much higher than AP-only,
 with normal pressure and no swap on this 32 GiB host.
+The guard correction is committed at `6984043`, but its validation exhausted
+600 seconds before formatting: 289 samples at 77-78%, load1 1.66-4.24, no Go
+tools. No command ran; no corrected-guard pass is claimed. Preserve
+`fixture-aq-guard-20261009`; no automatic retry or local threshold relaxation.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
@@ -236,8 +240,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Validate the AQ nil-hook proof and its negative fixtures under original 80%
-   admission, then restart the full local 22-command partition.
+1. Wait for an operator-approved resource retry, then validate the AQ nil-hook
+   proof and negative fixtures under original 80% admission before restarting
+   the full local 22-command partition. No local 75% exception is assumed.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -248,7 +253,9 @@ This diagnostic success is not a validation pass or threshold approval.
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
-Full local partition and new-source hosted confirmation remain outstanding.
+The AQ guard integration correction is unvalidated because original-policy
+admission timed out. Full local partition and new-source hosted confirmation
+remain outstanding. No validation is currently running locally or on the old Mac.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

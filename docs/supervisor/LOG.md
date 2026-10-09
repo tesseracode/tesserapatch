@@ -1,3 +1,20 @@
+## Admission Block — targeted AQ guard integration — 2026-10-09
+
+The focused validation attempt at `6984043` exhausted the unchanged 600-second
+original-policy admission budget before formatting. Its 289 samples recorded
+77-78% admission metric, load1 1.66-4.24 and no Go tools; no continuous 80%
+window occurred. Exit 75; zero validation commands ran. This is not evidence
+that the new guard correction passes or fails. Formatting was applied as an edit,
+but validation remains outstanding.
+
+**Action**: preserve the blocked run at
+`bin/resource-baseline/fixture-aq-guard-20261009`, stop automatic retries and
+record the pending guard/full-suite work. Do not quietly extend the older-Mac
+75% experiment to general local validation. The deterministic fixture's prior
+targeted and older-Mac AP passes remain valid; the full task is not accepted.
+Native `37892216801` at `2156ae8` still runs, so newer local commits remain
+unpublished pending its completion rather than cancelling it.
+
 ## Full-Suite Feedback — capture-hook proof missing in AQ guard — 2026-10-09
 
 The first full-partition command at `c360dc9` failed two AQ checks (PIB-484 and
