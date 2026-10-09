@@ -1489,6 +1489,13 @@ Native CI `37884132310` is green; the earlier failed pilot remains recorded.
 Eighteen non-Go profiler controls pass; AP-only replay is dispatched with copied
 prior caches and a private byte-preserving nested-output tee. Source, selectors
 and timeouts remain unchanged. No follow-up success is claimed until it finishes.
+The quieter AP follow-up reproduced the same timeout with normal pressure and
+zero swap. Its PATH-only diagnostic tee was bypassed by Go's GOROOT/bin prepend;
+this limitation is recorded explicitly. Nineteen non-Go controls now cover a
+corrected `-exec` transport bootstrap and fail-closed capture verification.
+Finish the diagnostic objective with a 900-second corrected attempt; combined
+admission/execution budgets stay below the originally bounded 30 minutes.
+No assertion/timeout change or permanent threshold decision.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

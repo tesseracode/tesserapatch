@@ -16,7 +16,7 @@ attribution. No permanent threshold change or GH #13 implementation is authorize
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate and repeat the unchanged AP observer with preserved diagnostics
-- **Status**: In progress — one bounded AP-only diagnostic follow-up dispatched
+- **Status**: In progress — AP repeat failed; correcting bypassed diagnostics within remaining budget
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -101,6 +101,16 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
 - A private byte-preserving tee will retain nested overlay-test stdout, including
   timeout diagnostics currently omitted from the observer's final error.
   No source, selector, assertion or test-timeout change is authorized.
+- AP repeat reproduced the inner timeout despite quieter background activity.
+  All 298 samples show normal pressure/zero swap; max owned RSS sum about
+  1.70 GiB. Nested CLI used about 399 CPU-seconds over 478 sampled seconds.
+- Its nested-output capture failed: Go prepends GOROOT/bin to the test PATH,
+  bypassing the tee. Empty capture is recorded explicitly, not treated as success.
+- Corrected instrumentation adds top-level `-exec` only to restore the tee PATH,
+  preserving the test binary arguments. Capture must include a nested AP run
+  event or the diagnostic run is explicitly incomplete. One corrected attempt
+  is capped at 900 seconds; combined with the prior ~623 seconds, workload
+  remains within the original 1800-second diagnostic allowance.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
 - Capture continuous measurements and durable summaries in the new experiment;
   distinguish sampled RSS sums from exact physical footprint/high-water marks.
@@ -120,6 +130,10 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   non-identifying pilot measurements and the failing observer diagnostic.
 - `scripts/profile-go-output.py`: private byte-preserving capture of nested
   observer stdout; all other Go commands are exec pass-through.
+- `scripts/profile-test-exec.py`: transport bootstrap correcting Go's PATH
+  rewrite, with a negative regression fixture and mandatory capture validation.
+- `older-mac-ap-followup.json` beside the other aggregate reports: repeated
+  timeout, resource measurements and explicit missing-diagnostic disclosure.
 
 ## Test Results
 
@@ -145,22 +159,26 @@ hosts. This is neither full-suite coverage nor a passing lower-threshold result.
 Eighteen non-Go profiler controls now pass after adding AP-only command parity,
 isolated cache-copy provenance and failure-sensitive byte/exit-status capture.
 Source and all Go test assertions/timeouts remain unchanged.
-The AP diagnostic follow-up is dispatched; no new result is claimed yet.
+The AP diagnostic follow-up failed with the same timeout. Its resource samples
+are retained, but nested output was not captured. Nineteen profiler controls
+pass after modeling the actual Go PATH rewrite and requiring captured AP events.
+No real Go validation has yet exercised the corrected bootstrap.
 
 ## Next Steps
 
-1. Await the one authorized AP-only repeat through the same admission safeguards.
-   Preserve nested JSON/timeout stacks, process telemetry and stage logs privately.
+1. Complete the diagnostic objective with the corrected capture, using only
+   900 seconds of additional workload budget and the same admission safeguards.
+   Preserve nested JSON/timeout stacks, telemetry and stage logs privately.
 2. Inspect nested test events/timeout stacks and compare measured conditions.
    Native run `37884132310` completed SUCCESS; pending records may be pushed.
 3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
-The original 80% attempt could not start. The 75% pilot executed but AP timed out.
-Memory pressure remained normal in the samples, with no swapping; the cause of
-the timeout remains unresolved. The operator authorized one diagnostic follow-up,
-not a permanent 75% rule or test-timeout change.
+The original 80% attempt could not start. Both 75% observer runs timed out,
+including the quieter follow-up. Memory pressure stayed normal without swap.
+The follow-up's PATH-only diagnostic hook was bypassed; its correction is ready.
+The precise hotspot remains unproven. No permanent 75% rule or test change.
 
 ## Context for Next Agent
 
@@ -184,3 +202,6 @@ not a permanent 75% rule or test-timeout change.
   `profile-validation-ap.py` plus `profile-go-output.py`. The prior run's caches
   are copied, not reused in place; copied-cache and tee differences must remain
   explicit when comparing outcomes. Mirror its child-output directory locally.
+- Corrected output: `older-mac-ap-capture-20261008`; never overwrite the failed
+  follow-up's empty capture or old telemetry. Bootstrap adds `-exec` transport
+  to the outer Go command only; inner test budgets and assertions are unchanged.

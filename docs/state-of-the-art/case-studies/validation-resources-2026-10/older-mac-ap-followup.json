@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "experiment": "older-mac-ap-followup-20261008",
+  "status": "validation-failed",
+  "diagnostic_status": "nested-output-capture-missing",
+  "source_head": "d3454edb72c37bacae9159481cc2e6cd69559459",
+  "toolchain": "go1.26.5",
+  "profile": "ap-observer",
+  "profiler_sha256": "20aaf4c7147009b96b50c3ee9326ff8392317a8a0a7b3177bd3189d116b37d80",
+  "cache_source_run": "older-mac-75-20261008",
+  "cache_source_summary_sha256": "33e58e8ea917fefb3dcbdd7d9a31e82f536cc09b101beeeb3fd0d5f841bc08ca",
+  "policy": {
+    "admission_free_percent_min": 75,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_admission_wait_seconds": 600,
+    "overall_workload_budget_seconds": 1800
+  },
+  "observation": {
+    "first_utc": "2026-10-09T06:11:04.585795+00:00",
+    "last_utc": "2026-10-09T06:21:25.383488+00:00",
+    "sample_count": 298,
+    "sample_span_seconds": 620.838,
+    "sample_gap_max_seconds": 2.171287,
+    "normal_pressure_samples": 298,
+    "swap_used_bytes_max": 0,
+    "swapout_delta_pages": 0,
+    "admission_free_percent_min": 78,
+    "admission_free_percent_max": 78,
+    "execution_free_percent_min": 76,
+    "execution_free_percent_max": 78,
+    "load1_min": 1.49,
+    "load1_max": 3.62,
+    "sampled_peak_owned_rss_sum_bytes": 1829474304,
+    "sampled_peak_owned_process_count": 7,
+    "sampled_peak_go_process_count": 5,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "result": {
+    "stage": "08-shard-15",
+    "exit_code": 1,
+    "real_seconds": 561.62,
+    "admission_wait_seconds": 61.259719281,
+    "measured_execution_seconds": 561.773056036,
+    "time_reported_max_rss_bytes": 1649274880,
+    "diagnostic": "observed registration missing out-of-band markers (timed out)",
+    "incomplete_case": "TestS7APDryRunContracts/PIB-464",
+    "existing_inner_test_budget_seconds": 480,
+    "existing_outer_observer_budget_seconds": 720,
+    "sampled_nested_cli_duration_seconds": 477.9,
+    "sampled_nested_cli_cpu_seconds": 399.2,
+    "captured_nested_output_files": 0
+  },
+  "retained_evidence": {
+    "relative_directory_on_both_hosts": "bin/resource-baseline/older-mac-ap-followup-20261008",
+    "summary_sha256": "fed5f13d1d0bce4dbf38eeedb5d50466b11450893e879b91e114662e98515429",
+    "samples_sha256": "edc83c71276ee82c0afb49246a5af060689b4e3d5f93beb07bcc2209c09fc422",
+    "stage_log_sha256": "84bc6ca4a0961f952643b4c179d1fbb06c4b7c38ec285f3e25084d32157a0a8d"
+  },
+  "findings": [
+    "The AP observer reproduced the same inner timeout under substantially quieter background conditions, with sampled normal pressure and zero swap.",
+    "Sustained nested CLI CPU activity argues against an entirely idle wait; the incomplete case initializes shared contract evidence, but the precise hotspot is not yet proven.",
+    "The PATH-only diagnostic wrapper was bypassed because Go 1.26.5 prepends GOROOT/bin to the test environment (cmd/go/internal/test/test.go:92-94,1665-1668).",
+    "The repeated test failure and telemetry are valid evidence, but no nested stack trace was captured; diagnostic collection was incomplete.",
+    "Copied caches, instrumentation and sampled RSS have known comparison limitations. This is not proof of safe operation at exactly 75% or full-suite success."
+  ]
+}

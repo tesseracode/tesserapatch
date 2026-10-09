@@ -287,12 +287,32 @@ def capture_child_output(destination, toolchain, env):
     wrapper = wrapper_dir / "go"
     wrapper.write_bytes(body)
     wrapper.chmod(0o700)
+    exec_body = Path(__file__).with_name("profile-test-exec.py").read_bytes()
+    test_exec = wrapper_dir / "test-exec"
+    test_exec.write_bytes(exec_body)
+    test_exec.chmod(0o700)
     env.update({
         "PATH": str(wrapper_dir) + os.pathsep + env["PATH"],
         "TPATCH_PROFILE_REAL_GO": str(toolchain / "bin/go"),
         "TPATCH_PROFILE_CHILD_OUTPUT_DIR": str(output_dir),
     })
-    return hashlib.sha256(body).hexdigest()
+    return {
+        "child_output_capture_sha256": hashlib.sha256(body).hexdigest(),
+        "test_exec_capture_sha256": hashlib.sha256(exec_body).hexdigest(),
+    }
+
+
+def verify_child_output(destination):
+    paths = sorted((destination / "child-output").glob("*.jsonl"))
+    for path in paths:
+        with path.open() as stream:
+            for line in stream:
+                event = json.loads(line)
+                if (event.get("Action") == "run"
+                        and event.get("Package") == "github.com/tesseracode/tesserapatch/internal/cli"
+                        and event.get("Test") == "TestS7APDryRunContracts"):
+                    return [p.name for p in paths]
+    raise RuntimeError("nested observer output was not captured; diagnostic run is incomplete")
 
 
 def stop_owned(process, known=()):
@@ -446,9 +466,11 @@ def main():
     cache_info = {"initial_cache": "new isolated empty build/module caches; no global cache was cleared"}
     if args.cache_from is not None:
         cache_info = seed_cache(args.cache_from, destination, head, version)
-    capture_digest = None
+    capture_info = {}
     if args.profile == "ap-observer":
-        capture_digest = capture_child_output(destination, toolchain, env)
+        capture_info = capture_child_output(destination, toolchain, env)
+        stages = [(name, cmd[:2] + ["-exec", str(destination / "wrappers/test-exec")] + cmd[2:])
+                  for name, cmd in stages]
     summary = {
         "status": "running", "head": head, "profiler_pid": os.getpid(),
         "toolchain_version_file": version,
@@ -457,7 +479,7 @@ def main():
         "shard_script_sha256": hashlib.sha256((repo / "scripts/wave-close-test-shards.sh").read_bytes()).hexdigest(),
         "profiler_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         **cache_info,
-        "child_output_capture_sha256": capture_digest,
+        **capture_info,
         "profile": args.profile,
         "planned_stages": [name for name, _ in stages],
         "max_workload_seconds": args.max_seconds,
@@ -482,6 +504,7 @@ def main():
             "Pilot covers only its five selected stages; budget exhaustion is not a test assertion failure.",
             "AP-only profile is diagnostic; a partial run cannot certify the whole suite.",
             "AP child-output tee preserves bytes/arguments but adds instrumentation overhead.",
+            "AP top-level go test adds -exec solely to restore the capture PATH; test binary arguments are unchanged.",
             "Cache state must be considered when comparing timing between runs.",
             "Raw child test output may contain generated paths and tokens; retain it privately.",
         ],
@@ -506,6 +529,9 @@ def main():
                 result["admission_wait_seconds"] = waited
                 summary["results"].append(result)
                 save()
+                if args.profile == "ap-observer":
+                    summary["captured_child_output_files"] = verify_child_output(destination)
+                    save()
                 if result["exit_code"] or not result.get("formatted", True):
                     summary["status"] = "validation-failed"
                     return 1

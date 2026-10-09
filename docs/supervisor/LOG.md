@@ -1,3 +1,35 @@
+## AP Repeat Result and Diagnostic Correction — 2026-10-08
+
+The unchanged observer reproduced its inner timeout under quieter conditions:
+561.62s command time, with nested CLI active about 478s and consuming about
+399 CPU-seconds. All 298 samples show normal OS pressure and zero swap, load1
+1.49-3.62, and an owned RSS sum peaking around 1.70 GiB. No external Go workload
+or surviving Go process was found. The same PIB-464 case remained incomplete.
+Raw evidence matches on both hosts; the public aggregate is
+`docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-ap-followup.json`.
+
+**Instrumentation defect**: the child-output directory is empty. Go 1.26.5
+prepends GOROOT/bin before running test binaries
+(`cmd/go/internal/test/test.go:92-94,1665-1668`), bypassing the PATH-only tee.
+This does not invalidate the failure/resource measurements, but it invalidates
+any claim that the follow-up captured a nested stack. The prior fake-Go controls
+did not model that PATH rewrite.
+
+Correct the profiler with a top-level `go test -exec` bootstrap that restores
+the tee PATH then execs the unchanged test binary/arguments. Add a fail-closed
+capture check requiring a real nested AP run event. A negative control now
+reproduces the GOROOT/bin bypass and proves that the corrected bootstrap,
+byte/exit forwarding and capture check detect it. Nineteen non-Go controls pass.
+No Go test source, selector, assertion or timeout changed.
+
+The authorized diagnostic objective remains incomplete, so finish with one
+corrected capture attempt capped at **900 seconds**, including admission.
+The prior attempt used about 623 seconds of admission/execution; combined
+workload budgets remain below the original 1800-second allowance. Copy its
+isolated caches to a new run; preserve all failed records. The added `-exec`
+transport is explicit instrumentation, not an unchanged-command claim.
+No automatic retry follows this corrected attempt.
+
 ## AP Diagnostic Dispatch — 2026-10-08
 
 Eighteen non-Go profiler controls pass. New controls verify AP-only command

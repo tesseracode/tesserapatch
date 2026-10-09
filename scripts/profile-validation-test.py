@@ -293,6 +293,46 @@ class TelemetryTests(unittest.TestCase):
             self.assertEqual(result.stdout, b"build\n./...\n")
             self.assertEqual(list((root / "child-output").iterdir()), [])
 
+    def test_exec_hook_restores_capture_after_go_test_reorders_path(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            root = Path(directory)
+            toolchain = root / "toolchain"
+            (toolchain / "bin").mkdir(parents=True)
+            fake = toolchain / "bin/go"
+            event = {
+                "Action": "run", "Package": "github.com/tesseracode/tesserapatch/internal/cli",
+                "Test": "TestS7APDryRunContracts",
+            }
+            payload = json.dumps(event) + "\n"
+            fake.write_text("#!" + profiler.sys.executable + "\nimport sys\n"
+                            "sys.stdout.write(" + repr(payload) + ")\nsys.exit(7)\n")
+            fake.chmod(0o700)
+            binary = root / "test-binary"
+            binary.write_text(
+                "#!" + profiler.sys.executable + "\nimport subprocess,sys\n"
+                "assert sys.argv[1:] == ['-test.run=unchanged','-test.timeout=8m']\n"
+                "sys.exit(subprocess.call(['go','test','-json','-overlay=fixture']))\n")
+            binary.chmod(0o700)
+            env = dict(os.environ)
+            profiler.capture_child_output(root, toolchain, env)
+            env["PATH"] = str(toolchain / "bin") + os.pathsep + env["PATH"]
+            argv = [str(binary), "-test.run=unchanged", "-test.timeout=8m"]
+            bypassed = profiler.subprocess.run(argv, env=env, capture_output=True, timeout=10)
+            self.assertEqual(bypassed.returncode, 7)
+            self.assertEqual(bypassed.stdout, payload.encode())
+            with self.assertRaisesRegex(RuntimeError, "not captured"):
+                profiler.verify_child_output(root)
+            captured = profiler.subprocess.run([str(root / "wrappers/test-exec")] + argv,
+                                               env=env, capture_output=True, timeout=10)
+            self.assertEqual(captured.returncode, 7)
+            self.assertEqual(captured.stdout, bypassed.stdout)
+            self.assertEqual(len(profiler.verify_child_output(root)), 1)
+            # Nonempty unrelated output must not satisfy the capture requirement.
+            for log in (root / "child-output").glob("*.jsonl"):
+                log.write_text('{"Action":"start","Package":"other"}\n')
+            with self.assertRaisesRegex(RuntimeError, "not captured"):
+                profiler.verify_child_output(root)
+
     def test_cleanup_includes_child_in_a_separate_session(self):
         with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
             pid_file = Path(directory) / "child.pid"
