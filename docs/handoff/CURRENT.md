@@ -9,6 +9,14 @@ ADR-037/companion PRD rev-7 are accepted **planning**, with independent
 `gpt-5.4` review reporting no significant issues through `0b0852b`.
 All semantic review findings are closed; no runtime implementation is authorized.
 
+**Five-minute admission watch qualified (2026-10-08)**: the operator requested
+up to five minutes to obtain the full quiet minute, then testing. HEAD/origin
+remain `ec0e5ee`, the tree is clean, and native run `36747949103` is green.
+Memory stayed at 87-88%; load1 fell from 11.56 to below 5. With no active Go
+tools, the watch qualified 60 continuous healthy seconds after about 136 seconds.
+The full final gate now restarts from the beginning; each internal Go command
+still needs its own fresh qualifying window. No source/test/plan/policy change.
+
 **Latest gate result (2026-09-30)**: at `c358632`, checks 1-7 and the first
 CI-equivalent test invocation passed. Admission for invocation 2
 (`TestS7ARRev(11|12|13|14|15)`) timed out after 600 seconds. The persisted
@@ -108,13 +116,21 @@ to this wave. Prior release/intake/planning work is archived in [HISTORY](HISTOR
 - **Milestone**: Documentation intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 tracks the future implementation; this task is the mechanical documentation-wave close
 - **Description**: Complete resource-gated final closure without implementing proposals
-- **Status**: Blocked — first shard passed; second-shard resource admission timed out
+- **Status**: Approved — October 8 resource watch qualified; full final-gate retry executing
 - **Assigned**: 2026-09-22
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
 
 WAVE_BASE = 6e8096e03849617a240fa586b109e60f44fad69f
 
 ## Session Summary
+
+The operator's five-minute watch qualified before its deadline. Run the full
+mechanical gate on unchanged, native-green source, not just the previously
+blocked shard. Clear only the owned old failure markers, retain the resource
+wrapper's per-command checks and first-failure stop, and preserve the complete
+result. No earlier partial pass is reused.
+
+### September 30 gate result (historical)
 
 September 30's retry progressed through formatting/vet/build and the first
 whole-package shard. The next isolated CLI shard was never admitted: active
@@ -278,6 +294,11 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Test Results
 
+- October 8 resource-only watch PASS: 60 continuous seconds at >=80% free,
+  load1 <=5 and no Go tools, reached within about 136 seconds of a five-minute
+  window. Native `36747949103` is green at unchanged `ec0e5ee`. This admission
+  probe is not a test-suite pass; full gate results remain pending.
+
 - September 30 gate: checks **1-7 PASS**, first test invocation PASS; resource
   admission for `TestS7ARRev(11|12|13|14|15)` (invocation 2 of 22) times out
   before command execution. Persisted `resource-timeout before` proves the
@@ -360,26 +381,25 @@ absent C. No authentication, automatic repair or operation-domain expansion.
 
 ## Next Steps
 
-1. Native run `36741650041` is complete and green. Keep the owned
-   `failed`/`failure-reason` until a new operator resource retry.
-2. On a new operator resource retry, clear only those owned markers and run
+1. The October 8 operator admission watch qualified. Clear only the owned
+   `failed`/`failure-reason` and run
    the complete existing mechanical gate with
    this exact WAVE_BASE, behind fresh per-Go-command 60-second >=80%-free,
    load1 <=5, no-active-Go windows; stop on first failure. Recreate owned
    ignored resource wrappers if needed. Do not cancel native runs for docs-only
    tracking pushes or credit a partial gate as complete.
-3. Once the wave is durably closed, request a separate bounded #13 implementation
+2. Once the wave is durably closed, request a separate bounded #13 implementation
    assignment (start with frozen regression evidence). Do not implement now.
-4. Keep WP-004 as a separate later read-only dependency-suggestion planning
+3. Keep WP-004 as a separate later read-only dependency-suggestion planning
    proposal; GH #24 widening and #12/#14 research remain separate. Re-baseline
    #18-22 reports on v0.17 before designing fixes.
 
 ## Blockers
 
-Active Go/test processes blocked second-shard admission after the first shard
-passed. No content/review or test assertion failure remains. A full quiet resource
-window and complete gate retry are required; no #13 decision is reopened or
-implementation dispatched.
+No current content/review or admission blocker is established: October 8's
+watch qualified. The complete gate still must finish successfully and every
+subsequent Go invocation must qualify independently. No #13 decision is
+reopened or implementation dispatched.
 
 ## Context for Next Agent
 

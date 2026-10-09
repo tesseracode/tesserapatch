@@ -1,3 +1,20 @@
+## Admission Qualified and Final-Gate Retry — research/planning — 2026-10-08
+
+**Checkpoint**: `ec0e5eea26ba6d49ef01813dbb4b62ce2733c7e4`
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**Authorization**: operator requested a five-minute watch, then testing if qualified
+
+The bounded watch qualifies after about 136 seconds: memory 87-88%, load1
+settles below 5, and no active Go tools for 60 continuous seconds. The watch
+resets unhealthy/sample-gap intervals and admits no Go command itself.
+HEAD/origin match, working tree is clean, native `36747949103` is green.
+
+**Action**: clear only owned old failure markers, verify wrapper controls,
+checkpoint/push tracking and rerun the complete explicit-base mechanical gate.
+Each internal Go invocation still needs its own fresh qualifying minute; the
+five-minute probe does not waive later admission. Preserve first-failure stop.
+No source, test, accepted contract or resource-threshold change; no implementation.
+
 ## Native Checkpoint PASS — research/planning — 2026-09-30
 
 **Run**: [36741650041](https://github.com/tesseracode/tesserapatch/actions/runs/36741650041)

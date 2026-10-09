@@ -1446,6 +1446,12 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**October 8 admission/retry**: the operator's five-minute watch qualified after
+about 136 seconds, with 88% free memory, load1 below 5 and no active Go tools
+for the full minute. Source `ec0e5ee` is clean and native CI `36747949103`
+is green. The entire local gate now restarts with fresh per-command admission;
+no source/test/accepted-plan change or partial-result reuse.
+
 **September 30 native result**: run `36741650041` completes SUCCESS at exact
 gate-retry checkpoint `c358632`, all five required jobs passing. The local
 second-shard admission timeout remains the only mechanical-close blocker;
