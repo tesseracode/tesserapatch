@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "experiment": "current-mac-focused-lowheadroom-20261009",
+  "status": "focused-passed",
+  "source_head": "299841d2df83fd761eaa2345e9dc2adc0137caa7",
+  "source_equivalent_previous_experiment_head": "611522c0f09cc0fdbeb679f3c6c6f85599cd2bf5",
+  "toolchain": "go1.26.5",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "physical_cpus": 10,
+    "logical_cpus": 10
+  },
+  "comparison": {
+    "previous_experiment": "current-mac-focused-75-20261009",
+    "commands_identical": true,
+    "runner_change": "Only the evidence directory name changed.",
+    "previous_focused_command_seconds": 139.30,
+    "current_focused_command_seconds": 107.32,
+    "previous_focused_package_seconds": 128.349,
+    "current_focused_package_seconds": 105.792,
+    "previous_sampled_peak_owned_rss_sum_bytes": 3149479936,
+    "current_sampled_peak_owned_rss_sum_bytes": 3130474496,
+    "cache_state": "Existing local caches retained; cache and background workload were not controlled between runs."
+  },
+  "policy": {
+    "admission_free_percent_min": 75,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_admission_wait_seconds": 600,
+    "maximum_workload_seconds": 1800,
+    "test_package_timeout_seconds": 600
+  },
+  "observation": {
+    "preflight_free_percent": 79,
+    "sample_count": 176,
+    "first_utc": "2026-10-09T19:08:36.707836+00:00",
+    "last_utc": "2026-10-09T19:14:30.693798+00:00",
+    "sample_span_seconds": 353.985,
+    "normal_pressure_samples": 176,
+    "swap_used_bytes_max": 0,
+    "load1_min": 2.24,
+    "load1_max": 3.76,
+    "sampled_peak_owned_rss_sum_bytes": 3130474496,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "stages": [
+    {
+      "stage": "06-gofmt",
+      "exit_code": 0,
+      "real_seconds": 0.61,
+      "admission_free_percent_min": 80,
+      "admission_free_percent_max": 81,
+      "old_80_percent_rule_qualified_in_recorded_window": true
+    },
+    {
+      "stage": "fixture-targets",
+      "exit_code": 0,
+      "real_seconds": 107.32,
+      "admission_free_percent_min": 80,
+      "admission_free_percent_max": 81,
+      "execution_free_percent_min": 79,
+      "execution_free_percent_max": 81,
+      "old_80_percent_rule_qualified_in_recorded_window": true
+    },
+    {
+      "stage": "07-vet",
+      "exit_code": 0,
+      "real_seconds": 0.73,
+      "admission_free_percent_min": 79,
+      "admission_free_percent_max": 80,
+      "old_80_percent_rule_qualified_in_recorded_window": false
+    },
+    {
+      "stage": "07-build",
+      "exit_code": 0,
+      "real_seconds": 0.73,
+      "admission_free_percent_min": 79,
+      "admission_free_percent_max": 80,
+      "old_80_percent_rule_qualified_in_recorded_window": false
+    }
+  ],
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/current-mac-focused-lowheadroom-20261009",
+    "summary_sha256": "bee1c923545b783c24ce8f1c8785309be977a60cc6c96fdde72822d6eee4d980",
+    "samples_sha256": "12f5bc25520e68783b4b23c6f85482a450d43f144080a46640e575983007191c",
+    "focused_log_sha256": "20681b7edb3135ac615a60682a3e4eefcfd3980e2a2e2a0c20fc5a41a647ceda"
+  },
+  "limits": [
+    "The initial 79% snapshot rose before the focused tests: their full admission window was 80-81%, while execution later reached 79%.",
+    "The 75% rule admitted vet/build windows containing 79% that the original 80% rule would not yet admit; this does not prove the old rule would remain blocked indefinitely.",
+    "The lower-threshold exception was not needed for focused-test admission in this particular run, and no measurement reached exactly 75%.",
+    "The faster observed test time is not attributed to the threshold: caches and background workloads were not controlled.",
+    "This focused pass does not certify the full 22-command partition, whose earlier peak was approximately 8.37 GiB.",
+    "No permanent threshold change, artificial load or full local suite was introduced; the older Mac was checked for reachability only."
+  ]
+}

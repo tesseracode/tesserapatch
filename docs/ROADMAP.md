@@ -1546,6 +1546,11 @@ automatically dispatched by this bounded experiment.
 SUCCESS. The operator requested a below-80% focused comparison; current-Mac
 preflight is now 79%, so the identical bounded workload is dispatched with
 preserved prior evidence. No full local suite or permanent policy change.
+**Repeat PASS at `299841d`**: test command 107.32s, normal pressure/zero swap,
+peak sampled RSS sum about 2.92 GiB. Actual test admission rose to 80-81%, while
+execution reached 79%; only later vet/build windows needed the lower admission
+predicate within their recorded windows. No exact-75% or full-suite conclusion.
+The complete local partition and independent acceptance review remain pending.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

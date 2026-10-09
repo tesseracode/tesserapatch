@@ -1,3 +1,30 @@
+## Lower-Headroom Focused Repeat PASS — current Mac — 2026-10-09
+
+The identical four-stage workload at `299841d` passes formatting, focused
+fixture/AP/AQ and mutation controls (105.792s package / 107.32s command), vet
+and build. Commands are byte-identical to the prior focused run; runner bytes
+differ only in evidence directory. Production/test/tooling source is unchanged.
+
+Actual conditions matter: initial 79% rose to 80-81% during formatting/test
+admission, then reached 79% during test execution. Vet/build admission windows
+contained 79-80%; replay through the original 80% predicate does not qualify
+those recorded windows, while the explicit 75% predicate does. The test's own
+admission still qualifies under the original rule. No sample reaches 75%.
+All 176 samples show normal OS pressure, zero swap, load1 2.24-3.76 and no
+external Go competitor. Peak sampled owned RSS sum is about 2.92 GiB.
+
+The observed test command is faster than the earlier 139.30s pass, but caches
+and background load were not controlled; do not attribute this to the threshold.
+This establishes another healthy focused pass and limited vet/build admission
+evidence below 80%, not a full-suite or exact-75% resource-policy validation.
+Raw evidence stays private at `current-mac-focused-lowheadroom-20261009`.
+Verified public aggregate: `current-mac-focused-lowheadroom-pass.json`.
+
+**Action**: preserve and push the result. Fixed-source native `37955807665`
+already passed at `d91c204`; only tracking/report files change afterward.
+No local/older-Mac workload remains running, no full suite is dispatched and
+the permanent admission policy remains unchanged.
+
 ## Below-80% Focused Trial Dispatch — current Mac — 2026-10-09
 
 The operator requests a new resource check and the same bounded focused trial

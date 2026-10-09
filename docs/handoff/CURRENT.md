@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — identical below-80% focused trial dispatched; fixed-source CI PASS
+- **Status**: Focused repeat PASS — fixed-source CI PASS; complete local validation still outstanding
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The repeat at `299841d` passes all four identical commands. Focused CLI tests
+take 105.792s (107.32s command). The 79% preflight rose to 80-81% for test
+admission, with test execution later reaching 79%. Vet/build admit at 79-80%;
+the original 80% predicate would not qualify their recorded windows. The test
+window itself qualifies under both policies. No sample reached exactly 75%.
+All 176 samples show normal pressure/zero swap; peak sampled owned RSS sum
+about 2.92 GiB. No full-suite or permanent threshold decision follows this result.
 
 The operator requested another resource check and the focused trial if around
 75%. This Mac now reports 79%, normal pressure, zero swap and no Go tools, with
@@ -199,6 +207,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   its larger measured memory peak on the 32 GiB current Mac.
 - `current-mac-focused-75-pass.json`: validated AQ correction, selected test
   results, actual above-80% admission conditions and resource bounds.
+- `current-mac-focused-lowheadroom-pass.json`: identical-command repeat,
+  admission-window replay comparison, observed 79-81% conditions and limits.
 
 ## Test Results
 
@@ -271,9 +281,8 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the newly authorized identical focused trial at lower observed
-   headroom and compare it with the preserved above-80% run. No full suite starts.
-   Decide the full local partition's admission separately.
+1. Preserve the two completed focused comparisons; decide the full local
+   partition's admission separately. No full-suite run starts automatically.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -285,8 +294,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The complete local partition remains outstanding; the only current dispatch
-is the authorized bounded lower-headroom focused repeat on the current Mac.
+The complete local partition remains outstanding. Both current-Mac focused
+experiments are complete and passing; no validation is currently running locally
+or on the older Mac.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 
