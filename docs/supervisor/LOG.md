@@ -1,3 +1,24 @@
+## Focused Current-Mac Experiment Authorized — 2026-10-09
+
+The operator explicitly authorizes the recommended bounded 75% experiment on
+the current 32 GiB/ten-core Mac. Scope is formatting, focused fixture/AP/AQ
+guards and mutation controls, vet and build: no full-partition dispatch or
+permanent resource-policy change. Keep load1 <=5, no competing Go tools, a
+continuous 60-second window, serial settings and all test timeouts unchanged.
+Maximum workload is 1800 seconds, admission wait at most 600 seconds per command,
+with first-failure stop. Preserve previous blocked/failed/successful evidence.
+
+Preflight is now 86% on the admission metric, normal pressure, zero swap and
+no Go tools. If the run stays above 80%, it can validate the latest guard fix
+but cannot show that the 75% exception was necessary. No artificial contention
+will be introduced to manufacture lower-headroom measurements.
+
+Native run `37892216801` at older source `2156ae8` completed SUCCESS, resolving
+the previous push/cancellation blocker. It does not validate the newer fixture/
+guard changes. Record raw measurements privately at
+`bin/resource-baseline/current-mac-focused-75-20261009`; no source edit is
+required to perform this operator-authorized experiment.
+
 ## Admission Block — targeted AQ guard integration — 2026-10-09
 
 The focused validation attempt at `6984043` exhausted the unchanged 600-second

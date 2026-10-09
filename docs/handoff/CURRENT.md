@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Blocked — AP PASS; AQ guard fix awaits local resource admission and full validation
+- **Status**: In progress — authorized current-Mac focused 75% experiment dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator now authorizes a bounded 75% focused experiment on the current
+32 GiB Mac: formatting, fixture/AP/AQ checks and mutation controls, vet/build,
+with original load/process/60-second safeguards and unchanged test budgets.
+The workload cap is 30 minutes; the full 22-command partition is not dispatched.
+Preflight is 86%, so the original rule may also qualify. Record actual conditions
+and do not credit the lower threshold with a pass that occurs above 80%.
+Prior native run `37892216801` has completed SUCCESS, so it no longer blocks a
+push; this older-source CI is not proof for the latest guard correction.
 
 The operator accepted the concrete diagnostic finding and assigned its correction.
 Add a nil-by-default internal hook after a successful rooted read, before the
@@ -240,22 +249,21 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Wait for an operator-approved resource retry, then validate the AQ nil-hook
-   proof and negative fixtures under original 80% admission before restarting
-   the full local 22-command partition. No local 75% exception is assumed.
+1. Await the explicitly authorized current-Mac focused 75% experiment and
+   preserve its metrics. No full-partition run or permanent policy change.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-3. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
-   tooling push. Raw nested output and all prior failures remain private/preserved.
+3. Prior native run `37892216801` at `2156ae8` is SUCCESS; newer source still
+   needs independent full validation and hosted confirmation before acceptance.
 4. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
-The AQ guard integration correction is unvalidated because original-policy
-admission timed out. Full local partition and new-source hosted confirmation
-remain outstanding. No validation is currently running locally or on the old Mac.
+The AQ guard integration correction awaits the current focused experiment.
+Full local partition and new-source hosted confirmation remain outstanding.
+The older Mac is idle; the only dispatched local work is the bounded focused run.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

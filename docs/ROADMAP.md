@@ -1530,6 +1530,12 @@ AQ guard correction `6984043` is implemented, but its targeted rerun was blocked
 before formatting by 600 seconds at 77-78% admission metric (load within limit,
 no Go tools). Do not claim validation or relax the original local 80% policy
 without operator authorization. No automatic retry; full acceptance remains open.
+**Current-Mac focused experiment authorized**: the operator approved a bounded
+75% run of fixture/AP/AQ controls, formatting, vet and build on the 32 GiB Mac.
+All other admission conditions and test timeouts stay unchanged; no full-suite
+or permanent policy change. Preflight now reports 86%, so results must distinguish
+code validation from evidence that lower-threshold admission was necessary.
+Prior native run `37892216801` is complete; latest-source validation is pending.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
