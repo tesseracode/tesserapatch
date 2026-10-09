@@ -1551,6 +1551,11 @@ peak sampled RSS sum about 2.92 GiB. Actual test admission rose to 80-81%, while
 execution reached 79%; only later vet/build windows needed the lower admission
 predicate within their recorded windows. No exact-75% or full-suite conclusion.
 The complete local partition and independent acceptance review remain pending.
+**Full monitored partition authorized**: run all twenty-two unchanged commands
+on the current Mac under original 80%/load<=5/no-Go/60-second admission, stopping
+at the first failure or 600-second admission timeout. Preflight is 78%, so no
+test may start until it qualifies. Preserve measurements at
+`current-mac-full-partition-20261009`; no full-suite 75% policy is assumed.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

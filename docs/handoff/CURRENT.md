@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Focused repeat PASS — fixed-source CI PASS; complete local validation still outstanding
+- **Status**: In progress — full monitored 22-command partition dispatched under original admission
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator now explicitly requests the complete test partition with resource
+monitoring on this Mac. Dispatch the exact existing twenty-two serial commands,
+retaining all selectors/assertions, original 40-minute package timeouts and
+fresh >=80%/load<=5/no-Go/60-second admission before each command. Admission
+wait is capped at 600 seconds; stop at the first failure. Focused 75% experiments
+do not silently change the full-suite rule. Preflight is 78%, so the first window
+may block before any test. The old Mac remains idle.
+New evidence directory: `current-mac-full-partition-20261009`.
 
 The repeat at `299841d` passes all four identical commands. Focused CLI tests
 take 105.792s (107.32s command). The 79% preflight rose to 80-81% for test
@@ -281,8 +290,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Preserve the two completed focused comparisons; decide the full local
-   partition's admission separately. No full-suite run starts automatically.
+1. Await the operator-authorized complete monitored partition under original
+   80% admission. Preserve all per-stage outputs and resource telemetry; no
+   previous partial run substitutes for the twenty-two commands.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -294,9 +304,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The complete local partition remains outstanding. Both current-Mac focused
-experiments are complete and passing; no validation is currently running locally
-or on the older Mac.
+The complete local partition is now dispatched with original resource admission.
+Both focused comparisons pass. Current preflight is below 80%, so admission may
+block; no threshold relaxation or test result is assumed. The older Mac is idle.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

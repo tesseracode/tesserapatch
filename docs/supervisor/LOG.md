@@ -1,3 +1,25 @@
+## Full Monitored Partition Authorized — current Mac — 2026-10-09
+
+The operator explicitly requests completing the full test partition with
+resource monitoring. Dispatch all twenty-two existing serial commands from
+`scripts/wave-close-test-shards.sh`, unchanged source/Go 1.26.5, selectors,
+`-count=1`, `-p=1`, `GOMAXPROCS=1` and 40-minute package timeouts.
+No older-Mac workload is dispatched.
+
+The full run retains original >=80%/load1 <=5/no-Go/60-second admission before
+every command, with a maximum 600-second wait and first-failure stop. The
+earlier explicit 75% authorization was for focused experiments, not a permanent
+or full-suite policy change. Preflight is currently 78%, normal pressure/zero
+swap, load1 3.46 and no active Go tools: the initial window may not qualify.
+No test will start unless the existing conditions hold continuously.
+
+Retain per-stage outputs and continuous private system/process telemetry in
+`bin/resource-baseline/current-mac-full-partition-20261009`. Record all planned
+commands, source/toolchain/digests and actual outcomes; a partial/admission-blocked
+run is not credited as full coverage. Preserve all prior evidence. Current
+tracking-only native run `37979067094` at `fc112b1` is still running; earlier
+source-equivalent `d91c204` CI is green. Avoid cancelling the current run.
+
 ## Lower-Headroom Focused Repeat PASS — current Mac — 2026-10-09
 
 The identical four-stage workload at `299841d` passes formatting, focused
