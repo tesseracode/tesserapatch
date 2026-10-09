@@ -1,3 +1,33 @@
+## Investigation — test-resource admission calibration — 2026-10-08
+
+**Task**: `calibrate-test-resource-admission`
+**Baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
+**Authorization**: instrumented baseline only; decide any candidate threshold
+after measurements. GH #13 remains undispatched.
+
+The 80%-free/load1 <=5/no-active-Go/60-second rule is an inherited admission
+policy, explicitly required by the earlier S2 assignment. No retained evidence
+derives 80% from measured test peak memory. Prior runs recorded admission
+samples/outcomes, not continuous runtime process-tree memory, pressure or swap.
+Owned temporary logs were removed at the completed wave close; historical
+admission observations remain in this log and HISTORY.
+
+Read-only inspection reached the operator-designated older Mac: 16 GiB RAM,
+four physical/eight logical CPUs, Intel. Initial admission metric was 84%,
+then 81%; swap used was zero but load1 was above 5. This metric is not the
+fraction of physically unused pages or Activity Monitor's pressure level.
+The current development host has 32 GiB and ten physical/logical CPUs.
+
+The older checkout is at `75d80f0`, not the frozen validated baseline, and has
+untracked research. Its available Go is 1.27.1 versus local 1.26.5. Do not
+update, reset or clean that checkout, overwrite research, or attribute a
+cross-version/source comparison to memory policy. Resolve isolated-checkout
+and toolchain setup with the operator before executing the baseline.
+
+**Action**: retarget live tracking to calibration, preserve all existing
+thresholds and test commands, and obtain the experiment setup decision.
+No Go validation or pressure-generation workload has started.
+
 ## Terminal Close — research intake and GH #13 planning wave — 2026-10-08
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`

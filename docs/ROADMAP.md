@@ -1443,6 +1443,20 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### Before GH #13 — 🚧 resource-admission calibration — 2026-10-08
+
+The operator requests an **instrumented baseline only**, before selecting any
+relaxed threshold. Frozen source is `d3454ed`; the prior wave stays accepted.
+The old 80%-free/load1 <=5/no-Go/60-second rule was not derived from recorded
+runtime peaks. Prior evidence covers admission and test outcomes, not continuous
+memory/pressure/process profiles. No threshold is changed by this investigation.
+
+Read-only older-host inspection found 16 GiB/four physical cores, an older
+checkout with untracked research, and a different Go version. Isolate the
+baseline and match the toolchain before measuring; preserve that checkout.
+Record stage-level execution data and distinguish an admission block from a test
+failure. GH #13 runtime work remains paused pending this separate investigation.
+
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
