@@ -1496,6 +1496,15 @@ corrected `-exec` transport bootstrap and fail-closed capture verification.
 Finish the diagnostic objective with a 900-second corrected attempt; combined
 admission/execution budgets stay below the originally bounded 30 minutes.
 No assertion/timeout change or permanent threshold decision.
+**Diagnosis obtained**: corrected nested capture exposes PIB-461's unstable-
+artifact race fixture failing before the timeout. PIB-464 later invokes the same
+fixture via shared baseline initialization; the timeout stack is in real archive
+redaction while its writer runs. Normal pressure/zero swap persist at 76%.
+The blocker is now a concrete fixture-reliability task, not a reason to raise
+timeouts or disable redaction. Both diagnostic attempts together used about
+20.7 minutes, within the original 30-minute workload allowance. Evidence:
+`older-mac-ap-diagnosis.json` beside prior aggregates. No further runs scheduled;
+a bounded correction preserving boundary assertions must be assigned separately.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

@@ -1,3 +1,38 @@
+## Diagnostic Finding — timing-dependent artifact fixture, not an observed OOM — 2026-10-08
+
+The corrected capture works: 315 nested JSON events (74,148 bytes) expose an
+**assertion failure before the timeout**. `TestS7APDryRunContracts/PIB-461`
+fails after 11.84s because `s6ObserveArtifactUnstable` never observes its
+forced identity race. The last actual result is successful dry-run `planned`,
+not an `artifact-unstable` refusal. The helper retries up to forty times while
+alternating a byte in a 3,225,600-byte artifact; its readiness signal only
+confirms the first write, not a write within the reader's capture window
+(`internal/cli/prepare_s6_contract_test.go:16875-16946`).
+
+The later PIB-464 case initializes `s6ContractBaseline`, which invokes the same
+fixture through its full refusal catalog. At the 480-second inner timeout,
+the stack is in real archive publication/redaction (`redact.MatchEmailPII`)
+while the fixture's `WriteAt` goroutine is still running. This locates expensive
+work after the intended unstable refusal was missed; it is not a full CPU
+profile or a reason to weaken production redaction. The earlier independent
+assertion failure means increasing the timeout cannot make this run correct.
+
+The corrected command exits 1 after 557.40s. All 297 samples show normal pressure
+and zero swap; free metric is 76%, load1 1.40-3.50, owned RSS sum peaks about
+1.75 GiB. No external Go workload or surviving Go process was observed. Combined
+admission/execution of the two diagnostic follow-ups is 1243.824 seconds,
+within the original 1800-second allowance. No further run is scheduled.
+
+**Action**: record the specific fixture reliability finding and stop. Recommend
+a separately bounded deterministic-fixture correction that retains real
+capture/refusal behavior and mutation-sensitive controls, then rerun the observer
+under the same budgets. Do not fabricate a refusal, skip the case, merely extend
+timeouts, infer a production regression, or adopt 75% permanently. Original
+checkouts and raw evidence remain intact. Public aggregate:
+`docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-ap-diagnosis.json`.
+Detailed nested output stays private. Native run `37892216801` at `2156ae8`
+is still in progress; preserve it before the pending tracking/tooling push.
+
 ## AP Repeat Result and Diagnostic Correction — 2026-10-08
 
 The unchanged observer reproduced its inner timeout under quieter conditions:

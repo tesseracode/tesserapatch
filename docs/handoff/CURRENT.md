@@ -16,7 +16,7 @@ attribution. No permanent threshold change or GH #13 implementation is authorize
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate and repeat the unchanged AP observer with preserved diagnostics
-- **Status**: In progress — AP repeat failed; correcting bypassed diagnostics within remaining budget
+- **Status**: Blocked — artifact-unstable fixture failure diagnosed; correction scope pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -111,6 +111,19 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   event or the diagnostic run is explicitly incomplete. One corrected attempt
   is capped at 900 seconds; combined with the prior ~623 seconds, workload
   remains within the original 1800-second diagnostic allowance.
+- Corrected capture succeeded: 315 nested events reveal PIB-461 fails after
+  11.84s because forty attempts do not produce the intended artifact identity
+  race. The last dry-run response is success/planned. This assertion failure
+  happens before the later observer timeout; a larger timeout cannot fix it.
+- At the later PIB-464 timeout, the stack is inside the same unstable-artifact
+  fixture, invoked through the shared S6 baseline, publishing/redacting a
+  3,225,600-byte artifact while its concurrent writer is active. The unsynchronized
+  fixture is not reliably inducing its intended condition on this host.
+- All 297 corrected-run samples show normal pressure, no swap, a 76% admission/
+  execution metric and load1 1.40-3.50. Peak sampled owned RSS sum is about
+  1.75 GiB. No external or surviving Go process was observed.
+- Combined diagnostic follow-up workload is 1243.824 seconds, below 1800.
+  No more runs are scheduled. No Go test source or production behavior changed.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
 - Capture continuous measurements and durable summaries in the new experiment;
   distinguish sampled RSS sums from exact physical footprint/high-water marks.
@@ -134,6 +147,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   rewrite, with a negative regression fixture and mandatory capture validation.
 - `older-mac-ap-followup.json` beside the other aggregate reports: repeated
   timeout, resource measurements and explicit missing-diagnostic disclosure.
+- `older-mac-ap-diagnosis.json`: successfully captured first assertion failure,
+  timeout stack chain, exact resource measurements, evidence hashes and limits.
 
 ## Test Results
 
@@ -162,23 +177,28 @@ Source and all Go test assertions/timeouts remain unchanged.
 The AP diagnostic follow-up failed with the same timeout. Its resource samples
 are retained, but nested output was not captured. Nineteen profiler controls
 pass after modeling the actual Go PATH rewrite and requiring captured AP events.
-No real Go validation has yet exercised the corrected bootstrap.
+The corrected bootstrap now has real-Go evidence: capture verification passes
+and nested output is retained on both hosts. The test still fails. PIB-461's
+fixture assertion precedes the inner timeout in PIB-464; the stack confirms the
+same fixture on a publication/redaction path. Command time 557.40s; exit 1.
+This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Complete the diagnostic objective with the corrected capture, using only
-   900 seconds of additional workload budget and the same admission safeguards.
-   Preserve nested JSON/timeout stacks, telemetry and stage logs privately.
-2. Inspect nested test events/timeout stacks and compare measured conditions.
-   Native run `37884132310` completed SUCCESS; pending records may be pushed.
+1. Obtain a bounded fixture-reliability correction scope: synchronize actual
+   mutation with capture, preserve boundary/refusal assertions and negative
+   controls, then repeat under unchanged budgets. Do not simply raise timeouts.
+2. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
+   tooling push. Raw nested output and all prior failures remain private/preserved.
 3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
-The original 80% attempt could not start. Both 75% observer runs timed out,
-including the quieter follow-up. Memory pressure stayed normal without swap.
-The follow-up's PATH-only diagnostic hook was bypassed; its correction is ready.
-The precise hotspot remains unproven. No permanent 75% rule or test change.
+The timing-dependent unstable-artifact fixture fails its own assertion before
+the observer times out; deterministic fixture correction is not yet assigned.
+There is no observed memory-pressure/swap failure explaining this result.
+Full-suite requirements and the exact 75% boundary remain unvalidated; no
+permanent threshold change is justified by a failing pilot.
 
 ## Context for Next Agent
 
