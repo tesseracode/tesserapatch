@@ -1443,9 +1443,24 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Post-v0.17 documentation/planning — 🚧 mechanical close blocked — 2026-09-22
+### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`.
+**Validated/pushed range**:
+`6e8096e03849617a240fa586b109e60f44fad69f..bd13671cf3ba00ee19e7dd95717ace347e310eff`.
+The final mechanical gate passes **8/8**, no warnings, including its own full
+fresh 22-invocation partition. All thirteen research files are tracked, the
+allowlist is clear, and accepted ADR-043/ADR-037/PRD rev-7 is independently
+reviewed. Same-source native CI passes; gate-head native confirmation and the
+terminal cleanup/push are pending. The completion archive is in HISTORY.
+
+The dated closure supersedes older resource-blocked statements in this history
+and the frozen ADR index. No #13 runtime implementation, WP-004 graduation or
+new release is dispatched. Next: a separately assigned #13 implementation slice,
+starting with frozen regression evidence; WP-004 remains a later planning track.
+
+Earlier execution record (historical; not current blockers):
+
 **October 8 admission/retry**: the operator's five-minute watch qualified after
 about 136 seconds, with 88% free memory, load1 below 5 and no active Go tools
 for the full minute. Source `ec0e5ee` is clean and native CI `36747949103`

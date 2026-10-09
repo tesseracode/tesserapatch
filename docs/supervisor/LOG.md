@@ -1,3 +1,30 @@
+## Acceptance — research intake and GH #13 planning wave — 2026-10-08
+
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**Gate checkpoint**: `bd13671cf3ba00ee19e7dd95717ace347e310eff`
+**Verdict**: ACCEPTED — local mechanical gate complete; terminal durability pending
+
+The final gate exits 0 with **8/8 PASS**, no warnings: clean tracked tree,
+zero untracked files, pushed HEAD, thirty valid commit trailers, one terminal
+canonical field, formatting/vet/build and the complete fresh 22-invocation
+CI-equivalent partition. Each Go command retained the required fresh resource
+admission and first-failure discipline. Earlier partial/resource-blocked runs
+are not reused as this result.
+
+Independent OpenAI-model review accepted ADR-043 and ADR-037/PRD rev-7; intake
+and planning tasks are already archived. The operator-authorized test-only
+index-pin update preserves historical base hashes and all existing assertions,
+adding same-validator negative controls. Native `36747949103` passed on
+identical source; gate-head run `37871315522` has four successful jobs and macOS
+still running. No runtime, installed assets, dependencies or CI commands changed.
+
+**Action**: archive combined-wave closure immediately, set CURRENT/ROADMAP to
+ACCEPTED and update the dashboard's next step. Preserve gate-head native CI
+before the final tracking push, then remove only owned helpers/logs. No #13
+implementation, WP-004 graduation, release or tag is authorized by this close.
+The frozen ADR index remains an accepted historical snapshot; this dated
+closure record supersedes its old mechanical-close-pending status.
+
 ## Admission Qualified and Final-Gate Retry — research/planning — 2026-10-08
 
 **Checkpoint**: `ec0e5eea26ba6d49ef01813dbb4b62ce2733c7e4`

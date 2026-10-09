@@ -10254,3 +10254,103 @@ Next: complete the combined documentation wave's resource-gated local/native
 close, then obtain a separate bounded #13 implementation assignment. WP-004 is
 the preferred separate later planning track; it is not automatically graduated.
 GH #24 widening, other proposals and current replay behavior are not changed.
+
+---
+
+# 2026-10-08 — Research intake and GH #13 planning wave — ACCEPTED
+
+## Active Task
+
+- **Task ID**: `close-research-capture-planning-wave`
+- **Started**: 2026-09-22
+- **Accepted local closure**: 2026-10-08
+- **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+- **Validated/pushed endpoint**: `bd13671cf3ba00ee19e7dd95717ace347e310eff`
+- **Status**: ACCEPTED — gate-head native CI and terminal cleanup/push pending
+
+## Work Completed
+
+Thirteen previously untracked research files became durable documentation:
+recurring-patches PRD, WP-004/006/007 and companion logs, t3code dependency
+analysis, and five TWS aggregate development-study files. Paper-only approval/
+exploration statuses and historical uncertainty remain explicit. TWS's reported
+seven-day duration and derived five-date window were not silently reconciled
+into invented evidence; missing per-feature/hunk/patch rows were not fabricated.
+Its aggregate study is not presented as a complete reconciliation corpus.
+
+Research indexes and CLUSTERS now distinguish shipped work from future proposals.
+The thirteen intake allowlist entries and two stale already-tracked WP-005
+entries were removed without changing the sentinel. No untracked files remain.
+GH #15 closed with accepted v0.17 scope and deliberate anchor deferrals.
+GH #13 remains open for future implementation; WP-004 is the preferred separate
+later planning track, not an automatically graduated PRD.
+
+The operator-selected canonical capture-event digest is bound into candidate
+identity by accepted ADR-043/ADR-037/companion PRD rev-7. The plan includes
+explicit capture-selector pairing, independent reconstruction, identity/reuse/
+acceptance binding and E-before-C snapshot/publication/recovery. C-present
+inconsistent pairs remain distinct from genuinely absent C and its shipped
+legacy warning/apply envelope. No historical authentication, cross-file
+atomicity, automatic repair or broader complete-operation domain is claimed.
+
+The acceptance matrix contains 306 stable rows (I62/C90/G77/U68/S9), nine
+byte-identical paired regions, fifteen gate slots/eighteen distinct eligibility
+codes and fourteen transaction steps. Historical revision rows and unaffected
+core proof regions remain intact. No runtime proposal is implemented.
+
+## Review and Compatibility Corrections
+
+Implementation and independent reviews explicitly selected OpenAI `gpt-5.4`;
+runtime agent metadata confirmed the model. No Anthropic/Claude or optional
+unverified-model feature was used.
+
+Independent reviews closed missing capture-selector validation, an impossible
+schema-level hash-origin claim, E4/E5 summary/refusal drift, and over-broad
+crash/recovery refusal and atomicity claims. Intake handoff inconsistencies were
+corrected by rotating CURRENT to a current-task summary; old evidence remains
+in prior archives and immutable Git snapshots.
+
+Native CI exposed two metadata integration conflicts: the ADR-035 index's
+historical readiness snapshot and ADR-041's frozen §7 section. The backlink
+moved outside frozen sections, preserving every original digest. Historical
+readiness is explicitly dated with current shipped disposition. The operator
+then authorized one test-only current-index hash update, with new same-validator
+deletion/false-implementation mutations, preserving the original base hash and
+all previous assertions. This is the only test-source change in the wave.
+
+## Validation Evidence
+
+- Intake link/JSON checks pass: 141 local link targets; counts 42 = 35 + 7
+  features and 18 tags; duration uncertainty preserved.
+- Accepted-plan checks pass: 133 local link targets, paired regions/counts
+  above, unchanged historical revision rows/core regions and frozen ADR pins.
+- Original/new index guards pass locally (CLI 0.770s); frozen ADR-041 tests
+  pass (workflow 0.225s); isolated CLI build passes.
+- Multiple same-source native runs pass, including `36747949103` at `ec0e5ee`.
+  Gate-head native run `37871315522` is preserved to completion before the
+  terminal documentation push.
+- Final explicit-base `make wave-close-check` at `bd13671` exits 0:
+  **8/8 PASS**, no warnings, including the complete fresh 22-invocation
+  uncached CI-equivalent test partition, zero untracked files and thirty valid
+  co-author trailers.
+
+Earlier local attempts stopped on resource admission (or, once, an initially
+suppressed build-stage cause that was not recoverable). No incomplete attempt
+was promoted to a pass. The October 8 five-minute watch qualified after about
+136 seconds; every later Go command still required a fresh continuous
+>=80%-free/load1 <=5/no-active-Go minute. All selectors, timeouts and thresholds
+were preserved. No unowned process was terminated.
+
+## Close Boundary
+
+The local mechanical gate is complete and semantic planning is accepted.
+Terminal tracking/dashboard changes, gate-head native confirmation and owned
+helper/log cleanup finish this wave without altering validated source.
+The prior ADR index's mechanically-pending wording is a guarded historical
+snapshot; this dated closure is the current operational record.
+
+No runtime Go, installed assets, dependencies, CI commands, release or tag
+changed. v0.17.0 remains immutable at `d1d6c3f`. A separate bounded #13
+implementation assignment must start with frozen regression evidence.
+WP-004 planning, GH #24 widening, #12/#14 research and #18-22 re-baselining
+remain separate backlog work.

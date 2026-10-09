@@ -51,7 +51,7 @@ backlog items, and accepted planning gates.
 
 | Artifact | Status | Gate cleared | Next bounded step |
 |---|---|---|---|
-| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) + [ADR-043](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Accepted rev-7 planning — 2026-09-22** | v0.17.0 shipped GH #15; independent review accepts canonical E identity/gates/recovery follow-up. | Complete the documentation wave's resource-gated mechanical close, then obtain a separate GH #13 implementation assignment. |
+| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) + [ADR-043](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Accepted rev-7 planning — wave gate PASS 2026-10-08** | v0.17.0 shipped GH #15; independent review and the full 8/8 local gate pass at `bd13671`. | Finish terminal CI/durability cleanup, then obtain a separate GH #13 implementation assignment; no runtime work dispatched. |
 
 ### ADR snapshot relevant to active/backlog work
 
