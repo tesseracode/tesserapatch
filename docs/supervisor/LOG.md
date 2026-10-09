@@ -1,3 +1,30 @@
+## Full-Suite Feedback — capture-hook proof missing in AQ guard — 2026-10-09
+
+The first full-partition command at `c360dc9` failed two AQ checks (PIB-484 and
+PIB-487): the terminal-recovery analyzer encounters the new
+`afterPrepareCaptureRead` callback and correctly refuses an unresolved call.
+This is integration fallout from the new test hook, not a production refusal
+failure; no later shard ran. Old-Mac AP remains a valid independent pass.
+
+Extend AQ's existing nil-seam proof to cover the new callback: exact global
+declaration/signature, no initializer, and no production assignments or address
+escapes anywhere in CLI source. Resolve its dynamic call only after that proof;
+keep the direct recovery inventory and forbidden/unknown-call checks unchanged.
+Add same-validator negative controls for direct/aliased production assignment,
+address escape, initialization and wrong signature. This is not a bare allowlist
+exception. Retain every existing afterRecoveryComplete sensitivity case.
+
+The first shard also measured a materially larger resource peak than the AP
+subset: about **8.37 GiB** sampled owned RSS sum, mostly the CLI test process,
+on the 32 GiB current Mac. All 360 samples showed normal pressure/zero swap.
+Do not extrapolate AP's ~1.73 GiB into a full-suite old-Mac requirement.
+Public aggregate: `local-fixture-suite-first-shard.json` beside other reports.
+
+**Action**: correct the coupled test-only analyzer, rerun focused AQ/fixture
+checks through original-policy admission, then restart the full partition.
+No production capture change, assertion removal, timeout increase, permanent
+75% policy or GH #13 work is included.
+
 ## Older-Mac AP PASS — deterministic capture fixture — 2026-10-09
 
 At exact fixed-source `ba15a05`, the older-Mac AP observer passes with unchanged

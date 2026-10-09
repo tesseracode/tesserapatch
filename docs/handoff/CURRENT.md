@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — targeted/vet/build and older-Mac AP PASS; full local partition pending
+- **Status**: In progress — AP PASS; correcting AQ nil-hook proof after full-suite feedback
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -168,6 +168,10 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   timeout stack chain, exact resource measurements, evidence hashes and limits.
 - `older-mac-fixture-ap-pass.json`: fixed-source AP pass, actual nested row
   results, unchanged budgets, resource bounds and evidence hashes.
+- `internal/cli/prepare_s7_aq_recovery_test.go`: extend existing nil-seam proof
+  to the new capture hook, with initializer/assignment/escape/signature negatives.
+- `local-fixture-suite-first-shard.json`: failed first full-suite shard and
+  its larger measured memory peak on the 32 GiB current Mac.
 
 ## Test Results
 
@@ -192,6 +196,12 @@ The older-Mac AP result is now **PASS** at exact `ba15a05`: 444.71s command,
 pressure/zero swap at 77%; peak owned RSS sum about 1.73 GiB. No Go processes
 remain on that host. Full local partition at source-equivalent `c360dc9` remains
 pending, as does new-source hosted confirmation.
+Full-partition shard 1 failed two AQ analyzer checks: new callback unresolved.
+No later shard ran. The coupled test-only correction proves the hook is inert
+in production before classifying it; it retains exact call inventory and all
+forbidden-gate controls. New negative fixtures reject activated/escaped/mistyped
+hooks. The first-shard peak was about 8.37 GiB RSS sum, much higher than AP-only,
+with normal pressure and no swap on this 32 GiB host.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
@@ -226,7 +236,8 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the full local 22-command partition under original 80% admission.
+1. Validate the AQ nil-hook proof and its negative fixtures under original 80%
+   admission, then restart the full local 22-command partition.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.

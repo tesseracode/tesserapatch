@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "experiment": "fixture-suite-20261009",
+  "source_head": "c360dc9dbc67e6a1e4b01662257820204dbdb7ea",
+  "source_equivalent_fixture_revision": "ba15a052e1d14deac185a3032df5faf1c7c0c548",
+  "status": "validation-failed",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "physical_cpus": 10,
+    "logical_cpus": 10
+  },
+  "policy": {
+    "admission_free_percent_min": 80,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60
+  },
+  "workload": {
+    "planned_shard_commands": 22,
+    "executed_shard_commands": 1,
+    "stage": "08-shard-01",
+    "real_seconds": 676.74,
+    "cli_package_seconds": 508.446,
+    "exit_code": 1
+  },
+  "failures": [
+    "TestS7AQTerminalRecoveryContracts/PIB-484",
+    "TestS7AQPostRecoveryControlFlowGuard/PIB-487"
+  ],
+  "diagnostic": "terminal recovery has unresolved call afterPrepareCaptureRead",
+  "observation": {
+    "sample_count": 360,
+    "normal_pressure_samples": 360,
+    "swap_used_bytes_max": 0,
+    "sampled_execution_free_percent_min": 77,
+    "sampled_peak_owned_rss_sum_bytes": 8983052288,
+    "time_reported_max_rss_bytes": 8941240320,
+    "peak_attribution": "The CLI test process accounts for approximately 8.33 GiB of the approximately 8.37 GiB sampled process-tree total."
+  },
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/fixture-suite-20261009",
+    "summary_sha256": "c479a5e34a6f65d6ec724d39ec3cab863bd349ba3931cfc017edfd450d4718a3",
+    "samples_sha256": "e54a1fe49216248108b8b49f97df978eaa00d87747fbe1676ca15ff19a2fb985",
+    "stage_log_sha256": "5d97a42068bb3c3fb204b116eba52706c255942b28396b52ff0058d0651c4da6"
+  },
+  "limits": [
+    "This larger workload's memory peak is substantially higher than the AP-only peak; the AP subset cannot establish full-suite memory requirements.",
+    "This run measured the current 32 GiB Mac, not the older 16 GiB Mac.",
+    "RSS sums may double-count shared pages and miss short spikes; no minimum RAM requirement is inferred.",
+    "The first shard failed in test-only recovery call-graph validation of the new hook; the remaining 21 commands did not execute.",
+    "Normal observed pressure and zero swap do not make this a passing suite or authorize permanent threshold relaxation."
+  ]
+}

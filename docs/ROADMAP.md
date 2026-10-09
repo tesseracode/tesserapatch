@@ -1521,6 +1521,11 @@ including PIB-461/464/469. Existing timeout/assertion contracts are unchanged.
 Normal pressure/zero swap persisted at 77%; source-equivalent `c360dc9` full
 local partition remains running. Record `older-mac-fixture-ap-pass.json`;
 this is not full-wave acceptance or permanent admission-policy approval.
+Full local shard 1 subsequently failed AQ's unresolved-call guard for the new
+hook. Extend its existing nil-in-production proof, not just its allowlist, with
+assignment/escape/initializer/signature rejection controls; then rerun. This
+larger workload peaked near 8.37 GiB sampled RSS on the current 32 GiB Mac,
+so the AP-only figure is not a full-suite resource estimate.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

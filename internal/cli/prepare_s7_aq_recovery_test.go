@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -488,6 +489,47 @@ func TestS7AQPostRecoveryControlFlowGuard(t *testing.T) {
 			mutated := source + sensitivity.body
 			if err := validateS7AQTerminalRecoveryControlFlow(mutated); err == nil {
 				t.Fatalf("PIB-487 same validator accepted %s", sensitivity.name)
+			}
+		}
+		for _, sensitivity := range []struct {
+			name   string
+			suffix string
+		}{
+			{
+				name: "capture-hook-production-assignment",
+				suffix: "\nfunc init() {\n" +
+					"\tafterPrepareCaptureRead = func(*os.Root, string) error {\n" +
+					"\t\t_ = prepareStateRefusal(\"defined\")\n\t\treturn nil\n\t}\n}\n",
+			},
+			{
+				name: "capture-hook-aliased-assignment",
+				suffix: "\nfunc init() {\n" +
+					"\tcallback := func(*os.Root, string) error { return nil }\n" +
+					"\tafterPrepareCaptureRead = callback\n}\n",
+			},
+			{
+				name:   "capture-hook-address-escape",
+				suffix: "\nvar s7AQEscapedCaptureHook = &afterPrepareCaptureRead\n",
+			},
+		} {
+			if err := validateS7AQTerminalRecoveryControlFlow(source + sensitivity.suffix); err == nil {
+				t.Fatalf("PIB-487 same validator accepted %s", sensitivity.name)
+			}
+		}
+		captureDeclaration := regexp.MustCompile(`(?m)^(\s*afterPrepareCaptureRead\s+)func\(\*os.Root, string\) error$`)
+		if len(captureDeclaration.FindAllStringIndex(source, -1)) != 1 {
+			t.Fatal("capture hook declaration anchor is not unique")
+		}
+		for _, replacement := range []string{
+			"${1}func(*os.Root, string) error = func(*os.Root, string) error { return nil }",
+			"${1}func() error",
+		} {
+			mutated := captureDeclaration.ReplaceAllString(source, replacement)
+			if mutated == source {
+				t.Fatal("capture hook declaration mutation was inert")
+			}
+			if err := validateS7AQTerminalRecoveryControlFlow(mutated); err == nil {
+				t.Fatal("PIB-487 same validator accepted an initialized or mistyped capture hook")
 			}
 		}
 	})
@@ -1267,7 +1309,7 @@ type s7AQRecoveryCallAnalyzer struct {
 }
 
 func validateS7AQTerminalRecoveryCalls(source string) error {
-	if err := validateS7AQAfterRecoverySeamAuthority(source); err != nil {
+	if err := validateS7AQInertRecoverySeams(source); err != nil {
 		return err
 	}
 	model, err := s6BuildSourceTypeModel(map[string]string{
@@ -1316,12 +1358,16 @@ func validateS7AQTerminalRecoveryCalls(source string) error {
 	return nil
 }
 
-func validateS7AQAfterRecoverySeamAuthority(preparePublishSource string) error {
+func validateS7AQInertRecoverySeams(preparePublishSource string) error {
 	entries, err := os.ReadDir(".")
 	if err != nil {
 		return fmt.Errorf("read CLI production sources: %w", err)
 	}
-	declarations := 0
+	signatures := map[string]string{
+		"afterRecoveryComplete":   "func()",
+		"afterPrepareCaptureRead": "func(*os.Root, string) error",
+	}
+	declarations := map[string]int{}
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !strings.HasSuffix(name, ".go") ||
@@ -1351,17 +1397,18 @@ func validateS7AQAfterRecoverySeamAuthority(preparePublishSource string) error {
 					continue
 				}
 				for _, identifier := range spec.Names {
-					if identifier.Name != "afterRecoveryComplete" {
+					signature, tracked := signatures[identifier.Name]
+					if !tracked {
 						continue
 					}
-					declarations++
+					declarations[identifier.Name]++
 					function, exact := spec.Type.(*ast.FuncType)
 					if name != "prepare_publish.go" || len(spec.Names) != 1 ||
 						len(spec.Values) != 0 || !exact ||
-						function.Params == nil || len(function.Params.List) != 0 ||
-						function.Results != nil {
+						s7APFormatExpression(function) != signature {
 						return fmt.Errorf(
-							"afterRecoveryComplete is not the exact nil func() seam in prepare_publish.go",
+							"%s is not the exact nil %s seam in prepare_publish.go",
+							identifier.Name, signature,
 						)
 					}
 				}
@@ -1375,26 +1422,26 @@ func validateS7AQAfterRecoverySeamAuthority(preparePublishSource string) error {
 			switch value := node.(type) {
 			case *ast.AssignStmt:
 				for _, left := range value.Lhs {
-					if s7AQExpressionNamesRecoverySeam(left) {
+					if s7AQExpressionNamesInertSeam(left) {
 						mutation = value
 						return false
 					}
 				}
 			case *ast.RangeStmt:
 				if value.Tok == token.ASSIGN &&
-					(s7AQExpressionNamesRecoverySeam(value.Key) ||
-						s7AQExpressionNamesRecoverySeam(value.Value)) {
+					(s7AQExpressionNamesInertSeam(value.Key) ||
+						s7AQExpressionNamesInertSeam(value.Value)) {
 					mutation = value
 					return false
 				}
 			case *ast.IncDecStmt:
-				if s7AQExpressionNamesRecoverySeam(value.X) {
+				if s7AQExpressionNamesInertSeam(value.X) {
 					mutation = value
 					return false
 				}
 			case *ast.UnaryExpr:
 				if value.Op == token.AND &&
-					s7AQExpressionNamesRecoverySeam(value.X) {
+					s7AQExpressionNamesInertSeam(value.X) {
 					mutation = value
 					return false
 				}
@@ -1403,37 +1450,39 @@ func validateS7AQAfterRecoverySeamAuthority(preparePublishSource string) error {
 		})
 		if mutation != nil {
 			return fmt.Errorf(
-				"production source %s mutates or escapes afterRecoveryComplete",
+				"production source %s mutates or escapes a nil recovery/capture seam",
 				name,
 			)
 		}
 	}
-	if declarations != 1 {
-		return fmt.Errorf(
-			"afterRecoveryComplete production declarations = %d, want exactly one",
-			declarations,
-		)
+	for name := range signatures {
+		if declarations[name] != 1 {
+			return fmt.Errorf(
+				"%s production declarations = %d, want exactly one",
+				name, declarations[name],
+			)
+		}
 	}
 	return nil
 }
 
-func s7AQExpressionNamesRecoverySeam(expression ast.Expr) bool {
+func s7AQExpressionNamesInertSeam(expression ast.Expr) bool {
 	switch value := expression.(type) {
 	case nil:
 		return false
 	case *ast.Ident:
-		return value.Name == "afterRecoveryComplete"
+		return value.Name == "afterRecoveryComplete" || value.Name == "afterPrepareCaptureRead"
 	case *ast.ParenExpr:
-		return s7AQExpressionNamesRecoverySeam(value.X)
+		return s7AQExpressionNamesInertSeam(value.X)
 	case *ast.StarExpr:
-		return s7AQExpressionNamesRecoverySeam(value.X)
+		return s7AQExpressionNamesInertSeam(value.X)
 	case *ast.SelectorExpr:
-		return s7AQExpressionNamesRecoverySeam(value.X) ||
-			value.Sel.Name == "afterRecoveryComplete"
+		return s7AQExpressionNamesInertSeam(value.X) ||
+			value.Sel.Name == "afterRecoveryComplete" || value.Sel.Name == "afterPrepareCaptureRead"
 	case *ast.IndexExpr:
-		return s7AQExpressionNamesRecoverySeam(value.X)
+		return s7AQExpressionNamesInertSeam(value.X)
 	case *ast.IndexListExpr:
-		return s7AQExpressionNamesRecoverySeam(value.X)
+		return s7AQExpressionNamesInertSeam(value.X)
 	default:
 		return false
 	}
@@ -1665,8 +1714,8 @@ func (analyzer *s7AQRecoveryCallAnalyzer) resolveCallable(
 		if bound, ok := bindings[object]; ok {
 			return bound, true
 		}
-		if analyzer.afterRecoveryObject(object) {
-			return s7AQRecoveryCallable{dynamic: "afterRecoveryComplete"}, true
+		if analyzer.inertRecoverySeamObject(object) {
+			return s7AQRecoveryCallable{dynamic: object.Name()}, true
 		}
 		assigned := analyzer.assignments[object]
 		if len(assigned) != 1 {
@@ -1797,6 +1846,7 @@ func (analyzer *s7AQRecoveryCallAnalyzer) externalLeaf(key string) bool {
 		"dynamic.builtin.len",
 		"dynamic.builtin.make",
 		"dynamic.afterRecoveryComplete",
+		"dynamic.afterPrepareCaptureRead",
 		"bytes.TrimSpace",
 		"crypto/sha256.Sum256",
 		"encoding/hex.EncodeToString",
@@ -1851,8 +1901,9 @@ func (analyzer *s7AQRecoveryCallAnalyzer) externalLeaf(key string) bool {
 	}
 }
 
-func (analyzer *s7AQRecoveryCallAnalyzer) afterRecoveryObject(object types.Object) bool {
-	return object != nil && object.Name() == "afterRecoveryComplete" &&
+func (analyzer *s7AQRecoveryCallAnalyzer) inertRecoverySeamObject(object types.Object) bool {
+	return object != nil &&
+		(object.Name() == "afterRecoveryComplete" || object.Name() == "afterPrepareCaptureRead") &&
 		object.Pkg() != nil &&
 		object.Pkg().Path() == "github.com/tesseracode/tesserapatch/internal/cli" &&
 		object.Parent() == object.Pkg().Scope()
