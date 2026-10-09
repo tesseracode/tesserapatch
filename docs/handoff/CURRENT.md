@@ -16,7 +16,7 @@ attribution. No permanent threshold change or GH #13 implementation is authorize
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Measure a bounded 75% pilot and attribute older-host CPU/memory use
-- **Status**: In progress — bounded 75% pilot dispatched with process attribution
+- **Status**: Blocked — AP observer timed out; pilot result recorded, follow-up decision pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -79,6 +79,15 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   a full-suite pass. Preserve all selected test commands and timeouts.
 - Add top RSS and interval-CPU consumers with parent/start-time information.
   Keep inventories local, with no argv/environment/full executable path capture.
+- The 75% pilot completed with exit 1: formatting/vet/build and AR rev-11..15
+  passed; AP observer timed out with incomplete PIB-464 and missing later markers.
+  No automatic retry is running. The 30-minute experiment budget was not reached.
+- All 510 samples showed normal pressure and zero swap. Load1 was 1.97-3.83;
+  admission occurred at 78-79%, execution at 77-79%. Largest sampled owned RSS
+  sum was about 1.72 GiB, with seven owned processes/six Go tools at peak.
+  No external Go competitor was observed; no Go process remained afterward.
+- Background process attribution is retained privately. Sustained post-boot
+  work is observable, but neither a leak nor the timeout's cause is established.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
 - Capture continuous measurements and durable summaries in the new experiment;
   distinguish sampled RSS sums from exact physical footprint/high-water marks.
@@ -94,6 +103,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   existing shard-script or permanent admission-policy changes.
 - `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`:
   durable aggregate, raw evidence digests, hypothetical-window results and limits.
+- `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-75-pilot.json`:
+  non-identifying pilot measurements and the failing observer diagnostic.
 
 ## Test Results
 
@@ -111,21 +122,26 @@ The extended profiler passes fifteen non-Go controls, including explicit-only
 PID-reuse handling, mandatory budget, pre-launch timeout refusal and cleanup of
 an owned child in a separate process session. Two-sample real older-host
 attribution succeeds. New process-level raw evidence stays local and untracked.
-The pilot result is pending; no new Go-stage pass is claimed.
+The pilot result is **validation-failed**: four stages passed, AP observer failed.
+Stage real times were 1.89s / 91.98s / 3.07s / 104.47s / 550.35s.
+The failure is a nested observer timeout under existing budgets, not the
+overall pilot cap. Raw stage logs, summary and samples are retained on both
+hosts. This is neither full-suite coverage nor a passing lower-threshold result.
 
 ## Next Steps
 
-1. Await the bounded 75% pilot and retain raw attribution, stage logs and summary
-   on both hosts. Original 80% evidence is unchanged.
-2. Compare execution data and startup/background activity before considering any
-   permanent rule. Do not infer a leak or disable services from a short snapshot.
+1. Discuss a controlled follow-up of the unchanged AP observer; do not automatically
+   repeat, raise timeouts, alter assertions or adopt a permanent threshold.
+2. Preserve native run `37884132310` at `5eaccd6` before the pending documentation
+   push. Raw evidence is already retained on both hosts; inventories remain private.
 3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
-The isolated setup resolves the source/compiler mismatch without touching the
-older checkout. The original 80% attempt could not start. A bounded 75% pilot
-is now authorized; runtime requirements remain unmeasured until it executes.
+The original 80% attempt could not start. The 75% pilot executed but AP timed out.
+Memory pressure remained normal in the samples, with no swapping; the cause of
+the timeout remains unresolved. A permanent 75% rule is not justified by this
+failed pilot or by measurements taken only at 77-79%.
 
 ## Context for Next Agent
 
@@ -142,3 +158,6 @@ is now authorized; runtime requirements remain unmeasured until it executes.
 - The separate pilot is `older-mac-75-20261008`, using the versioned remote
   `profile-validation-75.py`. Pre-pilot attribution is retained privately in
   `prepilot-attribution-20261008.json` on both hosts. Do not publish inventories.
+- A local private `process-attribution-summary.json` accompanies the pilot's
+  mirrored evidence. CPU averages use matched PID/start-time cumulative counters,
+  not averages conditioned on appearing in a top-process ranking.

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "experiment": "older-mac-75-20261008",
+  "status": "validation-failed",
+  "source_head": "d3454edb72c37bacae9159481cc2e6cd69559459",
+  "toolchain": "go1.26.5",
+  "profiler_sha256": "6a670f100b81c5a2b24c0c06c2ba4704452128a41d513a05b76d66eb01877618",
+  "shard_script_sha256": "7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10",
+  "host": {
+    "architecture": "x86_64",
+    "physical_memory_bytes": 17179869184,
+    "physical_cpus": 4,
+    "logical_cpus": 8
+  },
+  "policy": {
+    "admission_free_percent_min": 75,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_admission_wait_seconds": 600,
+    "overall_workload_budget_seconds": 1800,
+    "per_test_package_timeout_seconds": 2400
+  },
+  "observation": {
+    "first_utc": "2026-10-09T04:42:33.379026+00:00",
+    "last_utc": "2026-10-09T05:00:13.141690+00:00",
+    "sample_count": 510,
+    "sample_span_seconds": 1059.745,
+    "sample_gap_max_seconds": 2.146213,
+    "admission_wait_total_seconds": 305.481268,
+    "admission_free_percent_during_admission_min": 78,
+    "admission_free_percent_during_admission_max": 79,
+    "admission_free_percent_during_execution_min": 77,
+    "admission_free_percent_during_execution_max": 79,
+    "load1_min": 1.97,
+    "load1_max": 3.83,
+    "normal_pressure_samples": 510,
+    "warning_or_critical_pressure_samples": 0,
+    "swap_used_bytes_max": 0,
+    "swapout_delta_pages": 0,
+    "compression_count_delta": 217888,
+    "sampled_peak_owned_rss_sum_bytes": 1851301888,
+    "sampled_peak_owned_process_count": 7,
+    "sampled_peak_go_tool_process_count": 6,
+    "sampled_peak_external_go_process_count": 0,
+    "system_process_count_min": 675,
+    "system_process_count_max": 695
+  },
+  "stages": [
+    {
+      "stage": "06-gofmt",
+      "exit_code": 0,
+      "real_seconds": 1.89,
+      "time_reported_max_rss_bytes": 37658624,
+      "sampled_peak_owned_rss_sum_bytes": 585728
+    },
+    {
+      "stage": "07-vet",
+      "exit_code": 0,
+      "real_seconds": 91.98,
+      "time_reported_max_rss_bytes": 496574464,
+      "sampled_peak_owned_rss_sum_bytes": 483721216
+    },
+    {
+      "stage": "07-build",
+      "exit_code": 0,
+      "real_seconds": 3.07,
+      "time_reported_max_rss_bytes": 225837056,
+      "sampled_peak_owned_rss_sum_bytes": 134545408
+    },
+    {
+      "stage": "08-shard-02",
+      "exit_code": 0,
+      "real_seconds": 104.47,
+      "time_reported_max_rss_bytes": 1365692416,
+      "sampled_peak_owned_rss_sum_bytes": 1373634560
+    },
+    {
+      "stage": "08-shard-15",
+      "exit_code": 1,
+      "real_seconds": 550.35,
+      "time_reported_max_rss_bytes": 1679998976,
+      "sampled_peak_owned_rss_sum_bytes": 1851301888
+    }
+  ],
+  "failure": {
+    "test": "TestS7ObservedAPRegistrationAuthority",
+    "diagnostic": "observed registration missing out-of-band markers (timed out)",
+    "incomplete_target": "TestS7APDryRunContracts/PIB-464",
+    "incomplete_target_run_count": 1,
+    "incomplete_target_pass_count": 0,
+    "existing_inner_test_budget_seconds": 480,
+    "existing_outer_observer_budget_seconds": 720,
+    "experiment_budget_exhausted": false,
+    "resource_cause_established": false
+  },
+  "retained_evidence": {
+    "relative_directory_on_both_hosts": "bin/resource-baseline/older-mac-75-20261008",
+    "summary_sha256": "33e58e8ea917fefb3dcbdd7d9a31e82f536cc09b101beeeb3fd0d5f841bc08ca",
+    "samples_sha256": "1d2acacd00cabb330df09493993d7af7c2058573f3fc80c87f65a78259ba85de",
+    "failing_stage_log_sha256": "4aeb98a763bf556767bcfb576e9dace59166981dec88e5f659741d83fd920ff4",
+    "process_attribution_inventory": "private local evidence; not published"
+  },
+  "limits": [
+    "Four pilot stages passed; the fifth failed. This is not a passing pilot or full-suite result.",
+    "Admission occurred at 78-79%, not exactly 75%; the measured execution metric was 77-79%.",
+    "Normal pressure and zero swapping were observed at the sample cadence, not proven between samples.",
+    "Summed process RSS can double-count shared pages and sampling can miss short spikes; it is not minimum required RAM.",
+    "time -l reports a separate maximum-RSS statistic, not simultaneous summed process-tree memory.",
+    "Matched source and toolchain do not eliminate cache, hardware, startup workload or instrumentation differences.",
+    "The observer timeout cause remains unresolved; neither a memory failure nor safety of permanent 75% admission is established.",
+    "No background services, test timeouts or assertions were changed. No additional retry is authorized."
+  ]
+}

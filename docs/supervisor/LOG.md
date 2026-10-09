@@ -1,3 +1,38 @@
+## Pilot Result — four stages pass, AP observer times out — 2026-10-08
+
+**Task**: `calibrate-test-resource-admission`
+**Measured source**: `d3454ed` / isolated Go 1.26.5
+**Result**: validation-failed, exit 1; no automatic retry
+
+The five-stage pilot ran within its 30-minute budget. Formatting, vet, build and
+the AR rev-11..15 shard passed. The AP observer failed after 550.35 seconds with
+missing out-of-band markers and a timed-out nested run. Its diagnostic shows
+`TestS7APDryRunContracts/PIB-464` RUN=1/PASS=0 and later targets not executed.
+The existing AP budget is 480 seconds inner / 720 seconds outer
+(`internal/cli/prepare_s7_registration_test.go:115-117,417-439`), not the
+pilot's 1800-second cap or package's 40-minute timeout. No limit was changed.
+
+All 510 samples showed normal OS memory pressure and zero swap; load1 was
+1.97-3.83. Admission occurred at 78-79%; execution reached 77-79%, so this does
+not test operation exactly at 75%. The largest sampled owned RSS sum was
+1,851,301,888 bytes (about 1.72 GiB), with up to seven owned processes and six
+Go/toolchain processes, all belonging to the experiment. No external Go
+competitor was observed, and no Go processes remained afterward. The trace
+does not establish memory shortage as the timeout cause.
+
+CPU/RSS attribution identifies sustained post-boot background work, while an
+earlier high-CPU file-provider snapshot subsided. Detailed process inventories
+remain private in ignored evidence; do not infer a leak or disable services
+from these measurements. Raw summary/samples and stage logs are mirrored on both
+hosts with matching digests. Public, non-identifying aggregate:
+`docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-75-pilot.json`.
+
+**Action**: retain the failed result, stop and discuss a controlled follow-up
+of the unchanged observer. Do not adopt 75% permanently, increase test timeouts,
+silence marker assertions or start GH #13. Original/isolated checkouts remain
+preserved. Commit the record locally; preserve in-flight native run
+`37884132310` at `5eaccd6` before the next documentation push.
+
 ## Pilot Dispatch — bounded 75% resource measurement — 2026-10-08
 
 Fifteen non-Go controls pass, covering default-80 versus explicit-75 admission,

@@ -1474,6 +1474,13 @@ The extended profiler's fifteen non-Go controls pass, including bounded
 cross-process-group cleanup and interval CPU attribution. A private pre-pilot
 snapshot is retained on both hosts; the five-stage 75% pilot is now dispatched
 against unchanged `d3454ed`/Go 1.26.5 with a 30-minute budget.
+**Result**: four stages passed; the AP observer timed out, so the pilot failed.
+Across 510 samples pressure stayed normal and swap stayed zero; maximum sampled
+owned RSS sum was about 1.72 GiB with up to six owned Go tools. Admission at
+78-79% and execution at 77-79% do not validate the exact 75% boundary.
+The timeout's cause remains unresolved. Aggregate evidence is in
+`older-mac-75-pilot.json` beside the first report; process inventories stay local.
+No automatic retry, permanent policy adoption, timeout changes or GH #13 work.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
