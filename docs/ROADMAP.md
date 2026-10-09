@@ -1451,8 +1451,10 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 The final mechanical gate passes **8/8**, no warnings, including its own full
 fresh 22-invocation partition. All thirteen research files are tracked, the
 allowlist is clear, and accepted ADR-043/ADR-037/PRD rev-7 is independently
-reviewed. Same-source native CI passes; gate-head native confirmation and the
-terminal cleanup/push are pending. The completion archive is in HISTORY.
+reviewed. Exact-checkpoint [native CI 37871315522](https://github.com/tesseracode/tesserapatch/actions/runs/37871315522)
+completed SUCCESS with all five required jobs successful and release skipped.
+Owned helpers/logs are removed; the archive is committed at `bf3094c` and this
+terminal record completes the documentation-only closing push. See HISTORY.
 
 The dated closure supersedes older resource-blocked statements in this history
 and the frozen ADR index. No #13 runtime implementation, WP-004 graduation or

@@ -11,8 +11,10 @@ own complete fresh 22-invocation test partition; earlier partial attempts are
 not substituted.
 
 The combined-wave archive is in [HISTORY](HISTORY.md). Independent review and
-same-source native CI are complete. Gate-head native run `37871315522` is still
-finishing macOS; preserve it before the terminal tracking push and cleanup.
+exact-checkpoint [native CI](https://github.com/tesseracode/tesserapatch/actions/runs/37871315522)
+are complete: all five required jobs succeeded and release was skipped. Owned
+validation helpers/logs have been removed. The terminal record changes only
+tracking/dashboard documents after the validated checkpoint.
 No runtime proposal has been implemented and no #13 implementation is dispatched.
 
 ## Active Task
@@ -20,8 +22,8 @@ No runtime proposal has been implemented and no #13 implementation is dispatched
 - **Task ID**: `close-research-capture-planning-wave`
 - **Milestone**: Research intake and GH #13 capture-evidence planning
 - **Issue**: GH #13 remains the future implementation issue
-- **Description**: Complete terminal tracking and owned-helper cleanup after the passing gate
-- **Status**: Accepted — local gate complete; gate-head CI/durability cleanup pending
+- **Description**: Research/planning wave closure; no implementation dispatched
+- **Status**: Complete — ACCEPTED; local gate, native CI and owned-helper cleanup complete
 - **Assigned**: 2026-09-22
 - **Accepted**: 2026-10-08
 - **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
@@ -35,6 +37,11 @@ The October 8 five-minute resource watch qualified after about 136 seconds.
 The subsequent complete gate passed formatting, vet, build and every shard,
 with fresh admission before each Go command. No thresholds, test selectors
 or timeouts were relaxed. The earlier resource blocks remain historical.
+
+Gate-head native CI subsequently completed successfully. The acceptance archive
+is committed at `bf3094c`; this terminal record completes the closing push.
+Four owned helpers, fourteen logs and two empty directories were removed without
+touching tracked research or unrelated build artifacts.
 
 All thirteen previously untracked research files are tracked with paper-only
 statuses and evidence limits preserved. The stale allowlist is empty. Research
@@ -83,7 +90,9 @@ plan, not permission to implement automatic replay or widen coverage authority.
 - Original index guard/new sensitivities passed locally (CLI 0.770s) and frozen
   ADR-041 checks passed (workflow 0.225s). The isolated build also passed.
 - Same-source native run `36747949103` completed SUCCESS at `ec0e5ee`.
-  Gate-head run `37871315522` is pending macOS; four other jobs have succeeded.
+  Gate-head run `37871315522` completed SUCCESS at exact `bd13671`: all five
+  required jobs succeeded; release was skipped. The allowed-failure Windows full
+  suite retains a failure annotation; this is not an all-Windows-tests-pass claim.
 - Non-Go checks passed: 141 intake/133 accepted-planning link targets, TWS
   JSON aggregate consistency with the disputed duration explicitly preserved,
   exact document parity/counts and historical section digest preservation.
@@ -91,18 +100,15 @@ plan, not permission to implement automatic replay or widen coverage authority.
 
 ## Next Steps
 
-1. Let gate-head native run `37871315522` finish; then remove owned validation
-   helpers/logs and push terminal tracking without cancelling the hosted run.
-2. Obtain a separate bounded GH #13 implementation assignment, starting with
+1. Obtain a separate bounded GH #13 implementation assignment, starting with
    frozen regression evidence. No implementation begins in this task.
-3. WP-004 remains the preferred separate read-only dependency-suggestion planning
+2. WP-004 remains the preferred separate read-only dependency-suggestion planning
    track. GH #24 widening and #12/#14 research remain separate; re-baseline
    #18-22 reports on v0.17 before designing fixes.
 
 ## Blockers
 
-No semantic, test or local resource blocker remains. Terminal exact-checkpoint
-native confirmation, helper cleanup and the closing push remain pending.
+None for this completed wave. Future runtime work requires a separate assignment.
 
 ## Context for Next Agent
 
@@ -114,7 +120,7 @@ native confirmation, helper cleanup and the closing push remain pending.
   close-pending statements; do not churn pinned snapshots for transient status.
 - All research is now tracked documentation; preserve historical turns and
   uncertainty rather than treating it as disposable scratch.
-- Owned temporary files are under `bin/research-planning-validation/`;
-  remove only inventoried helpers/logs and empty directories at closure.
+- Owned temporary files and the empty `bin/research-planning-validation/`
+  directory were removed after gate-head native CI completed.
 - v0.17.0 remains at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated
   tag object `e7c748ada40988fe72f47b638cb37d07e24f0ac3`. Do not move that tag.

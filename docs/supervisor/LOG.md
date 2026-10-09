@@ -1,3 +1,26 @@
+## Terminal Close — research intake and GH #13 planning wave — 2026-10-08
+
+**WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`
+**Validated checkpoint**: `bd13671cf3ba00ee19e7dd95717ace347e310eff`
+**Verdict**: ACCEPTED — local gate and exact-checkpoint native CI complete
+
+[Native run 37871315522](https://github.com/tesseracode/tesserapatch/actions/runs/37871315522)
+completed SUCCESS at the exact local-gate SHA: Ubuntu, macOS, Windows and both
+observer jobs succeeded; release was skipped. The allowed-failure Windows full
+suite still emits a failure annotation; job success is not a claim that every
+Windows test passed. The full local gate independently passed 8/8.
+
+Removed exactly four owned validation helpers and fourteen owned logs, followed
+by their two empty directories. Tracked research, unrelated build artifacts,
+accepted contracts and the sole authorized test-source change are preserved.
+All post-gate edits are confined to CURRENT, HISTORY, ROADMAP, CLUSTERS and LOG.
+The closure archive was committed at `bf3094c`; this terminal record completes
+the documentation-only closing push after hosted CI, without cancelling it.
+
+**Action**: close the combined wave, retain the immutable v0.17.0 tag, and record
+the evidence on still-open GH #13. No runtime implementation, new release or
+WP-004 graduation is dispatched. A separate bounded assignment is required.
+
 ## Acceptance — research intake and GH #13 planning wave — 2026-10-08
 
 **WAVE_BASE**: `6e8096e03849617a240fa586b109e60f44fad69f`

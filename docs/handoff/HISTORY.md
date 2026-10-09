@@ -10354,3 +10354,21 @@ changed. v0.17.0 remains immutable at `d1d6c3f`. A separate bounded #13
 implementation assignment must start with frozen regression evidence.
 WP-004 planning, GH #24 widening, #12/#14 research and #18-22 re-baselining
 remain separate backlog work.
+
+## Terminal Completion — 2026-10-08
+
+This addendum supersedes the initial archive's pending native/cleanup status.
+[Gate-head native run 37871315522](https://github.com/tesseracode/tesserapatch/actions/runs/37871315522)
+completed SUCCESS at exact `bd13671cf3ba00ee19e7dd95717ace347e310eff`.
+All five required jobs succeeded; release was skipped. The Windows job retains
+an allowed-failure full-suite annotation, so this is not a claim that all Windows
+tests passed. The local gate's separate 8/8 PASS covers its entire fresh partition.
+
+Four owned helper scripts and fourteen owned logs were removed explicitly,
+then their two empty directories. No tracked research or unrelated build artifact
+was removed. The acceptance archive is committed at `bf3094c`; this terminal
+documentation-only record completes the closing push after native CI, preserving
+the hosted run rather than cancelling it. All post-gate changes are limited to
+CURRENT, HISTORY, ROADMAP, CLUSTERS and LOG; tested source and accepted contracts
+are unchanged. There is no remaining blocker for this wave and no new runtime
+assignment, release or tag.
