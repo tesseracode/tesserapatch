@@ -1,3 +1,23 @@
+## Below-80% Focused Trial Dispatch — current Mac — 2026-10-09
+
+The operator requests a new resource check and the same bounded focused trial
+if conditions are around 75%. Preflight on the current 32 GiB Mac is 79% on
+the admission metric, load1 2.44, normal OS pressure, zero swap and no Go tools.
+The older Mac is reachable, but no workload is dispatched there.
+
+Repeat the identical four-stage focused experiment: formatting, fixture/AP/AQ
+and mutation controls, vet, build; unchanged Go 1.26.5, serial settings, test
+selectors/timeouts, 60-second load<=5/no-Go admission and first-failure stop.
+Use explicit 75%, 600 seconds maximum admission per command and 1800 seconds
+overall. The new runner differs from the earlier focused runner only in its
+output directory; keep all old evidence and the existing cache policy.
+
+Native run `37955807665` completed SUCCESS on published fixed-source `d91c204`.
+This closes new-source hosted confirmation, not the outstanding full local
+partition or the resource-policy decision. New private measurements go to
+`bin/resource-baseline/current-mac-focused-lowheadroom-20261009`.
+No artificial stress, full-partition dispatch or permanent threshold change.
+
 ## Focused Current-Mac Experiment PASS — 2026-10-09
 
 The operator-authorized focused run at `611522c` passes formatting, the fixture/

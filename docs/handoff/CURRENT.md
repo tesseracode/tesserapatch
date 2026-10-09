@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Focused experiment complete — PASS; full partition and new-source CI pending
+- **Status**: In progress — identical below-80% focused trial dispatched; fixed-source CI PASS
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator requested another resource check and the focused trial if around
+75%. This Mac now reports 79%, normal pressure, zero swap and no Go tools, with
+load1 2.44. Dispatch the identical bounded focused workload to new evidence
+directory `current-mac-focused-lowheadroom-20261009`, changing only the output
+location from the prior runner. Prior raw measurements remain unchanged.
+The older Mac is reachable; no test is started there. Fixed-source native CI
+`37955807665` at `d91c204` has completed SUCCESS.
 
 The current-Mac focused experiment has passed at `611522c`: formatting,
 fixture/AP/AQ tests (128.349s package), vet and build. This validates the latest
@@ -263,22 +271,22 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Preserve the completed focused experiment and publish its validated commits.
-   Decide the full local partition's admission separately; do not infer full-suite
-   or below-80% safety from this subset's above-80% measurements.
+1. Await the newly authorized identical focused trial at lower observed
+   headroom and compare it with the preserved above-80% run. No full suite starts.
+   Decide the full local partition's admission separately.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-3. Prior native run `37892216801` at `2156ae8` is SUCCESS; newer source still
-   needs independent full validation and hosted confirmation before acceptance.
+3. Fixed-source native run `37955807665` at `d91c204` is SUCCESS.
+   Independent review and complete local validation still precede acceptance.
 4. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
-The AQ guard integration correction now passes focused validation as well.
-Full local partition and new-source hosted confirmation remain outstanding.
-No local or older-Mac validation workload remains running.
+The AQ guard correction passes focused validation and fixed-source native CI.
+The complete local partition remains outstanding; the only current dispatch
+is the authorized bounded lower-headroom focused repeat on the current Mac.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

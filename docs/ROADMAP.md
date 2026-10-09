@@ -1542,6 +1542,10 @@ normal pressure/zero swap; peak sampled owned RSS sum was about 2.93 GiB.
 This validates the correction but not below-80% admission. Publish the current
 commits for native CI; full local partition remains outstanding and is not
 automatically dispatched by this bounded experiment.
+**Fixed-source native CI PASS**: run `37955807665` at `d91c204` completes
+SUCCESS. The operator requested a below-80% focused comparison; current-Mac
+preflight is now 79%, so the identical bounded workload is dispatched with
+preserved prior evidence. No full local suite or permanent policy change.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
