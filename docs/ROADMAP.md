@@ -1556,6 +1556,11 @@ on the current Mac under original 80%/load<=5/no-Go/60-second admission, stoppin
 at the first failure or 600-second admission timeout. Preflight is 78%, so no
 test may start until it qualifies. Preserve measurements at
 `current-mac-full-partition-20261009`; no full-suite 75% policy is assumed.
+**Result**: first broad command PASS (including corrected AQ checks), then
+second-command admission times out at 63-71%. No test fails, but only 1/22
+commands execute. Normal pressure/zero swap persist; current-host peak sampled
+owned RSS sum is about 9.22 GiB. Even 75% would reject the recorded next-command
+window. Stop pending an explicit resource/admission decision; preserve all data.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

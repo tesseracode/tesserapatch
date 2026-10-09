@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — full monitored 22-command partition dispatched under original admission
+- **Status**: Blocked — first full-partition command PASS; second-command admission timed out
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The full monitored attempt at `d0376d6` completed its first command successfully:
+all selected packages pass, including the earlier AQ failures. The second
+command never started because its 600-second admission wait remained at 63-71%,
+below both 80% and 75%, with no active Go tools. All samples showed normal
+pressure and zero swap. The passing command peaked near 9.22 GiB summed RSS
+on this 32 GiB Mac. This is **1/22**, not a complete partition pass. No further
+run is scheduled; any different admission policy requires an explicit decision.
 
 The operator now explicitly requests the complete test partition with resource
 monitoring on this Mac. Dispatch the exact existing twenty-two serial commands,
@@ -218,6 +226,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   results, actual above-80% admission conditions and resource bounds.
 - `current-mac-focused-lowheadroom-pass.json`: identical-command repeat,
   admission-window replay comparison, observed 79-81% conditions and limits.
+- `current-mac-full-partition-admission-stop.json`: first broad command PASS,
+  second-command admission block, 9.22 GiB measured RSS peak and interpretation limits.
 
 ## Test Results
 
@@ -290,9 +300,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the operator-authorized complete monitored partition under original
-   80% admission. Preserve all per-stage outputs and resource telemetry; no
-   previous partial run substitutes for the twenty-two commands.
+1. Obtain an explicit resource/admission decision before another complete
+   monitored partition attempt. The second-command wait remained below 75%;
+   blindly retrying or changing only 80% to 75% would not admit that trace.
+   Preserve the first-command pass without calling it full validation.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -304,9 +315,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The complete local partition is now dispatched with original resource admission.
-Both focused comparisons pass. Current preflight is below 80%, so admission may
-block; no threshold relaxation or test result is assumed. The older Mac is idle.
+The complete local partition stopped after 1/22 passing commands because the
+second admission window timed out. No assertions failed in this attempt; normal
+pressure and zero swap do not override the still-active percentage rule.
+No local or older-Mac validation is running. Acceptance remains incomplete.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

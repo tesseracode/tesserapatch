@@ -1,3 +1,26 @@
+## Full Partition — first command PASS, second admission BLOCKED — 2026-10-09
+
+At `d0376d6`, the first complete partition command passed across all selected
+packages (735.49s command, CLI 567.562s). This includes the formerly failing
+AQ guard checks. It qualified original-policy admission after 374.620s.
+No assertion failed. The second command never started: its 600-second admission
+budget expired at 63-71%, with no Go tools and load1 varying from 1.16 to 9.16.
+Even a 75% memory threshold alone would reject all those recorded samples.
+
+All 828 samples show normal OS pressure and zero swap. During the passing
+command, the admission metric ranged 57-80%; it is a pre-command condition,
+not a runtime cap. Peak sampled owned RSS sum was about **9.22 GiB** on this
+32 GiB Mac. The later 63-71% samples are system-wide conditions and cannot
+alone establish whether cache or unrelated applications caused retained usage.
+Only **1/22** commands completed; no earlier partial results are substituted.
+
+**Action**: stop and preserve the exact first pass/admission block, without
+automatic retry or threshold relaxation. Public aggregate:
+`current-mac-full-partition-admission-stop.json` beside earlier reports.
+Raw telemetry/logs remain private. Full local validation remains incomplete;
+any changed admission policy requires a separate explicit decision. Native
+`37979067094` at `fc112b1` is still running, so preserve it before the next push.
+
 ## Full Monitored Partition Authorized — current Mac — 2026-10-09
 
 The operator explicitly requests completing the full test partition with

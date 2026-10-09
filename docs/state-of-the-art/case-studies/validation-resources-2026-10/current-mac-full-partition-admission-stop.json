@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "experiment": "current-mac-full-partition-20261009",
+  "status": "admission-blocked",
+  "source_head": "d0376d620b4ce56e75d47bfc6bb60c4bf5fda675",
+  "source_equivalent_ci_head": "d91c204f51838c3f55f5162cf9efc0e5722fdd1e",
+  "toolchain": "go1.26.5",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "logical_cpus": 10
+  },
+  "policy": {
+    "admission_free_percent_min": 80,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_admission_wait_seconds": 600,
+    "test_package_timeout_seconds": 2400
+  },
+  "workload": {
+    "planned_commands": 22,
+    "executed_commands": 1,
+    "passing_commands": 1,
+    "failing_test_commands": 0,
+    "stopped_before": "08-shard-02",
+    "first_command_real_seconds": 735.49,
+    "first_cli_package_seconds": 567.562,
+    "initial_admission_wait_seconds": 374.619659
+  },
+  "observation": {
+    "sample_count": 828,
+    "first_utc": "2026-10-09T19:20:58.573546+00:00",
+    "last_utc": "2026-10-09T19:49:28.640594+00:00",
+    "sample_span_seconds": 1710.064,
+    "normal_pressure_samples": 828,
+    "swap_used_bytes_max": 0,
+    "first_command_execution_samples": 358,
+    "first_command_execution_free_percent_min": 57,
+    "first_command_execution_free_percent_max": 80,
+    "first_command_sampled_peak_owned_rss_sum_bytes": 9903554560,
+    "first_command_time_reported_max_rss_bytes": 9907748864,
+    "second_admission_samples": 289,
+    "second_admission_sample_span_seconds": 599.884,
+    "second_admission_free_percent_min": 63,
+    "second_admission_free_percent_max": 71,
+    "second_admission_load1_min": 1.16,
+    "second_admission_load1_max": 9.16,
+    "second_admission_active_go_count_max": 0
+  },
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/current-mac-full-partition-20261009",
+    "summary_sha256": "7ead94e2e88880f47ab2ec42648ad9d9e7a9622e687b2ce38212491f5e93ee35",
+    "samples_sha256": "3f52084b07c76cb6d03cbaa6c6659065357716779786175015a38c5a1ec02d20",
+    "first_stage_log_sha256": "a432778316113f960a1b67e8647da2d9525bba13f2073c745df150f573fbbd0d"
+  },
+  "conclusions": [
+    "The broad first command passed across all selected packages, including the previously failing AQ checks; the remaining 21 separately scheduled commands did not start.",
+    "The stop was admission failure, not a failed assertion, package timeout, observed pressure warning or observed swapping.",
+    "A 75% memory threshold alone would also reject every recorded second-command admission sample, whose maximum was 71%.",
+    "Original admission limits apply before commands; the lower metric during the passing command is not a violation of a runtime memory cap.",
+    "The approximately 9.22 GiB sampled process-tree RSS peak exceeds the earlier partial-run and AP-only observations, but does not define minimum RAM or uniquely owned memory.",
+    "No automatic retry, threshold change, artificial memory stress, process termination or old-Mac workload followed the stop.",
+    "Full local validation and acceptance remain incomplete."
+  ]
+}
