@@ -1,3 +1,25 @@
+## Older-Mac AP PASS — deterministic capture fixture — 2026-10-09
+
+At exact fixed-source `ba15a05`, the older-Mac AP observer passes with unchanged
+480s inner / 720s outer / 40m package timeouts. Command time is 444.71s including
+cold compilation/downloads; observer package 360.457s and nested CLI 296.176s.
+All 244 captured events contain zero failures. Previously failing PIB-461 passes
+in 5.79s, timed-out PIB-464 in 132.65s, and exit-3 snapshot guard PIB-469 in 5.30s.
+No assertion was skipped or weakened.
+
+All 242 resource samples show 77% on the admission metric, normal OS pressure,
+zero swap and load1 1.74-3.12. Peak sampled owned RSS sum is about 1.73 GiB,
+with nine owned processes/six Go tools and zero external Go competitors. No Go
+process remains after the run. The original old checkout (`75d80f0`) and failing
+baseline (`d3454ed`) are unchanged; the separate fixed checkout is clean.
+Raw evidence matches on both hosts. Public aggregate:
+`docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-fixture-ap-pass.json`.
+
+**Action**: record the requested observer regression as passing. Local full
+22-command partition at source-equivalent `c360dc9` is still running; old-source
+native `37892216801` is also pending. Do not claim full acceptance or a permanent
+75% policy from this AP-only result. Preserve both validations and pending push.
+
 ## Targeted PASS and AP Comparison Dispatch — 2026-10-09
 
 At fixed-source `ba15a05`, local original-policy formatting, focused CLI tests

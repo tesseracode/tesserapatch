@@ -1516,6 +1516,11 @@ Corrected `ba15a05` passes local formatting, focused CLI tests including compile
 negative controls, vet and build under fresh 80% admission. Dispatch the full
 local partition and, separately, older-Mac AP at experimental 75% with unchanged
 test budgets. Both results remain pending; no permanent policy change.
+**Older-Mac AP PASS** at `ba15a05`: 296.176s nested CLI, all captured rows pass,
+including PIB-461/464/469. Existing timeout/assertion contracts are unchanged.
+Normal pressure/zero swap persisted at 77%; source-equivalent `c360dc9` full
+local partition remains running. Record `older-mac-fixture-ap-pass.json`;
+this is not full-wave acceptance or permanent admission-policy approval.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

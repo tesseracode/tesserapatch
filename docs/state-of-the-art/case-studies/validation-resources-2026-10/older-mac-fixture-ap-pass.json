@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "experiment": "older-mac-fixture-ap-20261009",
+  "status": "ap-observer-passed",
+  "source_head": "ba15a052e1d14deac185a3032df5faf1c7c0c548",
+  "previous_failing_source": "d3454edb72c37bacae9159481cc2e6cd69559459",
+  "toolchain": "go1.26.5",
+  "profiler_sha256": "f427675a1bc0f1d5cbbdd57a3798d065da842ea952e2844931433b0f7385f6c5",
+  "shard_script_sha256": "7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10",
+  "initial_cache": "new isolated empty build/module caches",
+  "policy": {
+    "admission_free_percent_min": 75,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "overall_workload_budget_seconds": 1800,
+    "inner_test_timeout_seconds": 480,
+    "outer_observer_timeout_seconds": 720,
+    "package_timeout_seconds": 2400
+  },
+  "observation": {
+    "first_utc": "2026-10-09T07:17:48.931629+00:00",
+    "last_utc": "2026-10-09T07:26:12.725492+00:00",
+    "sample_count": 242,
+    "sample_span_seconds": 503.781,
+    "normal_pressure_samples": 242,
+    "swap_used_bytes_max": 0,
+    "admission_and_execution_free_percent_min": 77,
+    "admission_and_execution_free_percent_max": 77,
+    "load1_min": 1.74,
+    "load1_max": 3.12,
+    "sampled_peak_owned_rss_sum_bytes": 1861693440,
+    "sampled_peak_owned_process_count": 9,
+    "sampled_peak_go_process_count": 6,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "result": {
+    "exit_code": 0,
+    "command_real_seconds": 444.71,
+    "observer_package_seconds": 360.457,
+    "nested_cli_package_seconds": 296.176,
+    "admission_wait_seconds": 61.047508703,
+    "time_reported_max_rss_bytes": 1650155520,
+    "captured_events": 244,
+    "captured_failure_events": 0,
+    "PIB-461": {
+      "result": "pass",
+      "seconds": 5.79
+    },
+    "PIB-464": {
+      "result": "pass",
+      "seconds": 132.65
+    },
+    "PIB-469": {
+      "result": "pass",
+      "seconds": 5.30
+    }
+  },
+  "correction": {
+    "production_change": "Nil-by-default synchronization hook between completed capture read and the existing post-read descriptor validation; normal capture checks/classification unchanged.",
+    "fixture_change": "One real rooted byte append at the decision-bearing capture, armed immediately for dry-run and after real authority acquisition for mutating prepare; no scheduling race, busy writer or repeated large-file publication.",
+    "preserved_assertions": [
+      "exactly one actual fixture mutation",
+      "real artifact-unstable refusal and exit 3",
+      "JSON, human and dry-run behavior",
+      "whole-workspace preservation after restoring fixture-owned bytes",
+      "compiled-source negative controls detect missing synchronization and bypassed size/mtime protections"
+    ]
+  },
+  "retained_evidence": {
+    "relative_directory_on_both_hosts": "bin/resource-baseline/older-mac-fixture-ap-20261009",
+    "summary_sha256": "e80806b7c02d1438f990c83d1c2fcff321686fb33eae44196ab9acade3188a82",
+    "samples_sha256": "e12ad7d4f921db6c8ff13abf5b56e3776b52aecf9a2f170674da8c84aac10fd8",
+    "stage_log_sha256": "ce11e4aa942cd2188c149d80a83efc9a8414a06a3139a0d19c0df54a066f3029",
+    "nested_output_sha256": "1df6cd21f967c8211985fa970b4589033bc39d9e9dd10b09cd149f55c2b5a77d"
+  },
+  "limits": [
+    "This proves the corrected AP observer on the older Mac, not a full-suite or final-wave pass.",
+    "Measured admission/execution was at 77%, not exactly 75%; no permanent resource-policy change is adopted.",
+    "RSS sums can double-count shared pages and samples can miss short spikes; they do not define minimum required RAM.",
+    "The fixed run began with fresh caches; timing includes compilation/download differences and is not a controlled benchmark of the hook alone.",
+    "Original failure evidence and both original/frozen checkouts remain unchanged; no background service or test timeout was altered.",
+    "Local full-suite and new-source hosted confirmation remain pending."
+  ]
+}

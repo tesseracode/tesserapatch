@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — targeted/vet/build PASS; older-Mac AP and full local partition dispatched
+- **Status**: In progress — targeted/vet/build and older-Mac AP PASS; full local partition pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -166,6 +166,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   timeout, resource measurements and explicit missing-diagnostic disclosure.
 - `older-mac-ap-diagnosis.json`: successfully captured first assertion failure,
   timeout stack chain, exact resource measurements, evidence hashes and limits.
+- `older-mac-fixture-ap-pass.json`: fixed-source AP pass, actual nested row
+  results, unchanged budgets, resource bounds and evidence hashes.
 
 ## Test Results
 
@@ -184,6 +186,12 @@ vet and build, each after a fresh original-policy 80% admission minute.
 Mutation controls actually compiled broken source and observed the specific
 expected assertion failures. Old-Mac AP and the full local shard partition are
 dispatched independently on their respective hosts; no result is claimed yet.
+The older-Mac AP result is now **PASS** at exact `ba15a05`: 444.71s command,
+360.457s observer package, 296.176s nested CLI. Captured PIB-461/464/469 all pass;
+244 nested events have zero failures. All 242 resource samples show normal
+pressure/zero swap at 77%; peak owned RSS sum about 1.73 GiB. No Go processes
+remain on that host. Full local partition at source-equivalent `c360dc9` remains
+pending, as does new-source hosted confirmation.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
@@ -219,20 +227,19 @@ This diagnostic success is not a validation pass or threshold approval.
 ## Next Steps
 
 1. Await the full local 22-command partition under original 80% admission.
-2. Await AP on separate fixed-source older-Mac checkout `fixture-repo-20261009`
-   at `ba15a05`, explicit 75% and unchanged timeouts. New evidence directory is
-   `older-mac-fixture-ap-20261009`; previous failing baseline is preserved.
+2. Retain passing AP evidence from separate fixed-source older-Mac checkout
+   `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
+   `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
 3. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
    tooling push. Raw nested output and all prior failures remain private/preserved.
 4. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
-The timing-dependent unstable-artifact fixture fails its own assertion before
-the observer times out; deterministic correction is now assigned.
-There is no observed memory-pressure/swap failure explaining this result.
-Full-suite requirements and the exact 75% boundary remain unvalidated; no
-permanent threshold change is justified by a failing pilot.
+The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
+Full local partition and new-source hosted confirmation remain outstanding.
+Full-suite resource requirements on the older Mac and the exact 75% boundary
+remain unvalidated; no permanent threshold change is adopted.
 
 ## Context for Next Agent
 
