@@ -1,3 +1,54 @@
+## AP Diagnostic Dispatch — 2026-10-08
+
+Eighteen non-Go profiler controls pass. New controls verify AP-only command
+parity, rejection of mismatched/in-progress cache sources, independent cache
+copies, byte-exact nested stdout/stderr and exit status, failed capture refusing
+before Go starts, and non-observer Go pass-through. Source at isolated `d3454ed`
+and its shard digest remain unchanged. No production/test Go file was edited.
+
+Dispatch once with `--profile ap-observer --memory-threshold 75
+--max-seconds 1800 --wait-seconds 600 --cache-from older-mac-75-20261008`.
+New output is `older-mac-ap-followup-20261008`; raw nested JSON/stack output,
+process inventories and paths remain private. The profiler's SHA-256 is
+`20aaf4c7147009b96b50c3ee9326ff8392317a8a0a7b3177bd3189d116b37d80`;
+the nested-output tee's is
+`043b534648ae30ea6b16e94eddd98bd126fd0f249d0fd9f7a540d54db14ecc59`.
+
+The complete native `37884132310` run passed all five required jobs at `5eaccd6`
+(release skipped); publish pending pilot records and this dispatch now.
+The AP repeat's result is not yet known. Its warmer compiler cache and new
+diagnostic tee are explicit differences, not evidence that background activity
+alone explains any outcome change.
+
+## Follow-up Authorized — unchanged AP observer under quieter conditions — 2026-10-08
+
+The operator accepts the recommendation to investigate and repeat the unchanged
+AP observer before making any permanent resource-policy decision. Initial
+read-only samples show lower post-boot activity than the pilot; confirm conditions
+again through the recorded admission window, not this instantaneous snapshot.
+Native run `37884132310` at `5eaccd6` completed SUCCESS, so the pending calibration
+records can now be pushed without cancelling it.
+
+The first pilot's child timeline shows the nested CLI process alive about 479
+seconds with about 402 CPU-seconds: this is sustained computation, not proof of
+a deadlock. The incomplete PIB-464 case calls `s6ContractBaseline`, whose first
+use builds shared static and runtime contract evidence
+(`internal/cli/prepare_s7_ap_dryrun_test.go:228-236`,
+`internal/cli/prepare_s6_contract_test.go:17185-17321`). That is a candidate
+bottleneck, not a proven diagnosis; retain the timeout stack for confirmation.
+
+Use one AP-only follow-up, still bounded to 30 minutes, >=75% admission, load1
+<=5, no competing Go tools, and 60 continuous seconds. Keep the existing
+480s inner/720s outer/40m package timeouts and all selectors/assertions.
+Copy the previous isolated caches rather than clearing or modifying them;
+record the warm-cache difference explicitly. Capture nested overlay-test stdout
+privately through a byte-preserving tee without changing source or Go arguments.
+This added instrumentation and cache state limit causal comparison.
+
+**Action**: extend/verify the narrow profiler mode and diagnostics, then dispatch
+once if admitted. No test optimization, timeout change, service disabling,
+permanent threshold adoption or GH #13 implementation.
+
 ## Pilot Result — four stages pass, AP observer times out — 2026-10-08
 
 **Task**: `calibrate-test-resource-admission`

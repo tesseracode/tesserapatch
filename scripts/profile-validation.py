@@ -10,6 +10,7 @@ from pathlib import Path
 import platform
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -249,10 +250,49 @@ def workload(repo, toolchain, profile="full"):
     )
     if profile == "full":
         return stages
+    if profile == "ap-observer":
+        return [(name, command) for name, command in stages if name == "08-shard-15"]
     if profile != "pilot":
         raise ValueError("unknown workload profile")
     selected = {"06-gofmt", "07-vet", "07-build", "08-shard-02", "08-shard-15"}
     return [(name, command) for name, command in stages if name in selected]
+
+
+def seed_cache(source, destination, head, version):
+    source = source.resolve()
+    raw = (source / "summary.json").read_bytes()
+    previous = json.loads(raw)
+    if previous["head"] != head or previous["toolchain_version_file"] != version:
+        raise ValueError("cache source must match frozen HEAD and toolchain")
+    if previous["status"] in ("running", "interrupted"):
+        raise ValueError("cache source must be a completed run")
+    cache = source / "cache"
+    if not (cache / "build").is_dir() or not (cache / "gopath").is_dir():
+        raise ValueError("completed run has no isolated build/module caches")
+    shutil.copytree(cache, destination / "cache")
+    return {
+        "source_run": source.name,
+        "source_summary_sha256": hashlib.sha256(raw).hexdigest(),
+        "initial_cache": "copy of previous completed isolated caches; original caches unchanged",
+    }
+
+
+def capture_child_output(destination, toolchain, env):
+    helper = Path(__file__).with_name("profile-go-output.py")
+    body = helper.read_bytes()
+    wrapper_dir = destination / "wrappers"
+    output_dir = destination / "child-output"
+    wrapper_dir.mkdir(mode=0o700)
+    output_dir.mkdir(mode=0o700)
+    wrapper = wrapper_dir / "go"
+    wrapper.write_bytes(body)
+    wrapper.chmod(0o700)
+    env.update({
+        "PATH": str(wrapper_dir) + os.pathsep + env["PATH"],
+        "TPATCH_PROFILE_REAL_GO": str(toolchain / "bin/go"),
+        "TPATCH_PROFILE_CHILD_OUTPUT_DIR": str(output_dir),
+    })
+    return hashlib.sha256(body).hexdigest()
 
 
 def stop_owned(process, known=()):
@@ -366,17 +406,20 @@ def main():
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--wait-seconds", type=int, default=600)
     parser.add_argument("--memory-threshold", type=int, choices=(80, 75), default=80)
-    parser.add_argument("--profile", choices=("full", "pilot"), default="full")
+    parser.add_argument("--profile", choices=("full", "pilot", "ap-observer"), default="full")
     parser.add_argument("--max-seconds", type=int)
+    parser.add_argument("--cache-from", type=Path)
     args = parser.parse_args()
     if platform.system() != "Darwin" or args.wait_seconds < 60:
         parser.error("macOS and at least a 60-second admission budget required")
     if args.max_seconds is not None and args.max_seconds < 60:
         parser.error("overall budget must be at least 60 seconds")
-    if args.profile == "pilot" and args.max_seconds is None:
-        parser.error("pilot requires an explicit overall time budget")
-    if args.memory_threshold == 75 and (args.profile != "pilot" or args.max_seconds > 1800):
-        parser.error("75% experiment requires pilot profile and at most 1800 seconds")
+    if args.profile != "full" and args.max_seconds is None:
+        parser.error("partial experiment requires an explicit overall time budget")
+    if args.memory_threshold == 75 and (args.profile == "full" or args.max_seconds > 1800):
+        parser.error("75% experiment requires a partial profile and at most 1800 seconds")
+    if args.cache_from is not None and args.profile != "ap-observer":
+        parser.error("cache copying is only supported for the diagnostic AP repeat")
 
     def interrupt(signum, frame):
         raise KeyboardInterrupt
@@ -399,14 +442,22 @@ def main():
         "GOPATH": str(destination / "cache/gopath"),
         "GOCACHE": str(destination / "cache/build"),
     })
+    version = (toolchain / "VERSION").read_text().strip()
+    cache_info = {"initial_cache": "new isolated empty build/module caches; no global cache was cleared"}
+    if args.cache_from is not None:
+        cache_info = seed_cache(args.cache_from, destination, head, version)
+    capture_digest = None
+    if args.profile == "ap-observer":
+        capture_digest = capture_child_output(destination, toolchain, env)
     summary = {
         "status": "running", "head": head, "profiler_pid": os.getpid(),
-        "toolchain_version_file": (toolchain / "VERSION").read_text().strip(),
+        "toolchain_version_file": version,
         "architecture": platform.machine(), "os_release": platform.release(),
         "hardware": output("/usr/sbin/sysctl", "hw.memsize", "hw.physicalcpu", "hw.logicalcpu").strip(),
         "shard_script_sha256": hashlib.sha256((repo / "scripts/wave-close-test-shards.sh").read_bytes()).hexdigest(),
         "profiler_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-        "initial_cache": "new isolated empty build/module caches; no global cache was cleared",
+        **cache_info,
+        "child_output_capture_sha256": capture_digest,
         "profile": args.profile,
         "planned_stages": [name for name, _ in stages],
         "max_workload_seconds": args.max_seconds,
@@ -429,7 +480,10 @@ def main():
             "Process start timing near boot does not prove waste or authorize disabling a service.",
             "Process inventories remain local; argv, environment and full executable paths are not collected.",
             "Pilot covers only its five selected stages; budget exhaustion is not a test assertion failure.",
-            "Cold isolated caches differ from the previous unprofiled successful run.",
+            "AP-only profile is diagnostic; a partial run cannot certify the whole suite.",
+            "AP child-output tee preserves bytes/arguments but adds instrumentation overhead.",
+            "Cache state must be considered when comparing timing between runs.",
+            "Raw child test output may contain generated paths and tokens; retain it privately.",
         ],
         "results": [],
     }
@@ -455,7 +509,7 @@ def main():
                 if result["exit_code"] or not result.get("formatted", True):
                     summary["status"] = "validation-failed"
                     return 1
-            summary["status"] = "pilot-passed" if args.profile == "pilot" else "passed"
+            summary["status"] = "passed" if args.profile == "full" else args.profile + "-passed"
             return 0
     except BudgetExceeded as error:
         summary.update(status="budget-exhausted", error=str(error))

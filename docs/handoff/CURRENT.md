@@ -15,8 +15,8 @@ attribution. No permanent threshold change or GH #13 implementation is authorize
 
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
-- **Description**: Measure a bounded 75% pilot and attribute older-host CPU/memory use
-- **Status**: Blocked — AP observer timed out; pilot result recorded, follow-up decision pending
+- **Description**: Investigate and repeat the unchanged AP observer with preserved diagnostics
+- **Status**: In progress — one bounded AP-only diagnostic follow-up dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -34,6 +34,9 @@ an isolated Go 1.26.5 download, leaving the existing checkout untouched.
 After the 80% baseline was admission-blocked, the operator explicitly approved
 a 75% experiment and asked what startup/background processes consume resources.
 Use a 30-minute pilot budget, not an unrestricted full-suite attempt.
+The operator has now authorized the recommended unchanged AP-only repeat under
+quieter background conditions. Keep the same experimental admission and all
+test timeouts/assertions; preserve nested stdout to expose timeout diagnostics.
 
 Direct inspection confirms the threshold was an admission policy, not a
 measured suite memory requirement. The Makefile has eight correctness/durability
@@ -88,6 +91,16 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   No external Go competitor was observed; no Go process remained afterward.
 - Background process attribution is retained privately. Sustained post-boot
   work is observable, but neither a leak nor the timeout's cause is established.
+- Pre-follow-up sampling shows lower background load and media-analysis memory.
+  The earlier nested CLI process used about 402 CPU-seconds over 479 observed
+  seconds. PIB-464 enters a shared contract-baseline builder; inspect the actual
+  timeout stack before assigning cause or proposing optimization.
+- Repeat only AP with a 30-minute budget and the original 60-second admission
+  rule at experimental 75%. Copy the prior isolated caches into a fresh run
+  directory and record their provenance; old evidence/caches remain unchanged.
+- A private byte-preserving tee will retain nested overlay-test stdout, including
+  timeout diagnostics currently omitted from the observer's final error.
+  No source, selector, assertion or test-timeout change is authorized.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
 - Capture continuous measurements and durable summaries in the new experiment;
   distinguish sampled RSS sums from exact physical footprint/high-water marks.
@@ -105,6 +118,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   durable aggregate, raw evidence digests, hypothetical-window results and limits.
 - `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-75-pilot.json`:
   non-identifying pilot measurements and the failing observer diagnostic.
+- `scripts/profile-go-output.py`: private byte-preserving capture of nested
+  observer stdout; all other Go commands are exec pass-through.
 
 ## Test Results
 
@@ -127,21 +142,25 @@ Stage real times were 1.89s / 91.98s / 3.07s / 104.47s / 550.35s.
 The failure is a nested observer timeout under existing budgets, not the
 overall pilot cap. Raw stage logs, summary and samples are retained on both
 hosts. This is neither full-suite coverage nor a passing lower-threshold result.
+Eighteen non-Go profiler controls now pass after adding AP-only command parity,
+isolated cache-copy provenance and failure-sensitive byte/exit-status capture.
+Source and all Go test assertions/timeouts remain unchanged.
+The AP diagnostic follow-up is dispatched; no new result is claimed yet.
 
 ## Next Steps
 
-1. Discuss a controlled follow-up of the unchanged AP observer; do not automatically
-   repeat, raise timeouts, alter assertions or adopt a permanent threshold.
-2. Preserve native run `37884132310` at `5eaccd6` before the pending documentation
-   push. Raw evidence is already retained on both hosts; inventories remain private.
+1. Await the one authorized AP-only repeat through the same admission safeguards.
+   Preserve nested JSON/timeout stacks, process telemetry and stage logs privately.
+2. Inspect nested test events/timeout stacks and compare measured conditions.
+   Native run `37884132310` completed SUCCESS; pending records may be pushed.
 3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The original 80% attempt could not start. The 75% pilot executed but AP timed out.
 Memory pressure remained normal in the samples, with no swapping; the cause of
-the timeout remains unresolved. A permanent 75% rule is not justified by this
-failed pilot or by measurements taken only at 77-79%.
+the timeout remains unresolved. The operator authorized one diagnostic follow-up,
+not a permanent 75% rule or test-timeout change.
 
 ## Context for Next Agent
 
@@ -161,3 +180,7 @@ failed pilot or by measurements taken only at 77-79%.
 - A local private `process-attribution-summary.json` accompanies the pilot's
   mirrored evidence. CPU averages use matched PID/start-time cumulative counters,
   not averages conditioned on appearing in a top-process ranking.
+- Follow-up output: `older-mac-ap-followup-20261008`; remote profiler:
+  `profile-validation-ap.py` plus `profile-go-output.py`. The prior run's caches
+  are copied, not reused in place; copied-cache and tee differences must remain
+  explicit when comparing outcomes. Mirror its child-output directory locally.

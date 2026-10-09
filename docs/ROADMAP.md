@@ -1481,6 +1481,14 @@ owned RSS sum was about 1.72 GiB with up to six owned Go tools. Admission at
 The timeout's cause remains unresolved. Aggregate evidence is in
 `older-mac-75-pilot.json` beside the first report; process inventories stay local.
 No automatic retry, permanent policy adoption, timeout changes or GH #13 work.
+**Authorized follow-up**: the operator requests the recommended unchanged AP-only
+repeat under quieter conditions, bounded to 30 minutes with the same 75%
+experimental admission. Preserve nested stdout diagnostics, source/assertions
+and original test budgets; copy prior caches and explicitly record that difference.
+Native CI `37884132310` is green; the earlier failed pilot remains recorded.
+Eighteen non-Go profiler controls pass; AP-only replay is dispatched with copied
+prior caches and a private byte-preserving nested-output tee. Source, selectors
+and timeouts remain unchanged. No follow-up success is claimed until it finishes.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

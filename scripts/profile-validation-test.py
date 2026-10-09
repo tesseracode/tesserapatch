@@ -3,6 +3,7 @@
 
 import importlib.util
 import io
+import json
 import os
 from pathlib import Path
 import shlex
@@ -148,6 +149,8 @@ class TelemetryTests(unittest.TestCase):
         self.assertEqual(pilot, [stages[i] for i in (0, 1, 2, 4, 17)])
         self.assertIn("^TestS7ARRev(11|12|13|14|15).*$", pilot[3][1])
         self.assertIn("^TestS7ObservedAPRegistrationAuthority$", pilot[4][1])
+        self.assertEqual(profiler.workload(root, Path("/fixture/go"), "ap-observer"),
+                         [stages[17]])
         with self.assertRaises(ValueError):
             profiler.workload(root, Path("/fixture/go"), "unbounded")
         for changed in (
@@ -217,6 +220,78 @@ class TelemetryTests(unittest.TestCase):
                     with self.assertRaises(SystemExit) as error:
                         profiler.main()
                     self.assertEqual(error.exception.code, 2)
+
+    def test_cache_copy_rejects_mismatch_and_preserves_original(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            root = Path(directory)
+            source, destination = root / "source", root / "destination"
+            (source / "cache/build").mkdir(parents=True)
+            (source / "cache/gopath").mkdir()
+            (source / "cache/build/fixture").write_text("original")
+            record = {"head": "expected", "toolchain_version_file": "version", "status": "validation-failed"}
+            (source / "summary.json").write_text(json.dumps(record))
+            for head, version in (("wrong", "version"), ("expected", "wrong")):
+                with self.assertRaises(ValueError):
+                    profiler.seed_cache(source, destination, head, version)
+                self.assertFalse(destination.exists())
+            result = profiler.seed_cache(source, destination, "expected", "version")
+            self.assertEqual(result["source_run"], "source")
+            (destination / "cache/build/fixture").write_text("modified-copy")
+            self.assertEqual((source / "cache/build/fixture").read_text(), "original")
+            record["status"] = "running"
+            (source / "summary.json").write_text(json.dumps(record))
+            with self.assertRaises(ValueError):
+                profiler.seed_cache(source, root / "refused", "expected", "version")
+
+    def test_child_output_tee_preserves_bytes_arguments_stderr_and_failure(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            root = Path(directory)
+            toolchain = root / "toolchain"
+            (toolchain / "bin").mkdir(parents=True)
+            fake = toolchain / "bin/go"
+            payload = b'{"Action":"output","Output":"fixture"}\n' * 40000 + b"\x00\xff"
+            # A file fixture avoids command-line length limits for the large byte stream.
+            data = root / "bytes"
+            data.write_bytes(payload)
+            fake.write_text(
+                "#!" + profiler.sys.executable + "\n"
+                "from pathlib import Path\nimport sys\n"
+                "assert sys.argv[1:] == ['test','-json','-overlay=fixture','-timeout=8m']\n"
+                "sys.stdout.buffer.write(Path(" + repr(str(data)) + ").read_bytes())\n"
+                "sys.stderr.write('fixture-stderr\\n')\nsys.exit(7)\n")
+            fake.chmod(0o700)
+            env = dict(os.environ)
+            profiler.capture_child_output(root, toolchain, env)
+            wrapper = root / "wrappers/go"
+            args = [str(wrapper), "test", "-json", "-overlay=fixture", "-timeout=8m"]
+            result = profiler.subprocess.run(args, env=env, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 7)
+            self.assertEqual(result.stdout, payload)
+            self.assertEqual(result.stderr, b"fixture-stderr\n")
+            logs = list((root / "child-output").glob("*.jsonl"))
+            self.assertEqual(len(logs), 1)
+            self.assertEqual(logs[0].read_bytes(), payload)
+            self.assertEqual(logs[0].stat().st_mode & 0o777, 0o600)
+            env["TPATCH_PROFILE_CHILD_OUTPUT_DIR"] = str(root / "absent")
+            result = profiler.subprocess.run(args, env=env, capture_output=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, b"")
+
+    def test_nonobserver_go_is_exec_passthrough_without_capture(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            root = Path(directory)
+            toolchain = root / "toolchain"
+            (toolchain / "bin").mkdir(parents=True)
+            fake = toolchain / "bin/go"
+            fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 9\n")
+            fake.chmod(0o700)
+            env = dict(os.environ)
+            profiler.capture_child_output(root, toolchain, env)
+            result = profiler.subprocess.run([str(root / "wrappers/go"), "build", "./..."],
+                                             env=env, capture_output=True, timeout=10)
+            self.assertEqual(result.returncode, 9)
+            self.assertEqual(result.stdout, b"build\n./...\n")
+            self.assertEqual(list((root / "child-output").iterdir()), [])
 
     def test_cleanup_includes_child_in_a_separate_session(self):
         with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
