@@ -1458,8 +1458,14 @@ Record stage-level execution data and distinguish an admission block from a test
 failure. GH #13 runtime work remains paused pending this separate investigation.
 The operator approved isolated source/toolchain setup; exact `d3454ed` plus
 checksum-verified Go 1.26.5 is ready. Eight non-Go profiler controls and both
-host telemetry smokes pass. The unchanged-threshold baseline is dispatched with
-a 600-second admission budget per command; raw evidence will be retained.
+host telemetry smokes pass. The unchanged-threshold baseline exhausted its
+600-second admission budget before formatting: 288 samples, 76-80% admission
+metric, load1 2.60-17.39, normal OS pressure, zero swap and zero Go tools.
+All conditions never overlapped at 80%; a hypothetical 75% rule would yield
+189 seconds of admission on that trace. This is not a relaxed run or measured
+test headroom. Raw evidence is retained on both hosts and a durable aggregate is
+in `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`.
+No automatic retry or policy change; discuss the candidate before proceeding.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

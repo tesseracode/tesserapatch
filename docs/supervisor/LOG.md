@@ -1,3 +1,33 @@
+## Baseline Result — admission blocked before formatting — 2026-10-08
+
+**Task**: `calibrate-test-resource-admission`
+**Measured source**: `d3454edb72c37bacae9159481cc2e6cd69559459`
+**Result**: exit 75; zero validation stages executed
+
+The 600-second unchanged-policy attempt retained 288 admission samples spanning
+598.640 seconds. Admission free metric was 76-80%, load1 2.60-17.39, OS memory
+pressure normal in every sample, swap used zero throughout, and active Go/tool
+count zero throughout. System process counts were 670-694. No formatting,
+vet, compilation or test command started; test runtime peaks remain unknown.
+
+The independent conditions never overlapped under the 80% rule. Replaying only
+the admission decision at 75% (or 70%) on the same trace yields a 189.186-second
+qualifying window while retaining load <=5, no Go tools and gap resets. This is
+evidence that the old admission rule blocks an otherwise qualifying period,
+not proof of sufficient runtime headroom or a pass under a relaxed policy.
+The smaller 75% change is therefore a candidate to discuss, not an adopted rule.
+
+Raw summary/samples are retained on both hosts with matching SHA-256 digests.
+The durable aggregate is
+`docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`.
+The isolated checkout is still clean at `d3454ed`; the original checkout and
+untracked research are unchanged at `75d80f0`.
+
+**Action**: record the block and stop. Do not automatically retry, change the
+threshold or claim measured test memory requirements. Baseline-only authorization
+is exhausted; choosing a relaxed pilot requires an operator decision. Retain
+the profiler and evidence; GH #13 remains paused.
+
 ## Baseline Dispatch — measured validation on older Mac — 2026-10-08
 
 The isolated checkout is clean at exact `d3454ed`; the original checkout remains

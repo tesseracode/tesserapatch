@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "experiment": "older-mac-20261008",
+  "status": "admission-blocked",
+  "source_head": "d3454edb72c37bacae9159481cc2e6cd69559459",
+  "toolchain": "go1.26.5",
+  "toolchain_archive_sha256": "6231d8d3b8f5552ec6cbf6d685bdd5482e1e703214b120e89b3bf0d7bf1ef725",
+  "profiler_sha256": "77361b0d7db151aee163b3a77f4e12b437b4e17efe9718f159092df41a2d1512",
+  "shard_script_sha256": "7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10",
+  "host": {
+    "architecture": "x86_64",
+    "darwin_release": "24.6.0",
+    "physical_memory_bytes": 17179869184,
+    "physical_cpus": 4,
+    "logical_cpus": 8
+  },
+  "policy": {
+    "admission_free_percent_min": 80,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_wait_seconds": 600
+  },
+  "observation": {
+    "first_utc": "2026-10-09T04:17:27.178035+00:00",
+    "last_utc": "2026-10-09T04:27:25.780504+00:00",
+    "sample_count": 288,
+    "sample_span_seconds": 598.640,
+    "sample_duration_max_seconds": 0.147518,
+    "sample_gap_max_seconds": 2.155843,
+    "admission_free_percent_min": 76,
+    "admission_free_percent_max": 80,
+    "load1_min": 2.60,
+    "load1_max": 17.39,
+    "normal_pressure_samples": 288,
+    "warning_or_critical_pressure_samples": 0,
+    "swap_used_bytes_min": 0,
+    "swap_used_bytes_max": 0,
+    "go_process_count_min": 0,
+    "go_process_count_max": 0,
+    "system_process_count_min": 670,
+    "system_process_count_max": 694,
+    "samples_below_memory_admission": 178,
+    "samples_above_load_admission": 196,
+    "longest_original_qualifying_window_seconds": 0,
+    "hypothetical_75_percent_qualifying_window_seconds": 189.186,
+    "hypothetical_70_percent_qualifying_window_seconds": 189.186
+  },
+  "validation": {
+    "profiler_exit_code": 75,
+    "stopped_before": "06-gofmt",
+    "completed_validation_stages": 0,
+    "execution_sample_count": 0,
+    "test_peak_memory_bytes": null,
+    "test_peak_process_count": null
+  },
+  "retained_evidence": {
+    "relative_directory_on_both_hosts": "bin/resource-baseline/older-mac-20261008",
+    "summary_sha256": "c1e2d2c8717f4c84e9798f54902d7bacbe86a76eb47dad13aba9eeb55e74a358",
+    "samples_sha256": "a368a034c04f3e9f9c9fbb252a899cf1b3783ee4f9bab7b36212f7d2c927b411"
+  },
+  "limitations": [
+    "This is admission telemetry, not a measurement of test execution or minimum required RAM.",
+    "The legacy percent-free metric is not unused physical RAM or Activity Monitor pressure.",
+    "Process counts are system-wide sampled counts, not resource requirements for TesseraPatch.",
+    "Hypothetical windows replay recorded samples with only the memory threshold changed; no relaxed-policy workload was executed.",
+    "Original and hypothetical windows retain load <=5, no Go tools, the same 60-second duration and gap resets.",
+    "No permanent admission change, relaxed experiment or GH #13 implementation is authorized."
+  ]
+}

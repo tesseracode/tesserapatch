@@ -15,7 +15,7 @@ Only an instrumented baseline is authorized; a relaxed candidate is undecided.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Measure baseline resource use before choosing any admission change
-- **Status**: In progress — instrumented older-host baseline dispatched
+- **Status**: Blocked — baseline admission timed out; candidate decision pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -58,7 +58,15 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   Only formatting, serial vet/build and the exact 22-command partition are
   profiled. Git/document gates 1-5 are not repeated as a new close certification.
 - Latest older-host non-Go smoke reports 78% on the admission metric. A bounded
-  attempt will retain evidence even if no Go command qualifies.
+  attempt retained evidence but no command qualified: the 600-second run ended
+  with exit 75 before formatting.
+- Its 288 admission samples span 598.640 seconds: free metric 76-80%, load1
+  2.60-17.39, OS pressure normal throughout, zero swap and zero Go processes.
+  Total system process counts were 670-694; these are not test process counts.
+- No sample met all the original conditions. Replaying a 75% or 70% memory
+  threshold against the same trace yields a 189.186-second qualifying window
+  with the other conditions unchanged. This is not an executed relaxed run
+  or proof of runtime headroom. Discuss 75% before considering a larger change.
 - Keep >=80% admission, load1 <=5, no competing Go/test tools and a fresh
   continuous 60-second window. No relaxed policy or artificial stress authorized.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
@@ -74,30 +82,34 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   admission conditions, profiles the exact shard command partition, and preserves
   raw evidence, stage logs and summaries. No CLI runtime, Go test-source, CI,
   existing shard-script or admission-policy changes.
+- `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`:
+  durable aggregate, raw evidence digests, hypothetical-window results and limits.
 
 ## Test Results
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
-pass on both Macs. Go validation is now dispatched only through the original
-admission gate; no Go success is claimed yet. Prior acceptance remains valid:
+pass on both Macs. Baseline exits 75 after the 600-second admission budget.
+Zero Go/formatting stages executed; no runtime peak or test pass can be claimed.
+Raw summary/samples are retained on both hosts with matching SHA-256 digests.
+Prior acceptance remains valid:
 local gate 8/8 at `bd13671`, exact-checkpoint native run `37871315522` SUCCESS,
 terminal tracking pushed at `d3454ed`. That evidence contains no resource profile.
 
 ## Next Steps
 
-1. Await the bounded older-host baseline, retaining raw measurements, stage
-   logs, workload identity, cache/toolchain context and its summary.
-2. Run only if the existing admission rule qualifies. If it cannot, report
-   admission-blocked without inventing test resource requirements.
-3. Select any relaxed experiment only after discussing the baseline results.
-   GH #13 implementation remains paused and separately authorized.
+1. Discuss a bounded 75% experimental pilot, or wait for another 80% baseline
+   window. No candidate has been selected and no automatic retry is running.
+2. If authorized, measure actual execution before adopting any permanent rule;
+   retain serial settings, load limit, isolation and test timeouts.
+3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
-The older checkout/source and compiler differ from the validated baseline;
-the authorized isolated setup avoids changing them. Admission still requires
-a qualifying 80%/load/no-Go minute; no lower threshold is authorized.
+The isolated setup resolves the source/compiler mismatch without touching the
+older checkout. The current blocker is admission: no qualifying original-policy
+minute occurred. No lower threshold is authorized. Runtime requirements remain
+unmeasured; this attempt only characterizes admission conditions.
 
 ## Context for Next Agent
 
@@ -110,4 +122,4 @@ a qualifying 80%/load/no-Go minute; no lower threshold is authorized.
 - `-count=1` forces test execution; compiled Go artifacts may still be cached.
   A warm/cold-cache difference must not be attributed to admission thresholds.
 - Keep the new `bin/resource-baseline/` evidence and isolated setup. The older
-  raw run is `older-mac-20261008`; mirror summary and samples locally at completion.
+  raw run is `older-mac-20261008`; summary and samples are mirrored locally.
