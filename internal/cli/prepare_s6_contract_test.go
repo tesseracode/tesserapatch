@@ -16875,72 +16875,54 @@ func s6ObserveArchivePurgeFault(t *testing.T, divergent bool) s6RuntimeObservati
 
 func s6ObserveArtifactUnstable(t *testing.T) s6RuntimeObservation {
 	t.Helper()
-	var last s6RuntimeObservation
-	for attempt := 0; attempt < 40; attempt++ {
-		root, slug := prepareS4Workspace(t, "S6 unstable artifact")
-		prepareS4WriteReadyBundle(t, root, slug, false)
-		spec := filepath.Join(root, ".tpatch", "features", slug, "spec.md")
-		body := bytes.Repeat([]byte("s6 unstable artifact\n"), 150*1024)
-		if err := os.WriteFile(spec, body, 0o644); err != nil {
-			t.Fatal(err)
-		}
-		exitThreeBaseline := ""
-		if s7APExitThreeSnapshotMode {
-			exitThreeBaseline = snapshotTreeMetadata(t, "exit-3", root)
-		}
-		writer, err := os.OpenFile(spec, os.O_WRONLY, 0)
-		if err != nil {
-			t.Fatal(err)
-		}
-		stop := make(chan struct{})
-		done := make(chan struct{})
-		ready := make(chan struct{})
-		go func() {
-			defer close(done)
-			defer writer.Close()
-			value := byte('a')
-			started := false
-			for {
-				select {
-				case <-stop:
-					return
-				default:
-				}
-				if _, writeErr := writer.WriteAt([]byte{value}, 0); writeErr == nil {
-					if value == 'a' {
-						value = 'b'
-					} else {
-						value = 'a'
-					}
-					if !started {
-						close(ready)
-						started = true
-					}
-				}
-			}
-		}()
-		<-ready
-		observation := s6PrepareObservation(
-			t, "--path", root, "prepare", slug,
-			"--regenerate", "--allow-heuristic", "--json", "--quiet",
-		)
-		close(stop)
-		<-done
-		last = observation
-		if observation.code == "artifact-unstable" ||
-			(s6HumanObservationMode &&
-				strings.Contains(observation.human, "Refusal: artifact-unstable")) {
-			if s7APExitThreeSnapshotMode {
-				if err := os.WriteFile(spec, body, 0o644); err != nil {
-					t.Fatal(err)
-				}
-				s7APExitThreeSnapshots[root] = exitThreeBaseline
-			}
-			return observation
-		}
+	root, slug := prepareS4Workspace(t, "S6 unstable artifact")
+	prepareS4WriteReadyBundle(t, root, slug, false)
+	rel := prepareFeatureRel(slug) + "/spec.md"
+	spec := filepath.Join(root, filepath.FromSlash(rel))
+	body := []byte("s6 unstable artifact\n")
+	if err := os.WriteFile(spec, body, 0o644); err != nil {
+		t.Fatal(err)
 	}
-	t.Fatalf("actual rooted capture did not observe the forced artifact identity race; last=%#v", last)
-	return s6RuntimeObservation{}
+	before := snapshotTreeMetadata(t, "exit-3", root)
+	oldHook := afterPrepareCaptureRead
+	defer func() { afterPrepareCaptureRead = oldHook }()
+	mutations := 0
+	var mutationErr error
+	afterPrepareCaptureRead = func(captureRoot *os.Root, name string) error {
+		if name != rel {
+			return nil
+		}
+		mutations++
+		mutationErr = appendPrepareCaptureFixtureByte(captureRoot, name)
+		return mutationErr
+	}
+	observation := s6PrepareObservation(
+		t, "--path", root, "prepare", slug,
+		"--regenerate", "--allow-heuristic", "--json", "--quiet",
+	)
+	if mutationErr != nil {
+		t.Fatalf("artifact fixture mutation: %v", mutationErr)
+	}
+	if mutations != 1 {
+		t.Fatalf("capture mutation count = %d, want exactly one real post-read mutation", mutations)
+	}
+	if observation.exit != 3 || (observation.code != "artifact-unstable" &&
+		!(s6HumanObservationMode && strings.Contains(observation.human, "Refusal: artifact-unstable"))) {
+		t.Fatalf("actual rooted capture accepted a post-read size change: %#v", observation)
+	}
+	if got, err := os.ReadFile(spec); err != nil || !bytes.Equal(got, append(append([]byte(nil), body...), '!')) {
+		t.Fatalf("fixture-owned append = %q, %v", got, err)
+	}
+	if err := os.WriteFile(spec, body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if after := snapshotTreeMetadata(t, "exit-3", root); after != before {
+		t.Fatal("artifact-unstable refusal changed the workspace beyond the fixture-owned append")
+	}
+	if s7APExitThreeSnapshotMode {
+		s7APExitThreeSnapshots[root] = before
+	}
+	return observation
 }
 
 func s6JournalFixture(t *testing.T, root, slug string) intentpub.Journal {

@@ -1505,6 +1505,10 @@ timeouts or disable redaction. Both diagnostic attempts together used about
 20.7 minutes, within the original 30-minute workload allowance. Evidence:
 `older-mac-ap-diagnosis.json` beside prior aggregates. No further runs scheduled;
 a bounded correction preserving boundary assertions must be assigned separately.
+**Correction assigned (2026-10-09)**: the operator authorizes deterministic
+capture-boundary mutation, real refusal/no-write assertions and mutation-sensitive
+controls, followed by AP with unchanged budgets. Use the existing inert internal
+hook pattern; no fabricated refusal, redaction change or permanent 75% policy.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

@@ -484,6 +484,7 @@ var (
 	beforeIndexRewrite           func(string)
 	beforeRehydrateIndexRename   func(string)
 	beforePrepareSetRevalidation func()
+	afterPrepareCaptureRead      func(*os.Root, string) error
 	prepareIntentpubHook         func(intentpub.CrashPoint, *os.Root, *intentpub.Entry) error
 	prepareIntentpubRootOps      func(*os.Root) intentpub.RootOps
 	prepareIntentpubRandomHex12  func() (string, error)
@@ -1077,6 +1078,11 @@ func capturePrepareFileWithScratch(
 	}
 	if int64(count) != opened.Size() {
 		return prepareCaptured{state: intent.StateUnstable}, nil
+	}
+	if afterPrepareCaptureRead != nil {
+		if err := afterPrepareCaptureRead(root, rel); err != nil {
+			return prepareCaptured{}, err
+		}
 	}
 	descriptorAfter, err := file.Stat()
 	if err != nil || !os.SameFile(opened, descriptorAfter) ||

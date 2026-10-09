@@ -1,3 +1,49 @@
+## Implementation Ready for Validation — artifact-unstable fixture — 2026-10-09
+
+Implemented a nil-by-default `afterPrepareCaptureRead` hook after the successful
+bounded read and before the existing post-read descriptor validation. Normal
+production checks and classification are unchanged; hook errors propagate.
+The S6 helper now appends exactly one byte through the real root at that point,
+requires exactly one callback and real exit-3 instability, restores its own write,
+and compares the complete remaining workspace snapshot. No large file, goroutine,
+retry loop, fabricated state or redaction bypass remains in this fixture.
+
+New controls cover stable reads, actual post-read size mutation, callback errors,
+JSON/human/dry-run/exit-3 snapshots, and compiled Go overlays that remove the hook
+or bypass both post-read size/mtime validations. Negative controls require the
+specific real assertion failure, not just a compiler error/nonzero exit.
+Publication-composition controls skip only genuinely unsupported authority
+platforms, consistent with the CLI contract; the generic rooted-read controls
+remain platform-independent.
+
+Dispatch local formatting/targeted S6-S7 and mutation controls/vet/build through
+fresh original-policy 80%/load<=5/no-Go/60-second admission, stopping at the first
+failure. The older-Mac AP repeat will use a separate fixed-source checkout after
+targeted validation; prior failed-source experiments remain unchanged.
+
+## Implementation Authorized — deterministic artifact-unstable fixture — 2026-10-09
+
+The operator explicitly assigns the bounded correction: make the unstable-
+artifact fixture deterministic while retaining real capture/refusal assertions,
+then repeat AP with unchanged timeouts. This is not authorization to change
+redaction, weaken capture validation, skip a case or adopt a permanent threshold.
+
+Use the existing nil-by-default hook pattern in the CLI capture routine, at
+the successful-read/post-read-stat boundary. The test appends a byte through
+the real rooted filesystem there; existing descriptor/path size checks must
+detect the mutation. No fake FileInfo, inspection result or refusal is injected.
+Use a small artifact, remove the forty-attempt concurrent writer, restore only
+the fixture-owned append, and assert the remaining workspace snapshot is intact.
+Preserve the closed thirty-seven PRD injection names; the new internal hook is
+not a new public injection/configuration surface.
+
+Add stable/mutated/error controls and real compiled-source mutations proving
+that absent hook invocation or bypassed size/mtime checks are detected. Retain
+JSON/human/dry-run and exit-3 snapshot coverage. Validate locally under the
+original 80% admission policy, then run the bounded old-Mac AP experiment at
+explicit 75%, with the same 480s/720s/40m test budgets. Keep prior baseline
+checkouts and all measurements unchanged; use a separate fixed-source checkout.
+
 ## Diagnostic Finding — timing-dependent artifact fixture, not an observed OOM — 2026-10-08
 
 The corrected capture works: 315 nested JSON events (74,148 bytes) expose an

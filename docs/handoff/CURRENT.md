@@ -8,15 +8,16 @@ The research-intake/GH #13 planning wave is durably closed at
 `d3454edb72c37bacae9159481cc2e6cd69559459`; its acceptance is preserved in
 [HISTORY](HISTORY.md). The operator has paused GH #13 to investigate whether
 the inherited resource-admission policy unnecessarily prevents older-Mac tests.
-The operator now authorizes a bounded 75% pilot with CPU/memory process
-attribution. No permanent threshold change or GH #13 implementation is authorized.
+The operator now authorizes a bounded deterministic artifact-unstable fixture
+correction and an AP observer repeat with unchanged timeouts. No permanent
+threshold change or GH #13 implementation is authorized.
 
 ## Active Task
 
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
-- **Description**: Investigate and repeat the unchanged AP observer with preserved diagnostics
-- **Status**: Blocked — artifact-unstable fixture failure diagnosed; correction scope pending
+- **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
+- **Status**: In progress — deterministic fixture implemented; local targeted validation dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -24,6 +25,16 @@ attribution. No permanent threshold change or GH #13 implementation is authorize
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator accepted the concrete diagnostic finding and assigned its correction.
+Add a nil-by-default internal hook after a successful rooted read, before the
+existing post-read descriptor check. The fixture appends one real byte there,
+requiring the unmodified size checks and real CLI route to report instability.
+Remove the probabilistic busy writer/retries; preserve human/JSON/dry-run
+assertions and prove no command writes remain after restoring fixture mutation.
+Compiled-source negative controls must reject lost synchronization and bypassed
+capture checks. Test timeouts, production classification rules and redaction stay
+unchanged. Historical investigation evidence below remains valid.
 
 The user asked why 80% is required, what peak resource use was recorded, and
 whether a measured comparison can make testing viable on the older Mac.
@@ -130,6 +141,12 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
 
 ## Files Changed
 
+- `internal/cli/prepare_publish.go`: nil-by-default post-read synchronization
+  callback, error propagation, and unchanged real descriptor/path checks.
+- `internal/cli/prepare_s6_contract_test.go`: one-byte deterministic fixture,
+  real refusal assertions, mutation count and whole-workspace preservation.
+- `internal/cli/prepare_capture_unstable_test.go`: stable/mutated/error controls,
+  CLI presentation/snapshot checks and actual compiled-source negative controls.
 - CURRENT, ROADMAP and supervisor LOG: investigation scope and discovered
   limitations.
 - `scripts/profile-validation.py` and its non-Go controls: optional profiler
@@ -151,6 +168,11 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   timeout stack chain, exact resource measurements, evidence hashes and limits.
 
 ## Test Results
+
+The new Go fixture correction is not yet validated. Formatting is applied;
+the local original-policy runner will check formatting, focused fixture/AP
+controls (including source mutations), vet and build, stopping on first failure.
+Prior measurements below refer to the unchanged, failing baseline only.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
@@ -185,17 +207,18 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Obtain a bounded fixture-reliability correction scope: synchronize actual
-   mutation with capture, preserve boundary/refusal assertions and negative
-   controls, then repeat under unchanged budgets. Do not simply raise timeouts.
-2. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
+1. Implement the authorized synchronized mutation and negative controls.
+   Run local targeted validation through the original 80% admission gate.
+2. Repeat AP on a separate fixed-source older-Mac checkout with explicit 75%
+   experimental admission and unchanged timeouts; preserve the old baseline.
+3. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
    tooling push. Raw nested output and all prior failures remain private/preserved.
-3. GH #13 implementation remains paused and separately authorized.
+4. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The timing-dependent unstable-artifact fixture fails its own assertion before
-the observer times out; deterministic fixture correction is not yet assigned.
+the observer times out; deterministic correction is now assigned.
 There is no observed memory-pressure/swap failure explaining this result.
 Full-suite requirements and the exact 75% boundary remain unvalidated; no
 permanent threshold change is justified by a failing pilot.
