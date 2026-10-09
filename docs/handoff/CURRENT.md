@@ -8,14 +8,15 @@ The research-intake/GH #13 planning wave is durably closed at
 `d3454edb72c37bacae9159481cc2e6cd69559459`; its acceptance is preserved in
 [HISTORY](HISTORY.md). The operator has paused GH #13 to investigate whether
 the inherited resource-admission policy unnecessarily prevents older-Mac tests.
-Only an instrumented baseline is authorized; a relaxed candidate is undecided.
+The operator now authorizes a bounded 75% pilot with CPU/memory process
+attribution. No permanent threshold change or GH #13 implementation is authorized.
 
 ## Active Task
 
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
-- **Description**: Measure baseline resource use before choosing any admission change
-- **Status**: Blocked — baseline admission timed out; candidate decision pending
+- **Description**: Measure a bounded 75% pilot and attribute older-host CPU/memory use
+- **Status**: In progress — bounded 75% pilot dispatched with process attribution
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -30,6 +31,9 @@ The user selected an instrumented baseline only, with candidate selection
 after measurements, on the separately reachable older machine. The operator
 also explicitly authorized a separate checkout under its `tpatch/bin/` and
 an isolated Go 1.26.5 download, leaving the existing checkout untouched.
+After the 80% baseline was admission-blocked, the operator explicitly approved
+a 75% experiment and asked what startup/background processes consume resources.
+Use a 30-minute pilot budget, not an unrestricted full-suite attempt.
 
 Direct inspection confirms the threshold was an admission policy, not a
 measured suite memory requirement. The Makefile has eight correctness/durability
@@ -66,9 +70,15 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
 - No sample met all the original conditions. Replaying a 75% or 70% memory
   threshold against the same trace yields a 189.186-second qualifying window
   with the other conditions unchanged. This is not an executed relaxed run
-  or proof of runtime headroom. Discuss 75% before considering a larger change.
-- Keep >=80% admission, load1 <=5, no competing Go/test tools and a fresh
-  continuous 60-second window. No relaxed policy or artificial stress authorized.
+  or proof of runtime headroom. The operator has now selected the 75% pilot.
+- Pilot admission is >=75%, load1 <=5, no competing Go/test tools and a fresh
+  continuous 60-second window. The tool's default remains 80%; no permanent
+  policy change or artificial stress is authorized.
+- Bound the pilot to 30 minutes plus cleanup: formatting, vet, build, existing
+  AR rev-11..15 shard and AP observer shard. A partial/budget-limited run is not
+  a full-suite pass. Preserve all selected test commands and timeouts.
+- Add top RSS and interval-CPU consumers with parent/start-time information.
+  Keep inventories local, with no argv/environment/full executable path capture.
 - Tests, assertions, selectors, serial settings and timeouts remain unchanged.
 - Capture continuous measurements and durable summaries in the new experiment;
   distinguish sampled RSS sums from exact physical footprint/high-water marks.
@@ -81,7 +91,7 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   of stages 6-8, not a new mechanical-close certificate. It retains the existing
   admission conditions, profiles the exact shard command partition, and preserves
   raw evidence, stage logs and summaries. No CLI runtime, Go test-source, CI,
-  existing shard-script or admission-policy changes.
+  existing shard-script or permanent admission-policy changes.
 - `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`:
   durable aggregate, raw evidence digests, hypothetical-window results and limits.
 
@@ -96,20 +106,26 @@ Prior acceptance remains valid:
 local gate 8/8 at `bd13671`, exact-checkpoint native run `37871315522` SUCCESS,
 terminal tracking pushed at `d3454ed`. That evidence contains no resource profile.
 
+The extended profiler passes fifteen non-Go controls, including explicit-only
+75% admission, unchanged load/process checks, exact pilot commands, CPU counter/
+PID-reuse handling, mandatory budget, pre-launch timeout refusal and cleanup of
+an owned child in a separate process session. Two-sample real older-host
+attribution succeeds. New process-level raw evidence stays local and untracked.
+The pilot result is pending; no new Go-stage pass is claimed.
+
 ## Next Steps
 
-1. Discuss a bounded 75% experimental pilot, or wait for another 80% baseline
-   window. No candidate has been selected and no automatic retry is running.
-2. If authorized, measure actual execution before adopting any permanent rule;
-   retain serial settings, load limit, isolation and test timeouts.
+1. Await the bounded 75% pilot and retain raw attribution, stage logs and summary
+   on both hosts. Original 80% evidence is unchanged.
+2. Compare execution data and startup/background activity before considering any
+   permanent rule. Do not infer a leak or disable services from a short snapshot.
 3. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The isolated setup resolves the source/compiler mismatch without touching the
-older checkout. The current blocker is admission: no qualifying original-policy
-minute occurred. No lower threshold is authorized. Runtime requirements remain
-unmeasured; this attempt only characterizes admission conditions.
+older checkout. The original 80% attempt could not start. A bounded 75% pilot
+is now authorized; runtime requirements remain unmeasured until it executes.
 
 ## Context for Next Agent
 
@@ -123,3 +139,6 @@ unmeasured; this attempt only characterizes admission conditions.
   A warm/cold-cache difference must not be attributed to admission thresholds.
 - Keep the new `bin/resource-baseline/` evidence and isolated setup. The older
   raw run is `older-mac-20261008`; summary and samples are mirrored locally.
+- The separate pilot is `older-mac-75-20261008`, using the versioned remote
+  `profile-validation-75.py`. Pre-pilot attribution is retained privately in
+  `prepilot-attribution-20261008.json` on both hosts. Do not publish inventories.

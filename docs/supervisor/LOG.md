@@ -1,3 +1,46 @@
+## Pilot Dispatch — bounded 75% resource measurement — 2026-10-08
+
+Fifteen non-Go controls pass, covering default-80 versus explicit-75 admission,
+preserved load/process constraints, exact five-stage pilot selection, time-budget
+refusal, interval CPU/PID-reuse handling, and owned-descendant cleanup across
+separate process groups. The last matters because AP observer fixtures explicitly
+use `Setpgid`; killing only the outer workload group would be insufficient.
+Real two-sample older-host attribution works and is retained privately on both
+hosts. Boot-relative timing is evidence of start time, not a verdict about waste.
+
+Dispatch exact frozen `d3454ed` with isolated Go 1.26.5:
+`--profile pilot --memory-threshold 75 --max-seconds 1800 --wait-seconds 600`.
+The five stages are formatting, serial vet/build, AR rev-11..15 and AP observer.
+Default/full admission stays 80%; this is not an unrestricted 75% policy.
+The new run directory is `older-mac-75-20261008`; do not overwrite the original
+80% samples. Retain full local telemetry, including VM cache/compression counters
+and process attribution; publish only non-identifying aggregates.
+
+No startup setting changes, unrelated-process termination, new runtime code,
+full-suite coverage claim or GH #13 implementation is authorized.
+
+## Pilot Authorized — 75% admission and process attribution — 2026-10-08
+
+The operator explicitly authorizes a bounded 75% experiment and expanded
+CPU/memory attribution after restarting the older Mac. The pilot has a
+30-minute workload budget (plus bounded owned-process cleanup), measures
+formatting/vet/build, the existing AR rev-11..15 shard and the AP observer shard.
+These are unmodified commands from the accepted partition, not full-suite
+coverage. Keep load1 <=5, no competing Go tools, a continuous 60-second
+admission window, serial settings, original test timeouts and first-failure stop.
+
+Extend raw telemetry with process RSS, interval CPU derived from cumulative CPU
+time, parent identity and start times relative to boot. Do not capture argv,
+environment variables or full executable paths; process inventories stay in
+local ignored evidence, not tracked public reports. Normal startup timing does
+not itself establish unnecessary work, a leak or permission to disable it.
+No startup service/configuration changes or unrelated-process termination.
+
+The preflight found the older machine up about 34 minutes, normal pressure,
+zero swap, 79% admission metric and load1 3.81. Source remains clean at isolated
+`d3454ed`, with the matched Go 1.26.5 toolchain. The prior 80% evidence remains
+unchanged. This is an experiment, not a permanent threshold change or GH #13.
+
 ## Baseline Result — admission blocked before formatting — 2026-10-08
 
 **Task**: `calibrate-test-resource-admission`

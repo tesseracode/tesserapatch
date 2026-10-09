@@ -1465,7 +1465,15 @@ All conditions never overlapped at 80%; a hypothetical 75% rule would yield
 189 seconds of admission on that trace. This is not a relaxed run or measured
 test headroom. Raw evidence is retained on both hosts and a durable aggregate is
 in `docs/state-of-the-art/case-studies/validation-resources-2026-10/older-mac-admission.json`.
-No automatic retry or policy change; discuss the candidate before proceeding.
+The operator subsequently authorized a bounded 75% pilot plus process-level
+CPU/memory attribution. Cap the workload at 30 minutes, retain other admission
+conditions, and exercise formatting/vet/build plus existing AR rev-11..15 and AP
+observer shards. Keep process inventories local; no background service changes,
+full-suite claim, permanent threshold adoption or GH #13 implementation.
+The extended profiler's fifteen non-Go controls pass, including bounded
+cross-process-group cleanup and interval CPU attribution. A private pre-pilot
+snapshot is retained on both hosts; the five-stage 75% pilot is now dispatched
+against unchanged `d3454ed`/Go 1.26.5 with a 30-minute budget.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
