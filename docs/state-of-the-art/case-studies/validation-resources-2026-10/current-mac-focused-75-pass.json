@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "experiment": "current-mac-focused-75-20261009",
+  "status": "focused-passed",
+  "source_head": "611522c0f09cc0fdbeb679f3c6c6f85599cd2bf5",
+  "validated_guard_correction": "6984043",
+  "toolchain": "go1.26.5",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "physical_cpus": 10,
+    "logical_cpus": 10
+  },
+  "policy": {
+    "admission_free_percent_min": 75,
+    "load1_max": 5,
+    "no_existing_go_tools": true,
+    "continuous_seconds": 60,
+    "maximum_admission_wait_seconds": 600,
+    "maximum_workload_seconds": 1800,
+    "package_timeout_seconds": 600,
+    "serial": true
+  },
+  "observation": {
+    "first_utc": "2026-10-09T15:50:47.573093+00:00",
+    "last_utc": "2026-10-09T15:57:18.788517+00:00",
+    "sample_count": 195,
+    "sample_span_seconds": 391.215,
+    "admission_free_percent_min": 84,
+    "admission_free_percent_max": 87,
+    "all_sample_free_percent_min": 84,
+    "all_sample_free_percent_max": 87,
+    "normal_pressure_samples": 195,
+    "swap_used_bytes_max": 0,
+    "load1_min": 2.38,
+    "load1_max": 5.04,
+    "sampled_peak_owned_rss_sum_bytes": 3149479936,
+    "sampled_peak_go_process_count": 4,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "stages": [
+    {
+      "stage": "06-gofmt",
+      "exit_code": 0,
+      "real_seconds": 0.59,
+      "admission_wait_seconds": 62.000280459
+    },
+    {
+      "stage": "fixture-targets",
+      "exit_code": 0,
+      "real_seconds": 139.30,
+      "package_seconds": 128.349,
+      "admission_wait_seconds": 61.964136583,
+      "time_reported_max_rss_bytes": 3287302144
+    },
+    {
+      "stage": "07-vet",
+      "exit_code": 0,
+      "real_seconds": 1.42,
+      "admission_wait_seconds": 61.909063334
+    },
+    {
+      "stage": "07-build",
+      "exit_code": 0,
+      "real_seconds": 0.45,
+      "admission_wait_seconds": 61.920204167
+    }
+  ],
+  "verified_scope": [
+    "Stable capture, real post-read mutation refusal and hook errors",
+    "JSON, human, dry-run and exit-3 snapshot fixture behavior",
+    "Compiled-source mutations removing synchronization or bypassing capture size/mtime checks fail their specific assertions",
+    "AP dry-run and purge control-flow checks",
+    "Original injection registry",
+    "AQ terminal recovery behavior and exact call-graph inventory",
+    "Nil-in-production proof and mutation-sensitive rejection of activated, escaped or mistyped capture hooks",
+    "Formatting, go vet ./... and CLI build"
+  ],
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/current-mac-focused-75-20261009",
+    "summary_sha256": "31ff68c33464db0fec9da23499a9a648dfb32ec0ac4d33d5a60d96ce6e0d4cc4",
+    "samples_sha256": "428bdc7133f4f1c1ce0f3914aaeea3c3064fd95989e778e47a181411ed516a44",
+    "focused_log_sha256": "f6c34c15e02e74980ebb73bbec527aa066658239f104de4d8d6eac1a0d13c367"
+  },
+  "limits": [
+    "The focused correction passes, but the actual admission metric remained above 80%; this run does not demonstrate need or safety for lower-headroom admission.",
+    "The load limit and continuous qualifying window were still enforced; an earlier sample above load1=5 does not count as admission.",
+    "Existing local caches were retained, so timings are not a controlled cold-cache comparison.",
+    "Summed sampled RSS can double-count shared pages and miss brief peaks; it is not minimum required RAM.",
+    "This subset is smaller than the full partition previously observed near 8.37 GiB. No full-suite pass or older-Mac full-suite memory requirement is established.",
+    "No full local partition was started by this experiment, and the permanent admission policy is unchanged."
+  ]
+}

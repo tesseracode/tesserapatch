@@ -1536,6 +1536,12 @@ All other admission conditions and test timeouts stay unchanged; no full-suite
 or permanent policy change. Preflight now reports 86%, so results must distinguish
 code validation from evidence that lower-threshold admission was necessary.
 Prior native run `37892216801` is complete; latest-source validation is pending.
+**Focused PASS at `611522c`**: latest fixture/AP/AQ guards and real negative
+controls, formatting, vet and build pass. Measurements stayed at 84-87% with
+normal pressure/zero swap; peak sampled owned RSS sum was about 2.93 GiB.
+This validates the correction but not below-80% admission. Publish the current
+commits for native CI; full local partition remains outstanding and is not
+automatically dispatched by this bounded experiment.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

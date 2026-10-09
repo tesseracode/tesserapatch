@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — authorized current-Mac focused 75% experiment dispatched
+- **Status**: Focused experiment complete — PASS; full partition and new-source CI pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The current-Mac focused experiment has passed at `611522c`: formatting,
+fixture/AP/AQ tests (128.349s package), vet and build. This validates the latest
+AQ guard integration and mutation-sensitive controls. Actual admission stayed
+84-87%, with normal pressure and zero swap; it does not demonstrate that the
+75% exception was needed or validate operation below 80%. Peak sampled owned RSS
+sum was about 2.93 GiB. The bounded experiment is complete; no full partition
+is automatically started and no permanent policy change is made.
 
 The operator now authorizes a bounded 75% focused experiment on the current
 32 GiB Mac: formatting, fixture/AP/AQ checks and mutation controls, vet/build,
@@ -181,8 +189,14 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   to the new capture hook, with initializer/assignment/escape/signature negatives.
 - `local-fixture-suite-first-shard.json`: failed first full-suite shard and
   its larger measured memory peak on the 32 GiB current Mac.
+- `current-mac-focused-75-pass.json`: validated AQ correction, selected test
+  results, actual above-80% admission conditions and resource bounds.
 
 ## Test Results
+
+**Current result**: focused correction PASS at `611522c`, including actual
+compiled mutation failures, AQ nil-hook authority checks, vet and build.
+Prior validation events below are chronological evidence, not the current status.
 
 The new Go fixture correction is not yet validated. Formatting is applied;
 the local original-policy runner will check formatting, focused fixture/AP
@@ -249,8 +263,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the explicitly authorized current-Mac focused 75% experiment and
-   preserve its metrics. No full-partition run or permanent policy change.
+1. Preserve the completed focused experiment and publish its validated commits.
+   Decide the full local partition's admission separately; do not infer full-suite
+   or below-80% safety from this subset's above-80% measurements.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -261,9 +276,9 @@ This diagnostic success is not a validation pass or threshold approval.
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
-The AQ guard integration correction awaits the current focused experiment.
+The AQ guard integration correction now passes focused validation as well.
 Full local partition and new-source hosted confirmation remain outstanding.
-The older Mac is idle; the only dispatched local work is the bounded focused run.
+No local or older-Mac validation workload remains running.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

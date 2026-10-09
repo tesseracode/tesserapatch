@@ -1,3 +1,27 @@
+## Focused Current-Mac Experiment PASS — 2026-10-09
+
+The operator-authorized focused run at `611522c` passes formatting, the fixture/
+AP/AQ tests (128.349s package; 139.30s command), vet and build. This validates
+the latest AQ nil-hook proof and its negative controls, not just the previously
+passing AP fixture. The selected real compiled-source mutants still fail their
+specific assertions as required; no assertion or timeout was weakened.
+
+The 195 samples span about 6.5 minutes: admission metric 84-87%, normal OS
+pressure throughout samples, zero swap and no external Go competitor.
+Peak sampled owned RSS sum is about 2.93 GiB. Every command qualified the
+continuous 60-second load<=5/no-Go window. Since memory stayed above 80%, the
+old memory condition would have admitted the same samples; this validates code,
+not the necessity or safety of a lower-headroom threshold.
+
+Record `current-mac-focused-75-pass.json` beside the previous aggregates; raw
+process inventories remain local and private. The bounded experiment is complete.
+No full local partition is automatically started, and no permanent policy changes.
+
+**Action**: publish the validated fixture/guard and tracking commits now that
+the previous native run is complete. New-source CI and the complete local
+22-command partition still need confirmation before full acceptance. The
+older-Mac AP pass remains valid; its full-suite resource envelope is not known.
+
 ## Focused Current-Mac Experiment Authorized — 2026-10-09
 
 The operator explicitly authorizes the recommended bounded 75% experiment on
