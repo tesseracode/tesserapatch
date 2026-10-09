@@ -1509,6 +1509,9 @@ a bounded correction preserving boundary assertions must be assigned separately.
 capture-boundary mutation, real refusal/no-write assertions and mutation-sensitive
 controls, followed by AP with unchanged budgets. Use the existing inert internal
 hook pattern; no fabricated refusal, redaction change or permanent 75% policy.
+The first targeted run caught double injection across preflight/authoritative
+reads. The fixture now arms only after real authority acquisition for mutating
+prepare, while dry-run uses its first capture; exact-one-mutation assertions stay.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

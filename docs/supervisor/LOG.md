@@ -1,3 +1,19 @@
+## Targeted Feedback — arm the authoritative capture — 2026-10-09
+
+First targeted validation at `60f40cb` passes formatting and the direct capture/
+compiled mutation controls, but composition fails its exact-one-mutation check:
+normal prepare captures twice (preflight, then under acquired authority), while
+dry-run captures once. The fixture mutated both normal-route reads. This is a
+fixture wiring error, not a reason to weaken the count assertion; vet/build did
+not run after the failed command.
+
+Arm the normal-route fixture only after the real authority acquisition succeeds,
+delegating through the existing acquisition function. Dry-run starts armed.
+The mutation then occurs exactly once in the capture that actually controls the
+decision. Keep all count/refusal/whole-workspace assertions and negative controls.
+Repeat the same local original-policy validation into a new evidence directory;
+preserve the first failure.
+
 ## Implementation Ready for Validation — artifact-unstable fixture — 2026-10-09
 
 Implemented a nil-by-default `afterPrepareCaptureRead` hook after the successful

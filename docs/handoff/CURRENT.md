@@ -173,6 +173,12 @@ The new Go fixture correction is not yet validated. Formatting is applied;
 the local original-policy runner will check formatting, focused fixture/AP
 controls (including source mutations), vet and build, stopping on first failure.
 Prior measurements below refer to the unchanged, failing baseline only.
+First targeted run at `60f40cb` passed formatting/direct capture/mutation controls
+but failed the exact-one-mutation composition assertion: normal prepare reads
+before and after acquisition. Corrected the fixture to arm only after real
+authority acquisition for mutating routes; dry-run is armed immediately.
+The exact-one/refusal/snapshot controls are unchanged. A fresh targeted run is
+required; the first failure remains in `fixture-local-20261009`.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes

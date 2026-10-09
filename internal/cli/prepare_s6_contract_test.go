@@ -16885,11 +16885,24 @@ func s6ObserveArtifactUnstable(t *testing.T) s6RuntimeObservation {
 	}
 	before := snapshotTreeMetadata(t, "exit-3", root)
 	oldHook := afterPrepareCaptureRead
-	defer func() { afterPrepareCaptureRead = oldHook }()
+	oldAcquire := prepareAcquireAuthority
+	defer func() {
+		afterPrepareCaptureRead = oldHook
+		prepareAcquireAuthority = oldAcquire
+	}()
+	// Mutating prepare re-captures under authority; dry-run uses the first capture.
+	armed := s7APDryRunObservationMode
+	prepareAcquireAuthority = func(path string) (*intentlock.WorkspaceAuthority, error) {
+		authority, err := oldAcquire(path)
+		if err == nil && path == root {
+			armed = true
+		}
+		return authority, err
+	}
 	mutations := 0
 	var mutationErr error
 	afterPrepareCaptureRead = func(captureRoot *os.Root, name string) error {
-		if name != rel {
+		if name != rel || !armed {
 			return nil
 		}
 		mutations++
