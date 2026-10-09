@@ -1,3 +1,29 @@
+## Two-Host Full Partition Dispatch — pressure policy — 2026-10-09
+
+Both clean isolated checkouts are pinned to
+`2cba06811ce86025a11f4f7a1c31f4a5e7b6fda9`, with matched Go 1.26.5 and
+no inherited GOMODCACHE/GOROOT/GOGC/GOMEMLIMIT/GOEXPERIMENT overrides.
+All thirty controls and real non-Go prelaunch/runtime/completion smokes pass
+on both machines. Profiler SHA-256:
+`70680d2703fad44bf9cefa11a7a6f16127f80f0bf3ce9e0445e5ce9299759f19`;
+unchanged shard-script SHA-256:
+`7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10`.
+
+Dispatch exactly once per host with
+`--profile partition --admission-policy pressure --wait-seconds 600`.
+Each gets fresh isolated caches and all twenty-two original serial commands.
+The current Mac's latest preflight detected a competing Go/compiler pair;
+its admission will wait rather than interfering. The older run is independent.
+Do not classify either as started testing until its full quiet window qualifies.
+
+Private output directories are `pressure-current-full-20261009` and
+`pressure-older-full-20261009` under the owned `bin/resource-baseline/` tree.
+Source checkouts are the corresponding `pressure-*-repo-20261009` directories.
+No existing old-Mac checkout/research/evidence is modified. Runtime safeguards
+stop the owned workload on warning/critical pressure, any new system swap-outs
+or monitoring gaps; a stop is recorded distinctly from an assertion failure.
+No automatic retries, test-timeout changes, permanent policy or GH #13 dispatch.
+
 ## Pressure-Policy Controls PASS — 2026-10-09
 
 Thirty non-Go controls pass after adding explicit

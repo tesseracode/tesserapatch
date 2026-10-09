@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — pressure-policy controls PASS; preparing matched two-host runs
+- **Status**: In progress — matched two-host pressure-based full partitions dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+Both experiment checkouts are clean at
+`2cba06811ce86025a11f4f7a1c31f4a5e7b6fda9`; Go 1.26.5 is matched and
+runtime/cache override checks are clear. Thirty non-Go controls and real
+pressure-safety smokes pass on both hosts. Dispatch one full partition per host
+with `--profile partition --admission-policy pressure --wait-seconds 600`.
+Current-host competing Go work may delay admission; no unrelated process will
+be stopped. No result is claimed until each run terminates.
 
 Thirty non-Go controls pass for opt-in pressure policy, including fail-sensitive
 admission and runtime checks, prelaunch/completion sampling and owned-process
@@ -315,10 +323,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Freeze and deploy the verified optional pressure-policy profiler, leaving the
-   default percentage rule unchanged; check both host samplers before dispatch.
-2. Run the complete matching partition once on each host with private telemetry
-   and fresh isolated caches. Stop at first test/admission/safety failure.
+1. Await the one authorized complete partition on each host, with fresh isolated
+   caches and private telemetry. Stop at first test/admission/safety failure.
+2. Compare only measured results, including any aborted stage; do not turn
+   partial coverage or a healthy snapshot into full-suite acceptance.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -331,14 +339,22 @@ This diagnostic success is not a validation pass or threshold approval.
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
 The previous percentage-gated run stopped after 1/22 passing commands.
-The operator now approves the pressure-based alternative on both hosts for
-one complete experiment each; controls must be verified before dispatch.
-No tests are currently running and acceptance remains incomplete.
+Both pressure-based full runs are now dispatched through verified safeguards.
+They may wait for competing work or abort on resource pressure. Complete
+results, review and acceptance remain outstanding.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 
 ## Context for Next Agent
 
+- Active two-host experiments use exact `2cba068` in separate frozen clones,
+  not the mutable primary worktree. Directories:
+  `pressure-current-repo-20261009`, `pressure-older-repo-20261009`,
+  `pressure-current-full-20261009`, `pressure-older-full-20261009`.
+- Keep raw process inventories private. Mirror older-host summary/samples/logs
+  at completion; do not copy its potentially large caches.
+- Legacy percent admission remains the default. Pressure mode's safety stop
+  (exit 76) is not a test failure; missing telemetry remains explicit failure.
 - No permanent threshold adjustment, synthetic memory pressure, termination of
   other users' processes, release, tag or #13 runtime implementation is authorized.
 - Keep old research and accepted ADR-043/ADR-037/PRD rev-7 unchanged.

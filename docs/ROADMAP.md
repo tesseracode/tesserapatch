@@ -1571,6 +1571,11 @@ Thirty non-Go controls now verify the opt-in pressure policy, including failure
 on missing telemetry, runtime warnings/swap-outs and monitoring gaps, with
 owned-process-only cleanup. Prepare identical frozen checkouts and fresh caches
 for the two authorized full runs; no passing workload result is claimed yet.
+Both hosts pass controls and real non-Go monitoring smokes on matched source
+`2cba068`/Go 1.26.5. The two full pressure-policy partitions are dispatched
+independently, each with fresh caches and unchanged commands. Current-host
+competing Go work must clear admission; no process is terminated to make room.
+Results remain pending.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
