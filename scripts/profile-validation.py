@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Profile serial macOS validation; 75% admission is an explicit bounded experiment."""
+"""Profile serial macOS validation with explicitly selected experimental safeguards."""
 
 import argparse
 import datetime
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import platform
@@ -22,6 +23,10 @@ class AdmissionTimeout(RuntimeError):
 
 
 class BudgetExceeded(RuntimeError):
+    pass
+
+
+class ResourceStop(RuntimeError):
     pass
 
 
@@ -52,13 +57,16 @@ class QuietWindow:
         self.since = None
         self.previous = None
 
-    def observe(self, sample):
-        now = sample["monotonic"]
-        healthy = (
+    def healthy(self, sample):
+        return (
             sample["admission_free_percent"] >= self.minimum_free
             and sample["load1"] <= 5
             and not sample["go_processes"]
         )
+
+    def observe(self, sample):
+        healthy = self.healthy(sample)
+        now = sample["monotonic"]
         gap = self.previous is not None and (
             now < self.previous or now - self.previous > 5
         )
@@ -68,6 +76,55 @@ class QuietWindow:
             self.since = now
         self.previous = now
         return healthy and now - self.since >= 60
+
+
+def pressure_counters(value):
+    try:
+        level = value["pressure_level"]
+        swapouts = value["vm_pages"]["Swapouts"]
+        timestamp = value["monotonic"]
+        load = value["load1"]
+        go_processes = value["go_processes"]
+    except (KeyError, TypeError) as error:
+        raise ValueError("pressure policy requires OS pressure and swap-out telemetry") from error
+    if type(level) is not int or level not in (1, 2, 4):
+        raise ValueError("unrecognized OS memory pressure level")
+    if type(swapouts) is not int or swapouts < 0:
+        raise ValueError("invalid cumulative swap-out counter")
+    if any(type(item) not in (int, float) or not math.isfinite(item)
+           for item in (timestamp, load)) or load < 0 or not isinstance(go_processes, list):
+        raise ValueError("pressure policy requires valid timing, load and process telemetry")
+    return level, swapouts
+
+
+class PressureWindow(QuietWindow):
+    def __init__(self):
+        super().__init__()
+        self.swapouts = None
+        self.latest = None
+
+    def healthy(self, sample):
+        level, swapouts = pressure_counters(sample)
+        if self.swapouts is not None and swapouts < self.swapouts:
+            raise ValueError("cumulative swap-out counter moved backwards")
+        unchanged = self.swapouts is None or swapouts == self.swapouts
+        self.swapouts = swapouts
+        self.latest = sample
+        return level == 1 and unchanged and sample["load1"] <= 5 and not sample["go_processes"]
+
+
+def require_runtime_pressure_safe(value, previous):
+    level, swapouts = pressure_counters(value)
+    _, previous_swapouts = pressure_counters(previous)
+    if swapouts < previous_swapouts:
+        raise ValueError("cumulative swap-out counter moved backwards")
+    if level != 1:
+        raise ResourceStop("OS memory pressure is no longer normal; stopped owned workload")
+    if swapouts > previous_swapouts:
+        raise ResourceStop("new system swap-outs observed; stopped owned workload")
+    gap = value["monotonic"] - previous["monotonic"]
+    if gap < 0 or gap > 5:
+        raise ResourceStop("runtime monitoring gap exceeds the safe sampling window")
 
 
 def output(*args, cwd=None):
@@ -209,9 +266,9 @@ def record(stream, stage, phase, value):
 
 
 def admit(stream, stage, wait_seconds, sampler=sample, clock=time.monotonic,
-          sleep=time.sleep, minimum_free=80):
+          sleep=time.sleep, minimum_free=80, window=None):
     start = clock()
-    quiet = QuietWindow(minimum_free)
+    quiet = window if window is not None else QuietWindow(minimum_free)
     while clock() - start <= wait_seconds:
         BUDGET.timeout()
         value = sampler()
@@ -250,6 +307,8 @@ def workload(repo, toolchain, profile="full"):
     )
     if profile == "full":
         return stages
+    if profile == "partition":
+        return stages[3:]
     if profile == "ap-observer":
         return [(name, command) for name, command in stages if name == "08-shard-15"]
     if profile != "pilot":
@@ -363,13 +422,21 @@ def stop_owned_tree(process, known):
         process.wait(timeout=3)
 
 
-def execute(command, repo, env, log, stream, stage):
+def execute(command, repo, env, log, stream, stage, pressure_baseline=None):
     BUDGET.timeout()
     start = time.monotonic()
     peak_rss = peak_count = peak_go = peak_pressure = 0
     lowest_free = 100
     first = last = None
     owned = {}
+    previous_pressure = pressure_baseline
+    if pressure_baseline is not None:
+        first = last = sample()
+        record(stream, stage, "prelaunch", first)
+        require_runtime_pressure_safe(first, pressure_baseline)
+        if first["load1"] > 5 or first["go_processes"]:
+            raise ResourceStop("admission conditions changed before launching the workload")
+        previous_pressure = first
     with log.open("x") as sink:
         child = subprocess.Popen(
             ["/usr/bin/time", "-l"] + command, cwd=repo, env=env,
@@ -388,9 +455,16 @@ def execute(command, repo, env, log, stream, stage):
                 peak_go = max(peak_go, len(value["go_processes"]))
                 peak_pressure = max(peak_pressure, value["pressure_level"])
                 lowest_free = min(lowest_free, value["admission_free_percent"])
-                if value["pressure_level"] not in (1, 2):
+                if pressure_baseline is not None:
+                    require_runtime_pressure_safe(value, previous_pressure)
+                    previous_pressure = value
+                elif value["pressure_level"] not in (1, 2):
                     raise RuntimeError("critical or unknown OS pressure; stopped owned workload")
                 BUDGET.pause(2)
+            if pressure_baseline is not None:
+                last = sample(child.pid)
+                record(stream, stage, "completion", last)
+                require_runtime_pressure_safe(last, previous_pressure)
         finally:
             stop_owned(child, owned.values())
     text = log.read_text()
@@ -426,7 +500,8 @@ def main():
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--wait-seconds", type=int, default=600)
     parser.add_argument("--memory-threshold", type=int, choices=(80, 75), default=80)
-    parser.add_argument("--profile", choices=("full", "pilot", "ap-observer"), default="full")
+    parser.add_argument("--profile", choices=("full", "partition", "pilot", "ap-observer"), default="full")
+    parser.add_argument("--admission-policy", choices=("percent", "pressure"), default="percent")
     parser.add_argument("--max-seconds", type=int)
     parser.add_argument("--cache-from", type=Path)
     args = parser.parse_args()
@@ -434,12 +509,16 @@ def main():
         parser.error("macOS and at least a 60-second admission budget required")
     if args.max_seconds is not None and args.max_seconds < 60:
         parser.error("overall budget must be at least 60 seconds")
-    if args.profile != "full" and args.max_seconds is None:
+    if args.profile not in ("full", "partition") and args.max_seconds is None:
         parser.error("partial experiment requires an explicit overall time budget")
-    if args.memory_threshold == 75 and (args.profile == "full" or args.max_seconds > 1800):
+    if args.memory_threshold == 75 and (args.profile in ("full", "partition") or args.max_seconds > 1800):
         parser.error("75% experiment requires a partial profile and at most 1800 seconds")
     if args.cache_from is not None and args.profile != "ap-observer":
         parser.error("cache copying is only supported for the diagnostic AP repeat")
+    if args.admission_policy == "pressure" and (
+        args.profile != "partition" or args.memory_threshold != 80
+    ):
+        parser.error("pressure policy is an explicit partition experiment, not a percentage override")
 
     def interrupt(signum, frame):
         raise KeyboardInterrupt
@@ -489,8 +568,13 @@ def main():
                 "GOENV", "GOFLAGS", "GOMAXPROCS", "GOTOOLCHAIN", "GOWORK",
             )
         },
-        "admission": {"free_percent_min": args.memory_threshold, "load1_max": 5, "quiet_seconds": 60,
+        "admission": {"policy": args.admission_policy,
+                      "free_percent_min": args.memory_threshold if args.admission_policy == "percent" else None,
+                      "normal_pressure_required": args.admission_policy == "pressure",
+                      "no_new_swapouts_required": args.admission_policy == "pressure",
+                      "load1_max": 5, "quiet_seconds": 60,
                       "no_existing_go_tools": True, "max_wait_seconds": args.wait_seconds},
+        "runtime_pressure_guard": args.admission_policy == "pressure",
         "limits": [
             "This profiles validation stages 6-8; it is not a new wave-close certification.",
             "Percent-free is the legacy admission metric, not Activity Monitor pressure.",
@@ -507,6 +591,10 @@ def main():
             "AP top-level go test adds -exec solely to restore the capture PATH; test binary arguments are unchanged.",
             "Cache state must be considered when comparing timing between runs.",
             "Raw child test output may contain generated paths and tokens; retain it privately.",
+            "Pressure policy is opt-in and host/run-specific; percentage is diagnostic only in that mode.",
+            "New swap-outs are measured system-wide and may be caused by unrelated processes.",
+            "Historical swap usage alone is not active swapping; compare cumulative swap-out counters.",
+            "Pressure-policy runtime checks stop on warning/critical pressure, new swap-outs or monitoring gaps.",
         ],
         "results": [],
     }
@@ -522,10 +610,14 @@ def main():
             for stage, command in stages:
                 summary["current_stage"] = stage
                 save()
-                print("Waiting for %d%% admission: %s" % (args.memory_threshold, stage), flush=True)
-                waited = admit(stream, stage, args.wait_seconds, minimum_free=args.memory_threshold)
+                pressure_window = PressureWindow() if args.admission_policy == "pressure" else None
+                label = "normal pressure/no swap-outs" if pressure_window is not None else "%d%%" % args.memory_threshold
+                print("Waiting for %s admission: %s" % (label, stage), flush=True)
+                waited = admit(stream, stage, args.wait_seconds,
+                               minimum_free=args.memory_threshold, window=pressure_window)
                 print("Running: " + stage, flush=True)
-                result = execute(command, repo, env, destination / (stage + ".log"), stream, stage)
+                result = execute(command, repo, env, destination / (stage + ".log"), stream, stage,
+                                 pressure_baseline=pressure_window.latest if pressure_window is not None else None)
                 result["admission_wait_seconds"] = waited
                 summary["results"].append(result)
                 save()
@@ -537,6 +629,9 @@ def main():
                     return 1
             summary["status"] = "passed" if args.profile == "full" else args.profile + "-passed"
             return 0
+    except ResourceStop as error:
+        summary.update(status="resource-stopped", error=str(error))
+        return 76
     except BudgetExceeded as error:
         summary.update(status="budget-exhausted", error=str(error))
         return 124

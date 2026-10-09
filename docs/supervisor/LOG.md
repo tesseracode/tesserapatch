@@ -1,3 +1,51 @@
+## Pressure-Policy Controls PASS — 2026-10-09
+
+Thirty non-Go controls pass after adding explicit
+`--profile partition --admission-policy pressure`. Legacy default percent
+behavior and the exact twenty-two shard commands remain unchanged. Controls
+prove: a full quiet minute is required; percentage/history-only swap usage does
+not block pressure mode; warning/critical pressure, new swap-outs, load or Go
+competition reset admission; missing/unknown/reset counters fail explicitly;
+monitoring gaps and runtime pressure/swap changes abort; prelaunch rechecks
+prevent launching into changed conditions; a final sample catches post-command
+swap-outs; and only owned processes are stopped, including separate child groups.
+The initial missing-field negative fixture caught a raw KeyError; it now
+produces the explicit telemetry failure rather than leaving a running-shaped
+summary. No Go workload was used for these controls.
+
+Prepare matching frozen experiment checkouts on both hosts with fresh isolated
+Go build/module caches, then verify controls and harmless telemetry/timing on
+each host before dispatch. Use Go 1.26.5. Both experiments are authorized once,
+with 600-second per-command admission bounds and unchanged 40-minute package
+timeouts. A smaller host may stop safely before full coverage; never promote
+that partial result to a pass or retry automatically.
+
+## Two-Host Pressure-Based Experiment Authorized — 2026-10-09
+
+The operator explicitly authorizes one complete pressure-based run on the
+current 32 GiB Mac and one on the older 16 GiB Mac for comparison. This is a
+per-run experiment on both hosts, not permanent replacement of the original
+percentage policy. Fixed-source CI `37979067094` at `fc112b1` completed SUCCESS.
+
+Before each command require a continuous 60 seconds of normal OS pressure,
+unchanged cumulative swap-out counter, load1 <=5 and no competing Go tools;
+keep the existing 600-second admission bound. Log the percentage without using
+it as a cutoff. During execution stop only the owned workload on warning/
+critical pressure, any new swap-outs or missing/unreliable monitoring. Treat a
+safety stop distinctly from a failed test. No unrelated process is terminated.
+
+Run all twenty-two unchanged commands, serially with Go 1.26.5 and original
+40-minute package timeouts. Use identical frozen source and fresh isolated
+caches/checkouts on both hosts; preserve prior baselines, raw data and the
+older Mac's original research checkout. Hardware/architecture/OS/background
+differences remain explicit limitations; fresh caches do not make two different
+machines a controlled memory-only benchmark.
+
+Preflight: current host 76%, normal pressure/zero swap, load1 2.46; older host
+77%, normal pressure/zero swap, load1 1.64 and no Go tools. Implement and verify
+fail-sensitive policy controls before dispatch. No automatic restart or
+relaxation if either machine aborts; no GH #13 implementation or release.
+
 ## Full Partition — first command PASS, second admission BLOCKED — 2026-10-09
 
 At `d0376d6`, the first complete partition command passed across all selected

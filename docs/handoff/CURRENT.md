@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Blocked — first full-partition command PASS; second-command admission timed out
+- **Status**: In progress — pressure-policy controls PASS; preparing matched two-host runs
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,21 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+Thirty non-Go controls pass for opt-in pressure policy, including fail-sensitive
+admission and runtime checks, prelaunch/completion sampling and owned-process
+cleanup. CLI/runtime/test Go code and all shard commands are unchanged.
+Prepare separate frozen checkouts and fresh build/module caches on both hosts
+so neither previous evidence nor the older Mac's original research is changed.
+
+The operator authorizes one full pressure-based experiment on each Mac. Add an
+explicit opt-in mode: normal OS pressure and no new swap-outs for 60 seconds,
+with unchanged load1 <=5/no-Go/serial requirements; percentage is diagnostic
+only. Stop the owned workload on warning/critical pressure, new swap-outs or
+unreliable telemetry. Keep all twenty-two commands and original test timeouts.
+Use matching source/Go 1.26.5 and fresh isolated caches on both hosts, preserving
+all existing worktrees and evidence. No permanent policy change or automatic
+retry follows either outcome. Prior native run `37979067094` has passed.
 
 The full monitored attempt at `d0376d6` completed its first command successfully:
 all selected packages pass, including the earlier AQ failures. The second
@@ -300,10 +315,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Obtain an explicit resource/admission decision before another complete
-   monitored partition attempt. The second-command wait remained below 75%;
-   blindly retrying or changing only 80% to 75% would not admit that trace.
-   Preserve the first-command pass without calling it full validation.
+1. Freeze and deploy the verified optional pressure-policy profiler, leaving the
+   default percentage rule unchanged; check both host samplers before dispatch.
+2. Run the complete matching partition once on each host with private telemetry
+   and fresh isolated caches. Stop at first test/admission/safety failure.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -315,10 +330,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The complete local partition stopped after 1/22 passing commands because the
-second admission window timed out. No assertions failed in this attempt; normal
-pressure and zero swap do not override the still-active percentage rule.
-No local or older-Mac validation is running. Acceptance remains incomplete.
+The previous percentage-gated run stopped after 1/22 passing commands.
+The operator now approves the pressure-based alternative on both hosts for
+one complete experiment each; controls must be verified before dispatch.
+No tests are currently running and acceptance remains incomplete.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

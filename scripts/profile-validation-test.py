@@ -19,9 +19,10 @@ profiler = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(profiler)
 
 
-def reading(now, free=80, load=5, go=False):
+def reading(now, free=80, load=5, go=False, pressure=1, swapouts=0):
     return {"monotonic": now, "admission_free_percent": free,
-            "load1": load, "go_processes": [{"pid": 99}] if go else []}
+            "load1": load, "go_processes": [{"pid": 99}] if go else [],
+            "pressure_level": pressure, "vm_pages": {"Swapouts": swapouts}}
 
 
 def ps_row(pid, ppid, rss, name, cpu="0:00.00", started="Thu Oct 8 21:00:21 2026"):
@@ -87,6 +88,88 @@ class AdmissionTests(unittest.TestCase):
         self.assertIn('"admission_free_percent": 71', stream.getvalue())
 
 
+class PressurePolicyTests(unittest.TestCase):
+    def test_pressure_mode_ignores_percentage_but_preserves_the_full_minute(self):
+        window = profiler.PressureWindow()
+        for now in range(0, 62, 2):
+            value = reading(now, free=20, swapouts=100)
+            value["swap_used_bytes"] = 1024**3
+            self.assertEqual(window.observe(value), now == 60)
+        self.assertEqual(window.latest["vm_pages"]["Swapouts"], 100)
+        legacy = profiler.QuietWindow()
+        for now in range(0, 62, 2):
+            self.assertFalse(legacy.observe(reading(now, free=20)))
+
+    def test_warning_critical_load_and_go_processes_prevent_admission(self):
+        for condition in ({"pressure": 2}, {"pressure": 4}, {"load": 5.01}, {"go": True}):
+            with self.subTest(condition=condition):
+                window = profiler.PressureWindow()
+                for now in range(0, 62, 2):
+                    self.assertFalse(window.observe(reading(now, free=99, **condition)))
+
+    def test_swapout_increment_requires_an_entire_new_quiet_minute(self):
+        window = profiler.PressureWindow()
+        for now in range(0, 60, 2):
+            self.assertFalse(window.observe(reading(now, free=60, swapouts=30)))
+        self.assertFalse(window.observe(reading(60, free=60, swapouts=31)))
+        for now in range(62, 122, 2):
+            self.assertFalse(window.observe(reading(now, free=60, swapouts=31)))
+        self.assertTrue(window.observe(reading(122, free=60, swapouts=31)))
+
+    def test_sampling_gaps_and_backward_time_reset_pressure_admission(self):
+        for restart in (66, 0):
+            window = profiler.PressureWindow()
+            for now in range(0, 60, 2):
+                window.observe(reading(now, free=50))
+            for now in range(restart, restart + 60, 2):
+                self.assertFalse(window.observe(reading(now, free=50)))
+            self.assertTrue(window.observe(reading(restart + 60, free=50)))
+
+    def test_pressure_telemetry_cannot_be_missing_unknown_or_reset(self):
+        for value in (
+            {}, {"pressure_level": 1, "vm_pages": {}},
+            reading(0, pressure=0), reading(0, pressure=True),
+            reading(0, swapouts=-1), reading(0, swapouts="0"),
+            reading(float("nan")), reading(0, load=float("inf")),
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    profiler.PressureWindow().observe(value)
+        window = profiler.PressureWindow()
+        window.observe(reading(0, swapouts=5))
+        with self.assertRaisesRegex(ValueError, "backwards"):
+            window.observe(reading(2, swapouts=4))
+
+    def test_runtime_guard_rejects_pressure_swapouts_and_monitoring_gaps(self):
+        previous = reading(0, free=50, swapouts=5)
+        profiler.require_runtime_pressure_safe(reading(2, free=10, swapouts=5), previous)
+        for current in (
+            reading(2, pressure=2, swapouts=5),
+            reading(2, pressure=4, swapouts=5),
+            reading(2, swapouts=6), reading(6, swapouts=5),
+            reading(-1, swapouts=5),
+        ):
+            with self.subTest(current=current):
+                with self.assertRaises(profiler.ResourceStop):
+                    profiler.require_runtime_pressure_safe(current, previous)
+        with self.assertRaises(ValueError):
+            profiler.require_runtime_pressure_safe(reading(2, swapouts=4), previous)
+
+    def test_admit_uses_the_explicit_pressure_window(self):
+        clock = [0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        stream = io.StringIO()
+        window = profiler.PressureWindow()
+        elapsed = profiler.admit(
+            stream, "fixture", 60, sampler=lambda: reading(clock[0], free=40, swapouts=5),
+            clock=lambda: clock[0], sleep=sleep, window=window)
+        self.assertEqual(elapsed, 60)
+        self.assertEqual(window.latest["monotonic"], 60)
+
+
 class TelemetryTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(__file__).resolve().parents[1]
@@ -145,6 +228,7 @@ class TelemetryTests(unittest.TestCase):
         expected = [shlex.split(line)[1:] for line in original.splitlines()
                     if line.startswith("go test ")]
         self.assertEqual([cmd[1:] for _, cmd in stages[3:]], expected)
+        self.assertEqual(profiler.workload(root, Path("/fixture/go"), "partition"), stages[3:])
         pilot = profiler.workload(root, Path("/fixture/go"), "pilot")
         self.assertEqual(pilot, [stages[i] for i in (0, 1, 2, 4, 17)])
         self.assertIn("^TestS7ARRev(11|12|13|14|15).*$", pilot[3][1])
@@ -220,6 +304,66 @@ class TelemetryTests(unittest.TestCase):
                     with self.assertRaises(SystemExit) as error:
                         profiler.main()
                     self.assertEqual(error.exception.code, 2)
+
+    def test_pressure_policy_rejects_unscoped_or_mixed_percentage_modes(self):
+        base = ["profiler", "--repo", "/fixture", "--toolchain", "/fixture",
+                "--out", "/fixture", "--expected-head", "fixture", "--admission-policy", "pressure"]
+        for args in ([], ["--profile", "pilot", "--max-seconds", "1800"],
+                     ["--profile", "partition", "--memory-threshold", "75"]):
+            with mock.patch.object(profiler.sys, "argv", base + args):
+                with mock.patch.object(profiler.sys, "stderr", io.StringIO()):
+                    with self.assertRaises(SystemExit) as error:
+                        profiler.main()
+                    self.assertEqual(error.exception.code, 2)
+
+    def test_pressure_prelaunch_blocks_before_any_workload_is_started(self):
+        for current in (reading(2, pressure=2), reading(2, swapouts=1),
+                        reading(2, load=5.1), reading(2, go=True)):
+            with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+                with mock.patch.object(profiler, "sample", return_value=current):
+                    with mock.patch.object(profiler.subprocess, "Popen") as launch:
+                        with self.assertRaises(profiler.ResourceStop):
+                            profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                             Path(directory) / "never.log", io.StringIO(),
+                                             "fixture", pressure_baseline=reading(0))
+                        launch.assert_not_called()
+
+    def test_pressure_runtime_stop_reaps_only_owned_workload(self):
+        for condition in ({"pressure": 2}, {"pressure": 4}, {"swapouts": 1}):
+            with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+                unhealthy = {
+                    **reading(4, **condition), "owned_processes": [],
+                    "owned_rss_sum_bytes": 0, "swap_used_bytes": 0,
+                }
+                other = profiler.subprocess.Popen(["/bin/sleep", "30"], start_new_session=True)
+                try:
+                    with mock.patch.object(profiler, "sample", side_effect=[reading(2), unhealthy]):
+                        with mock.patch.object(profiler, "stop_owned", wraps=profiler.stop_owned) as stop:
+                            with self.assertRaises(profiler.ResourceStop):
+                                profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                                 Path(directory) / "fixture.log", io.StringIO(),
+                                                 "fixture", pressure_baseline=reading(0))
+                            stop.assert_called_once()
+                            self.assertIsNotNone(stop.call_args.args[0].poll())
+                            self.assertIsNone(other.poll())
+                finally:
+                    profiler.stop_owned(other)
+
+    def test_completion_sample_cannot_hide_new_swapouts(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            running = {
+                **reading(2), "owned_processes": [], "owned_rss_sum_bytes": 0,
+                "swap_used_bytes": 0,
+            }
+            stream = io.StringIO()
+            with mock.patch.object(profiler, "sample",
+                                   side_effect=[reading(1), running, reading(3, swapouts=1)]):
+                with mock.patch.object(profiler.BUDGET, "pause", side_effect=lambda _: time.sleep(0.1)):
+                    with self.assertRaises(profiler.ResourceStop):
+                        profiler.execute(["/bin/sleep", "0.05"], self.root, {},
+                                         Path(directory) / "fixture.log", stream, "fixture",
+                                         pressure_baseline=reading(0))
+            self.assertIn('"phase": "completion"', stream.getvalue())
 
     def test_cache_copy_rejects_mismatch_and_preserves_original(self):
         with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:

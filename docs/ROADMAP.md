@@ -1561,6 +1561,16 @@ second-command admission times out at 63-71%. No test fails, but only 1/22
 commands execute. Normal pressure/zero swap persist; current-host peak sampled
 owned RSS sum is about 9.22 GiB. Even 75% would reject the recorded next-command
 window. Stop pending an explicit resource/admission decision; preserve all data.
+**Two-host policy experiment authorized**: one complete run on each Mac under
+normal-pressure/no-new-swap-out admission, preserving load/no-Go/60-second and
+serial safeguards. Percentage becomes diagnostic only for these runs; warning/
+critical pressure or new swapping stops the owned workload. Match source and
+Go 1.26.5 with fresh isolated caches. Default policy, tests and timeouts stay
+unchanged; no automatic retries or GH #13 work.
+Thirty non-Go controls now verify the opt-in pressure policy, including failure
+on missing telemetry, runtime warnings/swap-outs and monitoring gaps, with
+owned-process-only cleanup. Prepare identical frozen checkouts and fresh caches
+for the two authorized full runs; no passing workload result is claimed yet.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
