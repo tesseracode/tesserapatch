@@ -1456,6 +1456,10 @@ checkout with untracked research, and a different Go version. Isolate the
 baseline and match the toolchain before measuring; preserve that checkout.
 Record stage-level execution data and distinguish an admission block from a test
 failure. GH #13 runtime work remains paused pending this separate investigation.
+The operator approved isolated source/toolchain setup; exact `d3454ed` plus
+checksum-verified Go 1.26.5 is ready. Eight non-Go profiler controls and both
+host telemetry smokes pass. The unchanged-threshold baseline is dispatched with
+a 600-second admission budget per command; raw evidence will be retained.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

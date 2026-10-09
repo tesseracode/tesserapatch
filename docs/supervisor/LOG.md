@@ -1,3 +1,40 @@
+## Baseline Dispatch — measured validation on older Mac — 2026-10-08
+
+The isolated checkout is clean at exact `d3454ed`; the original checkout remains
+at `75d80f0` with its untracked research preserved. Go 1.26.5 was downloaded
+inside the isolated directory and verified against its official SHA-256:
+`6231d8d3b8f5552ec6cbf6d685bdd5482e1e703214b120e89b3bf0d7bf1ef725`.
+
+Eight non-Go profiler controls pass, including negative admission conditions,
+sampling gaps/backward time, missing telemetry, nested-child attribution, shard
+mutation rejection and owned-group critical-pressure cleanup. Real non-Go
+telemetry/timing smokes pass on both Macs. Exact shard source digest is
+`7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10`;
+the measured profiler digest is
+`77361b0d7db151aee163b3a77f4e12b437b4e17efe9718f159092df41a2d1512`.
+
+Dispatch the baseline with a 600-second admission budget per command, unchanged
+80%/load1 <=5/no-Go/60-second admission, serial execution and first-failure stop.
+The latest non-Go older-host sample is 78%: the baseline may be blocked before
+formatting. That would measure admission infeasibility, not runtime demand.
+Retain evidence under the owned ignored `bin/resource-baseline/` directories;
+no cleanup of these new profiles is authorized before recording their results.
+
+## Setup Authorized — instrumented older-Mac baseline — 2026-10-08
+
+The operator approved a clean isolated baseline under the older checkout's
+ignored `bin/` directory and an isolated Go 1.26.5 toolchain. Preserve the original
+checkout and its research; pin measured source to `d3454ed`. The optional profiler
+measures formatting, serial vet/build and the existing 22-command partition
+without changing selectors or timeouts. This is a workload profile, not a new
+wave-close certificate. Fresh isolated caches are recorded explicitly.
+
+Admission is unchanged at 80%/load1 <=5/no existing Go tools for a continuous
+minute before each command. Retain JSONL samples and stage logs; fail explicitly
+on unavailable telemetry, stop on the first validation/admission failure, and
+stop only the owned workload if OS pressure becomes critical. Baseline-only
+authorization does not select a relaxed candidate or start GH #13.
+
 ## Investigation — test-resource admission calibration — 2026-10-08
 
 **Task**: `calibrate-test-resource-admission`
