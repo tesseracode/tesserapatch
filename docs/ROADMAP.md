@@ -1512,6 +1512,10 @@ hook pattern; no fabricated refusal, redaction change or permanent 75% policy.
 The first targeted run caught double injection across preflight/authoritative
 reads. The fixture now arms only after real authority acquisition for mutating
 prepare, while dry-run uses its first capture; exact-one-mutation assertions stay.
+Corrected `ba15a05` passes local formatting, focused CLI tests including compiled
+negative controls, vet and build under fresh 80% admission. Dispatch the full
+local partition and, separately, older-Mac AP at experimental 75% with unchanged
+test budgets. Both results remain pending; no permanent policy change.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

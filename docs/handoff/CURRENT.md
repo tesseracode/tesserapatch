@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — deterministic fixture implemented; local targeted validation dispatched
+- **Status**: In progress — targeted/vet/build PASS; older-Mac AP and full local partition dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -179,6 +179,11 @@ before and after acquisition. Corrected the fixture to arm only after real
 authority acquisition for mutating routes; dry-run is armed immediately.
 The exact-one/refusal/snapshot controls are unchanged. A fresh targeted run is
 required; the first failure remains in `fixture-local-20261009`.
+The corrected `ba15a05` run now passes formatting, targeted CLI tests (74.507s),
+vet and build, each after a fresh original-policy 80% admission minute.
+Mutation controls actually compiled broken source and observed the specific
+expected assertion failures. Old-Mac AP and the full local shard partition are
+dispatched independently on their respective hosts; no result is claimed yet.
 
 Eight non-Go profiler controls pass, with negative admission/telemetry/source-
 parity fixtures and owned-child cleanup. Real non-Go telemetry/timing smokes
@@ -213,10 +218,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Implement the authorized synchronized mutation and negative controls.
-   Run local targeted validation through the original 80% admission gate.
-2. Repeat AP on a separate fixed-source older-Mac checkout with explicit 75%
-   experimental admission and unchanged timeouts; preserve the old baseline.
+1. Await the full local 22-command partition under original 80% admission.
+2. Await AP on separate fixed-source older-Mac checkout `fixture-repo-20261009`
+   at `ba15a05`, explicit 75% and unchanged timeouts. New evidence directory is
+   `older-mac-fixture-ap-20261009`; previous failing baseline is preserved.
 3. Preserve native run `37892216801` at `2156ae8` before the pending documentation/
    tooling push. Raw nested output and all prior failures remain private/preserved.
 4. GH #13 implementation remains paused and separately authorized.

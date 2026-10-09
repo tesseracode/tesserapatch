@@ -1,3 +1,24 @@
+## Targeted PASS and AP Comparison Dispatch — 2026-10-09
+
+At fixed-source `ba15a05`, local original-policy formatting, focused CLI tests
+(74.507s package / 83.86s command), `go vet ./...` and CLI build pass. Every
+command had a fresh >=80%/load<=5/no-Go minute. The focused run includes stable/
+real-mutation/error controls, JSON/human/dry-run/exit-3 preservation, AP dry-run/
+purge composition, the injection registry and both real compiled-source negative
+controls. The first implementation's two-capture failure remains recorded.
+
+Dispatch the older-Mac AP observer on separate `fixture-repo-20261009` at exact
+`ba15a05`, using matched Go 1.26.5, explicit 75%, a 30-minute outer experiment
+budget and unchanged 480s/720s/40m test budgets. Use fresh isolated caches:
+copying caches across source revisions is intentionally rejected by the profiler.
+Keep the previous failing `d3454ed` checkout and original old checkout untouched.
+New output is `older-mac-fixture-ap-20261009`, with private nested JSON capture.
+
+Also run the full existing 22-command partition on the current Mac, serially
+with original 80% admission and first-failure stop. Independent hosts do not
+share a resource gate. Neither AP success nor a full-suite pass is claimed yet.
+Preserve in-flight native `37892216801` before publishing the new revision.
+
 ## Targeted Feedback — arm the authoritative capture — 2026-10-09
 
 First targeted validation at `60f40cb` passes formatting and the direct capture/
