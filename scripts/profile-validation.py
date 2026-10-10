@@ -98,8 +98,9 @@ def pressure_counters(value):
 
 
 class PressureWindow(QuietWindow):
-    def __init__(self):
+    def __init__(self, allow_external_go=False):
         super().__init__()
+        self.allow_external_go = allow_external_go
         self.swapouts = None
         self.latest = None
 
@@ -110,7 +111,8 @@ class PressureWindow(QuietWindow):
         unchanged = self.swapouts is None or swapouts == self.swapouts
         self.swapouts = swapouts
         self.latest = sample
-        return level == 1 and unchanged and sample["load1"] <= 5 and not sample["go_processes"]
+        return (level == 1 and unchanged and sample["load1"] <= 5
+                and (self.allow_external_go or not sample["go_processes"]))
 
 
 def require_runtime_pressure_safe(value, previous):
@@ -422,10 +424,12 @@ def stop_owned_tree(process, known):
         process.wait(timeout=3)
 
 
-def execute(command, repo, env, log, stream, stage, pressure_baseline=None):
+def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
+            allow_external_go=False):
     BUDGET.timeout()
     start = time.monotonic()
     peak_rss = peak_count = peak_go = peak_pressure = 0
+    peak_external_go = 0
     lowest_free = 100
     first = last = None
     owned = {}
@@ -434,7 +438,7 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None):
         first = last = sample()
         record(stream, stage, "prelaunch", first)
         require_runtime_pressure_safe(first, pressure_baseline)
-        if first["load1"] > 5 or first["go_processes"]:
+        if first["load1"] > 5 or (first["go_processes"] and not allow_external_go):
             raise ResourceStop("admission conditions changed before launching the workload")
         previous_pressure = first
     with log.open("x") as sink:
@@ -453,6 +457,10 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None):
                 peak_rss = max(peak_rss, value["owned_rss_sum_bytes"])
                 peak_count = max(peak_count, len(value["owned_processes"]))
                 peak_go = max(peak_go, len(value["go_processes"]))
+                owned_pids = {p["pid"] for p in value["owned_processes"]}
+                peak_external_go = max(peak_external_go, sum(
+                    p["pid"] not in owned_pids for p in value["go_processes"]
+                ))
                 peak_pressure = max(peak_pressure, value["pressure_level"])
                 lowest_free = min(lowest_free, value["admission_free_percent"])
                 if pressure_baseline is not None:
@@ -481,6 +489,7 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None):
         "sampled_peak_owned_rss_sum_bytes": peak_rss,
         "sampled_peak_owned_process_count": peak_count,
         "sampled_peak_system_go_process_count": peak_go,
+        "sampled_peak_external_go_process_count": peak_external_go,
         "sampled_peak_pressure_level": peak_pressure,
         "sampled_min_admission_free_percent": lowest_free,
         "swap_used_delta_bytes": last["swap_used_bytes"] - first["swap_used_bytes"] if first else None,
@@ -502,6 +511,8 @@ def main():
     parser.add_argument("--memory-threshold", type=int, choices=(80, 75), default=80)
     parser.add_argument("--profile", choices=("full", "partition", "pilot", "ap-observer"), default="full")
     parser.add_argument("--admission-policy", choices=("percent", "pressure"), default="percent")
+    parser.add_argument("--allow-external-go", action="store_true",
+                        help="pressure-policy experiment only: observe other Go tools without vetoing admission")
     parser.add_argument("--max-seconds", type=int)
     parser.add_argument("--cache-from", type=Path)
     args = parser.parse_args()
@@ -519,6 +530,8 @@ def main():
         args.profile != "partition" or args.memory_threshold != 80
     ):
         parser.error("pressure policy is an explicit partition experiment, not a percentage override")
+    if args.allow_external_go and args.admission_policy != "pressure":
+        parser.error("external Go permission requires the explicit pressure-policy experiment")
 
     def interrupt(signum, frame):
         raise KeyboardInterrupt
@@ -573,7 +586,9 @@ def main():
                       "normal_pressure_required": args.admission_policy == "pressure",
                       "no_new_swapouts_required": args.admission_policy == "pressure",
                       "load1_max": 5, "quiet_seconds": 60,
-                      "no_existing_go_tools": True, "max_wait_seconds": args.wait_seconds},
+                      "no_existing_go_tools": not args.allow_external_go,
+                      "max_wait_seconds": args.wait_seconds},
+        "external_go_policy": "observe-only" if args.allow_external_go else "block-admission",
         "runtime_pressure_guard": args.admission_policy == "pressure",
         "limits": [
             "This profiles validation stages 6-8; it is not a new wave-close certification.",
@@ -595,6 +610,8 @@ def main():
             "New swap-outs are measured system-wide and may be caused by unrelated processes.",
             "Historical swap usage alone is not active swapping; compare cumulative swap-out counters.",
             "Pressure-policy runtime checks stop on warning/critical pressure, new swap-outs or monitoring gaps.",
+            "External Go permission changes only admission/prelaunch presence checks; load and memory safety remain enforced.",
+            "Concurrent work can affect timing; frozen checkouts and isolated caches do not remove CPU/disk contention.",
         ],
         "results": [],
     }
@@ -610,14 +627,16 @@ def main():
             for stage, command in stages:
                 summary["current_stage"] = stage
                 save()
-                pressure_window = PressureWindow() if args.admission_policy == "pressure" else None
+                pressure_window = (PressureWindow(allow_external_go=args.allow_external_go)
+                                   if args.admission_policy == "pressure" else None)
                 label = "normal pressure/no swap-outs" if pressure_window is not None else "%d%%" % args.memory_threshold
                 print("Waiting for %s admission: %s" % (label, stage), flush=True)
                 waited = admit(stream, stage, args.wait_seconds,
                                minimum_free=args.memory_threshold, window=pressure_window)
                 print("Running: " + stage, flush=True)
                 result = execute(command, repo, env, destination / (stage + ".log"), stream, stage,
-                                 pressure_baseline=pressure_window.latest if pressure_window is not None else None)
+                                 pressure_baseline=pressure_window.latest if pressure_window is not None else None,
+                                 allow_external_go=args.allow_external_go)
                 result["admission_wait_seconds"] = waited
                 summary["results"].append(result)
                 save()

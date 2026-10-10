@@ -1590,6 +1590,14 @@ The memory percentage is not the current-host blocker. Both runs are terminal;
 preserve `pressure-two-host-comparison.json`. Full local acceptance still needs
 a separately coordinated validation window and review; no automatic retries,
 quiet-minute relaxation or permanent policy adoption.
+**External-Go trial authorized**: allow other Go sessions for one current-Mac
+pressure-policy partition, while preserving the 60-second pressure/swap/load
+window, runtime safeguards, serial own workload, isolated source/caches and
+unchanged test timeouts. Implement an explicit flag and negative controls;
+strict defaults stay intact and no older-Mac retry is included.
+Thirty-five non-Go controls pass, including opt-in-only concurrency and unchanged
+prelaunch/runtime safety. Prepare the fresh isolated current-host experiment;
+no Go/test source, shard selector or package timeout was changed.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

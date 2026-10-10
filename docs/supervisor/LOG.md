@@ -1,3 +1,40 @@
+## External-Go Controls PASS — 2026-10-09
+
+Thirty-five non-Go controls pass. New controls prove that external Go permission
+is explicit, does not alter strict defaults, retains the entire sixty-second
+pressure/swap/load window, applies consistently at prelaunch, and cannot bypass
+runtime warning/critical/swap-out stops. Unrelated control processes remain alive
+when the owned fixture is stopped. Telemetry now summarizes external Go counts
+separately from total Go counts, without recording argv or environment contents.
+
+No production/test Go source or shard commands changed. Prepare one fresh
+isolated current-Mac checkout/cache at the verified revision, then run the exact
+twenty-two commands with `--profile partition --admission-policy pressure
+--allow-external-go --wait-seconds 600`. Keep test timeouts and own serial
+execution unchanged; stop at the first test/admission/safety failure.
+No older-Mac run or automatic retry is authorized.
+
+## External-Go Experiment Authorized — current Mac — 2026-10-09
+
+The operator explicitly chose one current-Mac full-partition experiment allowing
+other Go sessions under the pressure-based policy. The previous blanket Go
+presence condition was a contention precaution, not a runtime/cache-corruption
+requirement: separate test processes do not share Go globals, and local Go
+build caches support concurrent use. Mutable checkout/output/config collisions
+remain real concerns, addressed here by frozen source and isolated caches.
+
+Add opt-in `--allow-external-go`, accepted only with pressure-policy partition
+mode. It removes the Go-presence veto in admission and immediate prelaunch
+checks while retaining the full normal-pressure/no-new-swap/load<=5 minute and
+all runtime safeguards. Keep own commands serial, test arguments/timeouts
+unchanged, and record external Go activity rather than terminating it.
+Default percentage/strict pressure modes remain unchanged.
+
+One new 32 GiB run is authorized after controls pass; no older-Mac retry,
+permanent policy adoption or GH #13 implementation. Prior native CI
+`38007045267` at `d765eab` completed SUCCESS, so previous comparison records
+may be pushed without cancelling it.
+
 ## Two-Host Comparison Complete — current host blocked by other Go work — 2026-10-09
 
 The current 32 GiB run passed commands **1-10 of 22**, then exhausted the

@@ -89,6 +89,26 @@ class AdmissionTests(unittest.TestCase):
 
 
 class PressurePolicyTests(unittest.TestCase):
+    def test_external_go_permission_is_explicit_and_preserves_the_quiet_minute(self):
+        strict, allowed = profiler.PressureWindow(), profiler.PressureWindow(allow_external_go=True)
+        for now in range(0, 62, 2):
+            value = reading(now, free=50, go=True)
+            self.assertFalse(strict.observe(value))
+            self.assertEqual(allowed.observe(value), now == 60)
+
+    def test_external_go_permission_keeps_pressure_load_and_swap_checks(self):
+        for condition in ({"pressure": 2}, {"pressure": 4}, {"load": 5.01}):
+            window = profiler.PressureWindow(allow_external_go=True)
+            for now in range(0, 62, 2):
+                self.assertFalse(window.observe(reading(now, go=True, **condition)))
+        window = profiler.PressureWindow(allow_external_go=True)
+        for now in range(0, 60, 2):
+            self.assertFalse(window.observe(reading(now, go=True)))
+        self.assertFalse(window.observe(reading(60, go=True, swapouts=1)))
+        for now in range(62, 122, 2):
+            self.assertFalse(window.observe(reading(now, go=True, swapouts=1)))
+        self.assertTrue(window.observe(reading(122, go=True, swapouts=1)))
+
     def test_pressure_mode_ignores_percentage_but_preserves_the_full_minute(self):
         window = profiler.PressureWindow()
         for now in range(0, 62, 2):
@@ -315,6 +335,71 @@ class TelemetryTests(unittest.TestCase):
                     with self.assertRaises(SystemExit) as error:
                         profiler.main()
                     self.assertEqual(error.exception.code, 2)
+
+    def test_external_go_flag_cannot_relax_legacy_percentage_policy(self):
+        args = ["profiler", "--repo", "/fixture", "--toolchain", "/fixture",
+                "--out", "/fixture", "--expected-head", "fixture",
+                "--profile", "partition", "--allow-external-go"]
+        with mock.patch.object(profiler.sys, "argv", args):
+            with mock.patch.object(profiler.sys, "stderr", io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    profiler.main()
+                self.assertEqual(error.exception.code, 2)
+
+    def test_external_go_permission_applies_to_prelaunch_without_changing_command(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            root = Path(directory)
+            running = {
+                **reading(4, go=True), "owned_processes": [], "owned_rss_sum_bytes": 0,
+                "swap_used_bytes": 0,
+            }
+            samples = [
+                {**reading(2, go=True), "swap_used_bytes": 0},
+                running,
+                {**reading(6, go=True), "swap_used_bytes": 0},
+            ]
+            with mock.patch.object(profiler, "sample", side_effect=samples):
+                with mock.patch.object(profiler.BUDGET, "pause", side_effect=lambda _: time.sleep(0.1)):
+                    result = profiler.execute(["/bin/sleep", "0.05"], self.root, {},
+                                              root / "fixture.log", io.StringIO(), "fixture",
+                                              pressure_baseline=reading(0, go=True),
+                                              allow_external_go=True)
+            self.assertEqual(result["exit_code"], 0)
+            self.assertEqual(result["command"], ["/bin/sleep", "0.05"])
+            self.assertEqual(result["sampled_peak_external_go_process_count"], 1)
+            for value in (reading(2, go=True, pressure=2), reading(2, go=True, swapouts=1),
+                          reading(2, go=True, load=5.01)):
+                with mock.patch.object(profiler, "sample", return_value=value):
+                    with mock.patch.object(profiler.subprocess, "Popen") as launch:
+                        with self.assertRaises(profiler.ResourceStop):
+                            profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                             root / "never.log", io.StringIO(), "fixture",
+                                             pressure_baseline=reading(0, go=True),
+                                             allow_external_go=True)
+                        launch.assert_not_called()
+
+    def test_external_go_permission_does_not_bypass_runtime_safety(self):
+        for condition in ({"pressure": 2}, {"pressure": 4}, {"swapouts": 1}):
+            with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+                unhealthy = {
+                    **reading(4, go=True, **condition), "owned_processes": [],
+                    "owned_rss_sum_bytes": 0, "swap_used_bytes": 0,
+                }
+                other = profiler.subprocess.Popen(["/bin/sleep", "30"], start_new_session=True)
+                try:
+                    with mock.patch.object(profiler, "sample",
+                                           side_effect=[reading(2, go=True), unhealthy]):
+                        with mock.patch.object(profiler, "stop_owned", wraps=profiler.stop_owned) as stop:
+                            with self.assertRaises(profiler.ResourceStop):
+                                profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                                 Path(directory) / "fixture.log", io.StringIO(),
+                                                 "fixture", pressure_baseline=reading(0, go=True),
+                                                 allow_external_go=True)
+                            stop.assert_called_once()
+                            self.assertIsNotNone(stop.call_args.args[0].poll())
+                            self.assertIsNone(other.poll())
+                finally:
+                    profiler.stop_owned(other)
 
     def test_pressure_prelaunch_blocks_before_any_workload_is_started(self):
         for current in (reading(2, pressure=2), reading(2, swapouts=1),

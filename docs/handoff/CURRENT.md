@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Blocked — two-host experiment complete; current host 10/22, older host safety stop
+- **Status**: In progress — external-Go controls PASS; preparing one isolated current-host full run
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,20 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+Thirty-five non-Go controls pass for explicit external-Go permission.
+The flag changes only Go-presence admission/prelaunch checks: pressure, swap,
+load, timing, ownership and existing test timeouts remain guarded. New telemetry
+records external Go counts separately. Prepare a fresh isolated checkout/cache
+for the one current-host run; no Go/test source changed.
+
+The operator explicitly authorizes one current-Mac full pressure-policy run
+allowing external Go processes. Add a pressure-only opt-in; retain the complete
+60-second normal-pressure/no-new-swap/load<=5 window, runtime resource stops,
+own serial execution and isolated frozen source/caches. External Go activity
+is measured, not automatically blocked or terminated. Strict defaults and all
+test assertions/timeouts stay unchanged. No older-Mac retry is authorized.
+Prior native `38007045267` at `d765eab` has passed.
 
 Both pressure-policy runs have finished. The current 32 GiB host passed
 commands 1-10, then timed out waiting for a quiet minute before command 11.
@@ -349,17 +363,17 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Obtain an explicit coordinated resource window for another current-host
-   validation attempt: the final blocker was other Go work, not memory.
-   Do not relax the quiet-minute rule or restart automatically.
+1. Verify the newly authorized external-Go opt-in and safety controls, then
+   run one full current-host partition with pressure/swap/load safeguards.
+   Do not start additional or older-host runs automatically.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
 3. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-4. Preserve in-flight native `38007045267` at `d765eab` before the pending push.
-   Full local validation and independent review still precede acceptance.
+4. Prior native `38007045267` at `d765eab` is SUCCESS; the pending tracking
+   and opt-in profiler changes can be published. Full validation/review remain.
 5. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
@@ -369,7 +383,8 @@ The AQ guard correction passes focused validation and fixed-source native CI.
 The older pressure-policy run stopped on actual swap-outs before finishing
 its first command. The current host passed ten commands, but other Go activity
 blocked admission to command 11. Both outcomes and the comparison are recorded;
-complete local validation, review and acceptance remain outstanding.
+the operator now authorizes a separate concurrent-work experiment on this Mac.
+Complete local validation, review and acceptance remain outstanding.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
