@@ -1658,6 +1658,13 @@ Split-only driver controls and prior raw coverage inventory are verified.
 The two separate profiles plus four analyses are dispatched at unchanged
 `6ff988e`; eighty assertion paths must match exactly. Preserve the failed
 combined profile and use new private `memory-separate-profile-20261010` output.
+**Separate profiling PASS**: rev-19/rev-20 preserve all eighty test paths and
+complete with 8.07/7.29 GiB sampled RSS peaks, 3.03/2.78 GiB post-GC retained
+heap and 52.82/49.15 GiB cumulative allocations. Binding-state construction/
+cloning accounts for about 61% of allocation volume. All samples show normal
+pressure/zero swap. Record `memory-separate-profile-pass.json`; choose a bounded
+test-only optimization next, without weakening assertions or declaring old-Mac
+full-suite viability. No canonical partition or cache implementation changed.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

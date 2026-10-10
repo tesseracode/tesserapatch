@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "experiment": "memory-separate-profile-20261010",
+  "status": "separate-profiles-passed",
+  "source_head": "6ff988e849eecc228b9d8eeae8a9f407915ec340",
+  "toolchain": "go1.26.5",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "logical_cpus": 10
+  },
+  "coverage": {
+    "rev19_test_and_subtest_paths": 42,
+    "rev20_test_and_subtest_paths": 38,
+    "split_union_paths": 80,
+    "matches_prior_emitted_combined_assertions": true,
+    "each_process_has_package_pass": true,
+    "test_failures_or_skips": 0,
+    "usable_prior_combined_heap_profile": false
+  },
+  "scope": {
+    "test_processes": 2,
+    "completed_profile_analyses": 4,
+    "maximum_combined_workload_seconds": 1800,
+    "actual_stage_and_admission_seconds": 531.093872,
+    "test_package_timeout_seconds": 2400,
+    "memory_profile_rate_bytes": 524288,
+    "cache": "fresh private compiler/module caches initially, reused between the two source-identical test processes",
+    "runtime_gc_or_memory_limit_override": false,
+    "canonical_shard_or_production_change": false
+  },
+  "observation": {
+    "first_utc": "2026-10-10T19:06:09.881258+00:00",
+    "last_utc": "2026-10-10T19:15:00.932351+00:00",
+    "sample_count": 274,
+    "sample_span_seconds": 531.051,
+    "maximum_sample_gap_seconds": 2.089838,
+    "normal_pressure_samples": 274,
+    "new_swapout_pages": 0,
+    "swap_used_bytes_max": 0,
+    "percentage_metric_min": 68,
+    "percentage_metric_max": 70,
+    "load1_min": 1.95,
+    "load1_max": 3.38,
+    "sampled_peak_external_go_process_count": 0,
+    "recorded_owned_processes_remaining_after_completion": 0
+  },
+  "tests": {
+    "rev19": {
+      "package_seconds": 64.391,
+      "command_real_seconds": 96.27,
+      "sampled_peak_owned_rss_sum_bytes": 8665432064,
+      "time_reported_max_rss_bytes": 8608792576,
+      "profile_bytes": 1061188,
+      "inuse_space_mib": 3106.49,
+      "alloc_space_mib": 54090.57,
+      "binding_constructor_flat_alloc_mib": 24622.82,
+      "binding_clone_flat_alloc_mib": 8157.92,
+      "binding_constructor_flat_inuse_mib": 322.80,
+      "binding_clone_flat_inuse_mib": 155.04,
+      "checker_record_type_and_value_flat_inuse_mib": 559.53,
+      "attach_type_information_flat_inuse_mib": 245.40,
+      "checker_record_use_flat_inuse_mib": 228.82
+    },
+    "rev20": {
+      "package_seconds": 57.664,
+      "command_real_seconds": 59.23,
+      "sampled_peak_owned_rss_sum_bytes": 7826718720,
+      "time_reported_max_rss_bytes": 7826227200,
+      "profile_bytes": 986277,
+      "inuse_space_mib": 2841.81,
+      "alloc_space_mib": 50332.02,
+      "binding_constructor_flat_alloc_mib": 23144.65,
+      "binding_clone_flat_alloc_mib": 7636.79,
+      "binding_constructor_flat_inuse_mib": 284.32,
+      "binding_clone_flat_inuse_mib": 147.04,
+      "checker_record_type_and_value_flat_inuse_mib": 551.52,
+      "attach_type_information_flat_inuse_mib": 224.31,
+      "checker_record_use_flat_inuse_mib": 198.54
+    }
+  },
+  "profile_interpretation": {
+    "reported_MB_unit_bytes": 1048576,
+    "inuse_space": "Sampled heap still in use after the testing package performs end-of-test garbage collection.",
+    "alloc_space": "Sampled cumulative allocation volume during the process, not simultaneous memory demand.",
+    "allocation_hotspot": "s6NewReachingBindingsWithCapacity plus the separate flat allocations in s6CloneReachingBindings account for approximately 61% of allocation volume in each run.",
+    "source_anchors": [
+      "internal/cli/prepare_s6_contract_test.go:33733-33823",
+      "internal/cli/prepare_s6_contract_test.go:20409-20472",
+      "internal/cli/prepare_s6_contract_test.go:21556-21647",
+      "internal/cli/prepare_s6_contract_test.go:33442-33474"
+    ]
+  },
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/memory-separate-profile-20261010",
+    "summary_sha256": "00ba84ada93b8eb8cd3bec6974a09233445b06c2013d4fa50add89609d6450bb",
+    "samples_sha256": "82f29cc66778152a7acfe5795f25cf33757d3069c7f9b7a554a1a13952361a13",
+    "rev19_test_log_sha256": "02dc7949adfadbe824eb19b7ac787c8876741a0753bcd9670341c9b7a8ae506a",
+    "rev20_test_log_sha256": "f90e85dc8ab050280a1bd60671476ba16d8ee84e172483a5e0a0dd591445884b",
+    "rev19_profile_sha256": "cc2bc29f5e7c73172c5c02e3a68ea719d91904a115d8851b53d92bc7325e1ce2",
+    "rev20_profile_sha256": "795edd7181a1d5617595784afe88536e8cb3705d6c5661e9225e32472fd924fd",
+    "rev19_inuse_log_sha256": "9790ce7f66884941aebe9396cad8a346c82d42ef781321dfbdbf1556bdbf6c4f",
+    "rev19_alloc_log_sha256": "1553c43a81ed65264f8cfb20e1ca30a6ed62581f2fe1c03f48a4c87140b3a849",
+    "rev20_inuse_log_sha256": "0f8069fdc6f88dd655953f939c371cec1467e9fe27884609b8b0828d886fa47c",
+    "rev20_alloc_log_sha256": "66201997417e2f9f1e766920f00a64f90be11c110f7681878a7645636891a81b"
+  },
+  "conclusions": [
+    "Both individual test processes and all four heap analyses completed successfully with normal pressure and no swapping.",
+    "Separate process RSS peaks were approximately 8.07 GiB and 7.29 GiB. Profiles retained approximately 3.03 GiB and 2.78 GiB after GC.",
+    "The separate runs finished safely and had lower sampled peaks than earlier combined observations, but no valid contemporaneous combined heap profile exists; do not claim a precisely controlled reduction percentage.",
+    "About 52.82 GiB and 49.15 GiB cumulative allocation volume indicates substantial test-analysis allocation churn; these values are not required physical RAM.",
+    "Allocation profiles identify type-information/AST/binding state and repeated binding clones as concrete optimization targets, while source inspection identifies their cache-retention paths. Profiles alone do not identify GC roots.",
+    "Splitting alone still leaves large 7-8 GiB process footprints and does not solve other already-single large test groups or prove old-Mac full-suite viability.",
+    "The next bounded change should evaluate coordinated test-only cache lifetimes or avoidable binding-state cloning while retaining cache-correctness and mutation-sensitivity assertions.",
+    "No production behavior, test timeout, cache implementation or canonical CI/shard configuration changed in this measurement."
+  ]
+}

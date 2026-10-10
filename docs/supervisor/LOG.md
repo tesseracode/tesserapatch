@@ -1,3 +1,36 @@
+## Separate Profiles PASS — retained heap and binding-copy allocation measured — 2026-10-10
+
+Both individual test processes and all four heap analyses pass within the
+30-minute cap (about 8.9 minutes including admission). Rev-19 completes in
+64.391s package time and rev-20 in 57.664s. Their complete package/test/subtest
+pass manifests cover exactly the prior eighty emitted paths, with no missing,
+duplicated, skipped or failed cases. Nonempty heap profiles and binaries exist.
+All 274 samples show normal pressure and zero swapping; no recorded owned
+process remains, and the frozen `6ff988e` checkout is clean.
+
+Measured per-process peaks: **8.07 GiB RSS for rev-19**, **7.29 GiB for rev-20**.
+After Go testing's final GC, sampled retained heap is about 3.03/2.78 GiB.
+Cumulative allocated volume is about 52.82/49.15 GiB, not simultaneous RAM.
+Flat allocation sites in `s6NewReachingBindingsWithCapacity` and
+`s6CloneReachingBindings` account for roughly 61% of allocation volume in each
+profile; retained heap also prominently contains go/types maps, ASTs and attached
+type information. Source inspection confirms binding cloning allocates/copies
+multiple maps and nested structures (`prepare_s6_contract_test.go:33733-33823`).
+Do not double-count cumulative pprof rows as independent allocations.
+
+Splitting finished safely and reduced the observed per-process peaks relative
+to earlier combined runs, but the contemporaneous combined profile is empty;
+no controlled reduction percentage or combined retained-heap total is available.
+Individual processes still need substantial memory, and other single-test
+groups remain large. This is a measured candidate, not complete old-Mac support.
+
+**Action**: record `memory-separate-profile-pass.json`, preserve raw profiles
+privately, and stop. Recommend a separately bounded test-only cache-lifetime or
+binding-copy optimization with unchanged cache-correctness/mutation assertions;
+no production, cache or canonical-shard implementation changed here. Latest CI
+`38076313773` at `880345a` remains in flight, so retain this result locally before
+the next push. Existing full-suite acceptance evidence remains unchanged.
+
 ## Separate Heap Measurement Dispatch — 2026-10-10
 
 Split-only driver controls pass. The prior raw log hash and its eighty unique

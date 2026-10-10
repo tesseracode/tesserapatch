@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate test-only analyzer retention and smaller process groups
-- **Status**: In progress — separate-only heap measurements dispatched on current Mac
+- **Status**: Separate profiles PASS — measured test-memory optimization candidates; review/closure pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,17 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+Separate rev-19 and rev-20 profiles now pass, including all four heap analyses
+and exact eighty-path assertion coverage. Package times are 64.391s/57.664s;
+peak sampled RSS is 8.07/7.29 GiB. Post-GC sampled retained heap is 3.03/2.78
+GiB, while cumulative allocation volume is 52.82/49.15 GiB. Roughly 61% of
+allocated bytes are attributed to binding-state constructor/clone flat sites.
+All 274 samples show normal pressure/zero swap and owned cleanup is verified.
+This identifies concrete test-only optimization targets; it is not a production
+memory issue or a claim that 50 GiB of RAM is needed. No usable combined heap
+profile exists, so no controlled reduction percentage is available.
+No workload remains running on either Mac.
 
 The split-only plan is verified and dispatched: rev-19 and rev-20 individually,
 then four heap analyses. The original combined log proves eighty emitted
@@ -410,6 +421,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   constraints, measured shard peaks and proposed bounded split/heap comparison.
 - `memory-split-profile-resource-stop.json`: warning-pressure stop after emitted
   combined test passes, empty profile, unavailable comparison and evidence hashes.
+- `memory-separate-profile-pass.json`: complete separate test/profile results,
+  exact coverage union, retained versus allocated heap and source-attributed hotspots.
 
 ## Test Results
 
@@ -484,9 +497,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Run the explicitly authorized two separate profiles and four heap analyses
-   within the 30-minute budget. The combined profile remains empty and cannot
-   serve as a completed live-heap baseline. Do not weaken safeguards.
+1. Retain the completed separate profiles and choose a bounded test-only
+   cache-lifetime or binding-copy optimization before changing implementation.
+   Preserve cache identity/invalidation and mutation-sensitive correctness guards.
+   Do not claim the empty combined profile as a live-heap baseline.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
@@ -508,10 +522,11 @@ Independent review, latest hosted confirmation and final wave closure remain.
 The older capped-swap probe has also stopped on its growth limit and is not a
 pass. No validation workload is running on either Mac. Optional old-host resource
 optimization is separate from accepting the validated current-host fixture fixes.
-Static analysis identifies test-cache retention, but allocation/live-heap
-measurements are needed before choosing a lower-memory implementation.
-The attempted combined profile stopped on warning pressure and is empty;
-the split tests never ran. No workload is currently running on either Mac.
+Separate profiling now measures large retained typed-model/binding state and
+substantial binding-copy allocation churn. No memory optimization has yet been
+implemented or assigned. The combined heap profile remains unavailable, and
+7-8 GiB individual RSS does not establish full-suite viability on the older Mac.
+No workload is currently running on either Mac.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
