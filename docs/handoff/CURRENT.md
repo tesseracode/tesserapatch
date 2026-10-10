@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — matched two-host pressure-based full partitions dispatched
+- **Status**: In progress — older run safety-stopped on swap-outs; current-Mac run continues
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,16 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The older 16 GiB experiment stopped safely during command 1 on new swap-outs:
+0 -> 174,734 pages, with 683.25 MiB swap used. OS pressure still read normal;
+the independent swapping guard triggered correctly. Peak sampled owned RSS sum
+was about 6.69 GiB. No test assertion failure is reported, but **0/22 commands
+completed**; early package passes do not constitute partition coverage.
+Owned Go processes are gone, the frozen checkout is clean, and raw evidence is
+mirrored/hash-verified locally. No retry is authorized. The current 32 GiB run
+continues independently; last inspection showed four commands passed and the
+fifth running without pressure/swap issues.
 
 Both experiment checkouts are clean at
 `2cba06811ce86025a11f4f7a1c31f4a5e7b6fda9`; Go 1.26.5 is matched and
@@ -251,6 +261,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   admission-window replay comparison, observed 79-81% conditions and limits.
 - `current-mac-full-partition-admission-stop.json`: first broad command PASS,
   second-command admission block, 9.22 GiB measured RSS peak and interpretation limits.
+- `pressure-older-full-resource-stop.json`: actual swapping-triggered safety
+  stop on the older Mac, interrupted coverage and measured resource limits.
 
 ## Test Results
 
@@ -323,10 +335,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the one authorized complete partition on each host, with fresh isolated
-   caches and private telemetry. Stop at first test/admission/safety failure.
-2. Compare only measured results, including any aborted stage; do not turn
-   partial coverage or a healthy snapshot into full-suite acceptance.
+1. Await the still-running current-Mac pressure partition; the older-host run
+   is terminal (resource-stopped) and must not restart automatically.
+2. Compare the current host's eventual outcome with the retained older-host
+   stop. Do not turn partial coverage or a healthy snapshot into acceptance.
 2. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
@@ -338,10 +350,10 @@ This diagnostic success is not a validation pass or threshold approval.
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The previous percentage-gated run stopped after 1/22 passing commands.
-Both pressure-based full runs are now dispatched through verified safeguards.
-They may wait for competing work or abort on resource pressure. Complete
-results, review and acceptance remain outstanding.
+The older pressure-policy run stopped on actual swap-outs before finishing
+its first command. The current-host full partition still runs. Complete
+current-host results, comparison, review and acceptance remain outstanding.
+The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 

@@ -1,3 +1,30 @@
+## Older-Mac Safety Stop — pressure-based full partition — 2026-10-09
+
+The older 16 GiB run stops as designed during command 1, exit **76
+resource-stopped**, when the cumulative swap-out counter increases from zero
+to 174,734 pages (4 KiB/page). Reported swap usage reaches 683.25 MiB. The last
+sample still reports normal OS pressure, load1 1.49 and a 73% percentage metric:
+the explicit swap-out guard, not a percentage/pressure-color shortcut, triggers.
+
+All 842 samples had normal OS pressure; sampling gaps stayed below 2.326s.
+The interrupted execution spans about 28.4 minutes of sampled work, including
+cold compilation. Peak sampled owned RSS sum is about 6.69 GiB, almost entirely
+the CLI test process at the stop. No external Go competitor was observed.
+Some early packages passed, but **0/22 commands completed** and no assertion
+failure is reported before the interruption. Do not label this a test failure,
+full pass or proof that the suite universally requires more than 16 GiB.
+
+Owned cleanup is verified: no Go/toolchain/test processes remain; source stays
+clean at matched `2cba068`. Summary/samples/logs are mirrored locally and hashes
+match. Public aggregate: `pressure-older-full-resource-stop.json` beside prior
+reports. Detailed process inventories remain private. No automatic older-host
+retry or weaker safety limit follows.
+
+The current 32 GiB run is independent and continues; the last inspection
+recorded four passing commands and command 5 running, normal pressure and no
+swap-outs. Wait for its completion before a final comparison. Native CI
+`38007045267` at `d765eab` is still running; preserve it before a tracking push.
+
 ## Two-Host Full Partition Dispatch — pressure policy — 2026-10-09
 
 Both clean isolated checkouts are pinned to

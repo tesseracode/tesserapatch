@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "experiment": "pressure-older-full-20261009",
+  "status": "resource-stopped",
+  "exit_code": 76,
+  "source_head": "2cba06811ce86025a11f4f7a1c31f4a5e7b6fda9",
+  "toolchain": "go1.26.5",
+  "profiler_sha256": "70680d2703fad44bf9cefa11a7a6f16127f80f0bf3ce9e0445e5ce9299759f19",
+  "shard_script_sha256": "7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10",
+  "host": {
+    "architecture": "x86_64",
+    "physical_memory_bytes": 17179869184,
+    "physical_cpus": 4,
+    "logical_cpus": 8,
+    "darwin_release": "24.6.0"
+  },
+  "policy": {
+    "admission": "normal OS pressure and no new swap-outs for 60 seconds, load1 <=5, no competing Go tools",
+    "percentage_cutoff": null,
+    "runtime": "stop owned workload on warning/critical pressure, new swap-outs or unreliable monitoring",
+    "maximum_admission_wait_seconds": 600,
+    "test_package_timeout_seconds": 2400
+  },
+  "workload": {
+    "initial_cache": "new isolated empty build/module caches",
+    "planned_commands": 22,
+    "completed_commands": 0,
+    "interrupted_stage": "08-shard-01",
+    "test_assertion_failures_reported_before_stop": 0,
+    "trigger": "new system swap-outs observed; stopped owned workload"
+  },
+  "observation": {
+    "sample_count": 842,
+    "first_utc": "2026-10-10T00:00:07.216242+00:00",
+    "last_utc": "2026-10-10T00:29:31.762019+00:00",
+    "sample_span_seconds": 1764.539,
+    "admission_sample_count": 30,
+    "admission_sample_span_seconds": 61.038,
+    "execution_sample_count": 811,
+    "execution_sample_span_seconds": 1703.322,
+    "largest_sample_gap_seconds": 2.325133,
+    "normal_pressure_samples": 842,
+    "warning_or_critical_pressure_samples": 0,
+    "swapout_counter_initial_pages": 0,
+    "swapout_counter_at_stop_pages": 174734,
+    "page_size_bytes": 4096,
+    "new_swapout_bytes": 715710464,
+    "swap_used_bytes_at_stop": 716439552,
+    "admission_metric_min": 68,
+    "admission_metric_max": 77,
+    "admission_metric_at_stop": 73,
+    "load1_min": 1.36,
+    "load1_max": 4.15,
+    "load1_at_stop": 1.49,
+    "sampled_peak_owned_rss_sum_bytes": 7179526144,
+    "sampled_peak_owned_process_count": 6,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "post_stop": {
+    "remaining_go_tool_processes": 0,
+    "frozen_checkout_clean": true,
+    "raw_summary_and_samples_mirrored_and_hash_verified": true,
+    "automatic_retry_started": false
+  },
+  "retained_evidence": {
+    "relative_directory_on_both_hosts": "bin/resource-baseline/pressure-older-full-20261009",
+    "summary_sha256": "fce7bca6a0923c7d7bf506e6c789bdc6c8a057c8ede3c569fc7abac9c95a442e",
+    "samples_sha256": "9923dd8e66f9acd4b95ae33cc9cb230f8c13f88124a11e3dda4085efc5348efe",
+    "partial_stage_log_sha256": "7d5d63a0b18c7c49d17ac8db155da31b945b52b5980ab4fcecebf33ecc7be18b"
+  },
+  "conclusions": [
+    "The safety monitor stopped on actual new swapping, not a percentage threshold, test assertion failure or package timeout.",
+    "OS pressure remained normal even when swap-outs began; the separate swap-out condition mattered.",
+    "The first broad command was interrupted, so no full-partition command or full-suite pass is credited; some early package results are present in the partial log.",
+    "The approximately 6.69 GiB owned RSS peak is the measured process-tree sum at this stop, not the full suite's maximum or a universal minimum RAM requirement.",
+    "Swap counters are system-wide; telemetry does not identify which processes' pages were swapped.",
+    "This result does not prove that every 16 GiB Mac must fail; background applications, architecture, OS and cache state affect the envelope.",
+    "The independent 32 GiB experiment remains running; no final two-host comparison or permanent policy decision is made yet."
+  ]
+}

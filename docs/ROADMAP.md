@@ -1576,6 +1576,12 @@ Both hosts pass controls and real non-Go monitoring smokes on matched source
 independently, each with fresh caches and unchanged commands. Current-host
 competing Go work must clear admission; no process is terminated to make room.
 Results remain pending.
+**Older-host result**: safety stop on new swap-outs during command 1, with about
+6.69 GiB sampled owned RSS and 683.25 MiB swap used; pressure color stayed normal.
+Cleanup and mirrored evidence are verified. This is 0/22 completed commands,
+not an assertion failure or full pass. No automatic retry. Current 32 GiB run
+continues independently; last inspection found four commands passed. Preserve
+`pressure-older-full-resource-stop.json` and await the other result.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
