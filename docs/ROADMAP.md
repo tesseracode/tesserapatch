@@ -1643,6 +1643,13 @@ run/pass coverage; keep raw profiles private and the older Mac idle.
 The comparison is dispatched on frozen `6ff988e`/Go 1.26.5 with a private
 coverage-checked runner. Three test processes plus six heap analyses share the
 thirty-minute budget; no cache or canonical partition implementation changes.
+**Measurement interrupted**: combined tests emitted all expected passes, but
+warning-level pressure stopped final profile/output work. The heap profile is
+empty, no package completion was reported and neither split test ran. Peak
+sampled owned RSS was about 9.17 GiB with zero swap. Retain
+`memory-split-profile-resource-stop.json`; no memory-reduction claim is possible
+yet. Prefer a separately approved smaller-process-first probe, not an automatic
+repeat of the heavy group or a weakened warning-pressure stop.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

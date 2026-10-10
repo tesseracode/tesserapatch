@@ -1,3 +1,32 @@
+## Heap Comparison Safety Stop — warning pressure after combined tests — 2026-10-10
+
+The combined/split experiment stops with exit 76 during its first command on
+OS pressure level 2 (warning). All previous 106 samples were normal; swap-outs
+and swap usage stayed zero, load1 2.21-3.78, and no external Go competitor was
+observed. Peak sampled owned RSS sum was about 9.17 GiB. Recorded work spans
+about 3.6 minutes including admission, well below the 30-minute budget.
+
+The distinction is important: both combined top-level tests and all 78 subtests
+emit matching RUN/PASS events (80 paths, no failures/skips) before the warning.
+The Go process had not yet emitted its package pass; `combined.pprof` exists but
+is zero bytes, and the retained binary is absent. The stop occurred during final
+profile/output work, not an observed assertion failure. No split command or heap
+analysis ran; no usable combined profile or completed comparison can be claimed.
+This sequence does not prove that profile generation caused the system-wide
+warning; background activity was not controlled.
+
+All recorded owned processes are gone and the frozen checkout remains clean.
+Preserve the empty/partial artifacts and exact warning sample; do not run pprof
+on an empty file or invent retained-heap attribution. Public aggregate:
+`memory-split-profile-resource-stop.json`.
+
+**Action**: stop. Recommend a separately authorized smaller-process-first probe
+(rev-19 alone and rev-20 alone) before attempting another heavy combined profile.
+Keep the existing pressure/swap/load safeguards and all assertions/timeouts.
+Static retention paths are established but their byte contribution is still
+unmeasured. No production/cache/canonical-shard change or older-host workload.
+Native `38076313773` at `880345a` is in progress; preserve it before a result push.
+
 ## Heap/Split Measurement Dispatch — 2026-10-10
 
 The frozen measurement checkout is at `6ff988e`, source-equivalent to the

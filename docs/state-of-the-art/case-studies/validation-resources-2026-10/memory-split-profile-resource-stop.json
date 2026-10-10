@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "experiment": "memory-split-profile-20261010",
+  "status": "resource-stopped",
+  "exit_code": 76,
+  "source_head": "6ff988e849eecc228b9d8eeae8a9f407915ec340",
+  "toolchain": "go1.26.5",
+  "host": {
+    "architecture": "arm64",
+    "physical_memory_bytes": 34359738368,
+    "physical_cpus": 10,
+    "logical_cpus": 10
+  },
+  "scope": {
+    "planned_test_commands": 3,
+    "planned_profile_analyses": 6,
+    "maximum_combined_workload_seconds": 1800,
+    "test_package_timeout_seconds": 2400,
+    "source_or_cache_implementation_changes": false,
+    "canonical_partition_changes": false
+  },
+  "observation": {
+    "sample_count": 107,
+    "first_utc": "2026-10-10T18:34:31.003608+00:00",
+    "last_utc": "2026-10-10T18:38:05.578951+00:00",
+    "sample_span_seconds": 214.575,
+    "prelaunch_to_stop_seconds": 154.473,
+    "normal_pressure_samples": 106,
+    "warning_pressure_samples": 1,
+    "critical_pressure_samples": 0,
+    "new_swapout_pages": 0,
+    "swap_used_bytes_max": 0,
+    "largest_sample_gap_seconds": 2.097476,
+    "percentage_metric_min": 44,
+    "percentage_metric_max": 74,
+    "load1_min": 2.21,
+    "load1_max": 3.78,
+    "sampled_peak_owned_rss_sum_bytes": 9841541120,
+    "sampled_owned_rss_at_stop_bytes": 7757725696,
+    "sampled_peak_external_go_process_count": 0
+  },
+  "test_and_profile_outcome": {
+    "combined_test_paths_with_matching_run_and_pass": 80,
+    "combined_top_level_tests": 2,
+    "combined_subtests": 78,
+    "reported_test_failures": 0,
+    "reported_test_skips": 0,
+    "top_level_pass_seconds": {
+      "TestS7ARRev19ReviewerRepros": 63.08,
+      "TestS7ARRev20ReviewerRepros": 56.21
+    },
+    "package_pass_events": 0,
+    "successfully_completed_test_commands": 0,
+    "combined_memory_profile_bytes": 0,
+    "retained_test_binary_present": false,
+    "split_test_commands_started": 0,
+    "profile_analyses_started": 0,
+    "coverage_union_verified": false
+  },
+  "trigger": "OS memory pressure is no longer normal; stopped owned workload",
+  "cleanup": {
+    "recorded_experiment_owned_processes_remaining": 0,
+    "frozen_checkout_clean": true,
+    "automatic_retry_started": false
+  },
+  "retained_evidence": {
+    "relative_local_directory": "bin/resource-baseline/memory-split-profile-20261010",
+    "summary_sha256": "6c245b0f1c92145aab4f6356169a7373ece31795c6c1ee55707e53e869df4d41",
+    "samples_sha256": "fc14afd9c8b411135589fcecc09511e435c3e43f5725e8210ba4f1cc8003babc",
+    "combined_log_sha256": "ce712de58e3f068bea71f1f076c709735a611d509b511e6e02bb3a488bbae279"
+  },
+  "conclusions": [
+    "The safety guard stopped on a real warning-level OS pressure sample, not a test assertion failure, swapping or timeout.",
+    "Both combined top-level tests and all 78 subtests emitted PASS before the stop, but the process had not reported package completion and its heap profile was still empty.",
+    "The interruption occurred after test assertions, during the final profile/output phase. This timing alone does not prove profiling or any single process caused the system-wide pressure warning.",
+    "There is no usable combined heap profile and neither split process ran, so the requested memory comparison remains incomplete.",
+    "Approximately 9.17 GiB is a sampled process-tree RSS peak under these conditions, not exact live heap or a minimum RAM requirement.",
+    "Static test-cache retention findings remain valid, but per-cache live-heap attribution is still unmeasured.",
+    "Prefer a separately authorized smaller-process-first probe rather than automatically retrying the heavy combined group or weakening the warning-pressure safeguard.",
+    "No production, cache, canonical-shard, assertion or test-timeout changes were made."
+  ]
+}
