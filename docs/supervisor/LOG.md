@@ -1,3 +1,26 @@
+## Cache-Lifetime Iteration — correctness PASS, reuse cost too high — 2026-10-10
+
+The first implementation at `892a5cc` passes all new lifecycle/inventory/identity
+controls, the unchanged cache/legacy/baseline checks, every rev-19/rev-20 fixture,
+vet and build. The correctness run's sampled RSS peak is about 1.50 GiB, but
+rev-19 and rev-20 take 430.89s and 407.53s versus prior roughly 64s/58s individual
+profiles. Those runs differ in profiling/cache conditions, so they are not a
+controlled benchmark, but the observed rebuild overhead is too large to accept
+without refinement.
+
+Keep the coordinated cleanup and all correctness invariants, but amortize it
+across **four completed independent fixtures**, clearing at group entry, each
+four-fixture boundary and final parent cleanup. Never clear during an active
+analysis. This bounds reuse to a small batch rather than the entire process
+without discarding common parse/interner work after every fixture.
+No individual assertion, test case, cache key, copy semantics or timeout changes.
+
+Extend lifecycle controls to prove retention within the first four fixtures,
+mandatory release after the fourth and cleanup of a final partial batch, while
+retaining immutable-state and model-identity controls. Repeat focused validation
+before heap profiling. Preserve the first implementation's result and timing
+tradeoff; do not claim a speed or memory win until measured on the final variant.
+
 ## Cache-Scope Correctness Dispatch — 2026-10-10
 
 Implemented the bounded cleanup in a new test-only helper and two rev-19/

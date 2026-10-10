@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Reduce analyzer memo lifetime in independent rev-19/rev-20 fixtures
-- **Status**: In progress — fixture-scoped memo cleanup implemented; bounded correctness checks dispatched
+- **Status**: In progress — initial cleanup correctness PASS; refining bounded four-fixture reuse
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The first per-fixture cleanup passes correctness/vet/build and uses about
+1.50 GiB peak sampled RSS in that focused run, but observed rev-19/rev-20 times
+rise to 430.89s/407.53s. Refine the lifetime to four completed independent
+fixtures per batch, with entry/fourth-fixture/final cleanup and unchanged
+assertions. This preserves bounded memory while amortizing common parser/
+interner reuse. New lifecycle checks must prove both batch boundaries and final
+partial-batch cleanup. The original result is retained; repeat validation before
+measuring the final variant.
 
 The test-only implementation adds a coordinated fifteen-map cleanup helper and
 two scope-entry calls in rev-19/rev-20 validators. Immutable source/contract

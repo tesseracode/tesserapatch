@@ -6093,6 +6093,7 @@ func TestS7ARRev18ReviewerRepros(t *testing.T) {
 }
 
 func TestS7ARRev19ReviewerRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -6100,7 +6101,7 @@ func TestS7ARRev19ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
-		s6IsolateSerialAnalyzerFixture(t)
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -6779,6 +6780,7 @@ func TestS7ARRev19ReviewerRepros(t *testing.T) {
 }
 
 func TestS7ARRev20ReviewerRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -6786,7 +6788,7 @@ func TestS7ARRev20ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
-		s6IsolateSerialAnalyzerFixture(t)
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(

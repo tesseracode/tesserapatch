@@ -1674,6 +1674,10 @@ The implementation consists of a test-only coordinated transient-cache cleanup
 helper and two fixture-scope call sites. Focused lifecycle/inventory/identity
 controls and unchanged cache/legacy/baseline guards are dispatched before
 repeating the same heap profiles. No benefit or correctness pass is assumed yet.
+First cleanup variant passes correctness/vet/build but incurs large rebuild
+overhead (~431s/~408s for rev-19/rev-20). Refine to four completed fixtures per
+bounded cache batch, with explicit final cleanup and unchanged tests/keys.
+Validate batch boundaries before profiling; retain the initial tradeoff record.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
