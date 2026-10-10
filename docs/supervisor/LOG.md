@@ -1,3 +1,25 @@
+## Heap/Split Comparison Authorized — current Mac — 2026-10-10
+
+The operator approves the three-run current-Mac comparison: existing combined
+rev-19/20 selection, then rev-19 and rev-20 separately, with heap profiles.
+Cap the combined admission/execution/analysis work at thirty minutes. Keep
+Go 1.26.5, original forty-minute test timeout, assertions and serial execution.
+Use the previously evaluated pressure/no-new-swap/load<=5 minute with external
+Go allowed. No older-host workload, cache implementation change or canonical
+CI/shard change is included.
+
+The private runner will verify actual JSON run/pass counts and exact equality
+between combined and split test/subtest coverage; missing/skipped/duplicated/
+failed events must fail the measurement. Collect both sampled process-tree RSS
+and default-rate Go allocation profiles. Analyze `inuse_space` (retained heap
+after Go testing's end-of-run GC) separately from `alloc_space` (allocation
+volume). These are not RSS or GC-root ownership measurements.
+
+Use a fresh isolated checkout/cache; reuse only that compiler cache across the
+three source-identical processes and report package times separately from total
+command time. Preserve raw profiles/binaries/paths privately. No conclusions
+about old-Mac viability or a cache fix precede the actual results.
+
 ## Investigation — test analyzer retention and smaller processes — 2026-10-10
 
 The operator requests investigation of lower peak test memory/smaller process

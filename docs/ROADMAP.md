@@ -1636,6 +1636,10 @@ Preserve cache-correctness and exact CI/shard parity. Record
 `test-memory-investigation.json`; next is a bounded combined/split heap-profile
 comparison on the current Mac, pending operator approval. No cache/shard/code
 or assertion changes were made by the investigation.
+The operator has now approved the three-run current-Mac heap/split comparison,
+capped at thirty minutes including analysis, with unchanged assertions/test
+timeouts and pressure/swap/load safeguards. Verify equal combined-versus-split
+run/pass coverage; keep raw profiles private and the older Mac idle.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

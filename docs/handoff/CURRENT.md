@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate test-only analyzer retention and smaller process groups
-- **Status**: Static investigation complete — bounded heap/split measurement decision pending
+- **Status**: In progress — bounded combined/split heap comparison authorized on current Mac
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,13 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator approved the three-run rev-19/20 comparison on this Mac with a
+30-minute combined budget and pressure/no-new-swap/load safeguards, external
+Go allowed. Measure combined versus separate fresh test processes, retaining
+Go heap profiles and proving identical run/pass subtest coverage. Source,
+assertions, existing test timeouts, caches and canonical shards are not changed.
+Profiles and test binaries remain private; the older Mac runs nothing.
 
 The operator requests lower-memory/smaller-process investigation. Read-only
 analysis found process-global test caches retaining each mutated source's AST/
@@ -442,9 +449,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Authorize a bounded combined-versus-split rev-19/20 heap-profile comparison
-   on the current Mac before changing caches or canonical test partitions.
-   No new older-host pressure run or swap-limit increase is scheduled.
+1. Execute the authorized bounded combined/split heap-profile comparison on
+   the current Mac with exact coverage checks; do not change cache lifetimes
+   or canonical test partitions before the measured result.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
