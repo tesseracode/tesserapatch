@@ -1650,6 +1650,14 @@ sampled owned RSS was about 9.17 GiB with zero swap. Retain
 `memory-split-profile-resource-stop.json`; no memory-reduction claim is possible
 yet. Prefer a separately approved smaller-process-first probe, not an automatic
 repeat of the heavy group or a weakened warning-pressure stop.
+The operator now authorizes two separate rev-19/rev-20 processes with heap
+profiles, preserving frozen `6ff988e` and a thirty-minute combined budget.
+Validate complete split case coverage against prior emitted assertions, not
+an invented completed combined profile. No older-Mac or cache/shard changes.
+Split-only driver controls and prior raw coverage inventory are verified.
+The two separate profiles plus four analyses are dispatched at unchanged
+`6ff988e`; eighty assertion paths must match exactly. Preserve the failed
+combined profile and use new private `memory-separate-profile-20261010` output.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

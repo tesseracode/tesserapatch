@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate test-only analyzer retention and smaller process groups
-- **Status**: Blocked — combined heap run stopped on warning pressure; split measurement pending
+- **Status**: In progress — separate-only heap measurements dispatched on current Mac
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,21 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The split-only plan is verified and dispatched: rev-19 and rev-20 individually,
+then four heap analyses. The original combined log proves eighty emitted
+assertion paths (41 rev-19 subtests, 37 rev-20 subtests, two roots); the new
+successful split union must match them exactly. Prior partial results remain
+historical. New output is `memory-separate-profile-20261010`, with fresh caches;
+source remains clean at `6ff988e` in `memory-split-repo-20261010`.
+
+The operator authorizes rev-19 and rev-20 separately. Use unchanged frozen source
+`6ff988e` / Go 1.26.5, fresh private caches and a 30-minute combined budget for
+two test processes plus four heap analyses. No combined retry, old-Mac test,
+cache implementation or canonical shard change. Retain the same pressure/
+swap/load safeguards, external-Go permission and test timeouts.
+Compare exact split RUN/PASS case coverage with the prior eighty emitted paths,
+without treating that interrupted run as a completed combined heap baseline.
 
 The heap comparison stopped safely on warning-level OS pressure during final
 output/profile work of the combined command. Both top-level tests and all 78
@@ -469,9 +484,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Decide a bounded smaller-process-first measurement (rev-19 and rev-20 alone).
-   The combined profile is empty; do not claim comparison results, weaken the
-   pressure safeguard or rerun automatically.
+1. Run the explicitly authorized two separate profiles and four heap analyses
+   within the 30-minute budget. The combined profile remains empty and cannot
+   serve as a completed live-heap baseline. Do not weaken safeguards.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.

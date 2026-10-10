@@ -1,3 +1,42 @@
+## Separate Heap Measurement Dispatch — 2026-10-10
+
+Split-only driver controls pass. The prior raw log hash and its eighty unique
+RUN/PASS paths are verified: rev-19 plus 41 subtests, rev-20 plus 37 subtests.
+The selected plan contains only the two individual test commands and four
+pprof analyses. Missing/skipped/duplicate cases and absent package completion
+are rejected; prior emitted assertions are not promoted to a successful package.
+
+Reuse the clean isolated `memory-split-repo-20261010` at exact `6ff988e`.
+New private output is `memory-separate-profile-20261010`, initially empty caches.
+Driver SHA-256:
+`12f03775a243f070284607c5ef360fe553f6d6b07bd7a8cfb93cffd74617227a`.
+The original combined driver is preserved at its prior evidence directory with
+its original recorded hash. No test source, canonical shard or production code
+is changed. Dispatch once under the authorized 1800-second total budget and
+unchanged pressure/swap/load safeguards; stop at the first failure.
+
+## Separate Heap Profiles Authorized — 2026-10-10
+
+The operator explicitly requests rev-19 and rev-20 separately after the combined
+profiling run's warning-pressure stop. Reuse frozen test source `6ff988e` and
+Go 1.26.5, but a new private evidence/cache directory. Run only the two individual
+test processes and four heap analyses, all within thirty minutes. Keep the
+normal-pressure/no-new-swap/load<=5 minute, external-Go permission, serial
+execution and original forty-minute package timeout. No combined run or older
+Mac workload is dispatched.
+
+Preserve the original runner bytes with the previous evidence before adding a
+split-only option. Each new command still requires a genuine package PASS plus
+matching individual test/subtest RUN/PASS events and nonempty profile. Compare
+the union against the previous eighty emitted assertion paths, explicitly
+labelled as an assertion inventory, not a completed combined heap baseline.
+Skipped/duplicated/missing cases must fail the measurement.
+
+Current preflight is normal pressure, zero swap, load1 ~2 and 68% on the
+diagnostic percentage metric. No pressure safeguard or cache implementation
+change is required to perform this smaller probe. Native `38076313773` at
+`880345a` is still in flight; preserve it before the next tracking push.
+
 ## Heap Comparison Safety Stop — warning pressure after combined tests — 2026-10-10
 
 The combined/split experiment stops with exit 76 during its first command on
