@@ -1,3 +1,25 @@
+## Heap/Split Measurement Dispatch — 2026-10-10
+
+The frozen measurement checkout is at `6ff988e`, source-equivalent to the
+already validated Go/test implementation. Private runner controls reject missing,
+skipped, duplicated, failing or unexpected test events and mismatched split
+coverage. No inherited GOGC/GOMEMLIMIT/GODEBUG/GOEXPERIMENT/GOROOT override is
+present; use Go 1.26.5 and fresh private caches, shared only across this experiment.
+
+Run three test commands (combined rev-19/20, rev-19 alone, rev-20 alone), then
+six local pprof analyses for retained versus allocated memory. All nine tool
+commands share the 1800-second budget and pressure/no-new-swap/load<=5 admission,
+with external Go allowed. Test arguments add only profiling/JSON/output flags
+and the declared selection; assertions and 40-minute package timeouts stay
+unchanged. Verify all subtest run/pass counts before comparing profiles.
+
+Source directory: `memory-split-repo-20261010`; private output:
+`memory-split-profile-20261010`, under `bin/resource-baseline/`.
+The pprof `MB` display unit in this Go version is 2^20 bytes, recorded explicitly.
+No older-Mac run, cache eviction change or canonical shard change is dispatched.
+Native `38036488303` at `cfe16c6` has completed SUCCESS, so pending result and
+investigation tracking can be pushed without cancelling it.
+
 ## Heap/Split Comparison Authorized — current Mac — 2026-10-10
 
 The operator approves the three-run current-Mac comparison: existing combined

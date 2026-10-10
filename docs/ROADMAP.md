@@ -1640,6 +1640,9 @@ The operator has now approved the three-run current-Mac heap/split comparison,
 capped at thirty minutes including analysis, with unchanged assertions/test
 timeouts and pressure/swap/load safeguards. Verify equal combined-versus-split
 run/pass coverage; keep raw profiles private and the older Mac idle.
+The comparison is dispatched on frozen `6ff988e`/Go 1.26.5 with a private
+coverage-checked runner. Three test processes plus six heap analyses share the
+thirty-minute budget; no cache or canonical partition implementation changes.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

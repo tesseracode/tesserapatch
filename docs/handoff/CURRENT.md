@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Investigate test-only analyzer retention and smaller process groups
-- **Status**: In progress — bounded combined/split heap comparison authorized on current Mac
+- **Status**: In progress — combined/split heap measurement dispatched on current Mac
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The bounded comparison is dispatched on isolated `6ff988e`, Go 1.26.5:
+combined rev-19/20, rev-19 alone and rev-20 alone, with retained/allocation heap
+profiles. Coverage-event controls pass before launch. The three tests and six
+pprof analyses share a thirty-minute budget and pressure/swap/load safeguards;
+external Go is allowed. No source/cache/CI assertion changes or old-Mac work.
+Private output: `memory-split-profile-20261010`; source:
+`memory-split-repo-20261010`. Native `38036488303` is now SUCCESS.
 
 The operator approved the three-run rev-19/20 comparison on this Mac with a
 30-minute combined budget and pressure/no-new-swap/load safeguards, external
@@ -449,17 +457,17 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Execute the authorized bounded combined/split heap-profile comparison on
-   the current Mac with exact coverage checks; do not change cache lifetimes
-   or canonical test partitions before the measured result.
+1. Await the bounded combined/split heap comparison and verify equal test-case
+   coverage before interpreting RSS/live-heap changes. Do not change cache
+   lifetimes or canonical test partitions before the measured result.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
 3. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-4. Prior native `38013960284` at `075eccf` is SUCCESS. Preserve latest
-   `38036488303` at `cfe16c6` until it finishes before the pending result push.
+4. Latest native `38036488303` at `cfe16c6` is SUCCESS; publish the pending
+   result and measurement-dispatch record.
    Independent review/final closure and permanent policy adoption remain separate.
 5. GH #13 implementation remains paused and separately authorized.
 
