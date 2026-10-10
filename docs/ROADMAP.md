@@ -1628,6 +1628,14 @@ Zero broad commands completed; no assertion failure/timeout was reported.
 Peak sampled owned RSS was about 8.33 GiB. Cleanup and mirrored evidence are
 verified in `older-mac-bounded-swap-stop.json`. No automatic cap increase/retry;
 consider a separate peak-memory or finer-process-partition investigation.
+**Investigation requested/completed statically**: test-only source/type-model
+caches retain distinct mutation graphs through process-global and secondary
+references. Combined rev-19/20 is a low-risk split candidate, but the standalone
+purge-progress guard remains large, so top-level splitting alone is insufficient.
+Preserve cache-correctness and exact CI/shard parity. Record
+`test-memory-investigation.json`; next is a bounded combined/split heap-profile
+comparison on the current Mac, pending operator approval. No cache/shard/code
+or assertion changes were made by the investigation.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

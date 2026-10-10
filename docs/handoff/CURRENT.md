@@ -16,8 +16,8 @@ threshold change or GH #13 implementation is authorized.
 
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
-- **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Current full PASS — older swap probe stopped at growth cap; review/closure pending
+- **Description**: Investigate test-only analyzer retention and smaller process groups
+- **Status**: Static investigation complete — bounded heap/split measurement decision pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,20 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator requests lower-memory/smaller-process investigation. Read-only
+analysis found process-global test caches retaining each mutated source's AST/
+type graph/model plus dependent binding/expression references. These caches
+have no capacity/lifetime eviction; ordinary GC cannot reclaim reachable entries.
+The mechanism is concrete, but per-cache heap attribution is not yet measured.
+
+Combined rev-19/20 previously peaked around 11.10 GiB RSS, whereas an already-
+single purge-progress test reached 9.64 GiB. Top-level splits may help but are
+not a complete answer for monolithic fixture loops. Preserve existing cache
+identity/invalidation/immutable-baseline guards. Next recommended measurement:
+combined rev-19/20 versus each test alone on the current Mac, adding heap
+profiles without changing assertions, test timeouts, caches or canonical shards.
+No Go workload or code change was made during this investigation.
 
 The older-Mac swap-tolerant probe is complete, exit 76: it exceeded the approved
 2 GiB occupied-swap growth cap before finishing command 1. After about 30.4
@@ -352,6 +366,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   per-stage provenance, real external-Go presence, resource bounds and cleanup.
 - `older-mac-bounded-swap-stop.json`: capped swap-growth probe, two-way paging
   counters, interrupted coverage, verified cleanup and interpretation limits.
+- `test-memory-investigation.json`: verified retention paths, cache-correctness
+  constraints, measured shard peaks and proposed bounded split/heap comparison.
 
 ## Test Results
 
@@ -426,9 +442,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Retain the completed older-host probe and current-host full pass. Do not
-   increase the swap allowance or rerun automatically. Any smaller-process-group
-   or memory-budget investigation requires a separately bounded assignment.
+1. Authorize a bounded combined-versus-split rev-19/20 heap-profile comparison
+   on the current Mac before changing caches or canonical test partitions.
+   No new older-host pressure run or swap-limit increase is scheduled.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
@@ -450,6 +466,8 @@ Independent review, latest hosted confirmation and final wave closure remain.
 The older capped-swap probe has also stopped on its growth limit and is not a
 pass. No validation workload is running on either Mac. Optional old-host resource
 optimization is separate from accepting the validated current-host fixture fixes.
+Static analysis identifies test-cache retention, but allocation/live-heap
+measurements are needed before choosing a lower-memory implementation.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.

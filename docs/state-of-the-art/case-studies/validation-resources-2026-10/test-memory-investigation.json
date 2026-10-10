@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "investigation": "test-analyzer-retention-and-process-boundaries",
+  "status": "static-findings-complete-measurement-required",
+  "source_head": "0406b6982f9eb341e1bf0aaa7e5f8f44ca99da7e",
+  "scope": "Test-only memory retention and potential process partitioning; no production, assertion, timeout, cache or canonical shard changes.",
+  "findings": [
+    {
+      "finding": "Process-global caches retain distinct analyzer inputs and results without a capacity or per-fixture lifetime bound.",
+      "evidence": [
+        "internal/cli/prepare_s6_contract_test.go:49-69",
+        "internal/cli/prepare_s6_contract_test.go:111-123",
+        "internal/cli/prepare_s6_contract_test.go:20765-20790",
+        "internal/cli/prepare_s6_contract_test.go:21556-21576"
+      ],
+      "details": "Sixteen sync.Map cache declarations are present. Parsed ASTs are keyed by path plus source hash; type graphs and models are keyed by source/graph/projection fingerprints. The graph-cache deletion handles stale inputs, not bounded retention of distinct mutations. No bulk/lifetime Clear was found.",
+      "confidence_limit": "The source establishes reachability/lifetime behavior, not how many bytes each cache owns in a particular run."
+    },
+    {
+      "finding": "A small source mutation can create another package-wide typed graph, not just a small changed-file object.",
+      "evidence": [
+        "internal/cli/prepare_s6_contract_test.go:20409-20472",
+        "internal/cli/prepare_s6_contract_test.go:20852-20898",
+        "internal/cli/prepare_s6_contract_test.go:21364-21420",
+        "internal/cli/prepare_s6_contract_test.go:21589-21647"
+      ],
+      "details": "Graphs retain parsed package files, go/types information and loaded source strings. Missing production package files are augmented from disk. Models retain typed packages and multiple AST/object/type maps."
+    },
+    {
+      "finding": "Clearing only the top-level model cache would not remove all retention paths.",
+      "evidence": [
+        "internal/cli/prepare_s6_contract_test.go:33442-33474",
+        "internal/cli/prepare_s6_contract_test.go:32743-32843",
+        "internal/cli/prepare_s6_contract_test.go:36205-36240"
+      ],
+      "details": "Binding-cache keys retain model and function pointers. Stable-expression cache keys retain AST expressions; initialization bindings also retain expressions. Garbage collection cannot reclaim objects that remain reachable from these caches."
+    },
+    {
+      "finding": "Existing cache correctness contracts must survive any lifetime optimization.",
+      "evidence": [
+        "internal/cli/prepare_s6_contract_test.go:2671-2727",
+        "internal/cli/prepare_s6_contract_test.go:11641-11734",
+        "internal/cli/prepare_s6_contract_test.go:13473-13604"
+      ],
+      "details": "Tests require same-input model reuse, mutation-sensitive invalidation, projection distinctions, caller-copy isolation and one immutable contract-baseline build. An indiscriminate reset or weakened key is not an acceptable memory fix."
+    },
+    {
+      "finding": "Top-level process splits can reduce accumulated state, but cannot solve every large test.",
+      "evidence": [
+        "scripts/wave-close-test-shards.sh:12-14",
+        "internal/cli/prepare_s7_ar_guard_test.go:6095-6134",
+        "internal/cli/prepare_s7_ar_guard_test.go:6780-6819",
+        "internal/cli/prepare_s7_ar_guard_test.go:3436-3567",
+        "internal/cli/prepare_s7_ar_guard_test.go:4390-4442"
+      ],
+      "details": "Rev-19 and rev-20 currently share a process and each builds multiple mutated models. The purge-progress guard already runs alone yet loops through many model variants inside one PIB-518 subtest; simply running each top-level test separately cannot partition those internal loops."
+    },
+    {
+      "finding": "Canonical sharding has enforced CI and coverage parity.",
+      "evidence": [
+        ".github/workflows/ci.yml:70-95",
+        "internal/cli/prepare_s7_ci_timeout_guard_test.go:105-202",
+        "internal/cli/prepare_s7_ci_timeout_guard_test.go:206-240",
+        "scripts/profile-validation.py:workload"
+      ],
+      "details": "Any adopted partition change must update the CI commands, local script, exact-order/coverage guards and dependent profiler selection together. Experimental selection must not be presented as full canonical coverage."
+    }
+  ],
+  "recorded_complete_run_peaks": {
+    "source_report": "pressure-concurrent-full-pass.json",
+    "raw_summary": "bin/resource-baseline/pressure-concurrent-full-20261009/summary.json",
+    "measurement": "sampled summed owned RSS on the 32 GiB Mac; not exact live heap",
+    "groups": [
+      {
+        "stage": "08-shard-03",
+        "selection": "Rev-16/17/18",
+        "peak_bytes": 9773056000,
+        "command_seconds": 71.53
+      },
+      {
+        "stage": "08-shard-04",
+        "selection": "Rev-19/20",
+        "peak_bytes": 11912839168,
+        "command_seconds": 117.08
+      },
+      {
+        "stage": "08-shard-05",
+        "selection": "Rev-21/23/24",
+        "peak_bytes": 11988353024,
+        "command_seconds": 126.96
+      },
+      {
+        "stage": "08-shard-09",
+        "selection": "TestS7ARPurgeProgressGuard alone",
+        "peak_bytes": 10349756416,
+        "command_seconds": 93.58
+      }
+    ]
+  },
+  "recommended_next_measurement": {
+    "host": "current 32 GiB Mac; no older-host pressure run yet",
+    "runs": [
+      "Existing combined TestS7ARRev(19|20) selection",
+      "TestS7ARRev19ReviewerRepros alone in a fresh process",
+      "TestS7ARRev20ReviewerRepros alone in a fresh process"
+    ],
+    "measurements": [
+      "Identical assertion/subtest outcomes and selected coverage union",
+      "Process-tree RSS peak and real test time",
+      "Go memory profile: inuse_space and alloc_space, with end-of-test GC performed by the testing package",
+      "Pressure, swapping and background-work attribution"
+    ],
+    "constraints": "Explicitly authorize a bounded experiment before running it. Freeze source/Go version, preserve test timeouts, retain private profiles, and do not change caches or canonical CI/shards.",
+    "next_decision": "If top-level splits reduce the peak sufficiently, validate complete non-overlapping coverage and runtime cost. If individual tests remain large, investigate a scoped analyzer-cache lifetime using heap evidence."
+  },
+  "not_recommended_without_more_evidence": [
+    "Raising swap limits again",
+    "Treating GOMEMLIMIT or more frequent GC as an eviction mechanism for strongly reachable caches",
+    "Clearing only s6TypeModelCache while dependent caches still retain models/ASTs",
+    "Resetting the immutable contract baseline or bypassing cache-sensitivity assertions",
+    "Claiming a guaranteed old-Mac memory target from static inspection or a subset's RSS"
+  ]
+}

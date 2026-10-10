@@ -1,3 +1,36 @@
+## Investigation — test analyzer retention and smaller processes — 2026-10-10
+
+The operator requests investigation of lower peak test memory/smaller process
+groups, rather than additional swap. Read-only source and recorded-run analysis
+find a concrete test-only retention mechanism: sixteen process-global sync.Map
+caches, distinct mutated-source graph/model keys, package-wide typed graphs,
+and secondary caches whose model/AST pointer keys keep those graphs reachable.
+No capacity/lifetime eviction is present; graph-cache deletion is stale-input
+invalidation. This establishes retention paths, not per-cache byte attribution.
+
+The completed 32 GiB run measured about 11.10 GiB RSS for combined rev-19/20,
+11.17 GiB for rev-21/23/24, and 9.64 GiB for the already-single purge-progress
+test. Consequently top-level process splitting is promising but not sufficient
+for every large fixture: PIB-518 still creates many models inside one subtest.
+Existing cache correctness guards require identity reuse, source/projection/
+registry invalidation and immutable-baseline semantics. Do not clear one map,
+reset sync.Once or weaken those tests as a shortcut.
+
+Canonical shard order/coverage is pinned to blocking CI; adopting new groups
+requires coordinated CI/script/parity/profiler changes, not silently changing
+the test selection. The lowest-risk next measurement is combined rev-19/20
+versus the same two tests in separate processes on the current Mac, with Go
+heap profiles and all assertion/time-budget/resource constraints preserved.
+The Go testing package performs an end-of-test GC for memory profiles, helping
+distinguish retained heap from total allocation volume. It does not expose GC
+root ownership, so combine profile attribution with the source evidence.
+
+**Action**: record `test-memory-investigation.json`, then ask for the bounded
+measurement scope. No Go workload, cache mutation, production change or canonical
+shard change has been made. The 32 GiB full pass remains valid; the old capped
+swap failure remains recorded. Review/maintenance closure and optional resource
+optimization are distinct. Native `38036488303` at `cfe16c6` is still in flight.
+
 ## Older-Mac Bounded Swap Result — growth cap exceeded — 2026-10-10
 
 The approved first-command probe at `f80f7e2` ends **resource-stopped, exit 76**
