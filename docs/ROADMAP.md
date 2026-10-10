@@ -1683,6 +1683,12 @@ build; its observed rev-19/rev-20 times are ~152s/~143s rather than ~431s/~408s
 for clearing after every fixture. Dispatch the identical separate heap profiles
 on a frozen new checkout to measure the final memory/runtime tradeoff. No
 production, GC tuning, canonical shard or assertion changes.
+**Measured optimization PASS**: four-fixture memo lifetime reduces rev-19/
+rev-20 sampled RSS from 8.07/7.29 GiB to 1.35/1.16 GiB with identical eighty
+test paths. Post-GC live heap falls to about 10 MiB, but observed runtime is
+2.4-2.5x and allocation volume 2.8-2.9x baseline. Record
+`cache-scope-profile-comparison.json`; this is a RAM/recomputation tradeoff,
+not a speed claim. Full regression CI/review remain before broader acceptance.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Reduce analyzer memo lifetime in independent rev-19/rev-20 fixtures
-- **Status**: In progress — four-fixture correctness PASS; matched heap profiles dispatched
+- **Status**: Correctness and profiles PASS — measured RAM/runtime tradeoff; CI/review pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The matched four-fixture profiles pass all eighty original test paths.
+Sampled RSS is reduced from 8.07/7.29 GiB to 1.35/1.16 GiB, with post-GC
+retained heap dropping from 3106.49/2841.81 MiB to 9.53/11.54 MiB.
+The tradeoff is higher recomputation: package times 159.469/137.758s versus
+64.391/57.664s baseline, and allocation volume about 2.8-2.9x higher.
+External background Go activity differs, so do not claim a controlled speed ratio.
+All 361 samples show normal pressure/zero swap; cleanup and coverage are verified.
+No experiment remains running. Full regression CI and review are pending.
 
 The refined four-fixture variant at `d26466e` passes every selected new and
 existing cache-correctness test, all rev-19/rev-20 cases, vet and build.
@@ -461,6 +470,8 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   helper with inventory, preservation and identity controls.
 - `internal/cli/prepare_s7_ar_guard_test.go`: two calls scoping cache lifetime
   to the independent rev-19 and rev-20 fixtures; all existing assertions remain.
+- `cache-scope-profile-comparison.json`: exact before/after memory, runtime,
+  allocation volume, unchanged case coverage, private evidence hashes and limits.
 
 ## Test Results
 
@@ -535,9 +546,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the matched separate profiles on the validated four-fixture variant,
-   compare RSS/live heap/allocation volume and runtime against prior individual
-   profiles, and verify all eighty test paths. Do not weaken assertions.
+1. Review the measured four-fixture memory/runtime tradeoff and complete
+   new-source full regression confirmation. Do not extend the scope to shared/
+   active models or parallel fixtures without a separate ownership design.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
@@ -560,8 +571,9 @@ The older capped-swap probe has also stopped on its growth limit and is not a
 pass. No validation workload is running on either Mac. Optional old-host resource
 optimization is separate from accepting the validated current-host fixture fixes.
 Separate profiling now measures large retained typed-model/binding state and
-substantial binding-copy allocation churn. The bounded fixture-scoped memo cleanup is implemented but unvalidated. The combined heap profile remains unavailable, and
-7-8 GiB individual RSS does not establish full-suite viability on the older Mac.
+substantial binding-copy allocation churn. The bounded memo cleanup passes focused correctness and matched profiles. The combined heap profile remains unavailable, and
+The new 1.35/1.16 GiB figures apply only to the measured rev-19/rev-20 scope;
+other large groups and the older Mac full suite are not yet validated with it.
 No workload is currently running on either Mac.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary

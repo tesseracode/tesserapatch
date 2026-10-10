@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "experiment": "cache-scope-profile-20261010",
+  "status": "separate-profiles-passed",
+  "baseline_source_head": "6ff988e849eecc228b9d8eeae8a9f407915ec340",
+  "optimized_source_head": "d26466e14b2d419565693298c82148af42e8d8e2",
+  "toolchain": "go1.26.5",
+  "host_physical_memory_bytes": 34359738368,
+  "change": "Test-only coordinated memo-cache release after four completed independent serial fixtures and at scope boundaries.",
+  "unchanged": [
+    "Production code",
+    "All rev-19/rev-20 assertions and eighty test/subtest paths",
+    "Cache keys and within-fixture same-input model identity",
+    "Immutable baseline/source/import data and partial-type registrations",
+    "Binding-copy semantics and GC/runtime settings",
+    "Canonical CI/shard configuration and test timeouts",
+    "Profiling flags, memory-profile sampling rate and pressure/swap/load safeguards"
+  ],
+  "correctness": {
+    "new_inventory_lifecycle_identity_guards": "pass",
+    "existing_cache_legacy_registry_baseline_stable_key_guards": "pass",
+    "rev19_paths_before_and_after": 42,
+    "rev20_paths_before_and_after": 38,
+    "test_path_union_equal": true,
+    "profile_analyses_completed": 4,
+    "vet_and_build": "pass"
+  },
+  "comparison": {
+    "rev19": {
+      "sampled_peak_owned_rss_before_bytes": 8665432064,
+      "sampled_peak_owned_rss_after_bytes": 1453916160,
+      "observed_rss_reduction_percent": 83.221654,
+      "post_gc_inuse_before_mib": 3106.49,
+      "post_gc_inuse_after_mib": 9.53,
+      "package_seconds_before": 64.391,
+      "package_seconds_after": 159.469,
+      "observed_package_time_ratio": 2.476573,
+      "alloc_space_before_mib": 54090.57,
+      "alloc_space_after_mib": 155819.45,
+      "allocation_volume_ratio": 2.880714,
+      "command_seconds_after": 190.44
+    },
+    "rev20": {
+      "sampled_peak_owned_rss_before_bytes": 7826718720,
+      "sampled_peak_owned_rss_after_bytes": 1249558528,
+      "observed_rss_reduction_percent": 84.034708,
+      "post_gc_inuse_before_mib": 2841.81,
+      "post_gc_inuse_after_mib": 11.54,
+      "package_seconds_before": 57.664,
+      "package_seconds_after": 137.758,
+      "observed_package_time_ratio": 2.388978,
+      "alloc_space_before_mib": 50332.02,
+      "alloc_space_after_mib": 141750.94,
+      "allocation_volume_ratio": 2.816317,
+      "command_seconds_after": 138.54
+    }
+  },
+  "observation": {
+    "sample_count": 361,
+    "first_utc": "2026-10-10T20:38:01.629263+00:00",
+    "last_utc": "2026-10-10T20:49:51.315913+00:00",
+    "sample_span_seconds": 709.685,
+    "actual_stage_and_admission_seconds": 709.725082,
+    "maximum_workload_seconds": 1800,
+    "normal_pressure_samples": 361,
+    "new_swapout_pages": 0,
+    "swap_used_bytes_max": 0,
+    "load1_min": 1.50,
+    "load1_max": 5.25,
+    "sampled_peak_external_go_process_count": 9,
+    "baseline_sampled_peak_external_go_process_count": 0,
+    "recorded_owned_processes_remaining_after_completion": 0
+  },
+  "retained_evidence": {
+    "baseline_directory": "bin/resource-baseline/memory-separate-profile-20261010",
+    "optimized_directory": "bin/resource-baseline/cache-scope-profile-20261010",
+    "summary_sha256": "5daf18be12562c606f31d78980cf5531af934fd1fe7c50b0d69cdf752194a590",
+    "samples_sha256": "e33ebd8e11e4618e2373fd6490d8b8724446eb95004c3480262be96cc9fb0607",
+    "rev19_profile_sha256": "26085ca0ec7736a5a27842108fc312b27125316daeef9d3ea85988360cecf231",
+    "rev20_profile_sha256": "c197d9e37a386d319f7016f1d97c464ac77103fac0d495bac4ab99c528e680e2",
+    "rev19_test_log_sha256": "5d4577793e9543507926ea95ed6b398ac2986453deea57e88934b0241a1b9f31",
+    "rev20_test_log_sha256": "19a2183d24258cb1549bc09676ef4477a2223c21322a417da3e2caf84e1e295d",
+    "rev19_inuse_log_sha256": "a3c337f173e8ba465c5cd1135e0912656978f6bc08bc88b38871fbbb030afd8b",
+    "rev19_alloc_log_sha256": "d27a9172327be94699710669930e3f21c177fa4c55607b0a7a3a821d35231f1c",
+    "rev20_inuse_log_sha256": "c52d0113f8847518742e63349412300bf0096191cf66c7f9d27fee22a2f678bc",
+    "rev20_alloc_log_sha256": "ccc7ebf4d7f743051d78c7c37ee2e97d763eb1279f5800e4510384850b3aeac1"
+  },
+  "conclusions": [
+    "The measured peak RSS drops from approximately 8.07/7.29 GiB to 1.35/1.16 GiB while every original test case passes.",
+    "Post-GC retained heap drops from approximately 3.03/2.78 GiB to 9.53/11.54 MiB, consistent with releasing transient analyzer graphs while retaining small shared import/source data.",
+    "The tradeoff is real: observed package time is about 2.4-2.5 times baseline, and cumulative allocation volume about 2.8-2.9 times baseline because less state is retained for reuse.",
+    "Background concurrency differs between runs, so the exact wall-time ratio is not a fully controlled causal estimate. The changes and allocation profiles support a memory-versus-recomputation tradeoff, not an unqualified performance win.",
+    "Allocated volume is not required physical RAM. RSS is sampled and may count shared pages more than once.",
+    "The first implementation cleared every fixture and passed correctness but was much slower; its separate correctness evidence is retained rather than hidden.",
+    "Only independent serial rev-19/rev-20 fixtures use this scope. Do not apply it to active/shared models or parallel consumers without a separate ownership design.",
+    "Other high-memory groups and the older Mac full suite remain unmeasured with this change.",
+    "Full regression CI and review remain pending before maintenance acceptance; no canonical grouping or production behavior changed."
+  ]
+}

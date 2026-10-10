@@ -1,3 +1,32 @@
+## Batched Cache Profiles PASS — large RAM reduction with recomputation cost — 2026-10-10
+
+Matched separate profiles at `d26466e` pass all eighty original test paths and
+four heap analyses. Compared with the recorded `6ff988e` baseline, sampled RSS
+drops **8.07 -> 1.35 GiB** for rev-19 and **7.29 -> 1.16 GiB** for rev-20
+(observed reductions about 83-84%). Post-GC sampled live heap drops from
+3106.49/2841.81 MiB to 9.53/11.54 MiB. The remaining profile is mostly shared
+import/source data, consistent with the intended cleanup boundary.
+
+Do not hide the tradeoff: package times increase from 64.391/57.664s to
+159.469/137.758s, and cumulative allocation volume from 54090.57/50332.02 MiB
+to 155819.45/141750.94 MiB. Retaining fewer memoized analyses causes additional
+recomputation; the new run also has external Go activity (up to nine tools)
+where the baseline had none, so exact wall-time ratios are not controlled.
+This is a memory optimization, not a speed optimization or a RAM requirement
+equal to cumulative allocated volume.
+
+All 361 samples show normal pressure and zero swap; every command and profile
+analysis succeeds within the thirty-minute budget. Test-path manifests match
+the completed separate baselines exactly. Owned-process cleanup and frozen
+checkout integrity are verified. Public comparison:
+`cache-scope-profile-comparison.json`; raw profiles/binaries remain private.
+
+**Action**: retain the bounded four-fixture implementation and measured tradeoff
+for review. Do not broaden it to active/shared-model or parallel fixtures,
+claim older-Mac full-suite support, alter test timeouts or change canonical
+shards. New-source native run `38084490647` at `a4baf17` remains in progress;
+full regression/independent review and maintenance closure are still pending.
+
 ## Batched Memo Correctness PASS — matched heap profiles dispatched — 2026-10-10
 
 At `d26466e`, the four-fixture variant passes all lifecycle/inventory/identity
