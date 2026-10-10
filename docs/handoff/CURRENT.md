@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Reduce analyzer memo lifetime in independent rev-19/rev-20 fixtures
-- **Status**: In progress — initial cleanup correctness PASS; refining bounded four-fixture reuse
+- **Status**: In progress — four-fixture correctness PASS; matched heap profiles dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,14 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The refined four-fixture variant at `d26466e` passes every selected new and
+existing cache-correctness test, all rev-19/rev-20 cases, vet and build.
+Focused command time is 364.88s and sampled peak RSS about 1.38 GiB; observed
+rev-19/rev-20 times improve to 152.16s/143.31s from the too-frequent-clear variant.
+Now run the identical split-only heap driver on frozen `d26466e`, fresh caches
+and unchanged profiling flags into `cache-scope-profile-20261010`. No final
+before/after memory or time claim precedes those matched measurements.
 
 The first per-fixture cleanup passes correctness/vet/build and uses about
 1.50 GiB peak sampled RSS in that focused run, but observed rev-19/rev-20 times
@@ -527,9 +535,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Validate the bounded fixture-scoped cleanup against new and existing
-   cache-correctness/mutation tests, then repeat the same separate profiles.
-   Preserve the prior baselines and do not infer improvement before measurement.
+1. Await the matched separate profiles on the validated four-fixture variant,
+   compare RSS/live heap/allocation volume and runtime against prior individual
+   profiles, and verify all eighty test paths. Do not weaken assertions.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.

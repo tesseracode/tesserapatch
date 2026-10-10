@@ -1,3 +1,23 @@
+## Batched Memo Correctness PASS — matched heap profiles dispatched — 2026-10-10
+
+At `d26466e`, the four-fixture variant passes all lifecycle/inventory/identity
+and unchanged cache/legacy/baseline/stable-key controls, every rev-19/rev-20
+case, vet and build. The focused command takes 364.88s; rev-19/rev-20 top-level
+times are 152.16s/143.31s, versus 430.89s/407.53s for the initial per-fixture
+clear. Focused peak sampled RSS is about 1.38 GiB. These mixed correctness runs
+are not the final before/after heap comparison, so retain the timing caveat.
+
+Now repeat the same split-only profiling driver, unchanged flags/safeguards
+and old eighty-path assertion inventory, against isolated source `d26466e`.
+Use new output `cache-scope-profile-20261010`, fresh private compiler/module
+caches, Go 1.26.5 and the same thirty-minute budget for two tests/four analyses.
+Compare each final profile with `memory-separate-profile-20261010`; no combined
+retry, older-Mac run, GC tuning, production or canonical-partition change.
+
+Prior native CI is green, so publish the test-only implementation and result
+tracking before the profile run. Full regression/acceptance remains separate
+from this scoped measurement; report final memory and time tradeoffs honestly.
+
 ## Cache-Lifetime Iteration — correctness PASS, reuse cost too high — 2026-10-10
 
 The first implementation at `892a5cc` passes all new lifecycle/inventory/identity

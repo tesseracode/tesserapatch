@@ -1678,6 +1678,11 @@ First cleanup variant passes correctness/vet/build but incurs large rebuild
 overhead (~431s/~408s for rev-19/rev-20). Refine to four completed fixtures per
 bounded cache batch, with explicit final cleanup and unchanged tests/keys.
 Validate batch boundaries before profiling; retain the initial tradeoff record.
+Four-fixture variant `d26466e` passes the focused correctness suite, vet and
+build; its observed rev-19/rev-20 times are ~152s/~143s rather than ~431s/~408s
+for clearing after every fixture. Dispatch the identical separate heap profiles
+on a frozen new checkout to measure the final memory/runtime tradeoff. No
+production, GC tuning, canonical shard or assertion changes.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
