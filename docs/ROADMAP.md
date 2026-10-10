@@ -1621,6 +1621,13 @@ The single older-Mac probe is dispatched on `f80f7e2`/Go 1.26.5 after controls
 and real telemetry smoke pass. Fixed prelaunch swap baseline + 2 GiB, normal
 pressure required, 60-minute total cap; only existing command 1 is scheduled.
 No result or full-suite completion is implied.
+**Bounded old-host outcome**: resource stop after about 30.4 minutes of execution
+when swap growth exceeded 2 GiB; occupied swap reached about 2.33 GiB. Normal
+pressure persisted, but page counters recorded roughly 6.27 GiB out / 4.26 GiB in.
+Zero broad commands completed; no assertion failure/timeout was reported.
+Peak sampled owned RSS was about 8.33 GiB. Cleanup and mirrored evidence are
+verified in `older-mac-bounded-swap-stop.json`. No automatic cap increase/retry;
+consider a separate peak-memory or finer-process-partition investigation.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

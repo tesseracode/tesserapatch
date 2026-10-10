@@ -1,3 +1,38 @@
+## Older-Mac Bounded Swap Result — growth cap exceeded — 2026-10-10
+
+The approved first-command probe at `f80f7e2` ends **resource-stopped, exit 76**
+after about 30.4 minutes of sampled execution (31.4 minutes including admission).
+It did not finish the broad command. No assertion failure or package/experiment
+timeout was reported; the occupied-swap growth guard triggered.
+
+Prelaunch occupied swap was 267.25 MiB. At the first observed cap crossing,
+occupied swap reached about 2.33 GiB, growth about 2.07 GiB: 70.75 MiB beyond
+the permitted 2 GiB increase. The sampled safeguard stops when it observes
+the crossing; it is not an OS-enforced hard allocation limit. The last sample
+still reports normal OS pressure. All 900 samples are normal, with load1
+1.36-3.03 and no external Go workload.
+
+Counters show about 6.27 GiB swap-out and 4.26 GiB swap-in page equivalents
+since prelaunch, with the new swap-out period beginning about 27 minutes into
+execution. These are system-wide page volumes, not precise physical SSD I/O
+or attribution to individual processes. Peak sampled owned RSS was about
+8.33 GiB; RSS omits swapped-out pages. This is substantial two-way paging,
+not merely harmless occupied-but-idle swap, but the trace does not establish
+a universal 16 GiB limit or prove how much longer completion would take.
+
+All recorded owned process identities are gone after cleanup; frozen source
+is clean and the original old checkout remains at `75d80f0`. Raw summary,
+samples and partial log are mirrored/hash-verified. Public aggregate:
+`older-mac-bounded-swap-stop.json`. No automatic retry or larger allowance.
+
+**Action**: finish the requested probe and preserve its non-passing outcome.
+Recommend a separately scoped peak-memory/smaller-process-group investigation
+before more old-host pressure, rather than repeatedly raising the swap cap.
+The current-Mac full 22-command pass remains valid. Latest native
+`38036488303` at `cfe16c6` is in progress; preserve it before pushing this
+result. Review/final maintenance closure remain separate from optional old-host
+experiments; no permanent policy, test-timeout change or GH #13 dispatch.
+
 ## Older-Mac Swap Probe Dispatch — 2026-10-10
 
 Frozen source is `f80f7e2ab9c2a3e721ebbd3caf271919b9fe5229`, with Go 1.26.5.
