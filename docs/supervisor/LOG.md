@@ -1,3 +1,27 @@
+## Concurrent-Work Full Partition Dispatch — current Mac — 2026-10-09
+
+Freeze the isolated checkout at
+`4e6de31b50b0c584e756d770575f2f758e0b9f2c`, matched Go 1.26.5.
+Thirty-five controls pass in both primary and frozen checkouts. The harmless
+real prelaunch probe correctly refused load1 5.42 before starting any command;
+normal pressure/zero swapping did not bypass the still-required CPU condition.
+No runtime/cache overrides were present.
+
+Dispatch one complete run with `--profile partition --admission-policy pressure
+--allow-external-go --wait-seconds 600`, fresh isolated caches, unchanged serial
+commands and package timeouts. Profiler SHA-256:
+`4c66c0c258d406fdec747196cf6f60f4972835371d26ee62a29d6d91302c287f`;
+unchanged shard digest:
+`7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10`.
+Source directory is `pressure-concurrent-repo-20261009`, private output
+`pressure-concurrent-full-20261009`, both under `bin/resource-baseline/`.
+
+External Go presence is recorded, not a veto, but normal pressure/no new
+swap-outs/load<=5 must still hold for a continuous minute. Prelaunch and runtime
+safeguards are unchanged. Do not clear global caches, modify other checkouts,
+terminate other sessions, restart after failure or infer a permanent policy.
+Previous full/partial outcomes remain preserved; no older-host run is dispatched.
+
 ## External-Go Controls PASS — 2026-10-09
 
 Thirty-five non-Go controls pass. New controls prove that external Go permission

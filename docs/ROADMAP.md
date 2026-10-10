@@ -1598,6 +1598,10 @@ strict defaults stay intact and no older-Mac retry is included.
 Thirty-five non-Go controls pass, including opt-in-only concurrency and unchanged
 prelaunch/runtime safety. Prepare the fresh isolated current-host experiment;
 no Go/test source, shard selector or package timeout was changed.
+The single concurrency-aware current-Mac run is dispatched on frozen `4e6de31`,
+Go 1.26.5 and fresh caches. Other Go activity is observed rather than vetoed;
+normal pressure, no new swap-outs and load<=5 still need a full minute.
+A real prelaunch probe refused load1 5.42; no safeguard was relaxed to proceed.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

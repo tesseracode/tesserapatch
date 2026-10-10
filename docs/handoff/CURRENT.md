@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — external-Go controls PASS; preparing one isolated current-host full run
+- **Status**: In progress — one isolated current-host full run dispatched with external Go allowed
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The concurrency-aware run is dispatched on frozen `4e6de31` with Go 1.26.5
+and fresh isolated caches. Use `--profile partition --admission-policy pressure
+--allow-external-go --wait-seconds 600`. The previous strict/partial runs are
+unchanged. Both copies pass 35 controls; a harmless prelaunch probe refused
+load1 5.42, demonstrating that the CPU condition remains active. This full run
+will wait for the proper minute before starting tests.
+Directories are `pressure-concurrent-repo-20261009` and
+`pressure-concurrent-full-20261009` under the owned `bin/resource-baseline/`.
 
 Thirty-five non-Go controls pass for explicit external-Go permission.
 The flag changes only Go-presence admission/prelaunch checks: pressure, swap,
@@ -363,9 +372,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Verify the newly authorized external-Go opt-in and safety controls, then
-   run one full current-host partition with pressure/swap/load safeguards.
-   Do not start additional or older-host runs automatically.
+1. Await the one authorized current-host partition with external Go allowed
+   and pressure/swap/load safeguards. Do not start another or an older-host run
+   automatically, regardless of its outcome.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
