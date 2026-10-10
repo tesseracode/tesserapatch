@@ -1,3 +1,34 @@
+## Full Partition PASS — concurrent external Go permitted — 2026-10-09
+
+At frozen `4e6de31` / Go 1.26.5, **all 22 commands pass in one run**.
+Command arguments match the existing shard script exactly; every command
+qualified the prescribed pressure/no-new-swap/load<=5 minute, with explicit
+prelaunch and completion sampling. Assertions and 40-minute package budgets
+are unchanged. No earlier partial result is reused.
+
+The recording spans about 62.1 minutes (37.9 minutes command time, 23.8 minutes
+admission waits plus monitoring overhead). All 1875 samples show normal
+pressure and zero swap-outs/usage. Percentage readings range 55-75%;
+peak sampled owned RSS sum is about 11.17 GiB in command 5. Up to nine external
+Go/tool processes are observed; 793/1118 execution samples and 12/22 prelaunch
+samples include external Go. Seventeen recorded admission windows would not
+qualify under the old no-Go rule. This is measured concurrent-work feasibility,
+not merely a pass on an otherwise idle machine.
+
+Verified the frozen source is clean and all twenty-two stage logs match the
+success summary. Post-run ownership reconciliation found one orphan git-daemon
+from command 1 (parent tree traced to the workflow test); its exact PID/start
+identity was checked before targeted SIGTERM. No recorded owned process remains,
+and unrelated sessions were not terminated. Preserve that cleanup observation
+as a follow-up for fixture cleanup rather than claiming automatic reaping.
+
+Public report: `pressure-concurrent-full-pass.json` beside prior measurements;
+raw inventories/logs stay private. The requested full-partition experiment is
+complete. This is not yet final wave acceptance or permanent policy adoption:
+review, wave-close gate/bookkeeping and latest hosted confirmation remain.
+Native `38013960284` at `075eccf` has four successful jobs and macOS test pending;
+preserve it before the pending result push. No new local/older-Mac run or #13.
+
 ## Concurrent-Work Full Partition Dispatch — current Mac — 2026-10-09
 
 Freeze the isolated checkout at

@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — one isolated current-host full run dispatched with external Go allowed
+- **Status**: Full monitored partition PASS — independent review and wave closure pending
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,20 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The complete concurrent-work experiment **passes all 22 commands** at frozen
+`4e6de31` / Go 1.26.5, with identical shard arguments and unchanged assertions/
+timeouts. Every pressure/swap/load admission window and completion sample is
+verified. All 1875 samples show normal pressure and zero swapping; percentage
+readings are 55-75%. Peak sampled owned RSS sum is about 11.17 GiB. External Go
+work is actually present (up to nine tools; 793/1118 execution samples), so this
+is not an idle-machine-only result. Total recording spans about 62.1 minutes.
+
+The frozen checkout is clean. Post-run reconciliation identified one owned
+orphan git-daemon and terminated only that verified PID; no recorded experiment
+process remains. Other sessions were untouched. The requested experiment is
+complete; independent review, final wave-close work and current hosted CI
+confirmation remain. No permanent default or older-host policy has changed.
 
 The concurrency-aware run is dispatched on frozen `4e6de31` with Go 1.26.5
 and fresh isolated caches. Use `--profile partition --admission-policy pressure
@@ -298,14 +312,16 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
 - `pressure-two-host-comparison.json`: ten passing current-host commands,
   competing-Go admission block, per-command log hashes, larger analyzer RSS
   peak and comparison limits against the interrupted older-host workload.
+- `pressure-concurrent-full-pass.json`: all twenty-two exact commands passing,
+  per-stage provenance, real external-Go presence, resource bounds and cleanup.
 
 ## Test Results
 
-**Current result**: focused fixes and source-equivalent hosted CI pass. The
-pressure-policy experiment passed 10/22 commands on the current host before a
-competing-Go admission timeout; the older host safety-stopped during command 1.
-Neither result is full-partition acceptance. Prior validation events below are
-chronological evidence, not the current status.
+**Current result**: the concurrent-work pressure-policy run passes all 22 commands
+at `4e6de31`, with verified logs and original test budgets. Focused fixture/AQ
+checks, mutation controls, vet/build and earlier source-equivalent hosted CI
+also pass. Latest hosted `38013960284` is pending macOS. Earlier partial/failed
+events below remain historical evidence, not the current partition result.
 
 The new Go fixture correction is not yet validated. Formatting is applied;
 the local original-policy runner will check formatting, focused fixture/AP
@@ -372,34 +388,39 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the one authorized current-host partition with external Go allowed
-   and pressure/swap/load safeguards. Do not start another or an older-host run
-   automatically, regardless of its outcome.
+1. Retain the complete passing current-host run; do not start another or an
+   older-host run automatically. Complete independent review and wave-close
+   gate/bookkeeping before declaring the maintenance wave accepted.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
 3. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-4. Prior native `38007045267` at `d765eab` is SUCCESS; the pending tracking
-   and opt-in profiler changes can be published. Full validation/review remain.
+4. Preserve latest native `38013960284` at `075eccf` until macOS finishes,
+   then push the pending result record. Prior `38007045267` is SUCCESS.
+   Permanent policy adoption remains a separate operator decision.
 5. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
-The older pressure-policy run stopped on actual swap-outs before finishing
-its first command. The current host passed ten commands, but other Go activity
-blocked admission to command 11. Both outcomes and the comparison are recorded;
-the operator now authorizes a separate concurrent-work experiment on this Mac.
-Complete local validation, review and acceptance remain outstanding.
+The complete current-host partition now passes with external Go allowed and
+pressure/swap/load safeguards retained. No local experiment is running.
+Independent review, current hosted confirmation and final wave closure remain.
+The older full run stopped on actual swapping and is not silently retried.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 
 ## Context for Next Agent
 
+- Successful full run: `pressure-concurrent-full-20261009`, exact source
+  `4e6de31` in `pressure-concurrent-repo-20261009`. Retain all raw evidence.
+- One experiment-owned orphan git-daemon required explicit post-run cleanup.
+  Its ownership was established from recorded parent/start-time data; do not
+  generalize this into permission to terminate other sessions' processes.
 - Completed two-host experiments used exact `2cba068` in separate frozen clones,
   not the mutable primary worktree. Directories:
   `pressure-current-repo-20261009`, `pressure-older-repo-20261009`,

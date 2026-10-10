@@ -1602,6 +1602,13 @@ The single concurrency-aware current-Mac run is dispatched on frozen `4e6de31`,
 Go 1.26.5 and fresh caches. Other Go activity is observed rather than vetoed;
 normal pressure, no new swap-outs and load<=5 still need a full minute.
 A real prelaunch probe refused load1 5.42; no safeguard was relaxed to proceed.
+**Full partition PASS at `4e6de31`**: all twenty-two original commands pass with
+external Go allowed and pressure/swap/load safeguards unchanged. The roughly
+62-minute run has normal pressure/zero swapping throughout 1875 samples, peak
+sampled owned RSS about 11.17 GiB, and real concurrent Go activity (up to nine
+external tools). Evidence: `pressure-concurrent-full-pass.json`. No automatic
+new run or permanent policy change. Independent review, final wave closure and
+latest hosted macOS completion remain; the older full-run swap stop stays recorded.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
