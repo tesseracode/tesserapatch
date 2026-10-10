@@ -1,3 +1,28 @@
+## Older-Mac Swap Probe Dispatch — 2026-10-10
+
+Frozen source is `f80f7e2ab9c2a3e721ebbd3caf271919b9fe5229`, with Go 1.26.5.
+All forty controls pass on the older host, and real prelaunch/runtime/completion
+sampling succeeds with historical swap usage (280,231,936 bytes at the harmless
+smoke). No Go/cache/runtime overrides are inherited. The original and prior
+experimental checkouts are unchanged; this probe uses new source and empty caches.
+Profiler SHA-256:
+`33d8dbf6bc6725586ec6ef4b978b57422b5b9d31a158727defaff2091b2566c3`.
+
+Dispatch once with `--profile broad --admission-policy pressure
+--max-swap-growth-mib 2048 --max-seconds 3600 --wait-seconds 600`.
+This runs only existing command 1, including its normal 40-minute package limits.
+No external-Go exception is enabled for this older-host probe. Admission keeps
+the quiet load/pressure/no-new-swap/no-Go minute; execution permits occupied swap
+growth only up to the fixed prelaunch baseline plus 2 GiB. Record the actual
+prelaunch baseline rather than using the earlier smoke reading.
+
+Source directory is `swap-probe-repo-20261010`; private output is
+`swap-probe-broad-20261010`, under the owned `bin/resource-baseline/` tree.
+Mirror summary/samples/logs after completion, never the large caches. Stop after
+success, assertion failure, budget exhaustion or safety stop; no automatic retry,
+full-suite continuation, altered test assertions or permanent policy.
+The current Mac runs no additional validation in this experiment.
+
 ## Bounded Swap Controls PASS — 2026-10-10
 
 Forty non-Go controls pass. The first-command `broad` profile is exactly the

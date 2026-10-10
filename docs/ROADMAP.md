@@ -1617,6 +1617,10 @@ experiment; no full older-host partition or permanent swap allowance is implied.
 Forty non-Go controls pass for the bounded swap probe, including fixed baseline
 and exact-cap behavior, unchanged pressure/gap stops and owned-only cleanup.
 Prepare a fresh older-host checkout/cache; no test workload has run in this probe yet.
+The single older-Mac probe is dispatched on `f80f7e2`/Go 1.26.5 after controls
+and real telemetry smoke pass. Fixed prelaunch swap baseline + 2 GiB, normal
+pressure required, 60-minute total cap; only existing command 1 is scheduled.
+No result or full-suite completion is implied.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
