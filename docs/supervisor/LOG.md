@@ -1,3 +1,36 @@
+## Two-Host Comparison Complete — current host blocked by other Go work — 2026-10-09
+
+The current 32 GiB run passed commands **1-10 of 22**, then exhausted the
+600-second admission window before command 11. All 1782 samples show normal
+OS pressure and zero swap-outs/usage. The final window had load1 2.20-4.22,
+but 218/292 samples contained Go tools (up to nine concurrently); the longest
+qualifying quiet interval was 49.930s, below the required minute. None of
+those tool identities appeared in the recorded owned workload tree.
+The stop is **admission-blocked, exit 75**, not a failed test or memory stop.
+
+Peak sampled owned RSS sum was about **11.06 GiB**, in AR rev-19/20 (command 4),
+larger than the earlier first-command/AP peaks. The observed percentage metric
+ranged 55-76% while pressure stayed normal and no swapping occurred. The run
+used about 26.4 minutes of command time, 23.6 minutes of completed admission
+waits and a final ten-minute blocked window. No results are credited for the
+twelve unexecuted commands, and no full-partition pass is claimed.
+
+Both authorized runs are now terminal. The older 16 GiB host stopped on actual
+swap-outs during command 1 (0/22 complete, ~6.69 GiB owned RSS at stop), while
+the current host made progress without swapping and was stopped by competing
+tool activity. This separates the two practical blockers; it does not establish
+a universal RAM minimum or authorize ignoring background work. Raw inventories
+remain private; source/toolchain and evidence digests are recorded in
+`pressure-two-host-comparison.json`.
+
+**Action**: retain both outcomes and stop automatic runs. A future current-host
+attempt needs a coordinated Go-free window rather than a lower memory threshold;
+the older host needs a separately scoped resource/workload decision before a
+retry. The controls/specified two-host experiment/comparison are complete, but
+full local validation, independent acceptance review and wave closure remain
+outstanding. Native `38007045267` at `d765eab` is still in progress; preserve
+that run before publishing newer tracking commits. No permanent policy or #13.
+
 ## Older-Mac Safety Stop — pressure-based full partition — 2026-10-09
 
 The older 16 GiB run stops as designed during command 1, exit **76

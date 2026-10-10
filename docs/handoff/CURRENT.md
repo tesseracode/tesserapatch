@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: In progress — older run safety-stopped on swap-outs; current-Mac run continues
+- **Status**: Blocked — two-host experiment complete; current host 10/22, older host safety stop
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -26,15 +26,24 @@ WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
 
+Both pressure-policy runs have finished. The current 32 GiB host passed
+commands 1-10, then timed out waiting for a quiet minute before command 11.
+Pressure stayed normal with zero swapping; other Go activity occupied 218 of
+292 final admission samples, leaving at most 49.930 continuous qualifying
+seconds. Load was within the limit during that window. Peak sampled owned
+RSS sum was about 11.06 GiB in command 4. Twelve commands remain unexecuted.
+The older host stopped on new swap-outs during command 1, as recorded below.
+The specified two-host experiment and comparison are complete; full acceptance
+is not. No workloads or automatic retries remain running.
+
 The older 16 GiB experiment stopped safely during command 1 on new swap-outs:
 0 -> 174,734 pages, with 683.25 MiB swap used. OS pressure still read normal;
 the independent swapping guard triggered correctly. Peak sampled owned RSS sum
 was about 6.69 GiB. No test assertion failure is reported, but **0/22 commands
 completed**; early package passes do not constitute partition coverage.
 Owned Go processes are gone, the frozen checkout is clean, and raw evidence is
-mirrored/hash-verified locally. No retry is authorized. The current 32 GiB run
-continues independently; last inspection showed four commands passed and the
-fifth running without pressure/swap issues.
+mirrored/hash-verified locally. No retry is authorized. The current 32 GiB
+run's final result is recorded above; the older stop remains unchanged.
 
 Both experiment checkouts are clean at
 `2cba06811ce86025a11f4f7a1c31f4a5e7b6fda9`; Go 1.26.5 is matched and
@@ -263,12 +272,17 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   second-command admission block, 9.22 GiB measured RSS peak and interpretation limits.
 - `pressure-older-full-resource-stop.json`: actual swapping-triggered safety
   stop on the older Mac, interrupted coverage and measured resource limits.
+- `pressure-two-host-comparison.json`: ten passing current-host commands,
+  competing-Go admission block, per-command log hashes, larger analyzer RSS
+  peak and comparison limits against the interrupted older-host workload.
 
 ## Test Results
 
-**Current result**: focused correction PASS at `611522c`, including actual
-compiled mutation failures, AQ nil-hook authority checks, vet and build.
-Prior validation events below are chronological evidence, not the current status.
+**Current result**: focused fixes and source-equivalent hosted CI pass. The
+pressure-policy experiment passed 10/22 commands on the current host before a
+competing-Go admission timeout; the older host safety-stopped during command 1.
+Neither result is full-partition acceptance. Prior validation events below are
+chronological evidence, not the current status.
 
 The new Go fixture correction is not yet validated. Formatting is applied;
 the local original-policy runner will check formatting, focused fixture/AP
@@ -335,36 +349,39 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Await the still-running current-Mac pressure partition; the older-host run
-   is terminal (resource-stopped) and must not restart automatically.
-2. Compare the current host's eventual outcome with the retained older-host
-   stop. Do not turn partial coverage or a healthy snapshot into acceptance.
-2. Retain passing AP evidence from separate fixed-source older-Mac checkout
+1. Obtain an explicit coordinated resource window for another current-host
+   validation attempt: the final blocker was other Go work, not memory.
+   Do not relax the quiet-minute rule or restart automatically.
+2. Retain the completed two-host comparison and all partial outcomes.
+   The older-host swap stop needs a separate workload/resource decision, not
+   an automatic retry or a claim that every 16 GiB machine is inadequate.
+3. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-3. Fixed-source native run `37955807665` at `d91c204` is SUCCESS.
-   Independent review and complete local validation still precede acceptance.
-4. GH #13 implementation remains paused and separately authorized.
+4. Preserve in-flight native `38007045267` at `d765eab` before the pending push.
+   Full local validation and independent review still precede acceptance.
+5. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
 
 The diagnosed fixture failure is corrected and the old-Mac AP observer passes.
 The AQ guard correction passes focused validation and fixed-source native CI.
 The older pressure-policy run stopped on actual swap-outs before finishing
-its first command. The current-host full partition still runs. Complete
-current-host results, comparison, review and acceptance remain outstanding.
+its first command. The current host passed ten commands, but other Go activity
+blocked admission to command 11. Both outcomes and the comparison are recorded;
+complete local validation, review and acceptance remain outstanding.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.
 
 ## Context for Next Agent
 
-- Active two-host experiments use exact `2cba068` in separate frozen clones,
+- Completed two-host experiments used exact `2cba068` in separate frozen clones,
   not the mutable primary worktree. Directories:
   `pressure-current-repo-20261009`, `pressure-older-repo-20261009`,
   `pressure-current-full-20261009`, `pressure-older-full-20261009`.
-- Keep raw process inventories private. Mirror older-host summary/samples/logs
-  at completion; do not copy its potentially large caches.
+- Keep raw process inventories private. Older-host summary/samples/logs are
+  already mirrored and verified; do not copy its potentially large caches.
 - Legacy percent admission remains the default. Pressure mode's safety stop
   (exit 76) is not a test failure; missing telemetry remains explicit failure.
 - No permanent threshold adjustment, synthetic memory pressure, termination of

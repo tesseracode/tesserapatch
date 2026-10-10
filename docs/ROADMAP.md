@@ -1582,6 +1582,14 @@ Cleanup and mirrored evidence are verified. This is 0/22 completed commands,
 not an assertion failure or full pass. No automatic retry. Current 32 GiB run
 continues independently; last inspection found four commands passed. Preserve
 `pressure-older-full-resource-stop.json` and await the other result.
+**Two-host comparison complete**: current host passed 10/22 commands with normal
+pressure/zero swapping, then command-11 admission timed out due to other Go
+activity (longest quiet interval 49.930s). Peak sampled owned RSS reached about
+11.06 GiB in AR rev-19/20. Older host stopped on swapping in command 1.
+The memory percentage is not the current-host blocker. Both runs are terminal;
+preserve `pressure-two-host-comparison.json`. Full local acceptance still needs
+a separately coordinated validation window and review; no automatic retries,
+quiet-minute relaxation or permanent policy adoption.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
