@@ -1,3 +1,47 @@
+## Cache-Scope Correctness Dispatch — 2026-10-10
+
+Implemented the bounded cleanup in a new test-only helper and two rev-19/
+rev-20 call sites. The helper clears fifteen transient memo maps together at
+the independent serial fixture boundary, while leaving export paths/importers,
+source/contract baselines and partial-type registrations alone. No mutable model
+or baseline behavior is changed, and no forced GC or memory-limit setting is added.
+
+New guards validate the exact cleanup inventory with missing/duplicate/unknown/
+immutable-state mutations, actual cleanup of retained model/binding/expression
+sentinels, preservation of import/baseline state, same-input model reuse inside
+a fixture, mutation separation, and independent reconstruction across fixtures.
+Run these alongside the original cache/legacy-registration/baseline/stable-key
+checks and all rev-19/rev-20 cases, then vet/build, under the same pressure/
+no-new-swap/load safeguards with external Go allowed. No result is claimed yet.
+
+Keep the correctness phase within thirty minutes; if it passes, freeze the
+revision and repeat the identical separate heap profiles to measure memory and
+time tradeoffs. Do not change canonical CI/shards or declare older-Mac viability
+from this targeted optimization.
+
+## Test-Memory Optimization Assigned — fixture-scoped memo lifetime — 2026-10-10
+
+The operator requests the next measured improvement. Bound this change to the
+independent, nonparallel rev-19/rev-20 fixtures: clear all coupled analyzer memo
+caches at entry and t.Cleanup, after each fixture's assertions finish. Both
+validators create/use their models inside the fixture and return only diagnostics.
+No model is shared with a simultaneously active analysis in these serial tests.
+Do not apply this lifecycle to shared/in-flight models or parallel consumers.
+
+Leave immutable contract-baseline sync.Once/evidence, source-set caches,
+partial-type registrations and shared export/import data intact. Clearing one
+model cache alone is insufficient because binding/expression/type caches hold
+related references; the cleanup inventory must cover every transient sync.Map
+while rejecting extra operations on immutable state.
+
+Add fail-sensitive cleanup inventory/lifecycle and model-identity controls.
+Retain existing same-input/mutation/projection/legacy-registration/baseline
+tests unchanged, and preserve all eighty rev-19/rev-20 test paths. No production
+code, canonical test partition, binding-copy semantics, GC tuning or test timeout
+changes. First validate correctness, then repeat the same separate heap/RSS
+profiles against the recorded baselines; report runtime/allocation tradeoffs
+instead of claiming a reduction before measurement.
+
 ## Separate Profiles PASS — retained heap and binding-copy allocation measured — 2026-10-10
 
 Both individual test processes and all four heap analyses pass within the

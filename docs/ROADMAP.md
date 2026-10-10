@@ -1665,6 +1665,15 @@ cloning accounts for about 61% of allocation volume. All samples show normal
 pressure/zero swap. Record `memory-separate-profile-pass.json`; choose a bounded
 test-only optimization next, without weakening assertions or declaring old-Mac
 full-suite viability. No canonical partition or cache implementation changed.
+**Bounded optimization assigned**: scope transient analyzer memo lifetime to
+independent serial rev-19/rev-20 fixtures, preserving immutable baseline/import
+state and all cache-correctness assertions. Add inventory/lifecycle/identity
+controls, then repeat the same profiles. No production, GC, test timeout or
+canonical grouping changes; improvement must be measured before acceptance.
+The implementation consists of a test-only coordinated transient-cache cleanup
+helper and two fixture-scope call sites. Focused lifecycle/inventory/identity
+controls and unchanged cache/legacy/baseline guards are dispatched before
+repeating the same heap profiles. No benefit or correctness pass is assumed yet.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

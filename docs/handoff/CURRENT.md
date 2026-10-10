@@ -16,8 +16,8 @@ threshold change or GH #13 implementation is authorized.
 
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
-- **Description**: Investigate test-only analyzer retention and smaller process groups
-- **Status**: Separate profiles PASS — measured test-memory optimization candidates; review/closure pending
+- **Description**: Reduce analyzer memo lifetime in independent rev-19/rev-20 fixtures
+- **Status**: In progress — fixture-scoped memo cleanup implemented; bounded correctness checks dispatched
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,23 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The test-only implementation adds a coordinated fifteen-map cleanup helper and
+two scope-entry calls in rev-19/rev-20 validators. Immutable source/contract
+baseline, importer/export-path caches and partial-type registrations remain
+untouched. New inventory/lifecycle/identity controls accompany unchanged cache
+correctness tests. Dispatch focused checks plus rev-19/rev-20, then vet/build,
+under the current pressure/swap/load safeguards and a thirty-minute budget.
+No measured improvement or validation success is claimed before results.
+
+The operator assigned the next measured optimization. Limit it to independent
+serial rev-19/rev-20 fixtures: release the coupled transient analyzer memo caches
+at fixture entry and cleanup, while preserving identity within a fixture.
+Immutable baseline/source/import data and partial-type registrations remain
+unchanged. Add cleanup inventory/lifecycle/identity negative controls, then run
+existing cache-correctness checks and the same separate heap profiles.
+No production, binding-copy semantics, GC tuning, canonical shard or timeout
+change is part of this step; no performance improvement is claimed yet.
 
 Separate rev-19 and rev-20 profiles now pass, including all four heap analyses
 and exact eighty-path assertion coverage. Package times are 64.391s/57.664s;
@@ -423,6 +440,10 @@ The temporary helpers/logs were removed at the prior wave's completed cleanup.
   combined test passes, empty profile, unavailable comparison and evidence hashes.
 - `memory-separate-profile-pass.json`: complete separate test/profile results,
   exact coverage union, retained versus allocated heap and source-attributed hotspots.
+- `internal/cli/prepare_s6_cache_scope_test.go`: serial-fixture memo lifecycle
+  helper with inventory, preservation and identity controls.
+- `internal/cli/prepare_s7_ar_guard_test.go`: two calls scoping cache lifetime
+  to the independent rev-19 and rev-20 fixtures; all existing assertions remain.
 
 ## Test Results
 
@@ -497,10 +518,9 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Retain the completed separate profiles and choose a bounded test-only
-   cache-lifetime or binding-copy optimization before changing implementation.
-   Preserve cache identity/invalidation and mutation-sensitive correctness guards.
-   Do not claim the empty combined profile as a live-heap baseline.
+1. Validate the bounded fixture-scoped cleanup against new and existing
+   cache-correctness/mutation tests, then repeat the same separate profiles.
+   Preserve the prior baselines and do not infer improvement before measurement.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
@@ -523,8 +543,7 @@ The older capped-swap probe has also stopped on its growth limit and is not a
 pass. No validation workload is running on either Mac. Optional old-host resource
 optimization is separate from accepting the validated current-host fixture fixes.
 Separate profiling now measures large retained typed-model/binding state and
-substantial binding-copy allocation churn. No memory optimization has yet been
-implemented or assigned. The combined heap profile remains unavailable, and
+substantial binding-copy allocation churn. The bounded fixture-scoped memo cleanup is implemented but unvalidated. The combined heap profile remains unavailable, and
 7-8 GiB individual RSS does not establish full-suite viability on the older Mac.
 No workload is currently running on either Mac.
 The older outcome is a measured resource stop, not permission to weaken safety.

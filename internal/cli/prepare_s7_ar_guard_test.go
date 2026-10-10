@@ -6100,6 +6100,7 @@ func TestS7ARRev19ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		s6IsolateSerialAnalyzerFixture(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -6785,6 +6786,7 @@ func TestS7ARRev20ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		s6IsolateSerialAnalyzerFixture(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
