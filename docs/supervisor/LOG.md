@@ -1,3 +1,43 @@
+## Bounded Swap Controls PASS — 2026-10-10
+
+Forty non-Go controls pass. The first-command `broad` profile is exactly the
+existing partition's first command, not a relaxed selector. Swap tolerance
+requires explicit pressure mode, 2048 MiB limit and <=3600-second total budget;
+default strict swap-out stops remain intact. Controls prove fixed-prelaunch
+baseline semantics (no moving cap), exact-boundary acceptance, one-byte-over
+refusal, missing counter/baseline rejection, unchanged pressure/gap stops,
+prelaunch rejection of new activity, final-sample enforcement and owned-only
+cleanup during execution. Package timeout and assertions remain unchanged.
+
+Freeze the verified profiler/source revision and run the same controls and a
+harmless real telemetry smoke on the older Mac before dispatch. Use a new
+checkout and empty build/module caches; keep historical swap/caches/evidence
+untouched. No memory allocation or swap-generation stress tool is introduced.
+
+## Swap-Tolerant Older-Mac Probe Authorized — 2026-10-10
+
+The operator explicitly selects one first-broad-command probe on the older Mac:
+up to **2 GiB additional occupied swap above the prelaunch baseline**, normal
+pressure required, a **60-minute total workload budget**, and unchanged
+40-minute package timeouts/serial execution. This is not a full-partition retry
+or permanent relaxation. Admission still requires load<=5, no competing Go,
+normal pressure and no new swap-outs for a full minute. Only execution gets
+the bounded swap tolerance; warning/critical pressure or unreliable telemetry
+still stops owned work. Record swap-ins/outs and occupied usage separately.
+
+Read-only preflight: old Mac normal pressure, load ~1.6, 267.25 MiB occupied
+swap, unchanged swap-in/out counters during a 15-second observation, and ample
+disk space. Occupied swap alone is not active swapping or failed correctness.
+The growth cap is a sampled experimental guardrail, not an OS-enforced memory
+limit or a cap on cumulative I/O traffic; it may be observed after crossing.
+
+Implement pressure-only `broad` profile with explicit swap-growth option and
+required <=3600-second cap. Keep strict no-new-swap default untouched and
+validate boundary/error/cleanup controls before dispatch. Source/tests/assertions
+remain unchanged. Prior native `38013960284` at `075eccf` completed SUCCESS;
+all five required jobs pass and release is skipped. The current-Mac 22-command
+pass and older failed-run evidence remain preserved.
+
 ## Full Partition PASS — concurrent external Go permitted — 2026-10-09
 
 At frozen `4e6de31` / Go 1.26.5, **all 22 commands pass in one run**.

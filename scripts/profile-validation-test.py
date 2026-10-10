@@ -22,7 +22,8 @@ spec.loader.exec_module(profiler)
 def reading(now, free=80, load=5, go=False, pressure=1, swapouts=0):
     return {"monotonic": now, "admission_free_percent": free,
             "load1": load, "go_processes": [{"pid": 99}] if go else [],
-            "pressure_level": pressure, "vm_pages": {"Swapouts": swapouts}}
+            "pressure_level": pressure, "vm_pages": {"Swapouts": swapouts},
+            "swap_used_bytes": 0}
 
 
 def ps_row(pid, ppid, rss, name, cpu="0:00.00", started="Thu Oct 8 21:00:21 2026"):
@@ -89,6 +90,34 @@ class AdmissionTests(unittest.TestCase):
 
 
 class PressurePolicyTests(unittest.TestCase):
+    def test_swap_tolerance_is_bounded_relative_to_the_fixed_start_not_previous_sample(self):
+        cap = 2 * 1024**3
+        start = 267 * 1024**2
+        previous = {**reading(0, swapouts=5), "swap_used_bytes": start}
+        boundary = {**reading(2, swapouts=500), "swap_used_bytes": start + cap}
+        profiler.require_runtime_pressure_safe(boundary, previous, cap, start)
+        with self.assertRaises(profiler.ResourceStop):
+            profiler.require_runtime_pressure_safe(boundary, previous)
+        exceeded = {**reading(4, swapouts=501), "swap_used_bytes": start + cap + 1}
+        with self.assertRaisesRegex(profiler.ResourceStop, "beyond"):
+            profiler.require_runtime_pressure_safe(exceeded, boundary, cap, start)
+        reduced = {**reading(4, swapouts=501), "swap_used_bytes": start - 1}
+        profiler.require_runtime_pressure_safe(reduced, boundary, cap, start)
+
+    def test_swap_tolerance_cannot_bypass_pressure_monitoring_or_counter_checks(self):
+        start, cap = 1024, 2 * 1024**3
+        for value in (reading(2, pressure=2), reading(2, pressure=4), reading(6), reading(-1)):
+            with self.assertRaises(profiler.ResourceStop):
+                profiler.require_runtime_pressure_safe(value, reading(0), cap, start)
+        with self.assertRaises(ValueError):
+            profiler.require_runtime_pressure_safe(reading(2), reading(0, swapouts=1), cap, start)
+        for usage in (None, -1, "100", True):
+            with self.assertRaises(ValueError):
+                profiler.require_runtime_pressure_safe(
+                    {**reading(2), "swap_used_bytes": usage}, reading(0), cap, start)
+        with self.assertRaises(ValueError):
+            profiler.require_runtime_pressure_safe(reading(2), reading(0), cap, None)
+
     def test_external_go_permission_is_explicit_and_preserves_the_quiet_minute(self):
         strict, allowed = profiler.PressureWindow(), profiler.PressureWindow(allow_external_go=True)
         for now in range(0, 62, 2):
@@ -249,6 +278,7 @@ class TelemetryTests(unittest.TestCase):
                     if line.startswith("go test ")]
         self.assertEqual([cmd[1:] for _, cmd in stages[3:]], expected)
         self.assertEqual(profiler.workload(root, Path("/fixture/go"), "partition"), stages[3:])
+        self.assertEqual(profiler.workload(root, Path("/fixture/go"), "broad"), stages[3:4])
         pilot = profiler.workload(root, Path("/fixture/go"), "pilot")
         self.assertEqual(pilot, [stages[i] for i in (0, 1, 2, 4, 17)])
         self.assertIn("^TestS7ARRev(11|12|13|14|15).*$", pilot[3][1])
@@ -335,6 +365,74 @@ class TelemetryTests(unittest.TestCase):
                     with self.assertRaises(SystemExit) as error:
                         profiler.main()
                     self.assertEqual(error.exception.code, 2)
+
+    def test_swap_tolerance_requires_only_broad_pressure_probe_with_one_hour_cap(self):
+        base = ["profiler", "--repo", "/fixture", "--toolchain", "/fixture",
+                "--out", "/fixture", "--expected-head", "fixture", "--max-swap-growth-mib", "2048"]
+        for args in (
+            [],
+            ["--profile", "partition", "--admission-policy", "pressure", "--max-seconds", "3600"],
+            ["--profile", "broad", "--max-seconds", "3600"],
+            ["--profile", "broad", "--admission-policy", "pressure"],
+            ["--profile", "broad", "--admission-policy", "pressure", "--max-seconds", "3601"],
+        ):
+            with mock.patch.object(profiler.sys, "argv", base + args):
+                with mock.patch.object(profiler.sys, "stderr", io.StringIO()):
+                    with self.assertRaises(SystemExit) as error:
+                        profiler.main()
+                    self.assertEqual(error.exception.code, 2)
+
+    def test_bounded_swap_execution_and_final_sample_enforce_growth_limit(self):
+        start, cap = 500, 2 * 1024**3
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            def value(now, used, count=0):
+                return {**reading(now, swapouts=count), "swap_used_bytes": used,
+                        "owned_processes": [], "owned_rss_sum_bytes": 0}
+            samples = [value(1, start), value(2, start + cap, 1), value(3, start + cap, 2)]
+            with mock.patch.object(profiler, "sample", side_effect=samples):
+                with mock.patch.object(profiler.BUDGET, "pause", side_effect=lambda _: time.sleep(0.1)):
+                    result = profiler.execute(["/bin/sleep", "0.05"], self.root, {},
+                                              Path(directory) / "pass.log", io.StringIO(), "fixture",
+                                              pressure_baseline=value(0, start),
+                                              max_swap_growth_bytes=cap)
+            self.assertEqual(result["exit_code"], 0)
+            self.assertEqual(result["swap_used_at_start_bytes"], start)
+            self.assertEqual(result["sampled_peak_swap_growth_bytes"], cap)
+            samples[-1] = value(3, start + cap + 1, 2)
+            with mock.patch.object(profiler, "sample", side_effect=samples):
+                with mock.patch.object(profiler.BUDGET, "pause", side_effect=lambda _: time.sleep(0.1)):
+                    with self.assertRaises(profiler.ResourceStop):
+                        profiler.execute(["/bin/sleep", "0.05"], self.root, {},
+                                         Path(directory) / "stop.log", io.StringIO(), "fixture",
+                                         pressure_baseline=value(0, start),
+                                         max_swap_growth_bytes=cap)
+            with mock.patch.object(profiler, "sample", return_value=value(1, start, 1)):
+                with mock.patch.object(profiler.subprocess, "Popen") as launch:
+                    with self.assertRaises(profiler.ResourceStop):
+                        profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                         Path(directory) / "never.log", io.StringIO(), "fixture",
+                                         pressure_baseline=value(0, start),
+                                         max_swap_growth_bytes=cap)
+                    launch.assert_not_called()
+
+    def test_running_swap_growth_abort_stops_only_owned_work(self):
+        with tempfile.TemporaryDirectory(dir=self.root / "bin") as directory:
+            cap = 2 * 1024**3
+            over = {**reading(2, swapouts=1), "swap_used_bytes": cap + 1,
+                    "owned_processes": [], "owned_rss_sum_bytes": 0}
+            other = profiler.subprocess.Popen(["/bin/sleep", "30"], start_new_session=True)
+            try:
+                with mock.patch.object(profiler, "sample", side_effect=[reading(1), over]):
+                    with mock.patch.object(profiler, "stop_owned", wraps=profiler.stop_owned) as stop:
+                        with self.assertRaisesRegex(profiler.ResourceStop, "beyond"):
+                            profiler.execute(["/bin/sleep", "30"], self.root, {},
+                                             Path(directory) / "stop.log", io.StringIO(), "fixture",
+                                             pressure_baseline=reading(0), max_swap_growth_bytes=cap)
+                        stop.assert_called_once()
+                        self.assertIsNotNone(stop.call_args.args[0].poll())
+                        self.assertIsNone(other.poll())
+            finally:
+                profiler.stop_owned(other)
 
     def test_external_go_flag_cannot_relax_legacy_percentage_policy(self):
         args = ["profiler", "--repo", "/fixture", "--toolchain", "/fixture",

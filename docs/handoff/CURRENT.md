@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Correct the unstable-artifact fixture without weakening real capture/refusal checks
-- **Status**: Full monitored partition PASS — independent review and wave closure pending
+- **Status**: In progress — current full PASS; swap-tolerance controls PASS, preparing older probe
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,22 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+Forty non-Go controls pass for the explicit bounded swap-tolerant broad profile.
+The cap stays relative to the fixed prelaunch swap usage; exact-limit, over-limit,
+missing-telemetry, pressure/gap, prelaunch/completion and owned-cleanup cases are
+verified. The default still stops on any new swap-outs. Prepare a fresh older-
+Mac clone and Go 1.26.5 caches, verify its controls, then dispatch one probe.
+
+The operator selected an older-Mac probe of the first broad command only,
+allowing at most 2 GiB occupied swap growth from prelaunch while pressure stays
+normal, within a 60-minute total budget. Keep original test timeouts, serial
+execution, admission quiet minute/load/no-Go and default strict policies.
+Current old-host swap is 267.25 MiB and inactive during a short read-only sample;
+historical occupied swap is not itself a problem. Record rates/counters and
+stop owned work on pressure warning/critical, growth beyond the cap or unreliable
+monitoring. No full older-host partition or permanent policy change is authorized.
+Native CI `38013960284` has now passed all five jobs at `075eccf`.
 
 The complete concurrent-work experiment **passes all 22 commands** at frozen
 `4e6de31` / Go 1.26.5, with identical shard arguments and unchanged assertions/
@@ -388,18 +404,18 @@ This diagnostic success is not a validation pass or threshold approval.
 
 ## Next Steps
 
-1. Retain the complete passing current-host run; do not start another or an
-   older-host run automatically. Complete independent review and wave-close
-   gate/bookkeeping before declaring the maintenance wave accepted.
+1. Verify the authorized bounded swap-tolerant probe, then run only the first
+   broad command on the older Mac with fresh isolated source/caches.
+   Preserve the complete current-host pass and all previous failures.
 2. Retain the completed two-host comparison and all partial outcomes.
    The older-host swap stop needs a separate workload/resource decision, not
    an automatic retry or a claim that every 16 GiB machine is inadequate.
 3. Retain passing AP evidence from separate fixed-source older-Mac checkout
    `fixture-repo-20261009` at `ba15a05`, explicit 75% and unchanged timeouts.
    `older-mac-fixture-ap-20261009` is mirrored locally; failing baseline preserved.
-4. Preserve latest native `38013960284` at `075eccf` until macOS finishes,
-   then push the pending result record. Prior `38007045267` is SUCCESS.
-   Permanent policy adoption remains a separate operator decision.
+4. Latest native `38013960284` at `075eccf` is SUCCESS; publish pending result
+   and probe-tracking records. Independent review/final closure and permanent
+   policy adoption remain separate from this experiment.
 5. GH #13 implementation remains paused and separately authorized.
 
 ## Blockers
@@ -409,7 +425,8 @@ The AQ guard correction passes focused validation and fixed-source native CI.
 The complete current-host partition now passes with external Go allowed and
 pressure/swap/load safeguards retained. No local experiment is running.
 Independent review, current hosted confirmation and final wave closure remain.
-The older full run stopped on actual swapping and is not silently retried.
+The older full run stopped on swapping; the operator now authorizes a bounded
+swap-tolerant first-command probe, not an unbounded retry or timeout increase.
 The older outcome is a measured resource stop, not permission to weaken safety.
 Full-suite resource requirements on the older Mac and the exact 75% boundary
 remain unvalidated; no permanent threshold change is adopted.

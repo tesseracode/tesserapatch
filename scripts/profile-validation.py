@@ -115,14 +115,27 @@ class PressureWindow(QuietWindow):
                 and (self.allow_external_go or not sample["go_processes"]))
 
 
-def require_runtime_pressure_safe(value, previous):
+def swap_usage(value):
+    usage = value.get("swap_used_bytes")
+    if type(usage) is not int or usage < 0:
+        raise ValueError("swap-tolerant policy requires valid occupied-swap telemetry")
+    return usage
+
+
+def require_runtime_pressure_safe(value, previous, max_swap_growth_bytes=0,
+                                 swap_used_at_start=None):
     level, swapouts = pressure_counters(value)
     _, previous_swapouts = pressure_counters(previous)
     if swapouts < previous_swapouts:
         raise ValueError("cumulative swap-out counter moved backwards")
     if level != 1:
         raise ResourceStop("OS memory pressure is no longer normal; stopped owned workload")
-    if swapouts > previous_swapouts:
+    if max_swap_growth_bytes:
+        if type(swap_used_at_start) is not int or swap_used_at_start < 0:
+            raise ValueError("swap-tolerant policy requires a valid prelaunch baseline")
+        if swap_usage(value) - swap_used_at_start > max_swap_growth_bytes:
+            raise ResourceStop("occupied swap grew beyond the experimental limit; stopped owned workload")
+    elif swapouts > previous_swapouts:
         raise ResourceStop("new system swap-outs observed; stopped owned workload")
     gap = value["monotonic"] - previous["monotonic"]
     if gap < 0 or gap > 5:
@@ -311,6 +324,8 @@ def workload(repo, toolchain, profile="full"):
         return stages
     if profile == "partition":
         return stages[3:]
+    if profile == "broad":
+        return stages[3:4]
     if profile == "ap-observer":
         return [(name, command) for name, command in stages if name == "08-shard-15"]
     if profile != "pilot":
@@ -425,8 +440,10 @@ def stop_owned_tree(process, known):
 
 
 def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
-            allow_external_go=False):
+            allow_external_go=False, max_swap_growth_bytes=0):
     BUDGET.timeout()
+    if max_swap_growth_bytes and pressure_baseline is None:
+        raise ValueError("swap tolerance requires pressure-based monitoring")
     start = time.monotonic()
     peak_rss = peak_count = peak_go = peak_pressure = 0
     peak_external_go = 0
@@ -434,12 +451,17 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
     first = last = None
     owned = {}
     previous_pressure = pressure_baseline
+    swap_used_at_start = None
+    peak_swap_used = 0
     if pressure_baseline is not None:
         first = last = sample()
         record(stream, stage, "prelaunch", first)
         require_runtime_pressure_safe(first, pressure_baseline)
         if first["load1"] > 5 or (first["go_processes"] and not allow_external_go):
             raise ResourceStop("admission conditions changed before launching the workload")
+        if max_swap_growth_bytes:
+            swap_used_at_start = swap_usage(first)
+            peak_swap_used = swap_used_at_start
         previous_pressure = first
     with log.open("x") as sink:
         child = subprocess.Popen(
@@ -464,7 +486,10 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
                 peak_pressure = max(peak_pressure, value["pressure_level"])
                 lowest_free = min(lowest_free, value["admission_free_percent"])
                 if pressure_baseline is not None:
-                    require_runtime_pressure_safe(value, previous_pressure)
+                    require_runtime_pressure_safe(value, previous_pressure,
+                                                  max_swap_growth_bytes, swap_used_at_start)
+                    if max_swap_growth_bytes:
+                        peak_swap_used = max(peak_swap_used, swap_usage(value))
                     previous_pressure = value
                 elif value["pressure_level"] not in (1, 2):
                     raise RuntimeError("critical or unknown OS pressure; stopped owned workload")
@@ -472,7 +497,10 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
             if pressure_baseline is not None:
                 last = sample(child.pid)
                 record(stream, stage, "completion", last)
-                require_runtime_pressure_safe(last, previous_pressure)
+                require_runtime_pressure_safe(last, previous_pressure,
+                                              max_swap_growth_bytes, swap_used_at_start)
+                if max_swap_growth_bytes:
+                    peak_swap_used = max(peak_swap_used, swap_usage(last))
         finally:
             stop_owned(child, owned.values())
     text = log.read_text()
@@ -497,6 +525,12 @@ def execute(command, repo, env, log, stream, stage, pressure_baseline=None,
     }
     if stage == "06-gofmt":
         result["formatted"] = not any(line.endswith(".go") for line in text.splitlines())
+    if max_swap_growth_bytes:
+        result.update(
+            swap_used_at_start_bytes=swap_used_at_start,
+            sampled_peak_swap_used_bytes=peak_swap_used,
+            sampled_peak_swap_growth_bytes=peak_swap_used - swap_used_at_start,
+        )
     return result
 
 
@@ -509,11 +543,13 @@ def main():
     parser.add_argument("--expected-head", required=True)
     parser.add_argument("--wait-seconds", type=int, default=600)
     parser.add_argument("--memory-threshold", type=int, choices=(80, 75), default=80)
-    parser.add_argument("--profile", choices=("full", "partition", "pilot", "ap-observer"), default="full")
+    parser.add_argument("--profile", choices=("full", "partition", "broad", "pilot", "ap-observer"), default="full")
     parser.add_argument("--admission-policy", choices=("percent", "pressure"), default="percent")
     parser.add_argument("--allow-external-go", action="store_true",
                         help="pressure-policy experiment only: observe other Go tools without vetoing admission")
     parser.add_argument("--max-seconds", type=int)
+    parser.add_argument("--max-swap-growth-mib", type=int, choices=(0, 2048), default=0,
+                        help="broad pressure probe only: maximum additional occupied swap, not cumulative traffic")
     parser.add_argument("--cache-from", type=Path)
     args = parser.parse_args()
     if platform.system() != "Darwin" or args.wait_seconds < 60:
@@ -527,11 +563,16 @@ def main():
     if args.cache_from is not None and args.profile != "ap-observer":
         parser.error("cache copying is only supported for the diagnostic AP repeat")
     if args.admission_policy == "pressure" and (
-        args.profile != "partition" or args.memory_threshold != 80
+        args.profile not in ("partition", "broad") or args.memory_threshold != 80
     ):
         parser.error("pressure policy is an explicit partition experiment, not a percentage override")
     if args.allow_external_go and args.admission_policy != "pressure":
         parser.error("external Go permission requires the explicit pressure-policy experiment")
+    if args.max_swap_growth_mib and (
+        args.admission_policy != "pressure" or args.profile != "broad"
+        or args.max_seconds is None or args.max_seconds > 3600
+    ):
+        parser.error("swap tolerance requires a pressure-based broad probe capped at 3600 seconds")
 
     def interrupt(signum, frame):
         raise KeyboardInterrupt
@@ -590,6 +631,7 @@ def main():
                       "max_wait_seconds": args.wait_seconds},
         "external_go_policy": "observe-only" if args.allow_external_go else "block-admission",
         "runtime_pressure_guard": args.admission_policy == "pressure",
+        "runtime_swap_growth_limit_bytes": args.max_swap_growth_mib * 1024**2,
         "limits": [
             "This profiles validation stages 6-8; it is not a new wave-close certification.",
             "Percent-free is the legacy admission metric, not Activity Monitor pressure.",
@@ -609,7 +651,10 @@ def main():
             "Pressure policy is opt-in and host/run-specific; percentage is diagnostic only in that mode.",
             "New swap-outs are measured system-wide and may be caused by unrelated processes.",
             "Historical swap usage alone is not active swapping; compare cumulative swap-out counters.",
-            "Pressure-policy runtime checks stop on warning/critical pressure, new swap-outs or monitoring gaps.",
+            "Pressure-policy runtime checks stop on warning/critical pressure or monitoring gaps.",
+            "By default any new swap-out stops the workload. The explicit broad probe instead caps occupied swap growth from prelaunch.",
+            "The swap-growth cap is system-wide, sampled and experimental, not an OS memory limit or a bound on cumulative swap traffic.",
+            "Sampling may observe a limit after it has already been exceeded; no permanent swap policy is adopted.",
             "External Go permission changes only admission/prelaunch presence checks; load and memory safety remain enforced.",
             "Concurrent work can affect timing; frozen checkouts and isolated caches do not remove CPU/disk contention.",
         ],
@@ -636,7 +681,8 @@ def main():
                 print("Running: " + stage, flush=True)
                 result = execute(command, repo, env, destination / (stage + ".log"), stream, stage,
                                  pressure_baseline=pressure_window.latest if pressure_window is not None else None,
-                                 allow_external_go=args.allow_external_go)
+                                 allow_external_go=args.allow_external_go,
+                                 max_swap_growth_bytes=args.max_swap_growth_mib * 1024**2)
                 result["admission_wait_seconds"] = waited
                 summary["results"].append(result)
                 save()

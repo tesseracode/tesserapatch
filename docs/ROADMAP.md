@@ -1609,6 +1609,14 @@ sampled owned RSS about 11.17 GiB, and real concurrent Go activity (up to nine
 external tools). Evidence: `pressure-concurrent-full-pass.json`. No automatic
 new run or permanent policy change. Independent review, final wave closure and
 latest hosted macOS completion remain; the older full-run swap stop stays recorded.
+**CI green and bounded old-host probe authorized**: `38013960284` completes
+SUCCESS on `075eccf`. The operator permits the first broad command on the older
+Mac with normal pressure, <=2 GiB additional occupied swap and a 60-minute cap.
+Default strict policy/test budgets stay unchanged. Record a fresh isolated
+experiment; no full older-host partition or permanent swap allowance is implied.
+Forty non-Go controls pass for the bounded swap probe, including fixed baseline
+and exact-cap behavior, unchanged pressure/gap stops and owned-only cleanup.
+Prepare a fresh older-host checkout/cache; no test workload has run in this probe yet.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 
