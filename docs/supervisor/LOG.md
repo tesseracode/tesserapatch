@@ -1,3 +1,46 @@
+## Maintenance ACCEPTED — review, full gate and native CI complete — 2026-10-11
+
+Accept the maintenance wave based on independent APPROVED review with no
+findings, the 8/8 local mechanical pass at `12617b1`, and exact-checkpoint
+native CI `38114748869` completing SUCCESS with all five required jobs passed
+and release skipped. No failed/partial experiment is substituted for final
+coverage. Replay of every recorded admission and runtime window confirms the
+approved pressure/swap/load policy for all 25 top-level commands.
+
+Final source/protected-contract checks show no drift from reviewed `501175b`.
+The gate's 22-command script hash remains
+`7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10`;
+both local and remote v0.17.0 tag objects remain unchanged.
+The remaining full-suite RSS peak is the unchanged purge-progress guard,
+not the optimized rev-19/rev-20 fixture group. No old-Mac full-pass or permanent
+admission-default claim is added.
+
+**Action**: publish the non-identifying final-gate report, append terminal
+handoff archival, flip CURRENT/ROADMAP to ACCEPTED and push the tracking-only
+closing record now that exact-checkpoint CI is complete. Preserve all private
+raw evidence; no processes require cleanup and no #13 task/release is dispatched.
+
+## Final Mechanical Gate PASS — native completion pending — 2026-10-11
+
+At exact pushed checkpoint `12617b1e4aad992b5a684653caa8501bec6beb95`,
+`make wave-close-check WAVE_BASE=d3454edb72c37bacae9159481cc2e6cd69559459`
+passes all eight checks without warnings. The wrapper confirms exact parity
+for all 25 top-level commands, including all 22 unchanged test commands.
+Elapsed time is 3960.94 seconds; all 1987 samples report normal pressure,
+zero occupied swap and no new swap-outs. The diagnostic percentage reaches
+48%; sampled peak owned RSS is about 9.80 GiB, with up to five external Go
+processes observed. No workload/assertion/timeout or runtime safeguard was relaxed.
+
+The isolated checkout remains clean; the v0.17.0 tag is unchanged.
+Reconciliation checks 414 sampled owned process identities and finds no
+remaining processes; no post-run termination is needed this time.
+Raw evidence remains under `bin/maintenance-close-20261010/evidence/`.
+
+**Action**: record the successful final gate and preserve native CI `38114748869`.
+Four required jobs have passed; `test (macos-latest)` is still running.
+Await its actual outcome before the terminal closing push; full maintenance
+acceptance is not yet claimed. No duplicate local run or #13 dispatch.
+
 ## Final Monitored Gate Dispatched — maintenance closure — 2026-10-10
 
 Published checkpoint `12617b1e4aad992b5a684653caa8501bec6beb95` contains the

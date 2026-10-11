@@ -1443,24 +1443,28 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Before GH #13 — ✅ maintenance review APPROVED; final gate pending — 2026-10-10
+### Before GH #13 — ✅ maintenance ACCEPTED — 2026-10-11
 
 **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`.
 **Independently reviewed range**: `d3454ed..501175b`; OpenAI `gpt-5.4`, no findings.
-The operator authorizes final monitored verification, archive and push, not
-another optimization, permanent policy default, release or GH #13 implementation.
-The complete calibration handoff is archived verbatim in HISTORY.
+**Validated range**: `d3454ed..12617b1`; all eight local gate checks and all five
+required native CI jobs pass at the exact checkpoint. The complete calibration
+handoff and terminal acceptance are archived in HISTORY. Closing changes are
+tracking/report-only, with no reviewed-source or protected-contract drift.
 
 The real capture fixture is deterministic, and four-fixture analyzer memo scopes
 reduce measured rev-19/rev-20 RSS by 83-84% while increasing recomputation
 (observed runtime 2.4-2.5x; allocation volume 2.8-2.9x). Existing assertion
 coverage, CI shard partition/timeouts and immutable baseline/import data remain.
-Native CI `38084490647` is green at source-equivalent `a4baf17`.
-Final gate uses the approved current-Mac normal-pressure/no-new-swap/load<=5
-minute with external Go allowed and own work serial. The gate is now running
-at pushed `12617b1`, with checks 1-6 passed; exact-checkpoint native CI is
-`38114748869`. Final gate/CI results and terminal closing push remain pending;
-no full old-Mac pass is claimed.
+Native CI `38114748869` is green at exact checkpoint `12617b1`.
+The final gate uses the approved current-Mac normal-pressure/no-new-swap/load<=5
+minute with external Go allowed and own work serial. The gate passes 8/8 at
+pushed `12617b1`, including all 22 unchanged test commands, with normal pressure,
+zero swapping and about 9.80 GiB peak sampled owned RSS across 66 minutes.
+All 25 top-level admission/runtime windows are replayed; no owned processes
+remain. Final report: `maintenance-final-gate.json` in the resource case study.
+No full old-Mac pass, permanent default change, new release/tag or GH #13
+implementation is claimed or dispatched.
 
 <details>
 <summary>Historical calibration record — superseded by the live closure above</summary>
