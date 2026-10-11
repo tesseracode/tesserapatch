@@ -1,3 +1,35 @@
+## Linux Focused Correction PASS — 1000 repetitions — 2026-10-11
+
+Corrected source passes formatting and 1000 repetitions of both the deterministic
+index regression (normal and redirected indices) and the original unchanged
+S5 CLI test. Package times are 23.993s (`internal/gitutil`) and 32.347s
+(`internal/cli`); the complete command takes 69.83s. The unfixed runs failed
+both deterministic cases and the exact original CLI error, so this is a genuine
+before/after result rather than an assertion removal or an unexercised selector.
+
+The fix changes only the scoped-diff index copy: capture metadata and bytes
+from the same open file and preserve mtime before Git runs. Real-index contents
+and timestamp remain unchanged in the regression. Fresh admission and runtime
+safeguards pass; the task container is removed. Host Docker-client RSS is not
+guest Go memory and is not reported as a test-memory improvement.
+
+**Action**: persist the correction and release note, then validate affected
+packages/consumers and full regression/native CI. No #13 or permanent profile
+adoption is dispatched; broader validation and review remain outstanding.
+
+## Index Timestamp Correction Implemented — focused validation pending — 2026-10-11
+
+`DiffFromCommitForPaths` now reads the effective index's metadata and bytes
+through the same open descriptor and preserves its modification time on the
+private copy before invoking Git. This retains Git's racy-entry content check
+without altering the operator's index, changing path filters or bypassing
+canonical materialization. Timestamp-copy errors are explicit refusals.
+
+The failing regressions and reproduction record are committed at `0c38c15`.
+Run formatting and the deterministic index/original CLI tests before broader
+validation. The existing CLI test is unchanged; no new production success is
+claimed until those checks complete.
+
 ## Linux Failure Reproduced — deterministic regression and original CLI — 2026-10-11
 
 The isolated Linux/arm64 Go 1.26.5 run confirms both new real-index and

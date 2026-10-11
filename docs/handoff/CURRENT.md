@@ -15,7 +15,7 @@ The operator subsequently approved a pressure-based exception for this fix only.
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Original Linux failure and deterministic guards reproduced; correction next
+- **Status**: Correction passes 1000 Linux repetitions; affected/full validation pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
 
@@ -45,6 +45,12 @@ and the original unmodified CLI test reproduces the same line-222 error in
 a capped 1000-repeat fail-fast run (17.270s package time before failure).
 The private reproducer is `bin/reapply-linux-20261011/reproduce-index-copy.py`.
 Deterministic Go regressions cover normal and redirected effective indices.
+They and the Linux failure record are committed at `0c38c15`.
+The production correction now reads metadata/bytes from the same open index
+descriptor and preserves its modification time on the temporary copy.
+No materialization, path-scope or real-index-isolation check is bypassed.
+The corrected source now passes formatting and 1000 repetitions of both the
+new deterministic index guards and original unchanged S5 CLI test.
 
 ## Current State
 
@@ -57,7 +63,9 @@ checks and immutable recipe authority. No unrelated testing optimization.
 
 Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
 `internal/gitutil/diff_index_test.go`: deterministic copied-index regression cases.
-No production correction has been applied yet.
+`internal/gitutil/gitutil.go`: preserve the effective index timestamp in the
+private scoped-diff copy; explicit stat/copy-timestamp failure handling.
+`CHANGELOG.md`: unreleased correction note, without altering historical entries.
 
 ## Test Results
 
@@ -70,17 +78,18 @@ No production correction has been applied yet.
   expected against unchanged production code.
 - The original CLI test reproduces the exact Ubuntu failure during a bounded
   repeated run; execution stops at the first failure.
+- Corrected source passes 1000 repetitions of the new two-case index regression
+  and the original CLI test (23.993s / 32.347s package time; 69.83s command).
+- Corrected-source formatting passes. Affected/full checks and native CI remain.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
 
 ## Next Steps
 
-1. Preserve the source index timestamp in the private diff copy, using metadata
-   and bytes from the same open source file.
-2. Rerun the deterministic guards and original CLI repetitions without
-   suppressing real refusal or changing the original fixture.
-3. Run focused then affected validation, Linux confirmation, required broader
+1. Preserve the completed failing and passing reproduction evidence.
+2. Run affected package and canonical-reapply consumer checks.
+3. Complete required broader
    checks and independent review under the applicable resource rules.
 4. Preserve evidence and tracking at each transition; close/push only after
    actual validation. GH #13 and later profile adoption remain separate.

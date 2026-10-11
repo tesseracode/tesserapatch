@@ -3,6 +3,7 @@ package gitutil
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1106,12 +1107,26 @@ func DiffFromCommitForPaths(repoRoot, commit string, paths []string) (string, er
 		if !filepath.IsAbs(realIndex) {
 			realIndex = filepath.Join(repoRoot, realIndex)
 		}
-		data, readErr := os.ReadFile(realIndex)
+		indexFile, readErr := os.Open(realIndex)
+		if readErr != nil {
+			return "", fmt.Errorf("read effective git index %q: %w", realIndex, readErr)
+		}
+		defer indexFile.Close()
+		indexInfo, statErr := indexFile.Stat()
+		if statErr != nil {
+			return "", fmt.Errorf("stat effective git index %q: %w", realIndex, statErr)
+		}
+		data, readErr := io.ReadAll(indexFile)
 		if readErr != nil {
 			return "", fmt.Errorf("read effective git index %q: %w", realIndex, readErr)
 		}
 		if werr := os.WriteFile(tmpPath, data, 0o644); werr != nil {
 			return "", fmt.Errorf("seed temp index: %w", werr)
+		}
+		// Git uses the index timestamp to recheck same-stat ("racy") entries.
+		// A newer copy can falsely classify changed worktree contents as clean.
+		if err := os.Chtimes(tmpPath, indexInfo.ModTime(), indexInfo.ModTime()); err != nil {
+			return "", fmt.Errorf("preserve temp index timestamp: %w", err)
 		}
 
 		env = append(os.Environ(), "GIT_INDEX_FILE="+tmpPath)

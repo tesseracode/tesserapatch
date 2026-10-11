@@ -2,6 +2,15 @@
 
 All notable changes to tpatch are recorded here.
 
+## Unreleased
+
+### Corrected
+
+- Preserve the effective Git index timestamp when making private scoped-diff
+  copies. Same-stat source edits remain visible to canonical reapply and
+  derived patch capture instead of intermittently appearing unchanged.
+  The operator's real index and existing materialization checks are preserved.
+
 ## v0.17.0 — 2026-09-20 — recipe generation authority
 
 ### Added
