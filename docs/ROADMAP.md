@@ -1443,7 +1443,7 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Before GH #13 — 🚧 Linux reapply fix; changelog correction required — 2026-10-11
+### Before GH #13 — 🚧 Linux reapply fix; corrected full retry pending — 2026-10-11
 
 **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
 The operator authorizes a bounded reproduction and correction of
@@ -1463,7 +1463,9 @@ The full gate at `d49e808` passes checks 1-7 then stops on the introduced
 Unreleased heading, which existing assets parity rejects beside v0.17.0.
 The first command's CLI/gitutil/workflow packages pass, but 0/22 test commands
 complete successfully. Restore the changelog without changing the validator,
-check assets, then retry full validation. Native `38162560118` remains active.
+check assets, then retry full validation. The changelog is now byte-identical
+to the wave base and all assets tests pass (2.458s). Native `38162560118`
+remains active; preserve it before publishing the corrected full retry.
 The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation

@@ -1,3 +1,16 @@
+## Changelog Correction PASS — waiting for native run before retry — 2026-10-11
+
+Commit `732a4a5` restores CHANGELOG byte-for-byte to the pre-wave `c492318`
+version. Production/test source and assets validators remain unchanged.
+All existing assets tests now pass on unprivileged Linux (2.458s package time)
+after fresh approved admission; the task container is removed.
+
+**Action**: retain the failed `d49e808` gate and native run as historical
+evidence. Native `38162560118` still has active macOS jobs, so do not cancel
+it with a push. When it completes, publish the corrected checkpoint and run
+the full mechanical gate in a new isolated directory. No local Go workload
+is currently running; full acceptance remains pending.
+
 ## Full Gate Stopped — introduced changelog parity error — 2026-10-11
 
 The `d49e808` gate passes checks 1-7, then its first test command fails three

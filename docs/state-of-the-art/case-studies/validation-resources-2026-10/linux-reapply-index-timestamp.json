@@ -42,7 +42,8 @@
     "cli_build": "passed",
     "direct_review": "no findings",
     "separate_agent_review": false,
-    "full_mechanical_gate": "First attempt at d49e808 passed checks 1-7, then stopped on an introduced Unreleased heading rejected by unchanged assets parity. Documentation correction and full retry pending.",
+    "restored_changelog_assets_seconds": 2.458,
+    "full_mechanical_gate": "First attempt at d49e808 passed checks 1-7, then stopped on an introduced Unreleased heading rejected by unchanged assets parity. Changelog restored byte-for-byte to the wave base and all assets tests pass; full retry pending.",
     "fixed_native_ci": "pending",
     "owned_task_containers_remaining": 0
   },

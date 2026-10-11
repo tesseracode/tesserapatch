@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 The operator authorizes reproducing and resolving the post-close Ubuntu
 reapply failure before GH #13. Previous maintenance acceptance at `12617b1`
@@ -10,15 +10,15 @@ is preserved in HISTORY; the later `c492318` run is a separate failing result.
 No permanent admission-policy adoption or GH #13 implementation is authorized.
 The operator subsequently approved a pressure-based exception for this fix only.
 The bounded correction passes direct review and focused/affected Linux checks;
-the first full gate has exposed an introduced changelog parity error that
-must be corrected without altering the existing validators.
+the first full gate exposed an introduced changelog parity error, now corrected
+with all assets tests passing and no changes to the existing validators.
 
 ## Active Task
 
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Full gate stopped on introduced changelog heading; documentation correction in progress
+- **Status**: Changelog restored and assets passed; waiting for native completion before full retry
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
 - **Full-validation checkpoint**: `d49e8083613d1b218664eb8f3cd799cb9feac0b2`
@@ -64,6 +64,8 @@ the first test command fails assets parity because the added Unreleased
 heading is forbidden beside the selected v0.17.0 contract. CLI, gitutil and
 workflow pass that command; later shards do not run. Remove the introduced
 heading, not the guard. Native CI `38162560118` is still running.
+Commit `732a4a5` restores CHANGELOG byte-for-byte to the wave base.
+All existing assets tests pass on unprivileged Linux (2.458s).
 
 ## Current State
 
@@ -109,6 +111,8 @@ pre-wave contents. The correction remains documented in tracking/case study.
 - CLI passes the failed command (667.442s); the original production failure
   does not recur. All 570 samples show normal pressure/zero swap, and owned
   process reconciliation leaves zero processes.
+- Restored-changelog assets validation passes, including the three formerly
+  failing parity cases and their existing negative controls.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
@@ -116,8 +120,8 @@ pre-wave contents. The correction remains documented in tracking/case study.
 ## Next Steps
 
 1. Preserve the completed failing and passing reproduction evidence.
-2. Restore the exact pre-wave changelog and run the existing assets checks.
-   Await native CI `38162560118` without cancelling it with another push.
+2. Await native CI `38162560118` without cancelling it with another push.
+   The changelog restoration and assets checks are complete.
 3. Publish the corrected documentation checkpoint and retry the full Mac gate
    in a new isolated directory under the same one-task profile and wave base.
 4. Preserve evidence and tracking at each transition; close/push only after
@@ -125,8 +129,8 @@ pre-wave contents. The correction remains documented in tracking/case study.
 
 ## Blockers
 
-The introduced Unreleased heading fails the frozen changelog parity contract.
-Its correction and full native/mechanical confirmation block final acceptance.
+The introduced heading has been removed and assets pass. Prior native CI is
+still active; corrected full native/mechanical confirmation remains outstanding.
 Docker Desktop is running; all completed task containers were removed.
 The completed Linux reproductions and source files survived the request error.
 The first full local gate is stopped, with its evidence retained. Do not
