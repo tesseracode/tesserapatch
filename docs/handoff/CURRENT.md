@@ -17,9 +17,10 @@ full mechanical and native regression results remain pending.
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Direct review and affected Linux validation passed; final gates pending
+- **Status**: Direct review and affected Linux checks passed; full gate/native CI running
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
+- **Full-validation checkpoint**: `d49e8083613d1b218664eb8f3cd799cb9feac0b2`
 
 WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
 
@@ -57,6 +58,9 @@ It is committed at `25cbf747d73e282a4994dd22bf4d3e3cea882907`.
 Full gitutil/workflow packages, selected CLI consumers, vet and build also pass
 in an unprivileged Linux container. Direct review of the complete bounded diff
 finds no issues; no separate-agent review is claimed.
+The full Mac gate is now running at pushed `d49e808`; checks 1-6 pass.
+Exact-checkpoint native CI is `38162560118`. The gate process and telemetry
+were verified active after launch.
 
 ## Current State
 
@@ -95,6 +99,8 @@ private scoped-diff copy; explicit stat/copy-timestamp failure handling.
 - The unprivileged rerun passes gitutil/workflow (2.153s/28.148s), selected
   S5/apply/unapply consumers (2.456s), vet and CLI build. Full native CI and
   the complete mechanical gate remain outstanding.
+- Reused full-gate routing controls pass all nine non-Go cases. The actual
+  gate is running at `d49e808`, with checks 1-6 passed; no full pass is claimed.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
@@ -102,10 +108,10 @@ private scoped-diff copy; explicit stat/copy-timestamp failure handling.
 ## Next Steps
 
 1. Preserve the completed failing and passing reproduction evidence.
-2. Publish the fixed checkpoint for native CI after preserving its results.
-3. Run the full mechanical gate on the current 32 GiB Mac, not the approximately
-   4 GiB Docker VM, under the approved one-task profile. Use the explicit wave
-   base `c4923185ba6fe01b4558b138e41f30fab0015762`.
+2. Await native CI `38162560118` without cancelling it with another push.
+3. Await the running Mac gate, shell `reapply-final-gate-20261011`, using
+   `bin/reapply-linux-20261011/final-gate/evidence/`. It uses the approved
+   one-task profile and explicit `c492318` wave base. Do not start a duplicate.
 4. Preserve evidence and tracking at each transition; close/push only after
    actual validation. GH #13 and later profile adoption remain separate.
 
@@ -115,6 +121,8 @@ The original failure is corrected in focused/affected checks; full native
 and mechanical confirmation still block final acceptance and #13 readiness.
 Docker Desktop is running; all completed task containers were removed.
 The completed Linux reproductions and source files survived the request error.
+The full local gate is active; preserve it across session recovery if still
+running, or inspect its existing result before considering any restart.
 
 ## Context for Next Agent
 

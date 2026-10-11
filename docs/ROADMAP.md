@@ -1459,6 +1459,9 @@ index's original timestamp and passes formatting, 1000 repetitions of the new
 guards/original CLI test, full gitutil/workflow, selected CLI consumers, vet
 and build on Linux. Direct bounded review has no findings. Full mechanical
 and native CI results remain before acceptance.
+The full gate is now running at pushed `d49e808`, with checks 1-6 passed;
+exact-checkpoint native run `38162560118` is in progress. Preserve both runs
+and the saved dispatch state; do not restart them merely after a CLI error.
 The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation

@@ -1,3 +1,18 @@
+## Full Correction Gate Dispatched — saved resume point — 2026-10-11
+
+Published checkpoint `d49e8083613d1b218664eb8f3cd799cb9feac0b2` starts the
+complete monitored mechanical gate on this Mac with
+`WAVE_BASE=c4923185ba6fe01b4558b138e41f30fab0015762`. Checks 1-6 pass and
+the vet/build/test pipeline is running. The reused routing controls pass all
+nine non-Go cases. Native CI is
+[38162560118](https://github.com/tesseracode/tesserapatch/actions/runs/38162560118).
+
+**Resume point**: shell `reapply-final-gate-20261011`; private evidence
+`bin/reapply-linux-20261011/final-gate/evidence/`. Do not start duplicate
+validation or push a tracking-only change while exact-checkpoint CI is active.
+This dispatch record is committed locally so another CLI request failure cannot
+lose the task state. Full acceptance remains pending.
+
 ## Direct Review APPROVED — full regression pending — 2026-10-11
 
 Reviewed the bounded production diff and complete new regression directly.
