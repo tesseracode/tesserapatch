@@ -2,131 +2,118 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
 
-The Linux canonical-reapply failure is resolved and accepted. The unchanged
-original test and deterministic regressions pass 1000 repetitions; the complete
-local gate passes 8/8; exact-checkpoint native CI passes all five required jobs.
-No next task is dispatched. Permanent admission-policy adoption and GH #13
-remain separate assignments.
+GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
+baseline. S0 freezes existing reconciliation behavior and candidate expectation
+fixtures before any production edit. S1 and later slices are not dispatched.
 
 ## Active Task
 
-- **Task ID**: `fix-linux-canonical-reapply`
-- **Milestone**: Bounded correctness follow-up, before GH #13
-- **Description**: Preserve Git's same-stat content checks in private scoped-diff indices
-- **Status**: Complete — corrected, validated and accepted
+- **Task ID**: `implement-operation-replay-candidate-s0`
+- **Milestone**: GH #13 / ADR-037 and ADR-043
+- **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
+- **Status**: In progress — inventorying existing fixtures and golden helpers
 - **Assigned**: 2026-10-11
-- **Completed**: 2026-10-11
-- **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
-- **Regression checkpoint**: `0c38c15`
-- **Production correction**: `25cbf747d73e282a4994dd22bf4d3e3cea882907`
-- **Validated checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
-- **Archival acceptance checkpoint**: `d55183c5b2d2d5755a84f609dc33615796c4e806`
+- **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
+- **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
 
-WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
+WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
 
 ## Session Summary
 
-Native run `38118826831` exposed the original line-222 error in
-`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`:
-`reapply produced no source diff against the committed unapplied baseline`.
-The failure was reproduced on Linux without changing that test.
+The operator approved recording #13's admission policy and starting S0.
+Fresh verification finds HEAD equal to fetched origin/main at `bbb7a43`,
+no tracked/untracked changes, no stash and one main worktree. Latest native
+CI `38170635445` is SUCCESS at that exact closing commit.
+The completed reapply-correction handoff is archived unchanged in HISTORY.
 
-`DiffFromCommitForPaths` copied index bytes into a newly timestamped file.
-The newer timestamp could suppress Git's racy-entry content check, falsely
-reporting no difference for same-stat source edits. The correction reads
-metadata and bytes from the same open effective-index descriptor and preserves
-mtime on the private copy before invoking Git. Timestamp errors fail explicitly;
-the real index, literal scope and materialization checks remain intact.
-
-Both new normal-index and redirected-index guards fail before the correction.
-Afterward, they and the original unchanged CLI test pass 1000 repetitions.
-Full gitutil/workflow packages, selected CLI consumers, formatting, vet and
-build pass on Linux. Direct bounded review reports no findings; no independent
-subagent review is claimed.
-
-The final mechanical gate and native CI both pass at exact checkpoint
-`608714b`. Subsequent closing edits are tracking/report-only and do not change
-the validated implementation or protected contracts.
-The terminal accepted range is
-`c4923185ba6fe01b4558b138e41f30fab0015762..d55183c5b2d2d5755a84f609dc33615796c4e806`;
-this final tracking follow-through records those known endpoints for publication.
+Read the accepted rev-7 plan and its no-production-before-S0 boundary.
+Historical "implementation undispatched" wording in frozen planning documents
+is superseded by this dated live dispatch, not silently rewritten in the
+accepted contract. No production or public-contract change has been made.
 
 ## Current State
 
-The original correctness blocker is resolved. There is no broad testing
-optimization, new replay behavior, assertion weakening or recipe-authority
-change in this fix. GH #13 has not started.
+S0 must cover the following before review:
 
-An added Unreleased changelog heading was rejected by the existing versioned
-parity guard during the first full attempt. It was removed, not exempted:
-CHANGELOG is byte-for-byte identical to the wave base, and all assets validators
-are unchanged. The fix remains documented here and in the case-study report.
+1. Current phase outcomes and exact operation-level notes.
+2. Gate-off session JSON and evidence JSONL for phases 1, 1.5, 2 all-present,
+   3, 3.5 and 4, with complete byte-level golden checks.
+3. Existing confirmation-gate behavior: phase-1 confirmation, phase-3 rejection
+   and phase-2 rejection; keep future gate-on expectations explicitly distinct.
+4. ReconcileSummary serialization with no candidate.
+5. Existing accept/reject/shadow-diff output and reconcile flag-error bytes.
+6. Multi-slug and cumulative-legacy baseline behavior.
+7. Both adjacent-CLI-argument fixtures, with their required future candidate
+   success outputs preserving upstream deletions and the surviving old argument.
+8. Mutation-sensitive regressions and scope guards proving that protected
+   baseline changes fail, without shipping candidate runtime behavior.
+
+Reuse existing helpers and deterministic fixture conventions. Record any
+necessary normalization explicitly; do not erase semantic evidence fields,
+weaken assertions or claim future candidate execution already works.
+
+## Validation Policy — GH #13 Local Work
+
+The operator-approved pressure-based policy is now explicit for #13 validation
+on the current 32 GiB Mac. Carry it forward in #13 slice handoffs; it is not
+a claim that the older Mac is qualified and does not change the profiler's
+default CLI flags or the checked-in hosted-CI commands.
+
+- Before every Go validation command, require sixty continuous seconds of
+  normal OS pressure, no new swap-outs and load1 <=5.
+- External Go is permitted and observed, not a machine-wide veto. Our own
+  Go workload remains serial (`GOMAXPROCS=1`, package parallelism `-p=1`).
+- The memory percentage is diagnostic only. Historical occupied swap alone
+  is not a veto; no additional-swap tolerance is enabled.
+- Stop owned work on warning/critical pressure, new swap-outs, missing/invalid
+  telemetry or a sampling gap exceeding five seconds. Load is an admission
+  condition, not a runtime cap.
+- Use the existing 600-second per-command admission wait and stop on the
+  first validation/admission/resource failure. Preserve logs and exact cause.
+- Preserve canonical test selectors/order and timeouts. Use focused checks
+  first, affected packages next, then required full validation and wave closure.
+- Isolate source, output and caches for broad runs; reconcile owned process
+  identities afterward. Never terminate another session to manufacture admission.
 
 ## Files Changed
 
-- `internal/gitutil/gitutil.go`: preserve the effective index's mtime in the
-  private scoped-diff copy, with metadata/bytes read from the same descriptor.
-- `internal/gitutil/diff_index_test.go`: deterministic same-stat regressions
-  for normal and redirected indices, including real-index preservation.
-- Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
-- Evidence report:
-  `docs/state-of-the-art/case-studies/validation-resources-2026-10/linux-reapply-index-timestamp.json`.
-
-CHANGELOG, original CLI tests, assets, SPEC, CI/shard definitions and dependencies
-have no net changes in this wave.
+Dispatch tracking only: CURRENT, HISTORY, ROADMAP and the supervisor log.
+S0 implementation is limited to test helpers, test fixtures/goldens and tracking.
+Production Go, SPEC, assets, accepted ADR/PRD semantics, dependencies, CI/shards
+and CHANGELOG remain untouched.
 
 ## Test Results
 
-- Original unmodified CLI failure and both deterministic guards reproduce
-  on unfixed Linux source; no compile/format failure is credited as reproduction.
-- Corrected guards and original CLI test: 1000 repetitions pass.
-- Affected gitutil/workflow packages, S5/apply/unapply consumers, formatting,
-  vet and CLI build pass; restored-changelog assets tests pass.
-- Full gate at `608714b`: **8/8**, no warnings; exact parity and success for
-  all **25 top-level commands / 22 test commands**.
-- All 25 safety windows replay successfully. Across 1931 samples, pressure is
-  normal and swapping remains zero; the run takes 3842.77s. All 375 sampled
-  owned identities are reconciled, with none left and no extra termination.
-- Exact-checkpoint [native CI 38164854684](https://github.com/tesseracode/tesserapatch/actions/runs/38164854684):
-  **SUCCESS**, all five required jobs pass, release skipped. The pre-existing
-  allowed-failure Windows full-suite step remains separately owned by GH #17.
-
-The initial misplaced test declaration, root-container permission failures
-and first full attempt's changelog parity failures remain preserved as failed
-attempts. They do not count toward final passing coverage.
+- Prior latest-tip native CI `38170635445`: SUCCESS at `bbb7a43`.
+- Prior correction: full 8/8 gate and native CI at `608714b`, with all
+  25 top-level commands / 22 test commands passed.
+- No new S0 Go validation or fixture-generation result is claimed yet.
 
 ## Next Steps
 
-No implementation task is dispatched. The operator may separately adopt a
-validation admission policy, then assign GH #13 S0's frozen regression baseline
-under the accepted ADR-037/ADR-043/PRD rev-7 contract. Do not start production
-replay changes before S0 or silently make this task's profile the default.
+1. Inventory current tests, normalization helpers and exact PRD S0 obligations.
+2. Build frozen runtime/CLI baselines and both motivating fixture variants.
+3. Prove regression sensitivity and no production replay surface was added.
+4. Validate, review and close S0 with the explicit wave base; do not start S1
+   until S0 is accepted and a subsequent slice is assigned.
 
 ## Blockers
 
-None for this correction. No local validation workload remains running.
+None at dispatch. Any unresolved fixture/contract ambiguity must be recorded
+before implementation choices are made.
 
 ## Context for Next Agent
 
-The operator approved a pressure-based exception only for this fix: sixty
-continuous seconds of normal host pressure, no new swap-outs and load1 <=5
-before each Go command, external Go allowed, own work serial, with runtime
-pressure/swap/telemetry stops. Permanent defaults remain unchanged.
+The feature's config gate, proof carrier, locks, candidate schemas, alignment,
+publication and acceptance logic belong to later slices, not S0. Keep default
+runtime behavior unchanged. Phase-2 legacy all-present is not confirmed today;
+confidence labels and stored metadata cannot substitute for future typed proof.
+Candidate persistence must eventually wait for real phase-4 conflict, but S0
+only pins the required expectations and current baseline.
 
-Docker Desktop was started with approval; task containers are removed.
-Container verification uses an unprivileged identity for permission fixtures.
-Host Docker-client RSS is not guest Go memory. The memory-heavy final partition
-ran on the 32 GiB Mac, not Docker's approximately 4 GiB VM.
-
-Preserve raw evidence under `bin/reapply-linux-20261011/`, including both
-`final-gate/evidence/` (failed) and `final-gate-retry/evidence/` (passed).
-Preserve prior maintenance/older-host evidence and check existing results
-before restarting any work after a CLI error.
-
-The assets parity guard rejects an Unreleased heading beside the selected
-versioned contract. Keep unshipped maintenance notes in tracking until an
-authorized release transition. No release/tag was created: v0.17.0 remains
-at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated tag object
-`e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+Preserve prior raw evidence and fixes, including Git index mtime preservation.
+No release/tag is authorized. The assets parity guard rejects an Unreleased
+heading beside its selected versioned changelog contract; do not add one.
+Stage explicit file paths and retain the required Copilot co-author trailer.

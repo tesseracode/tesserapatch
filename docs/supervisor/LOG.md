@@ -1,3 +1,30 @@
+## GH #13 S0 Dispatched — frozen baseline and explicit admission — 2026-10-11
+
+The operator approves recording #13's validation policy and beginning S0.
+Fresh baseline verification: HEAD = fetched origin/main =
+`bbb7a4310b2ebea095890a284997fbbb42535bc7`, clean worktree, no stash, one main
+worktree; native CI `38170635445` SUCCESS at that exact commit.
+Record it as WAVE_BASE before implementation. Archive the previous accepted
+handoff and leave its code/evidence/tag unchanged.
+
+**Scope**: accepted PRD rev-7 §8 S0 only — current reconcile phase and artifact
+goldens, confirmation behavior, no-candidate summary serialization, existing
+CLI outputs/errors, multi-slug/cumulative-legacy baselines and both adjacent-
+argument candidate expectations. New guards require genuine failing controls.
+No production candidate gate/proof/schema/lock/alignment/publication behavior,
+public SPEC/assets change or S1 work is dispatched.
+
+**Admission adopted for #13 local validation**: sixty continuous seconds of
+normal OS pressure, no new swap-outs and load1 <=5 on this 32 GiB Mac;
+external Go observed rather than vetoed, own Go commands serial. Percentage
+is diagnostic; historical swap alone is not a veto, but no new-swap tolerance
+is enabled. Retain runtime pressure/swap/telemetry-gap stops and the existing
+600-second admission wait. Preserve canonical test commands/timeouts and
+owned-only cleanup. Profiler CLI defaults and native-CI commands are unchanged.
+
+**Action**: inventory and implement the frozen test-only baseline, validate and
+review it, then close/push S0 before any later slice is considered.
+
 ## Terminal Closing Record — Linux reapply correction — 2026-10-11
 
 Archival acceptance is committed at

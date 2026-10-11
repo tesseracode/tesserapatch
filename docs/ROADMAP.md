@@ -1443,6 +1443,22 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S0 frozen baseline dispatched — 2026-10-11
+
+**WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`.
+The operator authorizes S0 against accepted ADR-037/ADR-043/PRD rev-7.
+Latest closing-tip native CI `38170635445` is green and the baseline is clean.
+Freeze current phase/session/evidence/confirmation/summary/CLI/legacy behavior,
+plus both adjacent-argument candidate expectations, with mutation-sensitive
+guards. No production edit, candidate runtime surface or S1 dispatch precedes
+S0 acceptance.
+
+#13's local validation policy is explicitly recorded in CURRENT: sixty seconds
+of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
+serial, runtime pressure/swap/telemetry stops. No percentage cutoff or global
+Go veto; no extra-swap allowance. The policy applies to the current 32 GiB Mac,
+not an unproven older-host workload or a change to hosted-CI commands.
+
 ### Before GH #13 — ✅ Linux canonical-reapply correction ACCEPTED — 2026-10-11
 
 **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
