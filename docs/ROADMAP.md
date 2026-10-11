@@ -1451,6 +1451,10 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 required native CI jobs pass at the exact checkpoint. The complete calibration
 handoff and terminal acceptance are archived in HISTORY. Closing changes are
 tracking/report-only, with no reviewed-source or protected-contract drift.
+**Terminal accepted range**:
+`d3454edb72c37bacae9159481cc2e6cd69559459..4910022784c11944528f50238df60c8b2d9cba09`.
+This final tracking follow-through records the archival acceptance checkpoint
+and completes the closing publication; no next implementation task is dispatched.
 
 The real capture fixture is deterministic, and four-fixture analyzer memo scopes
 reduce measured rev-19/rev-20 RSS by 83-84% while increasing recomputation

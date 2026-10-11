@@ -20,6 +20,7 @@ archived in [HISTORY](HISTORY.md). No next implementation task is dispatched.
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Reviewed endpoint**: `501175b290fd8a3bcf2883e8a14988ab31dac10a`
 - **Validated checkpoint**: `12617b1e4aad992b5a684653caa8501bec6beb95`
+- **Archival acceptance checkpoint**: `4910022784c11944528f50238df60c8b2d9cba09`
 
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
@@ -32,6 +33,9 @@ APPROVED with no findings; explicitly selected and runtime-confirmed model:
 `d3454edb72c37bacae9159481cc2e6cd69559459..12617b1e4aad992b5a684653caa8501bec6beb95`.
 Subsequent closing changes contain only tracking and the final measurement
 report, with no reviewed-source or protected-contract drift.
+The terminal accepted maintenance range is
+`d3454edb72c37bacae9159481cc2e6cd69559459..4910022784c11944528f50238df60c8b2d9cba09`;
+this final tracking follow-through records that known range for publication.
 
 The complete local gate runs for 3960.94 seconds with all 25 expected top-level
 commands passing, including all 22 unchanged test commands. All 1987 samples

@@ -11152,3 +11152,13 @@ Do not churn the pinned ADR index, ADR-041 normative sections or accepted #13
 contracts for transient tracking. No feature release was created: v0.17.0
 remains at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated tag object
 `e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+
+### Terminal closing range — 2026-10-11
+
+Archival acceptance checkpoint:
+`4910022784c11944528f50238df60c8b2d9cba09`.
+Terminal accepted maintenance range:
+`d3454edb72c37bacae9159481cc2e6cd69559459..4910022784c11944528f50238df60c8b2d9cba09`.
+The final tracking follow-through records these known endpoints for publication;
+it does not alter the reviewed implementation or the exact `12617b1` gate/CI
+evidence. No feature release, permanent policy default or GH #13 dispatch.

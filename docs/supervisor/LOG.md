@@ -1,3 +1,17 @@
+## Terminal Closing Record — maintenance wave — 2026-10-11
+
+Archival acceptance is committed at
+`4910022784c11944528f50238df60c8b2d9cba09`; the terminal accepted maintenance
+range is `d3454edb72c37bacae9159481cc2e6cd69559459..4910022784c11944528f50238df60c8b2d9cba09`.
+This follow-through only records the known closing range in live tracking.
+The full gate and native CI remain pinned to exact checkpoint `12617b1`,
+with no later source/contract drift. Both complete handoff snapshots and the
+hashed final resource report are committed; all raw evidence is preserved.
+
+**Action**: push the dispatch, acceptance and this terminal tracking record
+together, then verify HEAD against origin/main, trailers, clean source state
+and unchanged v0.17.0 tag. No new task, policy default or release is dispatched.
+
 ## Maintenance ACCEPTED — review, full gate and native CI complete — 2026-10-11
 
 Accept the maintenance wave based on independent APPROVED review with no
