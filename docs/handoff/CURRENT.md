@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 The research-intake/GH #13 planning wave is durably closed at
 `d3454edb72c37bacae9159481cc2e6cd69559459`; its acceptance is preserved in
@@ -17,7 +17,7 @@ threshold change or GH #13 implementation is authorized.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation infrastructure investigation, before GH #13
 - **Description**: Reduce analyzer memo lifetime in independent rev-19/rev-20 fixtures
-- **Status**: Correctness and profiles PASS — measured RAM/runtime tradeoff; CI/review pending
+- **Status**: Frozen for independent review and final approved-profile wave closure
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Frozen source baseline**: `d3454edb72c37bacae9159481cc2e6cd69559459`
@@ -25,6 +25,15 @@ threshold change or GH #13 implementation is authorized.
 WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
 
 ## Session Summary
+
+The operator approved freezing scope and completing independent review, final
+verification, archive/tracking and push before #13. Review source is frozen at
+`501175b`, with wave base `d3454ed`. Latest source-equivalent CI `38084490647`
+is green. No additional optimization or older-Mac trial is included.
+Final verification uses the approved pressure-based profile on this Mac:
+normal pressure/no new swap-outs/load<=5 for a minute, external Go permitted,
+our own validation serialized. This is final-run approval, not a permanent
+default change. Review and gate results are not yet claimed.
 
 The matched four-fixture profiles pass all eighty original test paths.
 Sampled RSS is reduced from 8.07/7.29 GiB to 1.35/1.16 GiB, with post-GC

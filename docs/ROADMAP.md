@@ -1689,6 +1689,10 @@ test paths. Post-GC live heap falls to about 10 MiB, but observed runtime is
 2.4-2.5x and allocation volume 2.8-2.9x baseline. Record
 `cache-scope-profile-comparison.json`; this is a RAM/recomputation tradeoff,
 not a speed claim. Full regression CI/review remain before broader acceptance.
+**Closure authorized**: freeze the maintenance range at `501175b`, obtain
+independent OpenAI-model review, then run the final wave gate under the validated
+pressure profile and archive/push tracking. Source-equivalent CI `38084490647`
+is green. No further old-Mac tuning, release/tag or #13 implementation is included.
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

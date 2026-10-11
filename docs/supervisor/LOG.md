@@ -1,3 +1,26 @@
+## Maintenance Closure Authorized — frozen review scope — 2026-10-10
+
+The operator accepts the plan to freeze this maintenance work, obtain an
+independent review, use the validated pressure-based profile for final
+verification, archive tracking and push the closing record before #13.
+Review the frozen range
+`d3454edb72c37bacae9159481cc2e6cd69559459..501175b290fd8a3bcf2883e8a14988ab31dac10a`.
+Explicitly select an OpenAI reviewer and verify runtime model metadata.
+
+The code scope is the deterministic capture fixture plus inert CLI hook,
+recovery-guard integration, test-only four-fixture memo lifetime and optional
+profiling controls. Preserve all assertions, original shard order/timeouts,
+serial fixture ownership, immutable baseline/import data, raw private evidence
+and the documented recomputation tradeoff. No more optional memory tuning,
+old-Mac experiments, permanent policy defaults, release tag or #13 implementation.
+
+Latest source-equivalent native CI `38084490647` at `a4baf17` is SUCCESS.
+The final gate will use a clean isolated checkout and the explicitly approved
+current-Mac normal-pressure/no-new-swap/load<=5 minute with external Go allowed,
+own Go work serialized. Scope the gate with
+`WAVE_BASE=d3454edb72c37bacae9159481cc2e6cd69559459`.
+Do not call the maintenance wave accepted until review and final closure pass.
+
 ## Batched Cache Profiles PASS — large RAM reduction with recomputation cost — 2026-10-10
 
 Matched separate profiles at `d26466e` pass all eighty original test paths and
