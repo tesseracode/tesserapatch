@@ -1,3 +1,20 @@
+## Final Monitored Gate Dispatched — maintenance closure — 2026-10-10
+
+Published checkpoint `12617b1e4aad992b5a684653caa8501bec6beb95` contains the
+approved review and complete calibration archive. Its isolated full-history
+clone starts the unchanged mechanical gate with `WAVE_BASE=d3454ed`.
+Checks 1-6 pass, including all 42 commit trailers and empty formatter stdout;
+the serialized vet/build/test pipeline is underway. Real admission/runtime
+telemetry is being recorded under the approved pressure-based profile.
+
+Exact-checkpoint native CI is
+[38114748869](https://github.com/tesseracode/tesserapatch/actions/runs/38114748869).
+Do not push another checkpoint while that run is active. Preserve the local
+dispatch record, await actual local/hosted outcomes, reconcile owned processes,
+then publish the terminal result. No final pass or acceptance is claimed yet.
+Private controller/output: `bin/maintenance-close-20261010/`;
+shell session: `maintenance-final-gate-20261010`.
+
 ## Maintenance Review Accepted — final gate preparation — 2026-10-10
 
 Accept the independent APPROVED verdict for `d3454ed..501175b`. Rotate CURRENT

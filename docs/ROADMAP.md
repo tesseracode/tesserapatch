@@ -1457,8 +1457,10 @@ reduce measured rev-19/rev-20 RSS by 83-84% while increasing recomputation
 coverage, CI shard partition/timeouts and immutable baseline/import data remain.
 Native CI `38084490647` is green at source-equivalent `a4baf17`.
 Final gate uses the approved current-Mac normal-pressure/no-new-swap/load<=5
-minute with external Go allowed and own work serial. Final gate, exact-checkpoint
-CI and terminal closing push are still pending; no full old-Mac pass is claimed.
+minute with external Go allowed and own work serial. The gate is now running
+at pushed `12617b1`, with checks 1-6 passed; exact-checkpoint native CI is
+`38114748869`. Final gate/CI results and terminal closing push remain pending;
+no full old-Mac pass is claimed.
 
 <details>
 <summary>Historical calibration record — superseded by the live closure above</summary>

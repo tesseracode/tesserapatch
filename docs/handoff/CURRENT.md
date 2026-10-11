@@ -5,8 +5,9 @@
 **Cluster state**: APPROVED
 
 Independent review approves the frozen maintenance implementation with no
-findings. Final mechanical verification and the durable closing record are
-pending; APPROVED describes the review, not a completed final gate.
+findings. Final mechanical verification is running at pushed `12617b1`; the durable
+closing result remains pending. APPROVED describes the review, not a completed
+final gate.
 The previous calibration handoff is archived verbatim in [HISTORY](HISTORY.md)
 under **2026-10-10 — Validation maintenance and resource calibration**.
 GH #13 implementation remains unstarted.
@@ -16,7 +17,7 @@ GH #13 implementation remains unstarted.
 - **Task ID**: `calibrate-test-resource-admission`
 - **Milestone**: Validation maintenance, before GH #13
 - **Description**: Close the reviewed fixture, analyzer-memory and profiling work
-- **Status**: Review approved; final monitored gate pending
+- **Status**: Review approved; final monitored gate and exact-checkpoint CI running
 - **Assigned**: 2026-10-08
 - **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
 - **Reviewed endpoint**: `501175b290fd8a3bcf2883e8a14988ab31dac10a`
@@ -30,6 +31,12 @@ archival and closing push. Read-only reviewer `maintenance-openai-review`
 (`17c28f96-b00b-45f8-a7fa-c32a60dfed68`) returned APPROVED with no findings;
 the explicitly selected model and runtime metadata both identify `gpt-5.4`.
 The verdict is recorded in the supervisor log.
+
+Published checkpoint `12617b1e4aad992b5a684653caa8501bec6beb95` is running
+the complete mechanical gate in an isolated full-history clone. Checks 1-6
+pass; the serialized vet/build/test pipeline is underway with real telemetry.
+Exact-checkpoint native CI is `38114748869`. Preserve this dispatch record
+locally but do not cancel that CI with another push before its completion.
 
 The accumulated handoff was archived byte-for-byte, with SHA-256
 `f47efb6ccbe5f0283b7d0e840db54466d6690746235909ce8f242aba983fe9e3`.
@@ -89,14 +96,18 @@ Operational final-gate helpers/caches/output are private under ignored
 - Native CI [38084490647](https://github.com/tesseracode/tesserapatch/actions/runs/38084490647)
   passed all five required jobs at source-equivalent `a4baf17`; release skipped.
 - Nine private routing controls pass without invoking real Go.
-- Final `make wave-close-check` and exact-closing-checkpoint CI are pending.
+- Final `make wave-close-check` is running at `12617b1`, with checks 1-6 passed;
+  exact-checkpoint native CI `38114748869` is running.
   No earlier partial/partition-only run substitutes for this final gate.
 
 ## Next Steps
 
-1. Push the reviewed tracking checkpoint and freeze its exact SHA in a clean
-   isolated checkout with full history/tags and the actual GitHub origin.
-2. Run `make wave-close-check WAVE_BASE=d3454edb72c37bacae9159481cc2e6cd69559459`
+1. Await the running gate at `12617b1` in
+   `bin/maintenance-close-20261010/repo`. Its exact command is
+   `make wave-close-check WAVE_BASE=d3454edb72c37bacae9159481cc2e6cd69559459`.
+   Shell session: `maintenance-final-gate-20261010`; private evidence:
+   `bin/maintenance-close-20261010/evidence/`. Do not start a duplicate run.
+2. Preserve the running gate's policy:
    with fresh admission before each top-level formatter/vet/build/test command.
    The operator-approved current-Mac profile requires sixty continuous seconds
    of normal OS pressure, no new swap-outs and load1 <=5; external Go is observed
@@ -112,8 +123,8 @@ Operational final-gate helpers/caches/output are private under ignored
 
 ## Blockers
 
-None from independent review. Final resource admission and complete final gate
-remain unverified. If either blocks, record the exact outcome before stopping;
+None from independent review. Complete final gate/CI results remain unverified.
+If either blocks, record the exact outcome before stopping;
 do not weaken safeguards or claim acceptance.
 
 ## Context for Next Agent
