@@ -1,3 +1,28 @@
+## Linux Reapply Correction ACCEPTED — all required validation complete — 2026-10-11
+
+Exact-checkpoint native CI `38164854684` at
+`608714bc13d87178b5141306b5c9f7bcc5e41c1e` completes SUCCESS with all five
+required jobs passed and release skipped. This matches the full local 8/8
+gate, including every original test command. The historical allowed-failure
+Windows full-suite step remains owned by GH #17; no broader Windows claim is
+made.
+
+Accept the timestamp-preserving scoped-diff correction: the original Linux
+failure and both deterministic guards fail before it, then the unchanged CLI
+test and new guards pass 1000 repetitions after it. Affected packages/consumers,
+vet/build and the complete local/native gates pass. The bounded diff received
+direct review with no findings; no separate-agent review is claimed.
+
+CHANGELOG is byte-identical to the wave base, and all validators, canonical
+partition/timeouts, protected contracts and the v0.17.0 tag remain unchanged.
+Retain the syntax, root-permission and changelog failed attempts explicitly;
+none is substituted for final success. All task containers and sampled owned
+validation processes are gone; private evidence remains preserved.
+
+**Action**: archive terminal acceptance, mark CURRENT/ROADMAP complete and push
+the closing tracking-only record. No release, permanent profile adoption or
+GH #13 implementation is dispatched.
+
 ## Corrected Mechanical Gate PASS — native macOS completion pending — 2026-10-11
 
 At pushed `608714bc13d87178b5141306b5c9f7bcc5e41c1e`, the complete gate

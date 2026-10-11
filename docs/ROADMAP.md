@@ -1443,9 +1443,26 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Before GH #13 — 🚧 Linux reapply fix; corrected full retry pending — 2026-10-11
+### Before GH #13 — ✅ Linux canonical-reapply correction ACCEPTED — 2026-10-11
 
 **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
+**Validated range**: `c492318..608714b`; production correction `25cbf74`.
+The full local gate passes 8/8 with all 22 test commands, and exact-checkpoint
+native CI `38164854684` passes all five required jobs. The original failure
+and deterministic guards reproduce before the fix and pass 1000 repetitions
+afterward. Direct bounded review has no findings; no separate-agent review
+is claimed. Closing edits are tracking/report-only.
+
+The private diff copy now preserves the effective index timestamp, retaining
+Git's same-stat content checks without touching the real index or weakening
+canonical materialization. CHANGELOG and all validators/partition/timeouts
+remain unchanged. Evidence and failed attempts are retained in the
+`linux-reapply-index-timestamp.json` case study and HISTORY. No permanent
+admission-policy adoption, #13 dispatch or release/tag.
+
+<details>
+<summary>Historical reproduction and retry record — superseded by acceptance above</summary>
+
 The operator authorizes a bounded reproduction and correction of
 `TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`, which fails the
 Ubuntu job in native run `38118826831` with no source diff against the
@@ -1476,6 +1493,8 @@ The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation
 is included in this task.
+
+</details>
 
 ### Before GH #13 — ✅ maintenance ACCEPTED — 2026-10-11
 

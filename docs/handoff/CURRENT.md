@@ -2,168 +2,127 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-The operator authorizes reproducing and resolving the post-close Ubuntu
-reapply failure before GH #13. Previous maintenance acceptance at `12617b1`
-is preserved in HISTORY; the later `c492318` run is a separate failing result.
-No permanent admission-policy adoption or GH #13 implementation is authorized.
-The operator subsequently approved a pressure-based exception for this fix only.
-The bounded correction passes direct review and focused/affected Linux checks;
-the first full gate exposed an introduced changelog parity error, now corrected
-with all assets tests passing and no changes to the existing validators.
+The Linux canonical-reapply failure is resolved and accepted. The unchanged
+original test and deterministic regressions pass 1000 repetitions; the complete
+local gate passes 8/8; exact-checkpoint native CI passes all five required jobs.
+No next task is dispatched. Permanent admission-policy adoption and GH #13
+remain separate assignments.
 
 ## Active Task
 
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
-- **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Corrected full gate passed; final native macOS job pending
+- **Description**: Preserve Git's same-stat content checks in private scoped-diff indices
+- **Status**: Complete — corrected, validated and accepted
 - **Assigned**: 2026-10-11
+- **Completed**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
-- **Full-validation checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
+- **Regression checkpoint**: `0c38c15`
+- **Production correction**: `25cbf747d73e282a4994dd22bf4d3e3cea882907`
+- **Validated checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
 
 WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
 
 ## Session Summary
 
-The fresh baseline is clean on main, HEAD equals fetched origin/main at
-`c492318`, with no stash and one worktree. Native CI
-[38118826831](https://github.com/tesseracode/tesserapatch/actions/runs/38118826831)
-fails `test (ubuntu-latest)` in
-`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`.
-At `recipe_authority_s5_cli_test.go:222`, canonical reapply returns:
+Native run `38118826831` exposed the original line-222 error in
+`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`:
 `reapply produced no source diff against the committed unapplied baseline`.
-The other four required jobs pass. No production/test source changed between
-the fully passing `12617b1` and failing `c492318`.
+The failure was reproduced on Linux without changing that test.
 
-The failure reaches canonical reapply's materialization check, not a reported
-OOM or admission timeout. Linux reproduction now establishes the index-copy
-timestamp mechanism; do not suppress the materialization assertion.
+`DiffFromCommitForPaths` copied index bytes into a newly timestamped file.
+The newer timestamp could suppress Git's racy-entry content check, falsely
+reporting no difference for same-stat source edits. The correction reads
+metadata and bytes from the same open effective-index descriptor and preserves
+mtime on the private copy before invoking Git. Timestamp errors fail explicitly;
+the real index, literal scope and materialization checks remain intact.
 
-A Git-only reproducer now confirms that copying an index with a newer
-timestamp can suppress Git's racy-entry content check and hide a same-stat
-source change. Preserving the original timestamp restores the exact diff
-without changing the real index. Both deterministic Go guards fail on Linux,
-and the original unmodified CLI test reproduces the same line-222 error in
-a capped 1000-repeat fail-fast run (17.270s package time before failure).
-The private reproducer is `bin/reapply-linux-20261011/reproduce-index-copy.py`.
-Deterministic Go regressions cover normal and redirected effective indices.
-They and the Linux failure record are committed at `0c38c15`.
-The production correction now reads metadata/bytes from the same open index
-descriptor and preserves its modification time on the temporary copy.
-No materialization, path-scope or real-index-isolation check is bypassed.
-The corrected source now passes formatting and 1000 repetitions of both the
-new deterministic index guards and original unchanged S5 CLI test.
-It is committed at `25cbf747d73e282a4994dd22bf4d3e3cea882907`.
-Full gitutil/workflow packages, selected CLI consumers, vet and build also pass
-in an unprivileged Linux container. Direct review of the complete bounded diff
-finds no issues; no separate-agent review is claimed.
-The full Mac gate at `d49e808` is complete with failure: checks 1-7 pass, but
-the first test command fails assets parity because the added Unreleased
-heading is forbidden beside the selected v0.17.0 contract. CLI, gitutil and
-workflow pass that command; later shards do not run. Remove the introduced
-heading, not the guard. Native CI `38162560118` is now complete: all three
-platform test jobs fail only the same changelog parity cases, both observer
-jobs pass, and release is skipped.
-Commit `732a4a5` restores CHANGELOG byte-for-byte to the wave base.
-All existing assets tests pass on unprivileged Linux (2.458s).
-The corrected full retry passes 8/8 at pushed `608714b`, with fresh source/
-caches, unchanged safeguards and exact parity for all 25 top-level commands/
-22 test commands. All 1931 samples have normal pressure and zero swap;
-the 3842.77s run leaves no sampled owned processes. All safety windows replay
-successfully. Native `38164854684` has four required jobs passed; its final
-macOS test job is still running.
+Both new normal-index and redirected-index guards fail before the correction.
+Afterward, they and the original unchanged CLI test pass 1000 repetitions.
+Full gitutil/workflow packages, selected CLI consumers, formatting, vet and
+build pass on Linux. Direct bounded review reports no findings; no independent
+subagent review is claimed.
+
+The final mechanical gate and native CI both pass at exact checkpoint
+`608714b`. Subsequent closing edits are tracking/report-only and do not change
+the validated implementation or protected contracts.
 
 ## Current State
 
-Trace the fixture and the real execute/reapply path, then reproduce its exact
-Git/source state on Linux. Preserve the single captured-recipe-read assertion,
-canonical reapply's bypass of recipe-only classification, source-diff/preimage
-checks and immutable recipe authority. No unrelated testing optimization.
+The original correctness blocker is resolved. There is no broad testing
+optimization, new replay behavior, assertion weakening or recipe-authority
+change in this fix. GH #13 has not started.
+
+An added Unreleased changelog heading was rejected by the existing versioned
+parity guard during the first full attempt. It was removed, not exempted:
+CHANGELOG is byte-for-byte identical to the wave base, and all assets validators
+are unchanged. The fix remains documented here and in the case-study report.
 
 ## Files Changed
 
-Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
-`internal/gitutil/diff_index_test.go`: deterministic copied-index regression cases.
-`internal/gitutil/gitutil.go`: preserve the effective index timestamp in the
-private scoped-diff copy; explicit stat/copy-timestamp failure handling.
-`CHANGELOG.md`: remove the introduced Unreleased block, restoring its exact
-pre-wave contents. The correction remains documented in tracking/case study.
+- `internal/gitutil/gitutil.go`: preserve the effective index's mtime in the
+  private scoped-diff copy, with metadata/bytes read from the same descriptor.
+- `internal/gitutil/diff_index_test.go`: deterministic same-stat regressions
+  for normal and redirected indices, including real-index preservation.
+- Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
+- Evidence report:
+  `docs/state-of-the-art/case-studies/validation-resources-2026-10/linux-reapply-index-timestamp.json`.
+
+CHANGELOG, original CLI tests, assets, SPEC, CI/shard definitions and dependencies
+have no net changes in this wave.
 
 ## Test Results
 
-- Existing failure: native Ubuntu run `38118826831` at `c492318`.
-- Existing passing comparison: complete local gate and native CI `38114748869`
-  at source-equivalent `12617b1`.
-- Git-only same-stat/index-copy reproducer passes its expected empty-versus-real
-  diff controls on the current Mac; real index remains unchanged.
-- Linux/arm64, Go 1.26.5: both new index regression cases fail exactly as
-  expected against unchanged production code.
-- The original CLI test reproduces the exact Ubuntu failure during a bounded
-  repeated run; execution stops at the first failure.
-- Corrected source passes 1000 repetitions of the new two-case index regression
-  and the original CLI test (23.993s / 32.347s package time; 69.83s command).
-- Corrected-source formatting passes. Affected/full checks and native CI remain.
-- The first affected-package Docker run passes gitutil but fails two existing
-  workflow permission fixtures because the image defaults to root. A non-Go
-  permission probe confirms root bypasses the refused-write/read condition.
-  Run the task container unprivileged, with a separate task-owned cache;
-  do not weaken the fixtures or change application code for this harness issue.
-- The unprivileged rerun passes gitutil/workflow (2.153s/28.148s), selected
-  S5/apply/unapply consumers (2.456s), vet and CLI build. Full native CI and
-  the complete mechanical gate remain outstanding.
-- Reused routing controls pass all nine non-Go cases. The `d49e808` gate
-  passes checks 1-7 then stops at the first test command's assets parity
-  failures. This is 0/22 passing test commands, not a complete partition.
-- CLI passes the failed command (667.442s); the original production failure
-  does not recur. All 570 samples show normal pressure/zero swap, and owned
-  process reconciliation leaves zero processes.
-- Restored-changelog assets validation passes, including the three formerly
-  failing parity cases and their existing negative controls.
-- Native `38162560118` is complete with the same changelog-only failures;
-  its failure logs contain no recurrence of the original reapply error.
-- Corrected full retry at `608714b` passes 8/8 with 25 top-level commands/
-  22 test commands and all nine routing controls. Native `38164854684` has
-  Ubuntu, Windows and both observer jobs passed, with macOS tests still active.
-- The initial formatting check stopped on a misplaced new test declaration.
-  Its placement is corrected in a focused test file; no Go test/compile ran
-  in that failed attempt. The private log is retained.
+- Original unmodified CLI failure and both deterministic guards reproduce
+  on unfixed Linux source; no compile/format failure is credited as reproduction.
+- Corrected guards and original CLI test: 1000 repetitions pass.
+- Affected gitutil/workflow packages, S5/apply/unapply consumers, formatting,
+  vet and CLI build pass; restored-changelog assets tests pass.
+- Full gate at `608714b`: **8/8**, no warnings; exact parity and success for
+  all **25 top-level commands / 22 test commands**.
+- All 25 safety windows replay successfully. Across 1931 samples, pressure is
+  normal and swapping remains zero; the run takes 3842.77s. All 375 sampled
+  owned identities are reconciled, with none left and no extra termination.
+- Exact-checkpoint [native CI 38164854684](https://github.com/tesseracode/tesserapatch/actions/runs/38164854684):
+  **SUCCESS**, all five required jobs pass, release skipped. The pre-existing
+  allowed-failure Windows full-suite step remains separately owned by GH #17.
+
+The initial misplaced test declaration, root-container permission failures
+and first full attempt's changelog parity failures remain preserved as failed
+attempts. They do not count toward final passing coverage.
 
 ## Next Steps
 
-1. Preserve the completed failing and passing reproduction evidence.
-2. Await native CI `38164854684` without cancelling it with another push.
-3. Preserve the completed gate evidence at
-   `bin/reapply-linux-20261011/final-gate-retry/evidence/`. Its shell is
-   complete with success; do not start a duplicate or overwrite earlier runs.
-4. Preserve evidence and tracking at each transition; close/push only after
-   actual validation. GH #13 and later profile adoption remain separate.
+No implementation task is dispatched. The operator may separately adopt a
+validation admission policy, then assign GH #13 S0's frozen regression baseline
+under the accepted ADR-037/ADR-043/PRD rev-7 contract. Do not start production
+replay changes before S0 or silently make this task's profile the default.
 
 ## Blockers
 
-The introduced heading has been removed and assets pass. Prior native CI is
-complete; corrected mechanical confirmation passes and the final native macOS
-job is still running.
-Docker Desktop is running; all completed task containers were removed.
-The completed Linux reproductions and source files survived the request error.
-The first full local gate is stopped, with its evidence retained. Do not
-overwrite that evidence or mistake partial package passes for a gate pass.
+None for this correction. No local validation workload remains running.
 
 ## Context for Next Agent
 
-The operator approved a new exception specifically for this fix: a continuous
-sixty-second normal-pressure/no-new-swap/load1<=5 window, with external Go
-allowed and own work serial. Runtime pressure, swap and telemetry stops remain.
-Default admission and permanent adoption are unchanged. Do not reuse the
-exception for another task. Docker execution is restricted to this task's
-container/checkout; do not modify other containers or the original worktree
-from inside it.
+The operator approved a pressure-based exception only for this fix: sixty
+continuous seconds of normal host pressure, no new swap-outs and load1 <=5
+before each Go command, external Go allowed, own work serial, with runtime
+pressure/swap/telemetry stops. Permanent defaults remain unchanged.
 
-Preserve all previous evidence in `bin/resource-baseline/` and
-`bin/maintenance-close-20261010/`, the older host's original checkout/research,
-the accepted #13 contracts and the existing v0.17.0 tag.
-Only explicit-path staging and required Copilot co-author trailers are allowed.
-The assets parity validator rejects an Unreleased heading while selecting the
-v0.17.0 contract. Keep this unshipped correction in tracking until a separately
-authorized release transition; do not weaken that validator for this fix.
+Docker Desktop was started with approval; task containers are removed.
+Container verification uses an unprivileged identity for permission fixtures.
+Host Docker-client RSS is not guest Go memory. The memory-heavy final partition
+ran on the 32 GiB Mac, not Docker's approximately 4 GiB VM.
+
+Preserve raw evidence under `bin/reapply-linux-20261011/`, including both
+`final-gate/evidence/` (failed) and `final-gate-retry/evidence/` (passed).
+Preserve prior maintenance/older-host evidence and check existing results
+before restarting any work after a CLI error.
+
+The assets parity guard rejects an Unreleased heading beside the selected
+versioned contract. Keep unshipped maintenance notes in tracking until an
+authorized release transition. No release/tag was created: v0.17.0 remains
+at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated tag object
+`e7c748ada40988fe72f47b638cb37d07e24f0ac3`.

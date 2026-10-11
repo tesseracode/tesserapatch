@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "focused-and-affected-validation-passed",
+  "status": "accepted",
   "wave_base": "c4923185ba6fe01b4558b138e41f30fab0015762",
   "fix_commit": "25cbf747d73e282a4994dd22bf4d3e3cea882907",
   "original_ci_run": 38118826831,
@@ -44,10 +44,12 @@
     "separate_agent_review": false,
     "restored_changelog_assets_seconds": 2.458,
     "full_mechanical_gate": "Passed 8/8 at 608714bc13d87178b5141306b5c9f7bcc5e41c1e after restoring the exact pre-wave changelog.",
-    "fixed_native_ci": "Run 38164854684 has four required jobs passed and macOS tests still running.",
+    "fixed_native_ci": "Run 38164854684 completed SUCCESS at the exact corrected checkpoint, with all five required jobs passed and release skipped.",
+    "native_required_jobs_passed": 5,
+    "windows_full_suite_caveat": "The pre-existing allowed-failure full-suite step remains owned by GH #17; this is not a claim that the entire Windows suite passes.",
     "corrected_retry_checkpoint": "608714bc13d87178b5141306b5c9f7bcc5e41c1e",
     "corrected_retry_native_ci": 38164854684,
-    "corrected_retry_status": "Full gate passed 8/8; native CI has four required jobs passed and macOS tests still running.",
+    "corrected_retry_status": "Accepted: full gate passed 8/8 and all five required native CI jobs passed.",
     "owned_task_containers_remaining": 0
   },
   "final_gate": {
