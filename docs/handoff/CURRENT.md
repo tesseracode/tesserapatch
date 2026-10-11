@@ -18,10 +18,10 @@ with all assets tests passing and no changes to the existing validators.
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Corrected candidate ready for full gate/native retry; prior native run complete
+- **Status**: Corrected full gate and native CI running
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
-- **Full-validation checkpoint**: `d49e8083613d1b218664eb8f3cd799cb9feac0b2`
+- **Full-validation checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
 
 WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
 
@@ -68,6 +68,9 @@ platform test jobs fail only the same changelog parity cases, both observer
 jobs pass, and release is skipped.
 Commit `732a4a5` restores CHANGELOG byte-for-byte to the wave base.
 All existing assets tests pass on unprivileged Linux (2.458s).
+The corrected full retry is now running at pushed `608714b`, with fresh
+source/caches and unchanged safeguards. Checks 1-6 pass; its process and
+telemetry are verified active. Native CI is `38164854684`.
 
 ## Current State
 
@@ -117,6 +120,8 @@ pre-wave contents. The correction remains documented in tracking/case study.
   failing parity cases and their existing negative controls.
 - Native `38162560118` is complete with the same changelog-only failures;
   its failure logs contain no recurrence of the original reapply error.
+- Corrected full retry at `608714b` has checks 1-6 passed; its nine routing
+  controls pass. Complete gate and native `38164854684` remain in progress.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
@@ -124,17 +129,17 @@ pre-wave contents. The correction remains documented in tracking/case study.
 ## Next Steps
 
 1. Preserve the completed failing and passing reproduction evidence.
-2. Publish the corrected checkpoint; the prior native run and changelog
-   restoration/assets checks are complete.
-3. Publish the corrected documentation checkpoint and retry the full Mac gate
-   in a new isolated directory under the same one-task profile and wave base.
+2. Await native CI `38164854684` without cancelling it with another push.
+3. Await shell `reapply-final-gate-retry-20261011`, using private evidence
+   `bin/reapply-linux-20261011/final-gate-retry/evidence/`. Do not start a
+   duplicate or overwrite the retained first attempt.
 4. Preserve evidence and tracking at each transition; close/push only after
    actual validation. GH #13 and later profile adoption remain separate.
 
 ## Blockers
 
 The introduced heading has been removed and assets pass. Prior native CI is
-complete; corrected full native/mechanical confirmation remains outstanding.
+complete; corrected full native/mechanical confirmation is running.
 Docker Desktop is running; all completed task containers were removed.
 The completed Linux reproductions and source files survived the request error.
 The first full local gate is stopped, with its evidence retained. Do not

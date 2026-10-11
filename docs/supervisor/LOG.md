@@ -1,3 +1,17 @@
+## Corrected Full Retry Dispatched — 2026-10-11
+
+Published checkpoint `608714bc13d87178b5141306b5c9f7bcc5e41c1e` is running
+the complete mechanical gate with fresh isolated source/caches and the same
+approved one-task pressure profile. Checks 1-6 pass; vet/build/test execution
+is underway. Nine unchanged routing controls pass before launch.
+Exact-checkpoint native CI is
+[38164854684](https://github.com/tesseracode/tesserapatch/actions/runs/38164854684).
+
+**Resume point**: shell `reapply-final-gate-retry-20261011`; private evidence
+`bin/reapply-linux-20261011/final-gate-retry/evidence/`. The original failed
+attempt remains untouched. Preserve both current runs and do not push another
+tracking checkpoint before native completion. Final acceptance is still pending.
+
 ## Corrected Full Retry Ready — prior native run complete — 2026-10-11
 
 Native `38162560118` at `d49e808` is complete: both observer jobs pass,
