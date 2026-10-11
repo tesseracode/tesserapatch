@@ -1443,7 +1443,25 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Before GH #13 — 🚧 resource-admission calibration — 2026-10-08
+### Before GH #13 — ✅ maintenance review APPROVED; final gate pending — 2026-10-10
+
+**WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`.
+**Independently reviewed range**: `d3454ed..501175b`; OpenAI `gpt-5.4`, no findings.
+The operator authorizes final monitored verification, archive and push, not
+another optimization, permanent policy default, release or GH #13 implementation.
+The complete calibration handoff is archived verbatim in HISTORY.
+
+The real capture fixture is deterministic, and four-fixture analyzer memo scopes
+reduce measured rev-19/rev-20 RSS by 83-84% while increasing recomputation
+(observed runtime 2.4-2.5x; allocation volume 2.8-2.9x). Existing assertion
+coverage, CI shard partition/timeouts and immutable baseline/import data remain.
+Native CI `38084490647` is green at source-equivalent `a4baf17`.
+Final gate uses the approved current-Mac normal-pressure/no-new-swap/load<=5
+minute with external Go allowed and own work serial. Final gate, exact-checkpoint
+CI and terminal closing push are still pending; no full old-Mac pass is claimed.
+
+<details>
+<summary>Historical calibration record — superseded by the live closure above</summary>
 
 The operator requests an **instrumented baseline only**, before selecting any
 relaxed threshold. Frozen source is `d3454ed`; the prior wave stays accepted.
@@ -1693,6 +1711,8 @@ not a speed claim. Full regression CI/review remain before broader acceptance.
 independent OpenAI-model review, then run the final wave gate under the validated
 pressure profile and archive/push tracking. Source-equivalent CI `38084490647`
 is green. No further old-Mac tuning, release/tag or #13 implementation is included.
+
+</details>
 
 ### Post-v0.17 research intake and GH #13 planning — ✅ ACCEPTED — 2026-10-08
 

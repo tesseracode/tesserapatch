@@ -1,3 +1,45 @@
+## Maintenance Review Accepted — final gate preparation — 2026-10-10
+
+Accept the independent APPROVED verdict for `d3454ed..501175b`. Rotate CURRENT
+to a concise review-approved/final-gate-pending handoff and archive its full
+previous bytes in HISTORY, retaining every failed/partial experiment and the
+measured memory/recomputation tradeoff. ROADMAP now distinguishes review
+approval from final acceptance. No reviewed source or contract changes.
+
+Nine private non-Go controls pass for final-gate stream routing, fail-fast
+sentinels, nested admission bypass and unchanged test arguments. A generated
+bytecode check confirms four untracked files correspond to the reviewed scripts;
+remove only those generated files, without attributing their creator.
+Preserve all prior raw evidence and the older host's checkout.
+
+**Action**: push the approved checkpoint, then run the original eight-check
+mechanical gate in a clean isolated clone, with the explicit `d3454ed` wave base.
+Before each top-level command require the approved normal-pressure/no-new-swap/
+load<=5 minute, allow external Go, and serialize own work. Preserve original
+selectors/timeouts and stop on the first validation or resource failure.
+Final gate and exact-checkpoint CI results remain pending; no #13 dispatch/tag.
+
+## Independent Review — maintenance/resource calibration — 2026-10-10
+
+**Reviewer**: `maintenance-openai-review` / `17c28f96-b00b-45f8-a7fa-c32a60dfed68`
+**Model**: explicitly requested `gpt-5.4`; runtime agent metadata independently
+confirmed `gpt-5.4`.
+**Reviewed range**:
+`d3454edb72c37bacae9159481cc2e6cd69559459..501175b290fd8a3bcf2883e8a14988ab31dac10a`
+**Verdict**: APPROVED
+
+The read-only independent review reported no high-confidence blockers or optional
+notes. It covered the real capture/refusal fixture, inert production hook and
+AQ proof, serial four-fixture memo cleanup, profiling policy/safety controls and
+the distinction between measured results and unproven hardware/policy claims.
+The reviewer did not run unguarded Go validation or modify reviewed source.
+
+**Action**: accept the frozen implementation for final verification, archive the
+calibration history and run the complete mechanical wave gate under the
+operator-approved current-Mac pressure/swap/load profile with external Go allowed.
+No final gate pass, release/tag, permanent default adoption or #13 dispatch is
+claimed by this review verdict.
+
 ## Maintenance Closure Authorized — frozen review scope — 2026-10-10
 
 The operator accepts the plan to freeze this maintenance work, obtain an
