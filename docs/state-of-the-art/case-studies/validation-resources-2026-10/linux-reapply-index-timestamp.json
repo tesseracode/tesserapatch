@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "focused-and-affected-validation-passed",
+  "wave_base": "c4923185ba6fe01b4558b138e41f30fab0015762",
+  "fix_commit": "25cbf747d73e282a4994dd22bf4d3e3cea882907",
+  "original_ci_run": 38118826831,
+  "original_test": "TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply",
+  "original_error": "reapply produced no source diff against the committed unapplied baseline",
+  "mechanism": "A new timestamp on a copied Git index can suppress racy-entry content checks and hide same-stat worktree changes.",
+  "correction": "Read effective-index metadata and bytes from the same open file; preserve its mtime on the private scoped-diff copy before invoking Git.",
+  "unchanged": [
+    "Original CLI test and canonical materialization assertions",
+    "Real index bytes and mtime",
+    "Literal path scope and nested-worktree exclusion",
+    "Recipe authority and captured-byte semantics",
+    "Canonical CI partition and timeouts",
+    "Permanent resource-admission defaults",
+    "v0.17.0 release tag and GH #13 implementation boundary"
+  ],
+  "environment": {
+    "platform": "linux/arm64",
+    "toolchain": "go1.26.5",
+    "git": "2.47.3",
+    "image": "golang@sha256:705e964a93a2fd2e75c7d59bb7d781b57e30f12293ffde5175c69229e18fb678",
+    "source_mount": "isolated checkout, read-only",
+    "admission": "One-task exception: 60s normal host pressure/no new swap-outs/load<=5; external Go permitted; own work serial.",
+    "runtime_stops": "Host pressure warning/critical, new swap-outs, invalid or stale telemetry",
+    "memory_measurement_caveat": "Owned host Docker-client RSS excludes guest Go memory; no memory-reduction claim is made."
+  },
+  "results": {
+    "unfixed_deterministic_cases": "Both real-index and redirected-index cases fail with the expected false-empty diff.",
+    "unfixed_original_cli": "Exact original error reproduced during a capped 1000-repeat fail-fast Linux run; not all iterations completed.",
+    "fixed_deterministic_repetitions": 1000,
+    "fixed_original_cli_repetitions": 1000,
+    "fixed_gitutil_package_seconds": 23.993,
+    "fixed_cli_package_seconds": 32.347,
+    "affected_gitutil_seconds": 2.153,
+    "affected_workflow_seconds": 28.148,
+    "selected_cli_consumers_seconds": 2.456,
+    "formatting": "passed",
+    "vet": "passed",
+    "cli_build": "passed",
+    "direct_review": "no findings",
+    "separate_agent_review": false,
+    "full_mechanical_gate": "pending",
+    "fixed_native_ci": "pending",
+    "owned_task_containers_remaining": 0
+  },
+  "retained_failed_attempts": [
+    "An initially misplaced new test declaration failed formatting before any tests ran; placement was corrected.",
+    "The first full workflow run used the image's root default and failed two chmod-based fixtures. An unprivileged rerun passed without test or production changes."
+  ],
+  "evidence": {
+    "relative_private_root": "bin/reapply-linux-20261011",
+    "command_log_sha256": {
+      "unfixed-index-regression": "628da1a0155948c0993a62a9f8758c95b6f2e18d1e2a119f072aafb8ed987dbe",
+      "unfixed-cli-repeat": "89c1cf4b629bf838d497849285948e5386dbb78015db6f23ffb8a696e8eab9fa",
+      "fixed-regression-and-cli-repeat": "b7b8dfba23f0e98730ac0e392fb9eb28f6b2479ef860f4aa6e89957e230df64e",
+      "affected-gitutil-workflow": "5554fe81138c34484340622cae04e5c8c9a5424a0c32cddbc729c4b62161172b",
+      "affected-unprivileged": "602084f687fbb547be837ea66b9c8248a735dd57d113e72e04dc305b336d2768",
+      "affected-cli-consumers": "d536fb4424d8da05dbf12cbfb8db0cf1faf80d76eb91cd2eafdf057a935b08f6",
+      "vet-correction": "7bde25b33190e0babfc3e532bf319fc478ae538c57b02d306a4da51d2e0d2163",
+      "build-correction": "308b57847ec5b91df3894c46498a5fda3acb6976229c832d562ec08b073ba810"
+    }
+  }
+}

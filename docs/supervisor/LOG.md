@@ -1,3 +1,36 @@
+## Direct Review APPROVED — full regression pending — 2026-10-11
+
+Reviewed the bounded production diff and complete new regression directly.
+The source descriptor supplies matching index metadata/bytes; every exit closes
+it and removes the private index; timestamp-copy failures refuse explicitly.
+Literal/scoped paths, nested-worktree exclusion, redirected-index resolution
+and canonical materialization checks are unchanged. The deterministic real/
+redirected cases fail before the fix and pass after it, without changing the
+original S5 CLI test. No findings from this direct review; this is not a
+separate-agent review claim.
+
+Unprivileged Linux validation now passes full gitutil/workflow packages
+(2.153s/28.148s), selected S5/apply/unapply consumers (2.456s), vet and CLI
+build. The earlier root-container permission failures are retained and are
+resolved by the harness identity correction, not by weakening fixtures.
+All task containers are removed. Correction commit:
+`25cbf747d73e282a4994dd22bf4d3e3cea882907`.
+
+**Action**: publish the regression/correction checkpoint for native CI and run
+the complete mechanical gate on the 32 GiB Mac under the explicitly approved
+one-task pressure exception. Docker's approximately 4 GiB VM is not the host
+for the memory-heavy full CLI partition. Final acceptance remains pending;
+no #13 dispatch, permanent default adoption or release/tag.
+
+## Affected Validation Harness Correction — unprivileged Docker — 2026-10-11
+
+Full gitutil passes, but the workflow package stops on two existing chmod-based
+permission fixtures. The default image runs as root and bypasses those access
+denials; a non-Go permission probe confirms the mismatch with native CI.
+Retain the failed run, switch only the task-owned container to an unprivileged
+UID with a new private cache, and rerun the affected packages. No test assertions
+or production code are changed to accommodate root execution.
+
 ## Linux Focused Correction PASS — 1000 repetitions — 2026-10-11
 
 Corrected source passes formatting and 1000 repetitions of both the deterministic

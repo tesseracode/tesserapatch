@@ -1443,7 +1443,7 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### Before GH #13 — 🚧 Linux canonical-reapply follow-up — 2026-10-11
+### Before GH #13 — 🚧 Linux reapply correction approved; final gates pending — 2026-10-11
 
 **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
 The operator authorizes a bounded reproduction and correction of
@@ -1454,11 +1454,11 @@ the later tracking-only tip failed despite unchanged production/test source.
 Establish root cause, preserve assertions and restore Linux validation before
 #13. A Git-only reproducer now confirms a copied-index timestamp mechanism;
 native Linux/Go now reproduces both deterministic guards and the original CLI
-failure on unchanged production code. The correction preserves the copied
-index's original timestamp, with focused validation pending.
-Corrected source subsequently passes formatting and 1000 repetitions of the
-new index guards and unchanged original CLI test; affected/full validation and
-native CI remain before acceptance.
+failure on unchanged production code. Correction `25cbf74` preserves the copied
+index's original timestamp and passes formatting, 1000 repetitions of the new
+guards/original CLI test, full gitutil/workflow, selected CLI consumers, vet
+and build on Linux. Direct bounded review has no findings. Full mechanical
+and native CI results remain before acceptance.
 The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation
