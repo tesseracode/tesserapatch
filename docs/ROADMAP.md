@@ -1468,8 +1468,10 @@ to the wave base and all assets tests pass (2.458s). Native `38162560118`
 is complete with the same changelog-only failures; both observer jobs pass.
 Publish the corrected checkpoint and run a full fresh gate/native retry,
 preserving the first attempt and unchanged production/tests.
-The corrected retry is now running at pushed `608714b` (checks 1-6 passed),
-with native CI `38164854684`. Complete acceptance remains pending.
+The corrected retry passes 8/8 at pushed `608714b`, with all 22 test commands,
+normal pressure/zero swap and complete safety-window replay. Native CI
+`38164854684` has four required jobs passed; its final macOS test job remains
+active. Terminal acceptance/publication awaits that result.
 The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation

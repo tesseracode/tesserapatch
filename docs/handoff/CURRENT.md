@@ -18,7 +18,7 @@ with all assets tests passing and no changes to the existing validators.
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Corrected full gate and native CI running
+- **Status**: Corrected full gate passed; final native macOS job pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
 - **Full-validation checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
@@ -68,9 +68,12 @@ platform test jobs fail only the same changelog parity cases, both observer
 jobs pass, and release is skipped.
 Commit `732a4a5` restores CHANGELOG byte-for-byte to the wave base.
 All existing assets tests pass on unprivileged Linux (2.458s).
-The corrected full retry is now running at pushed `608714b`, with fresh
-source/caches and unchanged safeguards. Checks 1-6 pass; its process and
-telemetry are verified active. Native CI is `38164854684`.
+The corrected full retry passes 8/8 at pushed `608714b`, with fresh source/
+caches, unchanged safeguards and exact parity for all 25 top-level commands/
+22 test commands. All 1931 samples have normal pressure and zero swap;
+the 3842.77s run leaves no sampled owned processes. All safety windows replay
+successfully. Native `38164854684` has four required jobs passed; its final
+macOS test job is still running.
 
 ## Current State
 
@@ -120,8 +123,9 @@ pre-wave contents. The correction remains documented in tracking/case study.
   failing parity cases and their existing negative controls.
 - Native `38162560118` is complete with the same changelog-only failures;
   its failure logs contain no recurrence of the original reapply error.
-- Corrected full retry at `608714b` has checks 1-6 passed; its nine routing
-  controls pass. Complete gate and native `38164854684` remain in progress.
+- Corrected full retry at `608714b` passes 8/8 with 25 top-level commands/
+  22 test commands and all nine routing controls. Native `38164854684` has
+  Ubuntu, Windows and both observer jobs passed, with macOS tests still active.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
@@ -130,16 +134,17 @@ pre-wave contents. The correction remains documented in tracking/case study.
 
 1. Preserve the completed failing and passing reproduction evidence.
 2. Await native CI `38164854684` without cancelling it with another push.
-3. Await shell `reapply-final-gate-retry-20261011`, using private evidence
-   `bin/reapply-linux-20261011/final-gate-retry/evidence/`. Do not start a
-   duplicate or overwrite the retained first attempt.
+3. Preserve the completed gate evidence at
+   `bin/reapply-linux-20261011/final-gate-retry/evidence/`. Its shell is
+   complete with success; do not start a duplicate or overwrite earlier runs.
 4. Preserve evidence and tracking at each transition; close/push only after
    actual validation. GH #13 and later profile adoption remain separate.
 
 ## Blockers
 
 The introduced heading has been removed and assets pass. Prior native CI is
-complete; corrected full native/mechanical confirmation is running.
+complete; corrected mechanical confirmation passes and the final native macOS
+job is still running.
 Docker Desktop is running; all completed task containers were removed.
 The completed Linux reproductions and source files survived the request error.
 The first full local gate is stopped, with its evidence retained. Do not

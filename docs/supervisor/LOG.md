@@ -1,3 +1,21 @@
+## Corrected Mechanical Gate PASS — native macOS completion pending — 2026-10-11
+
+At pushed `608714bc13d87178b5141306b5c9f7bcc5e41c1e`, the complete gate
+passes 8/8 without warnings. All 25 top-level commands, including all 22
+original test commands, pass with exact command parity. Replaying all admission
+and runtime windows confirms the approved one-task safeguards.
+
+The run takes 3842.77s; all 1931 samples have normal pressure and zero swap.
+The diagnostic percentage spans 45-67%, and sampled peak owned RSS is about
+10.20 GiB. All 375 sampled owned identities are reconciled with none remaining;
+no extra process termination is needed. Source stays clean and the release tag
+is unchanged. Earlier failed attempts remain explicitly preserved.
+
+Native `38164854684` has Ubuntu, Windows and both observer jobs successful;
+the macOS test job remains active. Await its actual completion without pushing
+over it, then archive and publish terminal tracking. Final acceptance is not
+claimed until that remaining required job completes.
+
 ## Corrected Full Retry Dispatched — 2026-10-11
 
 Published checkpoint `608714bc13d87178b5141306b5c9f7bcc5e41c1e` is running
