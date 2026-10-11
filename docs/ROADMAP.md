@@ -1447,6 +1447,10 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
 **Validated range**: `c492318..608714b`; production correction `25cbf74`.
+**Terminal accepted range**:
+`c4923185ba6fe01b4558b138e41f30fab0015762..d55183c5b2d2d5755a84f609dc33615796c4e806`.
+This closing tracking record identifies the archival acceptance checkpoint;
+no next task is dispatched.
 The full local gate passes 8/8 with all 22 test commands, and exact-checkpoint
 native CI `38164854684` passes all five required jobs. The original failure
 and deterministic guards reproduce before the fix and pass 1000 repetitions

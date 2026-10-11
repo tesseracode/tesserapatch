@@ -1,3 +1,17 @@
+## Terminal Closing Record — Linux reapply correction — 2026-10-11
+
+Archival acceptance is committed at
+`d55183c5b2d2d5755a84f609dc33615796c4e806`.
+Terminal accepted range:
+`c4923185ba6fe01b4558b138e41f30fab0015762..d55183c5b2d2d5755a84f609dc33615796c4e806`.
+The full gate/native evidence remains pinned to `608714b`; this follow-through
+only records the known closing range, with no source or contract changes.
+
+**Action**: push the saved dispatch/results, archival acceptance and this
+terminal record together, then verify clean HEAD equals origin/main, all wave
+trailers parse, validated source is unchanged, and v0.17.0 is untouched.
+No #13 implementation, permanent admission-policy adoption or new release.
+
 ## Linux Reapply Correction ACCEPTED — all required validation complete — 2026-10-11
 
 Exact-checkpoint native CI `38164854684` at

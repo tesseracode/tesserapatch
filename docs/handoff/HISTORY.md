@@ -11578,3 +11578,13 @@ versioned contract. Keep unshipped maintenance notes in tracking until an
 authorized release transition. No release/tag was created: v0.17.0 remains
 at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated tag object
 `e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+
+### Terminal closing range — Linux reapply correction — 2026-10-11
+
+Archival acceptance checkpoint:
+`d55183c5b2d2d5755a84f609dc33615796c4e806`.
+Terminal accepted range:
+`c4923185ba6fe01b4558b138e41f30fab0015762..d55183c5b2d2d5755a84f609dc33615796c4e806`.
+The final tracking follow-through records these endpoints for publication;
+the full 8/8 gate and five required native jobs remain pinned to `608714b`,
+with no subsequent source changes or extension into #13/policy adoption.

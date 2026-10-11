@@ -22,6 +22,7 @@ remain separate assignments.
 - **Regression checkpoint**: `0c38c15`
 - **Production correction**: `25cbf747d73e282a4994dd22bf4d3e3cea882907`
 - **Validated checkpoint**: `608714bc13d87178b5141306b5c9f7bcc5e41c1e`
+- **Archival acceptance checkpoint**: `d55183c5b2d2d5755a84f609dc33615796c4e806`
 
 WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
 
@@ -48,6 +49,9 @@ subagent review is claimed.
 The final mechanical gate and native CI both pass at exact checkpoint
 `608714b`. Subsequent closing edits are tracking/report-only and do not change
 the validated implementation or protected contracts.
+The terminal accepted range is
+`c4923185ba6fe01b4558b138e41f30fab0015762..d55183c5b2d2d5755a84f609dc33615796c4e806`;
+this final tracking follow-through records those known endpoints for publication.
 
 ## Current State
 
