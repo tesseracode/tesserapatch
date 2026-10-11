@@ -1,3 +1,40 @@
+## Linux Failure Reproduced — deterministic regression and original CLI — 2026-10-11
+
+The isolated Linux/arm64 Go 1.26.5 run confirms both new real-index and
+redirected-index regression cases fail on unchanged production code, specifically
+because the copied-index diff is empty while direct Git reports `old` -> `new`.
+Formatting passes after correcting an initially misplaced test declaration;
+the initial formatting failure remains retained, not counted as reproduction.
+
+The original unmodified
+`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply` also reproduces
+the exact native Ubuntu error at line 222 during a capped 1000-repeat,
+fail-fast Linux run. It stops on the first failure (17.270s package time);
+this is not a claim that all 1000 iterations ran.
+Both commands follow fresh approved admission and remove their owned containers.
+
+The intervening Copilot request error did not remove the files or completed
+tool evidence. Resume from these retained failures, preserve the real index's
+timestamp in the private diff copy, and rerun the same guards without weakening
+canonical materialization or changing the existing CLI fixture.
+
+## Git-only Reproducer Confirmed — one-task validation exception approved — 2026-10-11
+
+A controlled Git-only reproducer exposes a concrete copied-index bug:
+`DiffFromCommitForPaths` copies index bytes into a newly timestamped file.
+With a same-stat content change, the newer index timestamp defeats Git's
+racy-entry content check and the copied-index diff is empty despite changed
+source bytes. Preserving the original index timestamp returns the exact
+expected patch while leaving the real index unchanged. This reproduces the
+failure mechanism on the current Mac; native Linux/Go confirmation is pending.
+
+The operator explicitly approves starting Docker Desktop for an isolated
+Linux reproduction and a one-task pressure-based validation exception:
+normal pressure/no new swap-outs/load<=5 for sixty seconds, external Go
+allowed, own work serial, unchanged runtime pressure/swap/telemetry stops.
+Permanent defaults and later #13 policy adoption remain deferred.
+Add deterministic same-stat regression cases before the production correction.
+
 ## Linux Reapply Follow-up Dispatched — before GH #13 — 2026-10-11
 
 The operator authorizes reproducing and resolving the newly observed Ubuntu

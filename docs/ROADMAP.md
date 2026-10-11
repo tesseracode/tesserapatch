@@ -1452,8 +1452,12 @@ Ubuntu job in native run `38118826831` with no source diff against the
 committed unapplied baseline. The prior `12617b1` acceptance remains historical;
 the later tracking-only tip failed despite unchanged production/test source.
 Establish root cause, preserve assertions and restore Linux validation before
-#13. No further broad memory optimization, admission-policy adoption or
-#13 implementation is included in this task.
+#13. A Git-only reproducer now confirms a copied-index timestamp mechanism;
+native Linux/Go now reproduces both deterministic guards and the original CLI
+failure on unchanged production code. The operator approves isolated Docker
+startup and a pressure-based exception for this fix only. No further broad
+memory optimization, permanent admission-policy adoption or #13 implementation
+is included in this task.
 
 ### Before GH #13 — ✅ maintenance ACCEPTED — 2026-10-11
 
