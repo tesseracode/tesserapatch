@@ -1465,7 +1465,9 @@ The first command's CLI/gitutil/workflow packages pass, but 0/22 test commands
 complete successfully. Restore the changelog without changing the validator,
 check assets, then retry full validation. The changelog is now byte-identical
 to the wave base and all assets tests pass (2.458s). Native `38162560118`
-remains active; preserve it before publishing the corrected full retry.
+is complete with the same changelog-only failures; both observer jobs pass.
+Publish the corrected checkpoint and run a full fresh gate/native retry,
+preserving the first attempt and unchanged production/tests.
 The operator approves isolated Docker
 startup and a pressure-based exception for this fix only. No further broad
 memory optimization, permanent admission-policy adoption or #13 implementation

@@ -44,7 +44,7 @@
     "separate_agent_review": false,
     "restored_changelog_assets_seconds": 2.458,
     "full_mechanical_gate": "First attempt at d49e808 passed checks 1-7, then stopped on an introduced Unreleased heading rejected by unchanged assets parity. Changelog restored byte-for-byte to the wave base and all assets tests pass; full retry pending.",
-    "fixed_native_ci": "pending",
+    "fixed_native_ci": "First candidate run 38162560118 completed with changelog-only parity failures in three platform jobs; both observer jobs passed. Corrected retry pending.",
     "owned_task_containers_remaining": 0
   },
   "retained_failed_attempts": [

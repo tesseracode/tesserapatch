@@ -1,3 +1,18 @@
+## Corrected Full Retry Ready — prior native run complete — 2026-10-11
+
+Native `38162560118` at `d49e808` is complete: both observer jobs pass,
+all three platform test jobs fail the same three changelog parity cases,
+and release is skipped. Failure logs contain no recurrence of the original
+canonical-reapply error. Preserve the completed run; do not count it as green.
+
+CHANGELOG is restored exactly to `c492318`, and all assets tests pass.
+Production/tests, parity validators, canonical partition, timeouts and the
+one-task pressure policy are unchanged from the reviewed correction.
+Publish the corrected tracking/documentation checkpoint, then run the complete
+mechanical gate in a fresh `final-gate-retry` directory with fresh caches.
+Use `WAVE_BASE=c4923185ba6fe01b4558b138e41f30fab0015762`; retain the first
+attempt and do not substitute its passing packages for any retry command.
+
 ## Changelog Correction PASS — waiting for native run before retry — 2026-10-11
 
 Commit `732a4a5` restores CHANGELOG byte-for-byte to the pre-wave `c492318`
