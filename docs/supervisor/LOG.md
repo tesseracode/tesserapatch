@@ -1,3 +1,23 @@
+## Full Gate Stopped — introduced changelog parity error — 2026-10-11
+
+The `d49e808` gate passes checks 1-7, then its first test command fails three
+existing assets parity tests because the newly added Unreleased section is
+forbidden beside the selected v0.17.0 contract. The CLI package passes that
+command (667.442s), as do gitutil/workflow and the other packages, but the
+failed command is not a completed passing shard and later shards do not run.
+All 570 resource samples remain normal with zero swap; no owned processes
+remain. The failure is documentation, not a resource stop.
+
+The direct review missed this existing versioned-changelog restriction.
+Remove only the introduced Unreleased block and keep the correction documented
+in CURRENT/LOG and the case-study report. Preserve the assets validators,
+historical release text, production correction and regression tests unchanged.
+
+**Action**: mark the current candidate as needing documentation correction,
+run the existing assets checks, await native run `38162560118` before pushing,
+then retry the complete gate at a corrected checkpoint. Preserve this failed
+attempt at `bin/reapply-linux-20261011/final-gate/evidence/`.
+
 ## Full Correction Gate Dispatched — saved resume point — 2026-10-11
 
 Published checkpoint `d49e8083613d1b218664eb8f3cd799cb9feac0b2` starts the

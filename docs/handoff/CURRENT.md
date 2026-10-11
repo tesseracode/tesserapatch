@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 The operator authorizes reproducing and resolving the post-close Ubuntu
 reapply failure before GH #13. Previous maintenance acceptance at `12617b1`
@@ -10,14 +10,15 @@ is preserved in HISTORY; the later `c492318` run is a separate failing result.
 No permanent admission-policy adoption or GH #13 implementation is authorized.
 The operator subsequently approved a pressure-based exception for this fix only.
 The bounded correction passes direct review and focused/affected Linux checks;
-full mechanical and native regression results remain pending.
+the first full gate has exposed an introduced changelog parity error that
+must be corrected without altering the existing validators.
 
 ## Active Task
 
 - **Task ID**: `fix-linux-canonical-reapply`
 - **Milestone**: Bounded correctness follow-up, before GH #13
 - **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
-- **Status**: Direct review and affected Linux checks passed; full gate/native CI running
+- **Status**: Full gate stopped on introduced changelog heading; documentation correction in progress
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
 - **Full-validation checkpoint**: `d49e8083613d1b218664eb8f3cd799cb9feac0b2`
@@ -58,9 +59,11 @@ It is committed at `25cbf747d73e282a4994dd22bf4d3e3cea882907`.
 Full gitutil/workflow packages, selected CLI consumers, vet and build also pass
 in an unprivileged Linux container. Direct review of the complete bounded diff
 finds no issues; no separate-agent review is claimed.
-The full Mac gate is now running at pushed `d49e808`; checks 1-6 pass.
-Exact-checkpoint native CI is `38162560118`. The gate process and telemetry
-were verified active after launch.
+The full Mac gate at `d49e808` is complete with failure: checks 1-7 pass, but
+the first test command fails assets parity because the added Unreleased
+heading is forbidden beside the selected v0.17.0 contract. CLI, gitutil and
+workflow pass that command; later shards do not run. Remove the introduced
+heading, not the guard. Native CI `38162560118` is still running.
 
 ## Current State
 
@@ -75,7 +78,8 @@ Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
 `internal/gitutil/diff_index_test.go`: deterministic copied-index regression cases.
 `internal/gitutil/gitutil.go`: preserve the effective index timestamp in the
 private scoped-diff copy; explicit stat/copy-timestamp failure handling.
-`CHANGELOG.md`: unreleased correction note, without altering historical entries.
+`CHANGELOG.md`: remove the introduced Unreleased block, restoring its exact
+pre-wave contents. The correction remains documented in tracking/case study.
 
 ## Test Results
 
@@ -99,8 +103,12 @@ private scoped-diff copy; explicit stat/copy-timestamp failure handling.
 - The unprivileged rerun passes gitutil/workflow (2.153s/28.148s), selected
   S5/apply/unapply consumers (2.456s), vet and CLI build. Full native CI and
   the complete mechanical gate remain outstanding.
-- Reused full-gate routing controls pass all nine non-Go cases. The actual
-  gate is running at `d49e808`, with checks 1-6 passed; no full pass is claimed.
+- Reused routing controls pass all nine non-Go cases. The `d49e808` gate
+  passes checks 1-7 then stops at the first test command's assets parity
+  failures. This is 0/22 passing test commands, not a complete partition.
+- CLI passes the failed command (667.442s); the original production failure
+  does not recur. All 570 samples show normal pressure/zero swap, and owned
+  process reconciliation leaves zero processes.
 - The initial formatting check stopped on a misplaced new test declaration.
   Its placement is corrected in a focused test file; no Go test/compile ran
   in that failed attempt. The private log is retained.
@@ -108,21 +116,21 @@ private scoped-diff copy; explicit stat/copy-timestamp failure handling.
 ## Next Steps
 
 1. Preserve the completed failing and passing reproduction evidence.
-2. Await native CI `38162560118` without cancelling it with another push.
-3. Await the running Mac gate, shell `reapply-final-gate-20261011`, using
-   `bin/reapply-linux-20261011/final-gate/evidence/`. It uses the approved
-   one-task profile and explicit `c492318` wave base. Do not start a duplicate.
+2. Restore the exact pre-wave changelog and run the existing assets checks.
+   Await native CI `38162560118` without cancelling it with another push.
+3. Publish the corrected documentation checkpoint and retry the full Mac gate
+   in a new isolated directory under the same one-task profile and wave base.
 4. Preserve evidence and tracking at each transition; close/push only after
    actual validation. GH #13 and later profile adoption remain separate.
 
 ## Blockers
 
-The original failure is corrected in focused/affected checks; full native
-and mechanical confirmation still block final acceptance and #13 readiness.
+The introduced Unreleased heading fails the frozen changelog parity contract.
+Its correction and full native/mechanical confirmation block final acceptance.
 Docker Desktop is running; all completed task containers were removed.
 The completed Linux reproductions and source files survived the request error.
-The full local gate is active; preserve it across session recovery if still
-running, or inspect its existing result before considering any restart.
+The first full local gate is stopped, with its evidence retained. Do not
+overwrite that evidence or mistake partial package passes for a gate pass.
 
 ## Context for Next Agent
 
@@ -138,3 +146,6 @@ Preserve all previous evidence in `bin/resource-baseline/` and
 `bin/maintenance-close-20261010/`, the older host's original checkout/research,
 the accepted #13 contracts and the existing v0.17.0 tag.
 Only explicit-path staging and required Copilot co-author trailers are allowed.
+The assets parity validator rejects an Unreleased heading while selecting the
+v0.17.0 contract. Keep this unshipped correction in tracking until a separately
+authorized release transition; do not weaken that validator for this fix.

@@ -42,13 +42,14 @@
     "cli_build": "passed",
     "direct_review": "no findings",
     "separate_agent_review": false,
-    "full_mechanical_gate": "pending",
+    "full_mechanical_gate": "First attempt at d49e808 passed checks 1-7, then stopped on an introduced Unreleased heading rejected by unchanged assets parity. Documentation correction and full retry pending.",
     "fixed_native_ci": "pending",
     "owned_task_containers_remaining": 0
   },
   "retained_failed_attempts": [
     "An initially misplaced new test declaration failed formatting before any tests ran; placement was corrected.",
-    "The first full workflow run used the image's root default and failed two chmod-based fixtures. An unprivileged rerun passed without test or production changes."
+    "The first full workflow run used the image's root default and failed two chmod-based fixtures. An unprivileged rerun passed without test or production changes.",
+    "The first full mechanical gate failed three assets parity checks because an added Unreleased heading conflicted with the selected v0.17.0 contract. The note is removed, not the validator; all failed-run evidence is preserved."
   ],
   "evidence": {
     "relative_private_root": "bin/reapply-linux-20261011",
