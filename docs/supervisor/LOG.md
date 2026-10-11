@@ -1,3 +1,23 @@
+## Linux Reapply Follow-up Dispatched — before GH #13 — 2026-10-11
+
+The operator authorizes reproducing and resolving the newly observed Ubuntu
+failure, with admission-profile adoption explicitly deferred. Record
+`WAVE_BASE=c4923185ba6fe01b4558b138e41f30fab0015762`, verified as clean HEAD
+and fetched origin/main with no stash and one worktree.
+
+Native run `38118826831` fails
+`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply` at
+`recipe_authority_s5_cli_test.go:222`: canonical reapply reports no source
+diff against the committed unapplied baseline. All four other required jobs
+pass. The tested production/test source is unchanged from previously passing
+`12617b1`; the original pass is not retracted or substituted for this failure.
+
+**Action**: trace and reproduce the exact Linux behavior, correct only the
+root cause with meaningful regression coverage, then validate and review.
+Preserve recipe capture, canonical-reapply routing and materialization checks.
+No broad testing optimization, resource-rule relaxation, new release or
+#13 implementation is dispatched.
+
 ## Terminal Closing Record — maintenance wave — 2026-10-11
 
 Archival acceptance is committed at

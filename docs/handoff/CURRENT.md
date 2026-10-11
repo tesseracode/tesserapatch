@@ -2,119 +2,84 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
 
-Validation maintenance is accepted: independent review has no findings, the
-complete mechanical gate passes 8/8, and exact-checkpoint native CI passes
-all five required jobs. The calibration history and terminal results are
-archived in [HISTORY](HISTORY.md). No next implementation task is dispatched.
+The operator authorizes reproducing and resolving the post-close Ubuntu
+reapply failure before GH #13. Previous maintenance acceptance at `12617b1`
+is preserved in HISTORY; the later `c492318` run is a separate failing result.
+No admission-policy adoption or GH #13 implementation is authorized yet.
 
 ## Active Task
 
-- **Task ID**: `calibrate-test-resource-admission`
-- **Milestone**: Validation maintenance, before GH #13
-- **Description**: Deterministic fixture, bounded analyzer memo lifetime and measured resource policy
-- **Status**: Complete — review, final gate and native CI accepted
-- **Assigned**: 2026-10-08
-- **Completed**: 2026-10-11
-- **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`
-- **Reviewed endpoint**: `501175b290fd8a3bcf2883e8a14988ab31dac10a`
-- **Validated checkpoint**: `12617b1e4aad992b5a684653caa8501bec6beb95`
-- **Archival acceptance checkpoint**: `4910022784c11944528f50238df60c8b2d9cba09`
+- **Task ID**: `fix-linux-canonical-reapply`
+- **Milestone**: Bounded correctness follow-up, before GH #13
+- **Description**: Reproduce and resolve the S5 canonical-reapply failure on Linux
+- **Status**: Investigating and preparing an isolated reproduction
+- **Assigned**: 2026-10-11
+- **WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`
 
-WAVE_BASE = d3454edb72c37bacae9159481cc2e6cd69559459
+WAVE_BASE = c4923185ba6fe01b4558b138e41f30fab0015762
 
 ## Session Summary
 
-The operator-authorized freeze, independent review, full local gate, native CI
-and archival are complete. Reviewer `maintenance-openai-review` returned
-APPROVED with no findings; explicitly selected and runtime-confirmed model:
-`gpt-5.4`. The verified implementation range is
-`d3454edb72c37bacae9159481cc2e6cd69559459..12617b1e4aad992b5a684653caa8501bec6beb95`.
-Subsequent closing changes contain only tracking and the final measurement
-report, with no reviewed-source or protected-contract drift.
-The terminal accepted maintenance range is
-`d3454edb72c37bacae9159481cc2e6cd69559459..4910022784c11944528f50238df60c8b2d9cba09`;
-this final tracking follow-through records that known range for publication.
+The fresh baseline is clean on main, HEAD equals fetched origin/main at
+`c492318`, with no stash and one worktree. Native CI
+[38118826831](https://github.com/tesseracode/tesserapatch/actions/runs/38118826831)
+fails `test (ubuntu-latest)` in
+`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`.
+At `recipe_authority_s5_cli_test.go:222`, canonical reapply returns:
+`reapply produced no source diff against the committed unapplied baseline`.
+The other four required jobs pass. No production/test source changed between
+the fully passing `12617b1` and failing `c492318`.
 
-The complete local gate runs for 3960.94 seconds with all 25 expected top-level
-commands passing, including all 22 unchanged test commands. All 1987 samples
-show normal pressure, no new swap-outs and zero occupied swap. Diagnostic
-percentage readings span 48-74%; sampled peak owned RSS is about 9.80 GiB,
-in the unchanged purge-progress guard. External Go is genuinely concurrent:
-322 execution samples contain it, with up to five tools observed.
-All 414 sampled owned process identities are reconciled; none remain and
-no additional termination is needed.
+The failure reaches canonical reapply's materialization check, not a reported
+OOM or admission timeout. Root cause and reproducibility are not yet established;
+do not dismiss the failure as harmless flakiness or weaken the assertion.
 
 ## Current State
 
-The deterministic artifact fixture uses a real capture-boundary mutation and
-real refusal/no-write assertions, with an inert production hook and AQ proof.
-Four-fixture scopes release fifteen transient analyzer memo maps only at
-independent serial fixture boundaries, preserving immutable baseline/import
-state and identity within active scopes. No assertion, canonical shard,
-timeout, production redaction/store behavior or installed asset was weakened.
-
-Matched rev-19/rev-20 profiles preserve all eighty original test paths and
-reduce RSS from 8.07/7.29 GiB to 1.35/1.16 GiB. Post-GC retained heap falls
-from 3106.49/2841.81 MiB to 9.53/11.54 MiB. The tradeoff is recomputation:
-observed runtime is 2.4-2.5x and allocation volume 2.8-2.9x baseline.
-Background activity differed, so exact timing causality is not controlled.
-This is not a speed improvement or proof that the entire suite fits the older Mac.
+Trace the fixture and the real execute/reapply path, then reproduce its exact
+Git/source state on Linux. Preserve the single captured-recipe-read assertion,
+canonical reapply's bypass of recipe-only classification, source-diff/preimage
+checks and immutable recipe authority. No unrelated testing optimization.
 
 ## Files Changed
 
-Reviewed CLI/test scope: `prepare_publish.go`, `prepare_capture_unstable_test.go`,
-`prepare_s6_contract_test.go`, `prepare_s7_aq_recovery_test.go`,
-`prepare_s6_cache_scope_test.go` and `prepare_s7_ar_guard_test.go`, all in
-`internal/cli/`. Reviewed profiling tools are the four `scripts/profile-*.py`
-files. The closing record changes only CURRENT, HISTORY, ROADMAP, the supervisor
-log and `maintenance-final-gate.json` in the resource case-study directory.
+Tracking only so far: CURRENT, HISTORY, ROADMAP and the supervisor log.
+No production/test change or new Go validation has run.
 
 ## Test Results
 
-- Independent review: APPROVED, no findings.
-- Exact local checkpoint `12617b1`: mechanical gate 8/8, no warnings;
-  formatting, vet, build and all 22 original test commands pass.
-- All 25 command shapes match the expected sequence; every admission/runtime
-  safety window is replayed successfully from raw telemetry.
-- Exact-checkpoint [native CI 38114748869](https://github.com/tesseracode/tesserapatch/actions/runs/38114748869):
-  SUCCESS, all five required jobs pass, release skipped.
-- Nine private routing controls pass without running real Go; prior focused
-  negative/cache controls and eighty-path matched profiles remain preserved.
-
-Final non-identifying report:
-`docs/state-of-the-art/case-studies/validation-resources-2026-10/maintenance-final-gate.json`.
-Raw final evidence: `bin/maintenance-close-20261010/evidence/`.
+- Existing failure: native Ubuntu run `38118826831` at `c492318`.
+- Existing passing comparison: complete local gate and native CI `38114748869`
+  at source-equivalent `12617b1`.
+- No new reproduction or correction result claimed.
 
 ## Next Steps
 
-No work is dispatched. GH #13 requires a separate bounded implementation
-assignment against its accepted ADR-037/ADR-043/PRD rev-7 contracts.
-No additional optimization, old-Mac trial, permanent resource-policy adoption
-or release/tag is part of this completed maintenance wave.
+1. Isolate the failing fixture and canonical materialization path; establish
+   a deterministic reproducer and the smallest complete correction.
+2. Add regression and negative coverage without suppressing real refusal.
+3. Run focused then affected validation, Linux confirmation, required broader
+   checks and independent review under the applicable resource rules.
+4. Preserve evidence and tracking at each transition; close/push only after
+   actual validation. GH #13 and later profile adoption remain separate.
 
 ## Blockers
 
-None. No validation workload remains running.
+The Ubuntu failure blocks #13 readiness. The Linux execution route and new
+Go-validation admission are not yet established.
 
 ## Context for Next Agent
 
-The final run was explicitly authorized to require sixty continuous seconds of
-normal OS pressure, no new swap-outs and load1 <=5 before each command, while
-allowing external Go and serializing our own work. Runtime warning/critical
-pressure, new swap-outs, invalid telemetry or sampling gaps stopped owned work.
-Load is an admission condition, not a runtime cap. Historical occupied swap
-alone was not a veto; no additional-swap tolerance was enabled.
-Default profiler admission remains unchanged; do not infer permanent adoption.
+The operator explicitly defers admission-profile adoption until after this fix.
+Do not silently reuse the previous final-run pressure-only exception.
+Existing local Go-validation admission requires a continuous sixty-second
+window at >=80% on the established macOS admission metric, load1 <=5 and no
+active Go/compile/link/vet/test tools; own Go work remains serial.
+Do not run Go checks before their required admission.
 
-Preserve all private raw evidence under `bin/resource-baseline/` and
-`bin/maintenance-close-20261010/`, and the older host's original checkout,
-research, isolated toolchain and evidence. Its earlier partial/swap-stop results
-remain non-passing. A prior run needed identity-verified manual git-daemon
-cleanup; the final gate did not.
-
-Do not churn the pinned ADR index, ADR-041 normative sections or accepted #13
-contracts for transient tracking. No feature release was created: v0.17.0
-remains at `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`, annotated tag object
-`e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+Preserve all previous evidence in `bin/resource-baseline/` and
+`bin/maintenance-close-20261010/`, the older host's original checkout/research,
+the accepted #13 contracts and the existing v0.17.0 tag.
+Only explicit-path staging and required Copilot co-author trailers are allowed.

@@ -1443,6 +1443,18 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### Before GH #13 — 🚧 Linux canonical-reapply follow-up — 2026-10-11
+
+**WAVE_BASE**: `c4923185ba6fe01b4558b138e41f30fab0015762`.
+The operator authorizes a bounded reproduction and correction of
+`TestRGAS5CLIUsesCapturedRecipeAndBypassesCanonicalReapply`, which fails the
+Ubuntu job in native run `38118826831` with no source diff against the
+committed unapplied baseline. The prior `12617b1` acceptance remains historical;
+the later tracking-only tip failed despite unchanged production/test source.
+Establish root cause, preserve assertions and restore Linux validation before
+#13. No further broad memory optimization, admission-policy adoption or
+#13 implementation is included in this task.
+
 ### Before GH #13 — ✅ maintenance ACCEPTED — 2026-10-11
 
 **WAVE_BASE**: `d3454edb72c37bacae9159481cc2e6cd69559459`.
