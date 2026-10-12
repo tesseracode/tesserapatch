@@ -1461,6 +1461,8 @@ implementation agent runs broader admitted validation. S1 remains undispatched.
 Review returns NEEDS REVISION on capture-scope precision and phase-2 input
 cohort assertions. Workflow/store packages, vet and build pass; correct the
 two test-only findings before final validation/acceptance.
+Both corrections now pass the two-repeat S0 suite without changing any golden
+or production bytes; follow-up review is pending.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

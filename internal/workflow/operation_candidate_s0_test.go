@@ -281,11 +281,49 @@ func rocS0CompareGolden(t *testing.T, name, body string) {
 	}
 }
 
+func rocS0ValidateOperationFixture(root, name string, body []byte, present bool) error {
+	expected := map[string]operationEvalResult{
+		"phase2-applicable-only":      {applicableCount: 1},
+		"phase2-mixed":                {presentCount: 1, applicableCount: 1},
+		"phase2-conflict-fallthrough": {presentCount: 1, applicableCount: 1, conflictCount: 1, hasConflicts: true},
+		"phase4-strict":               {},
+	}
+	want, ok := expected[name]
+	if !ok {
+		return fmt.Errorf("unregistered operation fixture %q", name)
+	}
+	if present != (name != "phase4-strict") {
+		return fmt.Errorf("%s recipe presence changed: %t", name, present)
+	}
+	if !present {
+		return nil
+	}
+	var recipe ApplyRecipe
+	if err := json.Unmarshal(body, &recipe); err != nil {
+		return fmt.Errorf("%s fixture recipe: %w", name, err)
+	}
+	got := evaluateRecipeOperations(root, recipe.Operations)
+	if got != want || len(recipe.Operations) != want.presentCount+want.applicableCount+want.conflictCount {
+		return fmt.Errorf("%s operation cohort changed: got %+v, want %+v", name, got, want)
+	}
+	return nil
+}
+
 func TestROCS0RuntimeGoldens(t *testing.T) {
 	for _, name := range rocS0RuntimeCases {
 		t.Run(name, func(t *testing.T) {
 			rocS0PinGit(t)
 			f := rocS0Fixture(t, name)
+			switch name {
+			case "phase2-applicable-only", "phase2-mixed", "phase2-conflict-fallthrough", "phase4-strict":
+				raw, err := os.ReadFile(filepath.Join(f.store.Root, ".tpatch", "features", f.slugs[0], "artifacts", "apply-recipe.json"))
+				if err != nil && !os.IsNotExist(err) {
+					t.Fatal(err)
+				}
+				if err := rocS0ValidateOperationFixture(f.store.Root, name, raw, err == nil); err != nil {
+					t.Fatal(err)
+				}
+			}
 			canonical := make(map[string]string)
 			for _, slug := range f.slugs {
 				body, err := f.store.ReadFeatureFile(slug, "artifacts/post-apply.patch")

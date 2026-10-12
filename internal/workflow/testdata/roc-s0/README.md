@@ -28,6 +28,15 @@ Capture is not a passing comparison: rerun without that variable afterward.
 S0's scope guard deliberately rejects production/public-contract changes;
 later slices must transition that guard explicitly when production work is
 authorized rather than accidentally weakening this baseline.
+The capture allowlist names only the five new S0 test files, this fixture
+directory and tracking documents. Existing shared fixture builders cannot
+change while new snapshots are captured.
+
+Plain strict, applicable-only and mixed operation fixtures intentionally have
+the same shipped output: applicable-only/mixed phase 2 emits no note today.
+Their actual recipe presence and evaluator counts are asserted before pipeline
+execution, with missing-recipe/dropped-operation controls, so identical output
+does not let those input cohorts collapse silently.
 
 ## Future expectations, not shipped behavior
 

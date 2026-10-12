@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Review needs two test-scaffolding revisions; broader validation passed
+- **Status**: Both review corrections pass repeated checks; follow-up review pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -50,6 +50,13 @@ Reviewer `e17d29e2-bd48-4003-80a9-c0b61112dc09` (runtime-confirmed `gpt-5.4`)
 returns NEEDS REVISION: restrict capture scope to explicit S0 files so shared
 fixture helpers cannot drift; distinguish the applicable-only/mixed/plain
 fixture inputs with explicit classification assertions and mutation controls.
+Both corrections are implemented: the allowlist names only the five S0 test
+files plus this fixture directory/tracking; existing shared builders are denied.
+Runtime fixtures now assert recipe presence and real evaluator counts before
+fallthrough, with missing-recipe/dropped-operation negative controls.
+Goldens and production code are unchanged. Reformatting and a full two-repeat
+S0 comparison pass (workflow 6.625s, CLI 1.869s, store 0.183s). Return the
+bounded fixes to the same reviewer before final acceptance.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -133,6 +140,8 @@ and CHANGELOG remain untouched.
   is enabled during comparison. Broader packages/review/full gate remain.
 - Full workflow/store packages pass (117.346s/2.766s), and vet/build pass.
   Review has two medium findings; these validation passes do not close them.
+- Both review corrections pass all S0 checks twice (6.625s/1.869s/0.183s)
+  with ordinary golden comparison. Reviewer closure is pending.
 
 ## Next Steps
 

@@ -1,3 +1,25 @@
+## GH #13 S0 Review Corrections PASS — follow-up review — 2026-10-11
+
+Both corrections pass formatting and all S0 checks twice with normal golden
+comparison (workflow 6.625s, CLI 1.869s, store 0.183s). No golden bytes or
+production/public-contract files changed. Commit the explicit allowlist and
+observable cohort controls, then return only this bounded follow-up to reviewer
+`e17d29e2-bd48-4003-80a9-c0b61112dc09`. Review findings are not marked closed
+until the reviewer confirms them.
+
+## GH #13 S0 Review Corrections Implemented — 2026-10-11
+
+Restrict scope/capture permission to the five explicit S0 test files, the
+workflow roc-s0 fixture directory and tracking documents. New negative paths
+cover existing shared builders, the CLI runner, old promoted bytes and
+unregistered test files/directories.
+
+The plain/applicable/mixed/conflicting fixtures now validate actual recipe
+presence and `evaluateRecipeOperations` counts before RunReconcile. Missing
+recipes and dropped operations fail the same matcher; identical shipped output
+goldens remain unchanged. These are input-cohort assertions, not a new phase-2
+implementation. Reformat/revalidate and return the change to the same reviewer.
+
 ## GH #13 S0 Review — NEEDS REVISION — 2026-10-11
 
 **Reviewer**: `roc-s0-openai-review` / `e17d29e2-bd48-4003-80a9-c0b61112dc09`.

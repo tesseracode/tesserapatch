@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,23 +11,25 @@ import (
 )
 
 func rocS0ValidateChangedPaths(paths []string) error {
-	tracking := map[string]bool{
-		"docs/handoff/CURRENT.md": true,
-		"docs/handoff/HISTORY.md": true,
-		"docs/ROADMAP.md":         true,
-		"docs/supervisor/LOG.md":  true,
+	allowed := map[string]bool{
+		"docs/handoff/CURRENT.md":                                   true,
+		"docs/handoff/HISTORY.md":                                   true,
+		"docs/ROADMAP.md":                                           true,
+		"docs/supervisor/LOG.md":                                    true,
+		"internal/workflow/operation_candidate_s0_test.go":          true,
+		"internal/workflow/operation_candidate_s0_guards_test.go":   true,
+		"internal/workflow/operation_candidate_s0_fixtures_test.go": true,
+		"internal/cli/operation_candidate_s0_test.go":               true,
+		"internal/store/operation_candidate_s0_test.go":             true,
 	}
 	for _, path := range paths {
 		if path != "" && filepath.ToSlash(filepath.Clean(path)) != path {
 			return fmt.Errorf("non-canonical S0 path: %q", path)
 		}
-		if path == "" || tracking[path] {
+		if path == "" || allowed[path] {
 			continue
 		}
-		if strings.HasPrefix(path, "internal/") && strings.HasSuffix(path, "_test.go") {
-			continue
-		}
-		if strings.HasPrefix(path, "internal/") && strings.Contains(path, "/testdata/roc-s0/") {
+		if strings.HasPrefix(path, "internal/workflow/testdata/roc-s0/") {
 			continue
 		}
 		return fmt.Errorf("S0 changed a non-test/public-contract path: %s", path)
@@ -66,6 +69,16 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 	for _, path := range []string{
 		"internal/workflow/reconcile.go",
 		"internal/workflow/new_candidate.go",
+		"internal/workflow/unregistered_test.go",
+		"internal/workflow/reconcile_evidence_integration_test.go",
+		"internal/workflow/golden_reconcile_test.go",
+		"internal/workflow/reconcile_canonical_safety_test.go",
+		"internal/workflow/reconcile_test.go",
+		"internal/workflow/resolver_test.go",
+		"internal/cli/recipe_authority_s5_cli_test.go",
+		"internal/cli/cobra_test.go",
+		"internal/workflow/testdata/rga-s0/adjacent-cli-args-conflict-2026-08/base.command.go.txt",
+		"internal/cli/testdata/roc-s0/unregistered.json",
 		"internal/store/types.go",
 		"internal/cli/cobra.go",
 		"cmd/tpatch/main.go",
@@ -184,5 +197,42 @@ func TestROCS0ShadowNormalizationScope(t *testing.T) {
 		if err := rocS0ValidateShadowPath(root, "feature", path); err == nil {
 			t.Fatalf("normalization would hide an invalid shadow path: %s", path)
 		}
+	}
+}
+
+func TestROCS0OperationCohortSensitivity(t *testing.T) {
+	for _, name := range []string{"phase4-strict", "phase2-applicable-only", "phase2-mixed", "phase2-conflict-fallthrough"} {
+		t.Run(name, func(t *testing.T) {
+			rocS0PinGit(t)
+			f := rocS0Fixture(t, name)
+			body, err := os.ReadFile(filepath.Join(f.store.Root, ".tpatch", "features", f.slugs[0], "artifacts", "apply-recipe.json"))
+			if err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			if err := rocS0ValidateOperationFixture(f.store.Root, name, body, err == nil); err != nil {
+				t.Fatal(err)
+			}
+			if name == "phase4-strict" {
+				if err := rocS0ValidateOperationFixture(f.store.Root, name, []byte(`{"operations":[]}`), true); err == nil {
+					t.Fatal("plain strict fixture accepted a phase-2 recipe")
+				}
+				return
+			}
+			if err := rocS0ValidateOperationFixture(f.store.Root, name, nil, false); err == nil {
+				t.Fatal("phase-2 fixture accepted a missing recipe")
+			}
+			var recipe ApplyRecipe
+			if err := json.Unmarshal(body, &recipe); err != nil {
+				t.Fatal(err)
+			}
+			recipe.Operations = recipe.Operations[:len(recipe.Operations)-1]
+			mutant, err := json.Marshal(recipe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := rocS0ValidateOperationFixture(f.store.Root, name, mutant, true); err == nil {
+				t.Fatal("operation cohort accepted a dropped operation")
+			}
+		})
 	}
 }
