@@ -1,3 +1,31 @@
+## GH #13 S0 Heavy-Shard Investigation Authorized — 2026-10-12
+
+The operator approves read-only investigation of AR rev-21/23/24 and at most
+one monitored isolated probe if needed. No test code, canonical grouping,
+timeout or safeguard changes are authorized.
+
+Retained passing runs show this same group already used 10,298,359,808 bytes
+(`12617b1`, 125.01s) and 10,951,573,504 bytes (`608714b`, 128.57s) of sampled
+owned RSS before S0. Its analyzer/cache files are byte-identical at `e8a154b`.
+This is not evidence of a new S0 production defect; background host state
+and the extra compiled S0 tests can differ, so exact causal attribution is
+still limited.
+
+Static inspection identifies six test roots with 85 independent table
+fixtures. Each constructs a mutated whole-package type model and invokes the
+purge-progress analyzer. None uses `s6SerialAnalyzerMemoScope`; that bounded
+four-fixture cleanup is currently applied only to rev-19/rev-20.
+Process-global type-model/graph/binding/expression caches retain references
+across this group's fixtures.
+
+**Probe scope**: one unchanged `^TestS7ARRev(21|23|24).*$` invocation at
+`e8a154b`, serial, fresh isolated source/caches, with `-json` test events to
+correlate sample growth and fixture progress. Existing 40m test timeout stays;
+the operational probe has a 30m total budget, including at most 600s admission.
+No heap-profile finalization, GC tuning or source overlays. Preserve normal-
+pressure/no-new-swap/load minute and runtime stops. This single-group result,
+whether pass or stop, cannot substitute for the full mechanical gate.
+
 ## GH #13 S0 Second Resource Stop — identical full retries paused — 2026-10-12
 
 The operator-approved retry after idle Docker shutdown again passes checks

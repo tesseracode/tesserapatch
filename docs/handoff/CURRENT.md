@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Review/native CI passed; local gate blocked twice on warning memory pressure
+- **Status**: Local gate resource-blocked; bounded heavy-shard investigation authorized
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -81,6 +81,13 @@ sample is 7,914,389,504 bytes. The controller explicitly terminates one retained
 owned git-daemon and verifies zero remaining owned processes.
 Docker shutdown was not sufficient to complete the local gate. Do not start
 another identical full retry without addressing the resource problem.
+The operator now authorizes a read-only heavy-shard investigation and at most
+one monitored isolated probe. Static inspection finds six roots/85 table
+fixtures with whole-package mutated type models and no scoped memo cleanup.
+The same group already peaked around 9.59/10.20 GiB in earlier passing gates;
+its analyzer/cache code is unchanged. A single unchanged group run with JSON
+events can correlate fixture progress and memory samples. No code/grouping/
+timeout/safeguard change is authorized, and no full-gate success is implied.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -183,8 +190,10 @@ and CHANGELOG remain untouched.
    evidence at `bin/roc-s0-20261011/final-gate/evidence/`.
 2. Preserve the second stopped run at
    `bin/roc-s0-20261011/final-gate-retry/evidence/`. No local Go run remains.
-   Obtain the operator's decision on a bounded heavy-shard investigation or
-   further host headroom; do not blindly retry or weaken safeguards.
+   Complete the authorized bounded investigation. If needed, run the one
+   isolated JSON-event probe with unchanged group/source and safeguards,
+   a 30m total budget and no heap finalization or GC tuning. Do not launch
+   additional probes/full retries without a new decision.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -196,6 +205,8 @@ No review/native CI findings remain. Both full local attempts stopped on
 warning pressure in the fifth test command, including the approved retry after
 idle Docker shutdown. Full local validation is incomplete; S1 stays undispatched.
 No new memory-optimization implementation or canonical-shard change is authorized.
+Read-only investigation plus one bounded probe is now authorized; any resulting
+test-lifetime implementation requires a separate scope decision.
 
 ## Context for Next Agent
 

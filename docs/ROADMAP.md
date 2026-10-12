@@ -1476,6 +1476,10 @@ AR rev-21/23/24 after checks 1-7 and 4/22 test commands pass. No assertion
 failure or swapping; owned cleanup is verified. Native CI remains green.
 Identical full retries are paused pending a bounded heavy-shard investigation
 or further host-resource reduction. S0 is not accepted; S1 remains undispatched.
+The operator now approves read-only investigation and one isolated monitored
+probe if needed. Six roots/85 fixtures retain unscoped analyzer memos; the same
+group was already about 9.59-10.20 GiB in prior passing runs, with unchanged
+analyzer/cache source. No implementation or canonical-shard change is authorized.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
