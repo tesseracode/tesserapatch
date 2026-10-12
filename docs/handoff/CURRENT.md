@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Review/native CI passed; idle Docker stopped and full local retry authorized
+- **Status**: Review/native CI passed; fresh local retry running after idle Docker shutdown
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -73,6 +73,8 @@ check, then retrying the full local gate. Shutdown is verified; post-stop
 pressure is normal, load1 2.97, swap zero and no Go tools active.
 Retry the same pushed/native-green `e8a154b` source with new caches/evidence;
 do not weaken safeguards or count the first attempt as complete.
+The retry is now running with checks 1-6 passed and verified live telemetry.
+Its shell is `roc-s0-final-gate-retry-20261012`; nine routing controls pass.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -164,15 +166,17 @@ and CHANGELOG remain untouched.
   one owned git-daemon is terminated and none remain.
 - Native `38189486586`: SUCCESS at `e8a154b`, all five required jobs pass,
   release skipped.
+- Fresh local retry at the same source has checks 1-6 passed and is running;
+  no complete retry result is claimed yet.
 
 ## Next Steps
 
 1. Preserve the completed native CI result and the original resource-stop
    evidence at `bin/roc-s0-20261011/final-gate/evidence/`.
-2. Retry the complete local gate at unchanged `e8a154b`, with fresh caches/
-   evidence after the operator-approved idle Docker shutdown. All original
-   admission/runtime safeguards stay enabled; post-stop normal pressure is
-   not proof the heavy command will fit.
+2. Await `roc-s0-final-gate-retry-20261012`, with evidence at
+   `bin/roc-s0-20261011/final-gate-retry/evidence/`. It runs unchanged `e8a154b`
+   after the approved Docker shutdown, with fresh caches and all safeguards.
+   Do not duplicate it or substitute the first attempt's partial results.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -182,7 +186,7 @@ and CHANGELOG remain untouched.
 
 No review/native CI findings remain. The initial local gate stopped at warning
 pressure after 4/22 commands. Idle Docker shutdown is approved and complete;
-the fresh complete local retry remains required. S1 stays undispatched.
+the fresh complete local retry is running. S1 stays undispatched.
 
 ## Context for Next Agent
 

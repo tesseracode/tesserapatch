@@ -1,3 +1,16 @@
+## GH #13 S0 Headroom Retry Dispatched — 2026-10-12
+
+After the approved idle Docker shutdown, a fresh full local gate is running
+against unchanged native-green `e8a154b`, with new source/caches/evidence and
+all original safeguards. Checks 1-6 pass; the gate and telemetry are active.
+Nine routing controls pass. No partial result from the stopped attempt is reused.
+
+**Resume point**: shell `roc-s0-final-gate-retry-20261012`; evidence
+`bin/roc-s0-20261011/final-gate-retry/evidence/`. Native CI `38189486586`
+already passed at this exact source. Keep origin/main at that checkpoint while
+the retry runs; retain local tracking commits until closure. S0 acceptance
+still depends on full local completion, and S1 remains undispatched.
+
 ## GH #13 S0 Native PASS — idle Docker stopped; retry authorized — 2026-10-12
 
 Native `38189486586` at exact checkpoint `e8a154b` completes SUCCESS with all

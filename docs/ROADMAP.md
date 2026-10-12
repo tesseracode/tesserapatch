@@ -1471,6 +1471,8 @@ is reported; owned cleanup is verified. More runtime headroom is needed before
 a complete local retry. Native `38189486586` now passes all five required jobs.
 The operator authorizes verified idle Docker shutdown and a fresh full local
 retry at unchanged `e8a154b`; safeguards and prior evidence remain intact.
+Docker is stopped and the fresh retry is active, with checks 1-6 passed.
+Resume via `roc-s0-final-gate-retry-20261012`; native CI at that source is green.
 S0 is not yet accepted; S1 remains undispatched.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
