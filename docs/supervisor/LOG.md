@@ -1,3 +1,37 @@
+## GH #13 S0 Second Resource Stop — identical full retries paused — 2026-10-12
+
+The operator-approved retry after idle Docker shutdown again passes checks
+1-7 and exactly four test commands, then stops on warning OS pressure in
+`TestS7ARRev(21|23|24)`. No assertion failure or swapping is reported.
+Docker shutdown did not provide sufficient runtime headroom for this run;
+no claim is made that it had no effect or that this is a new S0 test defect.
+
+The second run takes 1933.22s and records 959 samples, normal then warning
+pressure, zero occupied swap and no new swap-outs. Peak sampled owned RSS
+across the run is 9,842,114,560 bytes; the final sample in the interrupted
+command records 7,914,389,504 bytes. Summed process-tree RSS is neither unique
+physical memory nor an attribution of all host pressure. The same command
+stops about 94.87s into sampled execution, versus 117.99s in the first run.
+
+The controller reconciles 236 sampled owned identities, explicitly terminates
+one retained owned git-daemon and verifies zero remaining processes. The
+isolated checkout and release tag remain unchanged. Native `38189486586`
+is SUCCESS at the same `e8a154b` source; independent review remains APPROVED.
+Neither result substitutes for the required complete local gate.
+
+**Action**: stop identical full-suite retries. Preserve both raw runs, mark
+local validation blocked and obtain an operator decision on a bounded
+investigation of this heavy shard versus further host-resource reduction.
+Do not weaken the warning-pressure stop, change canonical shards, modify
+existing analyzer tests under S0 authority, or dispatch S1.
+
+**Retained summary hashes**:
+`final-gate/evidence/summary.json`:
+`209b1b53375a555df5f2250f0a8ce25f544350d02fb7d958828b710d1b0e4a19`;
+`final-gate-retry/evidence/summary.json`:
+`bd95a989373ef0bfc5c238763e789295eebc019d38b6816c8862d34faa2677b6`.
+Both paths are beneath ignored `bin/roc-s0-20261011/`.
+
 ## GH #13 S0 Headroom Retry Dispatched — 2026-10-12
 
 After the approved idle Docker shutdown, a fresh full local gate is running

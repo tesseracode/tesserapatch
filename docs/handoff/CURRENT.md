@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Review/native CI passed; fresh local retry running after idle Docker shutdown
+- **Status**: Review/native CI passed; local gate blocked twice on warning memory pressure
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -73,8 +73,14 @@ check, then retrying the full local gate. Shutdown is verified; post-stop
 pressure is normal, load1 2.97, swap zero and no Go tools active.
 Retry the same pushed/native-green `e8a154b` source with new caches/evidence;
 do not weaken safeguards or count the first attempt as complete.
-The retry is now running with checks 1-6 passed and verified live telemetry.
-Its shell is `roc-s0-final-gate-retry-20261012`; nine routing controls pass.
+The retry is complete with the same resource stop: checks 1-7 and 4/22 test
+commands pass, then warning pressure stops AR rev-21/23/24. No assertion
+failure or swapping is reported. The 1933.22s run records 959 samples and
+peak sampled owned RSS of 9,842,114,560 bytes; the interrupted command's final
+sample is 7,914,389,504 bytes. The controller explicitly terminates one retained
+owned git-daemon and verifies zero remaining owned processes.
+Docker shutdown was not sufficient to complete the local gate. Do not start
+another identical full retry without addressing the resource problem.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -82,7 +88,7 @@ oracle pins its later phase's outcome; it does not implement the future gate.
 
 ## Current State
 
-S0 must cover the following before review:
+The reviewed S0 implementation covers:
 
 1. Current phase outcomes and exact operation-level notes.
 2. Gate-off session JSON and evidence JSONL for phases 1, 1.5, 2 all-present,
@@ -148,15 +154,15 @@ and CHANGELOG remain untouched.
   runtime fixtures, then fails because the intended clean-threeway fixture
   used adjacent conflicting edits. Separate those edits while retaining the
   context mismatch; preserve the expected clean-threeway outcome and retry.
-  Capture is not yet a completed passing comparison.
+  That partial capture was superseded by the passing comparisons below.
 - The separated clean-threeway fixture captures successfully. Full normal
   comparisons pass (workflow 2.908s, CLI 1.107s, store 0.158s), then all S0
   tests pass twice (5.999s / 1.954s / 0.442s), including decoder controls.
 - Final valid-provider fixture capture and normal `-count=2` S0 comparison
   pass: workflow 5.580s, CLI 1.761s, store 0.069s. No golden-update environment
-  is enabled during comparison. Broader packages/review/full gate remain.
+  is enabled during comparison.
 - Full workflow/store packages pass (117.346s/2.766s), and vet/build pass.
-  Review has two medium findings; these validation passes do not close them.
+  The initial review's two findings were addressed and closed below.
 - Both review corrections pass all S0 checks twice (6.625s/1.869s/0.183s)
   with ordinary golden comparison. Follow-up review is APPROVED.
 - Updated-source vet and CLI build pass; all nine routing controls pass.
@@ -166,17 +172,19 @@ and CHANGELOG remain untouched.
   one owned git-daemon is terminated and none remain.
 - Native `38189486586`: SUCCESS at `e8a154b`, all five required jobs pass,
   release skipped.
-- Fresh local retry at the same source has checks 1-6 passed and is running;
-  no complete retry result is claimed yet.
+- The approved retry after Docker shutdown again passes checks 1-7 and
+  4/22 test commands, then stops on warning pressure in AR rev-21/23/24.
+  No assertion failure or swap; 236 owned identities reconciled, one retained
+  git-daemon explicitly terminated, zero remaining processes.
 
 ## Next Steps
 
 1. Preserve the completed native CI result and the original resource-stop
    evidence at `bin/roc-s0-20261011/final-gate/evidence/`.
-2. Await `roc-s0-final-gate-retry-20261012`, with evidence at
-   `bin/roc-s0-20261011/final-gate-retry/evidence/`. It runs unchanged `e8a154b`
-   after the approved Docker shutdown, with fresh caches and all safeguards.
-   Do not duplicate it or substitute the first attempt's partial results.
+2. Preserve the second stopped run at
+   `bin/roc-s0-20261011/final-gate-retry/evidence/`. No local Go run remains.
+   Obtain the operator's decision on a bounded heavy-shard investigation or
+   further host headroom; do not blindly retry or weaken safeguards.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -184,9 +192,10 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-No review/native CI findings remain. The initial local gate stopped at warning
-pressure after 4/22 commands. Idle Docker shutdown is approved and complete;
-the fresh complete local retry is running. S1 stays undispatched.
+No review/native CI findings remain. Both full local attempts stopped on
+warning pressure in the fifth test command, including the approved retry after
+idle Docker shutdown. Full local validation is incomplete; S1 stays undispatched.
+No new memory-optimization implementation or canonical-shard change is authorized.
 
 ## Context for Next Agent
 

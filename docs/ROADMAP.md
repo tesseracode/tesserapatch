@@ -1471,9 +1471,11 @@ is reported; owned cleanup is verified. More runtime headroom is needed before
 a complete local retry. Native `38189486586` now passes all five required jobs.
 The operator authorizes verified idle Docker shutdown and a fresh full local
 retry at unchanged `e8a154b`; safeguards and prior evidence remain intact.
-Docker is stopped and the fresh retry is active, with checks 1-6 passed.
-Resume via `roc-s0-final-gate-retry-20261012`; native CI at that source is green.
-S0 is not yet accepted; S1 remains undispatched.
+Docker is stopped, but the fresh retry again stops at warning pressure in
+AR rev-21/23/24 after checks 1-7 and 4/22 test commands pass. No assertion
+failure or swapping; owned cleanup is verified. Native CI remains green.
+Identical full retries are paused pending a bounded heavy-shard investigation
+or further host-resource reduction. S0 is not accepted; S1 remains undispatched.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
