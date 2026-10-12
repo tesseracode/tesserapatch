@@ -1,0 +1,125 @@
+--- secret-revision-metadata-do-not-leak-reverse-apply/reconcile-session.json (3324 bytes) ---
+{
+  "slug": "secret-revision-metadata-do-not-leak-reverse-apply",
+  "title": "SECRET_REVISION_METADATA_DO_NOT_LEAK reverse apply confirmation",
+  "outcome": "upstreamed",
+  "phase": "phase-1-reverse-apply",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "notes": [
+    "Patch is already present in upstream (reverse-apply succeeded)",
+    "confirmation gate: upstreamed verdict confirmed"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-revision-metadata-do-not-leak-reverse-apply",
+      "attempt_id": "re_5631ca72ec1a",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "base_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-1",
+      "evidence_kind": "reverse-apply",
+      "confidence": "high",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "upstream",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "present",
+      "requires_confirmation": true,
+      "reason_code": "phase-1-reverse-apply"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-revision-metadata-do-not-leak-reverse-apply",
+      "attempt_id": "re_743460f63549",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "base_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3.5",
+      "evidence_kind": "file-novelty",
+      "confidence": "high",
+      "matched_paths": [
+        "feature.txt"
+      ],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "absent",
+      "requires_confirmation": true,
+      "reason_code": "all-new-files"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-revision-metadata-do-not-leak-reverse-apply",
+      "attempt_id": "re_54b805d067c3",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "base_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3.5",
+      "evidence_kind": "manual-review",
+      "confidence": "high",
+      "matched_paths": [],
+      "matched_operations": [
+        "confirmation-gate"
+      ],
+      "match_origin": "upstream",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": false,
+      "reason_code": "confirmed-upstreamed"
+    }
+  ],
+  "review_verdict": "confirmed-upstreamed",
+  "revisions": [
+    {
+      "schema_version": 1,
+      "entry_id": "rr_76d6241ed50b",
+      "feature_slug": "secret-revision-metadata-do-not-leak-reverse-apply",
+      "evidence_attempt_id": "re_54b805d067c3",
+      "raw_reconcile_verdict": "upstreamed",
+      "review_verdict": "confirmed",
+      "final_feature_state": "upstream_merged",
+      "action_taken": "confirmed-retired",
+      "reason_code": "confirmed-upstreamed",
+      "validation_refs": [
+        {
+          "kind": "upstream-commit",
+          "value": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+          "result": "referenced"
+        }
+      ]
+    }
+  ]
+}
+--- secret-revision-metadata-do-not-leak-reverse-apply/reconcile-evidence.jsonl (1721 bytes) ---
+{"attempt_id":"re_5631ca72ec1a","base_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","confidence":"high","evidence_kind":"reverse-apply","feature_slug":"secret-revision-metadata-do-not-leak-reverse-apply","match_origin":"upstream","matched_operations":[],"matched_paths":[],"phase":"phase-1","pre_reconcile_presence":"present","raw_reconcile_verdict":"upstreamed","reason_code":"phase-1-reverse-apply","requires_confirmation":true,"schema_version":1,"upstream_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_743460f63549","base_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","confidence":"high","evidence_kind":"file-novelty","feature_slug":"secret-revision-metadata-do-not-leak-reverse-apply","match_origin":"unknown","matched_operations":[],"matched_paths":["feature.txt"],"phase":"phase-3.5","pre_reconcile_presence":"absent","raw_reconcile_verdict":"upstreamed","reason_code":"all-new-files","requires_confirmation":true,"schema_version":1,"upstream_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_54b805d067c3","base_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","confidence":"high","evidence_kind":"manual-review","feature_slug":"secret-revision-metadata-do-not-leak-reverse-apply","match_origin":"upstream","matched_operations":["confirmation-gate"],"matched_paths":[],"phase":"phase-3.5","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"upstreamed","reason_code":"confirmed-upstreamed","requires_confirmation":false,"schema_version":1,"upstream_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- secret-revision-metadata-do-not-leak-reverse-apply/reconcile.md (367 bytes) ---
+# Reconciliation: secret-revision-metadata-do-not-leak-reverse-apply
+
+**Outcome**: upstreamed
+**Phase**: phase-1-reverse-apply
+**Upstream Ref**: HEAD
+**Upstream Commit**: 02b43d242a4528b0b4b33ab74a3ce636254f8ec6
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch is already present in upstream (reverse-apply succeeded)
+- confirmation gate: upstreamed verdict confirmed
+
+--- secret-revision-metadata-do-not-leak-reverse-apply/reconcile-summary.json (199 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "outcome": "upstreamed",
+  "review_verdict": "confirmed-upstreamed"
+}
+--- secret-revision-metadata-do-not-leak-reverse-apply/state (16 bytes) ---
+upstream_merged

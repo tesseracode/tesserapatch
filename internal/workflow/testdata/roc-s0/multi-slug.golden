@@ -1,0 +1,114 @@
+--- aaa/reconcile-session.json (937 bytes) ---
+{
+  "slug": "aaa",
+  "title": "aaa",
+  "outcome": "reapplied",
+  "phase": "phase-4-forward-apply-strict",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "notes": [
+    "Patch applies cleanly (strict) — safe to auto-apply"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "aaa",
+      "attempt_id": "re_04fd30716a12",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "reapplied",
+      "phase": "phase-4",
+      "evidence_kind": "forward-apply",
+      "confidence": "medium",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-4-forward-apply-strict"
+    }
+  ]
+}
+--- aaa/reconcile-evidence.jsonl (495 bytes) ---
+{"attempt_id":"re_04fd30716a12","base_commit":"unknown","confidence":"medium","evidence_kind":"forward-apply","feature_slug":"aaa","match_origin":"unknown","matched_operations":[],"matched_paths":[],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"reapplied","reason_code":"phase-4-forward-apply-strict","requires_confirmation":true,"schema_version":1,"upstream_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- aaa/reconcile.md (267 bytes) ---
+# Reconciliation: aaa
+
+**Outcome**: reapplied
+**Phase**: phase-4-forward-apply-strict
+**Upstream Ref**: HEAD
+**Upstream Commit**: 02b43d242a4528b0b4b33ab74a3ce636254f8ec6
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch applies cleanly (strict) — safe to auto-apply
+
+--- aaa/reconcile-summary.json (154 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "outcome": "reapplied"
+}
+--- aaa/state (8 bytes) ---
+applied
+--- bbb/reconcile-session.json (937 bytes) ---
+{
+  "slug": "bbb",
+  "title": "bbb",
+  "outcome": "reapplied",
+  "phase": "phase-4-forward-apply-strict",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "notes": [
+    "Patch applies cleanly (strict) — safe to auto-apply"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "bbb",
+      "attempt_id": "re_bbc231076381",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "reapplied",
+      "phase": "phase-4",
+      "evidence_kind": "forward-apply",
+      "confidence": "medium",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-4-forward-apply-strict"
+    }
+  ]
+}
+--- bbb/reconcile-evidence.jsonl (495 bytes) ---
+{"attempt_id":"re_bbc231076381","base_commit":"unknown","confidence":"medium","evidence_kind":"forward-apply","feature_slug":"bbb","match_origin":"unknown","matched_operations":[],"matched_paths":[],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"reapplied","reason_code":"phase-4-forward-apply-strict","requires_confirmation":true,"schema_version":1,"upstream_commit":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- bbb/reconcile.md (267 bytes) ---
+# Reconciliation: bbb
+
+**Outcome**: reapplied
+**Phase**: phase-4-forward-apply-strict
+**Upstream Ref**: HEAD
+**Upstream Commit**: 02b43d242a4528b0b4b33ab74a3ce636254f8ec6
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch applies cleanly (strict) — safe to auto-apply
+
+--- bbb/reconcile-summary.json (154 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6",
+  "outcome": "reapplied"
+}
+--- bbb/state (8 bytes) ---
+applied

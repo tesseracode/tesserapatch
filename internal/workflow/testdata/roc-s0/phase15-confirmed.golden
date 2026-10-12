@@ -1,0 +1,124 @@
+--- greeting/reconcile-session.json (3137 bytes) ---
+{
+  "slug": "greeting",
+  "title": "greeting",
+  "outcome": "upstreamed",
+  "phase": "phase-1.5-patch-id-match",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+  "notes": [
+    "Patch-id sweep matched upstream commit c8b4b2ae (scanned 2 in 02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141)",
+    "confirmation gate: upstreamed verdict confirmed"
+  ],
+  "patch_id_match": {
+    "our_patch_id": "6623ceeac6a7d22aedc5cda356cf81b2ccfc2cd4",
+    "matched_upstream_sha": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+    "scanned_range": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141",
+    "scanned_count": 2
+  },
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "greeting",
+      "attempt_id": "re_5b93f3847b09",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-1.5",
+      "evidence_kind": "patch-id-match",
+      "confidence": "high",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "upstream",
+      "upstream_commit_refs": [
+        "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b"
+      ],
+      "pre_reconcile_presence": "present",
+      "requires_confirmation": false,
+      "reason_code": "phase-1.5-patch-id-match",
+      "git_patch_id": "6623ceeac6a7d22aedc5cda356cf81b2ccfc2cd4",
+      "git_patch_id_algorithm": "git-patch-id-stable",
+      "matched_upstream_sha": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+      "scanned_range": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141",
+      "scanned_count": 2
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "greeting",
+      "attempt_id": "re_38e25a4c6001",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3.5",
+      "evidence_kind": "manual-review",
+      "confidence": "high",
+      "matched_paths": [],
+      "matched_operations": [
+        "confirmation-gate"
+      ],
+      "match_origin": "upstream",
+      "upstream_commit_refs": [
+        "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b"
+      ],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": false,
+      "reason_code": "confirmed-upstreamed"
+    }
+  ],
+  "review_verdict": "confirmed-upstreamed",
+  "revisions": [
+    {
+      "schema_version": 1,
+      "entry_id": "rr_f83185c8fd6b",
+      "feature_slug": "greeting",
+      "evidence_attempt_id": "re_38e25a4c6001",
+      "raw_reconcile_verdict": "upstreamed",
+      "review_verdict": "confirmed",
+      "final_feature_state": "upstream_merged",
+      "action_taken": "confirmed-retired",
+      "reason_code": "confirmed-upstreamed",
+      "validation_refs": [
+        {
+          "kind": "upstream-commit",
+          "value": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+          "result": "referenced"
+        }
+      ]
+    }
+  ]
+}
+--- greeting/reconcile-evidence.jsonl (1384 bytes) ---
+{"attempt_id":"re_5b93f3847b09","base_commit":"unknown","confidence":"high","evidence_kind":"patch-id-match","feature_slug":"greeting","git_patch_id":"6623ceeac6a7d22aedc5cda356cf81b2ccfc2cd4","git_patch_id_algorithm":"git-patch-id-stable","match_origin":"upstream","matched_operations":[],"matched_paths":[],"matched_upstream_sha":"c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b","phase":"phase-1.5","pre_reconcile_presence":"present","raw_reconcile_verdict":"upstreamed","reason_code":"phase-1.5-patch-id-match","requires_confirmation":false,"scanned_count":2,"scanned_range":"02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141","schema_version":1,"upstream_commit":"c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b","upstream_commit_refs":["c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b"],"upstream_ref":"HEAD"}
+{"attempt_id":"re_38e25a4c6001","base_commit":"unknown","confidence":"high","evidence_kind":"manual-review","feature_slug":"greeting","match_origin":"upstream","matched_operations":["confirmation-gate"],"matched_paths":[],"phase":"phase-3.5","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"upstreamed","reason_code":"confirmed-upstreamed","requires_confirmation":false,"schema_version":1,"upstream_commit":"c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b","upstream_commit_refs":["c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b"],"upstream_ref":"HEAD"}
+--- greeting/reconcile.md (411 bytes) ---
+# Reconciliation: greeting
+
+**Outcome**: upstreamed
+**Phase**: phase-1.5-patch-id-match
+**Upstream Ref**: HEAD
+**Upstream Commit**: c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch-id sweep matched upstream commit c8b4b2ae (scanned 2 in 02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141)
+- confirmation gate: upstreamed verdict confirmed
+
+--- greeting/reconcile-summary.json (492 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+  "outcome": "upstreamed",
+  "review_verdict": "confirmed-upstreamed",
+  "patch_id_match": {
+    "our_patch_id": "6623ceeac6a7d22aedc5cda356cf81b2ccfc2cd4",
+    "matched_upstream_sha": "c8b4b2ae17fda548aef2cd8b6c8a9bea4ed8076b",
+    "scanned_range": "02b43d242a4528b0b4b33ab74a3ce636254f8ec6..ce9a0ac24a6b1a76be90542d887e4f706eb0b141",
+    "scanned_count": 2
+  }
+}
+--- greeting/state (16 bytes) ---
+upstream_merged

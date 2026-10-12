@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: In progress — inventorying existing fixtures and golden helpers
+- **Status**: Frozen baseline and sensitivity checks pass; review and broader validation next
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -32,6 +32,21 @@ Read the accepted rev-7 plan and its no-production-before-S0 boundary.
 Historical "implementation undispatched" wording in frozen planning documents
 is superseded by this dated live dispatch, not silently rewritten in the
 accepted contract. No production or public-contract change has been made.
+
+Inventory identifies reusable reverse-apply/legacy-operation/conflict/novelty
+fixtures, the existing scripted provider and real Cobra test runner.
+New S0 scaffolding covers thirteen runtime cases, exact legacy CLI terminal/
+error bytes, no-candidate summary serialization, source-scope and comparison
+sensitivity, and both motivating candidate expectation variants.
+All thirteen runtime goldens are captured, and normal S0 comparisons plus
+sensitivity tests pass across workflow/CLI/store, including a two-repeat run.
+The phase-3.5 fixture now uses the semantic provider's actual `decision` field.
+Its recapture and the final two-repeat comparison pass. Source and public
+contracts remain byte-identical to the baseline outside test/tracking files.
+
+The legacy gate-on expectation is not a new confirmation: the legacy fixture
+has no eligible coverage and must fall through. A recipe-absent test-only
+oracle pins its later phase's outcome; it does not implement the future gate.
 
 ## Current State
 
@@ -79,8 +94,14 @@ default CLI flags or the checked-in hosted-CI commands.
 
 ## Files Changed
 
-Dispatch tracking only: CURRENT, HISTORY, ROADMAP and the supervisor log.
-S0 implementation is limited to test helpers, test fixtures/goldens and tracking.
+Tracking: CURRENT, HISTORY, ROADMAP and the supervisor log.
+New test files: `internal/workflow/operation_candidate_s0_test.go`,
+`operation_candidate_s0_guards_test.go`, `operation_candidate_s0_fixtures_test.go`
+in the same package, and `internal/cli/operation_candidate_s0_test.go` /
+`internal/store/operation_candidate_s0_test.go`.
+Fixture data/documentation: `internal/workflow/testdata/roc-s0/`.
+Private monitored command runner: ignored `bin/roc-s0-20261011/`.
+S0 implementation remains limited to test helpers, fixtures/goldens and tracking.
 Production Go, SPEC, assets, accepted ADR/PRD semantics, dependencies, CI/shards
 and CHANGELOG remain untouched.
 
@@ -90,12 +111,26 @@ and CHANGELOG remain untouched.
 - Prior correction: full 8/8 gate and native CI at `608714b`, with all
   25 top-level commands / 22 test commands passed.
 - No new S0 Go validation or fixture-generation result is claimed yet.
+- Initial formatting stopped on a misplaced new test declaration, before any
+  tests ran. Its scope is corrected and formatting passes.
+- Corrected formatting passes. Initial capture records twelve of thirteen
+  runtime fixtures, then fails because the intended clean-threeway fixture
+  used adjacent conflicting edits. Separate those edits while retaining the
+  context mismatch; preserve the expected clean-threeway outcome and retry.
+  Capture is not yet a completed passing comparison.
+- The separated clean-threeway fixture captures successfully. Full normal
+  comparisons pass (workflow 2.908s, CLI 1.107s, store 0.158s), then all S0
+  tests pass twice (5.999s / 1.954s / 0.442s), including decoder controls.
+- Final valid-provider fixture capture and normal `-count=2` S0 comparison
+  pass: workflow 5.580s, CLI 1.761s, store 0.069s. No golden-update environment
+  is enabled during comparison. Broader packages/review/full gate remain.
 
 ## Next Steps
 
-1. Inventory current tests, normalization helpers and exact PRD S0 obligations.
-2. Build frozen runtime/CLI baselines and both motivating fixture variants.
-3. Prove regression sensitivity and no production replay surface was added.
+1. Review the committed baseline against every PRD S0 obligation.
+2. Run affected packages and required broader checks under adopted admission.
+3. Preserve existing failure evidence; do not alter production or accepted
+   contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
    until S0 is accepted and a subsequent slice is assigned.
 

@@ -1,3 +1,61 @@
+## GH #13 S0 Frozen Checkpoint — repeated comparisons PASS — 2026-10-11
+
+All thirteen runtime goldens are captured from unchanged baseline production.
+After using a valid `decision: unclear` semantic mock, the final ordinary
+two-repeat suite passes across workflow/CLI/store (5.580s/1.761s/0.069s).
+The comparison run does not enable golden capture.
+
+Coverage includes complete artifact bytes, exact CLI outputs/errors,
+no-candidate summaries, both future adjacent-argument successes, the distinct
+legacy gate-on fallthrough expectation, and mutation controls for inventories,
+scope, bytes, normalization, shadow shape, fixture decoding and desired output.
+Commit the test-only checkpoint, then review the full S0 scope and validate
+affected packages before the final gate. No production/public-contract change
+or S1 dispatch.
+
+## GH #13 S0 Normal Comparisons PASS — review checkpoint preparation — 2026-10-11
+
+The corrected clean-threeway fixture captures its required reapplied result.
+All thirteen runtime goldens then pass ordinary comparison, together with
+candidate/legacy expectations, CLI/summary checks and sensitivity controls
+across workflow/CLI/store. A second run with `-count=2` also passes
+(5.999s/1.954s/0.442s).
+
+Before freezing the review checkpoint, make the new phase-3.5 mock use the
+semantic provider's actual `decision` key instead of an unintended empty
+decision. Recapture that fixture alone, then repeat the normal suite.
+This changes only the new test input and expected output; production and the
+accepted contract remain unchanged.
+
+## GH #13 S0 Initial Capture — fixture correction required — 2026-10-11
+
+Formatting passes after correcting one misplaced test declaration. The first
+capture records twelve runtime fixtures but correctly refuses the intended
+clean-threeway case: adjacent feature/upstream edits actually conflict.
+Correct that fixture to use separated edits within the patch's context window,
+preserving its clean-threeway expectation rather than relabeling a conflict.
+No production change or complete baseline pass is claimed. Raw admission,
+formatting and capture logs remain under `bin/roc-s0-20261011/`.
+
+## GH #13 S0 Baseline Scaffolding — capture/validation next — 2026-10-11
+
+Inventory completed against current source and accepted PRD S0. Reuse the
+existing runtime fixture builders/scripted provider and real Cobra runner.
+Test-only scaffolding now covers thirteen runtime cases, complete framed
+artifacts, exact existing CLI terminal/error behavior, no-candidate summary
+serialization and mutation-sensitive comparisons/scope checks.
+
+Both motivating adjacent-argument variants have explicit future success
+expectations. The legacy gate-on fixture is correctly pinned to later-phase
+fallthrough, not automatic confirmation; its recipe-absent oracle is expressly
+not a runtime implementation of the future config gate.
+
+Git identity/dates are pinned; only declared runtime root/shadow/session/clock
+values normalize, with semantic-field sensitivity controls. Next: format,
+capture goldens against the unchanged production baseline and rerun normal
+comparisons under adopted #13 admission. No production/public-contract edit
+or passing S0 validation is claimed yet.
+
 ## GH #13 S0 Dispatched — frozen baseline and explicit admission — 2026-10-11
 
 The operator approves recording #13's validation policy and beginning S0.

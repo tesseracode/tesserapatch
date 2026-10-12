@@ -1,0 +1,10 @@
+package command
+
+func buildArgs() []string {
+	args := []string{
+		"--old-b",
+	}
+	return run(args)
+}
+
+func run(args []string) []string { return args }

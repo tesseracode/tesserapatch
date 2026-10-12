@@ -1,0 +1,57 @@
+--- roc-threeway/reconcile-session.json (1015 bytes) ---
+{
+  "slug": "roc-threeway",
+  "title": "roc-threeway",
+  "outcome": "reapplied",
+  "phase": "phase-4-forward-apply-3way",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "3ef6d0ddfc6afc808a428ac2f8cf7dacb5d4ed35",
+  "notes": [
+    "Patch applies via 3-way merge (no conflict markers in preview) [git: Applied patch to 'shared.txt' cleanly.]"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "roc-threeway",
+      "attempt_id": "re_b1926db26149",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "3ef6d0ddfc6afc808a428ac2f8cf7dacb5d4ed35",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "reapplied",
+      "phase": "phase-4",
+      "evidence_kind": "forward-apply",
+      "confidence": "medium",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-4-forward-apply-3way"
+    }
+  ]
+}
+--- roc-threeway/reconcile-evidence.jsonl (502 bytes) ---
+{"attempt_id":"re_b1926db26149","base_commit":"unknown","confidence":"medium","evidence_kind":"forward-apply","feature_slug":"roc-threeway","match_origin":"unknown","matched_operations":[],"matched_paths":[],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"reapplied","reason_code":"phase-4-forward-apply-3way","requires_confirmation":true,"schema_version":1,"upstream_commit":"3ef6d0ddfc6afc808a428ac2f8cf7dacb5d4ed35","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- roc-threeway/reconcile.md (329 bytes) ---
+# Reconciliation: roc-threeway
+
+**Outcome**: reapplied
+**Phase**: phase-4-forward-apply-3way
+**Upstream Ref**: HEAD
+**Upstream Commit**: 3ef6d0ddfc6afc808a428ac2f8cf7dacb5d4ed35
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch applies via 3-way merge (no conflict markers in preview) [git: Applied patch to 'shared.txt' cleanly.]
+
+--- roc-threeway/reconcile-summary.json (154 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "3ef6d0ddfc6afc808a428ac2f8cf7dacb5d4ed35",
+  "outcome": "reapplied"
+}
+--- roc-threeway/state (8 bytes) ---
+applied

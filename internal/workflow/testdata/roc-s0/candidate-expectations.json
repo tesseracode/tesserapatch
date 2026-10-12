@@ -1,0 +1,40 @@
+{
+  "baseline_commit": "bbb7a4310b2ebea095890a284997fbbb42535bc7",
+  "runtime_status": "future-expectations-only",
+  "legacy_all_present": {
+    "gate_off_phase": "phase-2-operation-level",
+    "gate_off_outcome": "blocked",
+    "gate_off_review_verdict": "rejected-upstreamed",
+    "gate_on_phase": "phase-4-blocked",
+    "gate_on_outcome": "blocked",
+    "gate_on_review_verdict": "",
+    "gate_on_candidate_persisted": false,
+    "gate_on_phase2_reason": "coverage-missing"
+  },
+  "adjacent_arguments": [
+    {
+      "name": "delete-all",
+      "base_boundary": 6,
+      "upstream_boundary": 4,
+      "deleted_arguments": ["--old-a", "--old-b"],
+      "surviving_argument": "",
+      "expected_phase": "phase-2-operation-candidate",
+      "expected_outcome": "still_needed",
+      "applicable_boundaries": 1,
+      "present_boundaries": 0,
+      "conflicting_boundaries": 0
+    },
+    {
+      "name": "between-delete-first",
+      "base_boundary": 5,
+      "upstream_boundary": 4,
+      "deleted_arguments": ["--old-a"],
+      "surviving_argument": "--old-b",
+      "expected_phase": "phase-2-operation-candidate",
+      "expected_outcome": "still_needed",
+      "applicable_boundaries": 1,
+      "present_boundaries": 0,
+      "conflicting_boundaries": 0
+    }
+  ]
+}

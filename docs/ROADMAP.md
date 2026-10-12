@@ -1452,6 +1452,10 @@ Freeze current phase/session/evidence/confirmation/summary/CLI/legacy behavior,
 plus both adjacent-argument candidate expectations, with mutation-sensitive
 guards. No production edit, candidate runtime surface or S1 dispatch precedes
 S0 acceptance.
+Thirteen runtime goldens, existing CLI/summary behavior and both candidate
+expectation fixtures now pass ordinary comparison and sensitivity checks,
+including two fresh repetitions. Production code remains untouched; review,
+affected packages and full validation remain before S0 acceptance.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

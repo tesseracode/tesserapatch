@@ -1,0 +1,79 @@
+--- roc-source/reconcile-session.json (1676 bytes) ---
+{
+  "slug": "roc-source",
+  "title": "roc-source",
+  "outcome": "reapplied",
+  "phase": "phase-4-forward-apply-strict",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+  "notes": [
+    "Patch applies cleanly (strict) — safe to auto-apply"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "roc-source",
+      "attempt_id": "re_4179719b1657",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+      "base_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+      "raw_reconcile_verdict": "reapplied",
+      "phase": "phase-4",
+      "evidence_kind": "forward-apply",
+      "confidence": "medium",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-4-forward-apply-strict"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "roc-source",
+      "attempt_id": "re_db4402a92027",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+      "base_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+      "raw_reconcile_verdict": "reapplied",
+      "phase": "phase-3.5",
+      "evidence_kind": "file-novelty",
+      "confidence": "high",
+      "matched_paths": [
+        "new.txt"
+      ],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "absent",
+      "requires_confirmation": true,
+      "reason_code": "all-new-files"
+    }
+  ]
+}
+--- roc-source/reconcile-evidence.jsonl (1058 bytes) ---
+{"attempt_id":"re_4179719b1657","base_commit":"def1b11271ce40e74701555ff50b108ddcb36b2a","confidence":"medium","evidence_kind":"forward-apply","feature_slug":"roc-source","match_origin":"unknown","matched_operations":[],"matched_paths":[],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"reapplied","reason_code":"phase-4-forward-apply-strict","requires_confirmation":true,"schema_version":1,"upstream_commit":"def1b11271ce40e74701555ff50b108ddcb36b2a","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_db4402a92027","base_commit":"def1b11271ce40e74701555ff50b108ddcb36b2a","confidence":"high","evidence_kind":"file-novelty","feature_slug":"roc-source","match_origin":"unknown","matched_operations":[],"matched_paths":["new.txt"],"phase":"phase-3.5","pre_reconcile_presence":"absent","raw_reconcile_verdict":"reapplied","reason_code":"all-new-files","requires_confirmation":true,"schema_version":1,"upstream_commit":"def1b11271ce40e74701555ff50b108ddcb36b2a","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- roc-source/reconcile.md (274 bytes) ---
+# Reconciliation: roc-source
+
+**Outcome**: reapplied
+**Phase**: phase-4-forward-apply-strict
+**Upstream Ref**: HEAD
+**Upstream Commit**: def1b11271ce40e74701555ff50b108ddcb36b2a
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Patch applies cleanly (strict) — safe to auto-apply
+
+--- roc-source/reconcile-summary.json (154 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "def1b11271ce40e74701555ff50b108ddcb36b2a",
+  "outcome": "reapplied"
+}
+--- roc-source/state (8 bytes) ---
+applied

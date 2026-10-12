@@ -1,0 +1,125 @@
+--- secret-gate-do-not-leak/reconcile-session.json (3219 bytes) ---
+{
+  "slug": "secret-gate-do-not-leak",
+  "title": "SECRET_GATE_DO_NOT_LEAK",
+  "outcome": "blocked",
+  "phase": "phase-3-provider-semantic",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+  "notes": [
+    "Provider determined upstream satisfies acceptance criteria",
+    "confirmation gate: upstreamed candidate blocked pending confirmation (missing upstream commit evidence)"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-gate-do-not-leak",
+      "attempt_id": "re_1d704e1f47d7",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "base_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3",
+      "evidence_kind": "provider-semantic",
+      "confidence": "medium",
+      "matched_paths": [],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-3-provider-semantic"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-gate-do-not-leak",
+      "attempt_id": "re_8bfa3fc7e16e",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "base_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3.5",
+      "evidence_kind": "file-novelty",
+      "confidence": "medium",
+      "matched_paths": [
+        "other.txt"
+      ],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "absent",
+      "requires_confirmation": true,
+      "reason_code": "modifies-existing-files"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "secret-gate-do-not-leak",
+      "attempt_id": "re_83e16bfbd7d4",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "base_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+      "raw_reconcile_verdict": "upstreamed",
+      "phase": "phase-3.5",
+      "evidence_kind": "manual-review",
+      "confidence": "low",
+      "matched_paths": [],
+      "matched_operations": [
+        "confirmation-gate"
+      ],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "missing-upstream-commit-ref"
+    }
+  ],
+  "review_verdict": "rejected-upstreamed",
+  "revisions": [
+    {
+      "schema_version": 1,
+      "entry_id": "rr_356f91f00a10",
+      "feature_slug": "secret-gate-do-not-leak",
+      "evidence_attempt_id": "re_83e16bfbd7d4",
+      "raw_reconcile_verdict": "upstreamed",
+      "review_verdict": "false-positive",
+      "final_feature_state": "blocked",
+      "action_taken": "none",
+      "reason_code": "missing-upstream-commit-ref",
+      "validation_refs": [
+        {
+          "kind": "upstream-commit",
+          "value": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+          "result": "referenced"
+        }
+      ]
+    }
+  ]
+}
+--- secret-gate-do-not-leak/reconcile-evidence.jsonl (1667 bytes) ---
+{"attempt_id":"re_1d704e1f47d7","base_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","confidence":"medium","evidence_kind":"provider-semantic","feature_slug":"secret-gate-do-not-leak","match_origin":"unknown","matched_operations":[],"matched_paths":[],"phase":"phase-3","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"upstreamed","reason_code":"phase-3-provider-semantic","requires_confirmation":true,"schema_version":1,"upstream_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_8bfa3fc7e16e","base_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","confidence":"medium","evidence_kind":"file-novelty","feature_slug":"secret-gate-do-not-leak","match_origin":"unknown","matched_operations":[],"matched_paths":["other.txt"],"phase":"phase-3.5","pre_reconcile_presence":"absent","raw_reconcile_verdict":"upstreamed","reason_code":"modifies-existing-files","requires_confirmation":true,"schema_version":1,"upstream_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_83e16bfbd7d4","base_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","confidence":"low","evidence_kind":"manual-review","feature_slug":"secret-gate-do-not-leak","match_origin":"unknown","matched_operations":["confirmation-gate"],"matched_paths":[],"phase":"phase-3.5","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"upstreamed","reason_code":"missing-upstream-commit-ref","requires_confirmation":true,"schema_version":1,"upstream_commit":"b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- secret-gate-do-not-leak/reconcile.md (393 bytes) ---
+# Reconciliation: secret-gate-do-not-leak
+
+**Outcome**: blocked
+**Phase**: phase-3-provider-semantic
+**Upstream Ref**: HEAD
+**Upstream Commit**: b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- Provider determined upstream satisfies acceptance criteria
+- confirmation gate: upstreamed candidate blocked pending confirmation (missing upstream commit evidence)
+
+--- secret-gate-do-not-leak/reconcile-summary.json (195 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "b80fc6b68d27e6d2ee1b27dc883d0cb2cfc95cbd",
+  "outcome": "blocked",
+  "review_verdict": "rejected-upstreamed"
+}
+--- secret-gate-do-not-leak/state (8 bytes) ---
+blocked

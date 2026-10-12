@@ -1,0 +1,97 @@
+--- feature/reconcile-session.json (2047 bytes) ---
+{
+  "slug": "feature",
+  "title": "Feature",
+  "outcome": "blocked",
+  "phase": "phase-4-forward-apply-conflicts",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "3396f77b73d12a5ffd85357424bc7169c7d9b459",
+  "notes": [
+    "3-way merge would leave conflict markers in 1 file(s) — manual resolution required (re-run with --resolve to attempt provider-assisted resolution)",
+    "git: Applied patch to 'shared.txt' with conflicts.\nU shared.txt"
+  ],
+  "conflicts": [
+    "shared.txt"
+  ],
+  "evidence": [
+    {
+      "schema_version": 1,
+      "feature_slug": "feature",
+      "attempt_id": "re_4eaa21966060",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "3396f77b73d12a5ffd85357424bc7169c7d9b459",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "blocked",
+      "phase": "phase-4",
+      "evidence_kind": "forward-apply",
+      "confidence": "low",
+      "matched_paths": [
+        "shared.txt"
+      ],
+      "matched_operations": [],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": true,
+      "reason_code": "phase-4-forward-apply-conflicts"
+    },
+    {
+      "schema_version": 1,
+      "feature_slug": "feature",
+      "attempt_id": "re_e515b25d128a",
+      "upstream_ref": "HEAD",
+      "upstream_commit": "3396f77b73d12a5ffd85357424bc7169c7d9b459",
+      "base_commit": "unknown",
+      "raw_reconcile_verdict": "blocked",
+      "phase": "phase-4",
+      "evidence_kind": "blocked-classification",
+      "confidence": "unknown",
+      "matched_paths": [],
+      "matched_operations": [
+        "primary=unknown-blocked",
+        "recommended_action=manual-review"
+      ],
+      "match_origin": "unknown",
+      "upstream_commit_refs": [],
+      "pre_reconcile_presence": "not-checked",
+      "requires_confirmation": false,
+      "reason_code": "unknown-blocked"
+    }
+  ],
+  "blocked_category": "unknown-blocked",
+  "recommended_action": "manual-review",
+  "blocked_evidence": [
+    "insufficient-evidence"
+  ]
+}
+--- feature/reconcile-evidence.jsonl (1064 bytes) ---
+{"attempt_id":"re_4eaa21966060","base_commit":"unknown","confidence":"low","evidence_kind":"forward-apply","feature_slug":"feature","match_origin":"unknown","matched_operations":[],"matched_paths":["shared.txt"],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"blocked","reason_code":"phase-4-forward-apply-conflicts","requires_confirmation":true,"schema_version":1,"upstream_commit":"3396f77b73d12a5ffd85357424bc7169c7d9b459","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+{"attempt_id":"re_e515b25d128a","base_commit":"unknown","confidence":"unknown","evidence_kind":"blocked-classification","feature_slug":"feature","match_origin":"unknown","matched_operations":["primary=unknown-blocked","recommended_action=manual-review"],"matched_paths":[],"phase":"phase-4","pre_reconcile_presence":"not-checked","raw_reconcile_verdict":"blocked","reason_code":"unknown-blocked","requires_confirmation":false,"schema_version":1,"upstream_commit":"3396f77b73d12a5ffd85357424bc7169c7d9b459","upstream_commit_refs":[],"upstream_ref":"HEAD"}
+--- feature/reconcile.md (461 bytes) ---
+# Reconciliation: feature
+
+**Outcome**: blocked
+**Phase**: phase-4-forward-apply-conflicts
+**Upstream Ref**: HEAD
+**Upstream Commit**: 3396f77b73d12a5ffd85357424bc7169c7d9b459
+**Timestamp**: <wall-clock>
+
+## Notes
+
+- 3-way merge would leave conflict markers in 1 file(s) — manual resolution required (re-run with --resolve to attempt provider-assisted resolution)
+- git: Applied patch to 'shared.txt' with conflicts.
+U shared.txt
+
+## Conflicts
+
+- shared.txt
+
+--- feature/reconcile-summary.json (152 bytes) ---
+{
+  "attempted_at": "<wall-clock>",
+  "upstream_ref": "HEAD",
+  "upstream_commit": "3396f77b73d12a5ffd85357424bc7169c7d9b459",
+  "outcome": "blocked"
+}
+--- feature/state (8 bytes) ---
+blocked
