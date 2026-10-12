@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Frozen checkpoint 7d7febd submitted for review; broader validation next
+- **Status**: Review needs two test-scaffolding revisions; broader validation passed
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -46,6 +46,10 @@ contracts remain byte-identical to the baseline outside test/tracking files.
 Implementation checkpoint: `7d7febde8afff602064d6e31a156d139ab14ccc8`.
 Review is bounded to `bbb7a43..7d7febd`, using an explicitly selected OpenAI
 reviewer. The reviewer must remain read-only and run no unadmitted Go commands.
+Reviewer `e17d29e2-bd48-4003-80a9-c0b61112dc09` (runtime-confirmed `gpt-5.4`)
+returns NEEDS REVISION: restrict capture scope to explicit S0 files so shared
+fixture helpers cannot drift; distinguish the applicable-only/mixed/plain
+fixture inputs with explicit classification assertions and mutation controls.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -127,11 +131,14 @@ and CHANGELOG remain untouched.
 - Final valid-provider fixture capture and normal `-count=2` S0 comparison
   pass: workflow 5.580s, CLI 1.761s, store 0.069s. No golden-update environment
   is enabled during comparison. Broader packages/review/full gate remain.
+- Full workflow/store packages pass (117.346s/2.766s), and vet/build pass.
+  Review has two medium findings; these validation passes do not close them.
 
 ## Next Steps
 
-1. Review the committed baseline against every PRD S0 obligation.
-2. Run affected packages and required broader checks under adopted admission.
+1. Address both review findings in test scaffolding without changing goldens
+   or production behavior.
+2. Rerun focused checks and request a follow-up from the same reviewer.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -139,8 +146,9 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-None at dispatch. Any unresolved fixture/contract ambiguity must be recorded
-before implementation choices are made.
+Two medium review findings remain: broad shared-helper capture permission and
+indistinguishable phase-2 input cohorts. Full S0 closure waits for correction
+and review approval.
 
 ## Context for Next Agent
 

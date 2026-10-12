@@ -1,3 +1,23 @@
+## GH #13 S0 Review — NEEDS REVISION — 2026-10-11
+
+**Reviewer**: `roc-s0-openai-review` / `e17d29e2-bd48-4003-80a9-c0b61112dc09`.
+**Model**: explicitly selected and runtime-confirmed `gpt-5.4`.
+**Reviewed range**: `bbb7a43..7d7febd`.
+**Verdict**: NEEDS REVISION.
+
+Two medium findings: (1) the capture scope guard allows every internal test
+file, so changing an existing shared fixture helper could be silently frozen
+as a new baseline; restrict it to the explicit S0 files and add rejection
+controls for shared helpers. (2) applicable-only, mixed and plain strict
+fixtures currently yield identical output snapshots; add pre-fallthrough
+classification assertions and mutations proving their input cohorts cannot
+collapse unnoticed.
+
+Broader admitted validation independently passes full workflow/store packages
+(117.346s/2.766s), vet and build. Those passes do not close the review findings.
+Revise only test scaffolding, rerun focused checks and return the bounded
+changes to the same reviewer. S0 is not accepted and S1 is not dispatched.
+
 ## GH #13 S0 Review Dispatched — 2026-10-11
 
 Freeze implementation at `7d7febde8afff602064d6e31a156d139ab14ccc8`,
