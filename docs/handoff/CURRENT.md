@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Frozen baseline and sensitivity checks pass; review and broader validation next
+- **Status**: Frozen checkpoint 7d7febd submitted for review; broader validation next
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -43,6 +43,9 @@ sensitivity tests pass across workflow/CLI/store, including a two-repeat run.
 The phase-3.5 fixture now uses the semantic provider's actual `decision` field.
 Its recapture and the final two-repeat comparison pass. Source and public
 contracts remain byte-identical to the baseline outside test/tracking files.
+Implementation checkpoint: `7d7febde8afff602064d6e31a156d139ab14ccc8`.
+Review is bounded to `bbb7a43..7d7febd`, using an explicitly selected OpenAI
+reviewer. The reviewer must remain read-only and run no unadmitted Go commands.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only

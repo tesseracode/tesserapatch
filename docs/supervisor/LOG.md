@@ -1,3 +1,16 @@
+## GH #13 S0 Review Dispatched — 2026-10-11
+
+Freeze implementation at `7d7febde8afff602064d6e31a156d139ab14ccc8`,
+review range `bbb7a4310b2ebea095890a284997fbbb42535bc7..7d7febde8afff602064d6e31a156d139ab14ccc8`.
+Select OpenAI `gpt-5.4` explicitly, not an inherited/default model.
+Review S0 fidelity, snapshot determinism/normalization, mutation sensitivity,
+future-only candidate expectations and unchanged production/public contracts.
+The review is read-only and must run no Go validation or nested agents.
+
+The implementation agent independently runs affected-package and broader
+validation under #13's adopted admission policy. No source mutation while
+the frozen checkpoint is under review; no approval is claimed before verdict.
+
 ## GH #13 S0 Frozen Checkpoint — repeated comparisons PASS — 2026-10-11
 
 All thirteen runtime goldens are captured from unchanged baseline production.
