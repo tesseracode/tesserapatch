@@ -1480,6 +1480,12 @@ The operator now approves read-only investigation and one isolated monitored
 probe if needed. Six roots/85 fixtures retain unscoped analyzer memos; the same
 group was already about 9.59-10.20 GiB in prior passing runs, with unchanged
 analyzer/cache source. No implementation or canonical-shard change is authorized.
+The one isolated probe now also stops on warning pressure after five roots/
+83 of 85 leaf fixtures pass, with peak RSS about 10.08 GiB and zero swap.
+This excludes preceding full-suite execution as a necessary trigger and is
+consistent with cross-fixture cache retention; no per-cache heap attribution
+is claimed. A separately authorized bounded test-only memo-lifetime fix is
+recommended before further full retries. S0 stays blocked, S1 undispatched.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

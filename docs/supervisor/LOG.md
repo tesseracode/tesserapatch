@@ -1,3 +1,57 @@
+## GH #13 S0 Heavy-Shard Investigation Complete — one probe exhausted — 2026-10-12
+
+The single authorized isolated probe at unchanged `e8a154b` reproduces the
+warning-pressure stop without the preceding full-suite commands. Five of six
+test roots and 83 of 85 leaf fixtures pass; the last observed active case is
+`TestS7ARRev21StaticChallenges/scheduled-loop-limit-fails-closed`.
+That case and its parent have no completion event, and
+`scheduled-state-cap-fails-closed` never starts. No assertion failure, package
+PASS or full expected-path coverage is reported.
+
+The probe consumes 216.92s total, including 60.22s admission, within its 30m
+budget. All swap readings remain zero; pressure transitions from normal to
+warning. Peak sampled owned RSS is 10,822,008,832 bytes (about 10.08 GiB).
+No owned processes remain and the isolated source stays clean.
+
+| Active test root | Fixture count | Peak sampled owned RSS during root |
+|---|---:|---:|
+| Rev21ReviewerRepros | 14 | 2.78 GiB |
+| Rev23ScheduledClosureAliasRepros | 14 | 5.22 GiB |
+| Rev24ScheduledSelfCaptureRepros | 2 | 5.79 GiB |
+| Rev24StaticChallenges | 20 | 9.37 GiB |
+| Rev23StaticChallenges | 12 | 10.08 GiB |
+| Rev21StaticChallenges | 23 | 9.95 GiB |
+
+These are time-correlated process-tree peaks, not per-root allocations or
+unique physical memory; earlier fixture state can remain resident. Static
+inspection confirms source-keyed global model/graph/binding/expression caches
+retain references across these fixtures, without the scope cleanup used by
+rev-19/rev-20. The observed progression is consistent with that retention.
+No heap profile was taken, so exact per-cache attribution is not claimed.
+
+Post-run correlation initially rejected a valid Go timestamp with a five-digit
+fraction. Correct the private parser and validate short/long fractions, then
+analyze the existing logs only. No second probe or Go rerun occurred.
+
+**Recommendation**: separately authorize a bounded test-only lifetime fix for
+these six serial fixture loops, reusing the existing coordinated memo cleanup
+only after verifying no model crosses a boundary. Preserve all 85 assertions,
+import/immutable baseline state, selectors, timeouts and pressure safeguards.
+S0's scope guard intentionally forbids edits to the old analyzer test file:
+any maintenance exception must be explicit, narrowly bounded and independently
+reviewed, not silently added to its allowlist. This implementation is NOT yet
+authorized. No more probes/full retries or S1 work are dispatched.
+
+**Evidence**: `bin/roc-s0-20261011/heavy-shard-probe/evidence/`.
+Summary SHA-256 `c26f3ed198722ed69deed8f1ef002785b54c1c9b0a44377ee0bdb620a5ea21cf`;
+command log `0d862f4e76b3e7f7bdadc6f6bbf3e36d8e95b64c4ee649f61d1248ffa1a42f16`;
+samples `f4525bcc099541a7d981eac8cbc83c718f86b66b89f236b9afd71f508eaa8323`;
+correlation `fa8dc7e9b997905fa59578b92e11d8dfbf5dfb02e91ce53bfb70890590ddea2c`.
+
+The blocker-tracking checkpoint `1b4c3b6` also completes native CI
+`38202464246` successfully. Publish this investigation record without changing
+reviewed test/code bytes; full local acceptance remains explicitly blocked.
+
 ## GH #13 S0 Heavy-Shard Investigation Authorized — 2026-10-12
 
 The operator approves read-only investigation of AR rev-21/23/24 and at most

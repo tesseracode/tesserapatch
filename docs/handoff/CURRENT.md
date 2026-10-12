@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Local gate resource-blocked; bounded heavy-shard investigation authorized
+- **Status**: Local gate resource-blocked; one-probe investigation complete, maintenance scope decision pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -88,6 +88,17 @@ The same group already peaked around 9.59/10.20 GiB in earlier passing gates;
 its analyzer/cache code is unchanged. A single unchanged group run with JSON
 events can correlate fixture progress and memory samples. No code/grouping/
 timeout/safeguard change is authorized, and no full-gate success is implied.
+
+The one authorized probe is now complete: it also stops on warning pressure,
+without any preceding suite commands. Five test roots and 83/85 leaf fixtures
+pass; rev-21 static `scheduled-loop-limit-fails-closed` is active at the stop,
+and `scheduled-state-cap-fails-closed` never starts. No assertion failure,
+package pass or full coverage is reported. Peak sampled RSS is about 10.08 GiB,
+growing across roots from about 2.78 GiB; this is consistent with the unscoped
+cache retention found statically, not exact per-cache heap attribution.
+Swap stays zero, source stays clean and no sampled owned processes remain.
+The private timestamp correlator needed a fractional-second parsing correction;
+only retained evidence was reanalyzed, with no second probe.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -183,6 +194,10 @@ and CHANGELOG remain untouched.
   4/22 test commands, then stops on warning pressure in AR rev-21/23/24.
   No assertion failure or swap; 236 owned identities reconciled, one retained
   git-daemon explicitly terminated, zero remaining processes.
+- The single isolated unchanged-shard probe stops at warning pressure in
+  216.92s total (60.22s admission); five roots/83 leaves pass, zero assertions
+  fail, and two leaves are incomplete/unstarted. Peak sampled RSS 10.08 GiB;
+  zero swap, no owned processes remain. It is not a passing shard certificate.
 
 ## Next Steps
 
@@ -190,13 +205,16 @@ and CHANGELOG remain untouched.
    evidence at `bin/roc-s0-20261011/final-gate/evidence/`.
 2. Preserve the second stopped run at
    `bin/roc-s0-20261011/final-gate-retry/evidence/`. No local Go run remains.
-   Complete the authorized bounded investigation. If needed, run the one
-   isolated JSON-event probe with unchanged group/source and safeguards,
-   a 30m total budget and no heap finalization or GC tuning. Do not launch
-   additional probes/full retries without a new decision.
-3. Preserve existing failure evidence; do not alter production or accepted
+   The authorized investigation/probe is complete; its evidence is at
+   `bin/roc-s0-20261011/heavy-shard-probe/evidence/`. No additional probe or
+   full retry is authorized.
+3. Obtain a separate decision on a bounded test-only memo-lifetime correction
+   for the six existing serial fixture loops. Reuse the established helper only
+   with verified independent lifetimes and all assertions/immutable state intact.
+   Any S0 scope-guard exception needs explicit authorization and review.
+4. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
-4. Validate, review and close S0 with the explicit wave base; do not start S1
+5. Validate, review and close S0 with the explicit wave base; do not start S1
    until S0 is accepted and a subsequent slice is assigned.
 
 ## Blockers
@@ -205,8 +223,9 @@ No review/native CI findings remain. Both full local attempts stopped on
 warning pressure in the fifth test command, including the approved retry after
 idle Docker shutdown. Full local validation is incomplete; S1 stays undispatched.
 No new memory-optimization implementation or canonical-shard change is authorized.
-Read-only investigation plus one bounded probe is now authorized; any resulting
-test-lifetime implementation requires a separate scope decision.
+The read-only investigation and single permitted probe are complete; a resulting
+test-lifetime implementation requires a separate scope decision. Review/native
+CI remain green, but full local validation is still incomplete.
 
 ## Context for Next Agent
 
