@@ -1468,8 +1468,10 @@ acceptance; S1 is not dispatched.
 The full gate at `e8a154b` passes checks 1-7 and 4/22 test commands, then stops
 on warning OS pressure during AR rev-21/23/24. No assertion failure or swapping
 is reported; owned cleanup is verified. More runtime headroom is needed before
-a complete local retry. Native `38189486586` has four required jobs passed
-and macOS tests pending. S0 is not accepted; S1 remains undispatched.
+a complete local retry. Native `38189486586` now passes all five required jobs.
+The operator authorizes verified idle Docker shutdown and a fresh full local
+retry at unchanged `e8a154b`; safeguards and prior evidence remain intact.
+S0 is not yet accepted; S1 remains undispatched.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

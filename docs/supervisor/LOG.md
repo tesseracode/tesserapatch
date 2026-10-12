@@ -1,3 +1,22 @@
+## GH #13 S0 Native PASS — idle Docker stopped; retry authorized — 2026-10-12
+
+Native `38189486586` at exact checkpoint `e8a154b` completes SUCCESS with all
+five required jobs passed and release skipped. The operator approves stopping
+idle Docker Desktop after verifying no active containers, then retrying the
+complete local gate without relaxing any safeguards.
+
+The explicit local desktop-linux context reports zero active containers.
+`docker desktop stop` succeeds, and the local engine API is no longer reachable.
+Post-stop telemetry reports normal pressure, load1 2.97, zero swap and no active
+Go tools. The percentage metric rises from 58 to 65; it remains diagnostic,
+not proof of sufficient runtime headroom.
+
+**Action**: retry from the same native-green, pushed `e8a154b` source using a
+fresh isolated directory/caches and the original `bbb7a43` wave base.
+Keep the first attempt untouched and rerun every command. Do not push another
+checkpoint merely to rerun unchanged source; final acceptance still requires
+the complete local gate. S1 remains undispatched.
+
 ## GH #13 S0 Local Gate Resource Stop — 2026-10-12
 
 The `e8a154b` gate passes checks 1-7 and four complete test commands. During

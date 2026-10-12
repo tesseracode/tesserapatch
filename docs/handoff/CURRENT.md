@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Review approved; local full gate resource-blocked after 4/22 commands; native macOS pending
+- **Status**: Review/native CI passed; idle Docker stopped and full local retry authorized
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -67,7 +67,12 @@ pass, then warning-level OS pressure stops `TestS7ARRev(21|23|24)`.
 No assertion failure is reported; zero swapping persists. The controller
 terminates one observed owned git-daemon during reconciliation and verifies
 zero remaining owned processes. Source and prior evidence remain unchanged.
-Native `38189486586` has four required jobs passed; macOS tests remain active.
+Native `38189486586` is now SUCCESS, with all five required jobs passed.
+The operator approves stopping idle Docker Desktop after a zero-active-container
+check, then retrying the full local gate. Shutdown is verified; post-stop
+pressure is normal, load1 2.97, swap zero and no Go tools active.
+Retry the same pushed/native-green `e8a154b` source with new caches/evidence;
+do not weaken safeguards or count the first attempt as complete.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -157,16 +162,17 @@ and CHANGELOG remain untouched.
   then stops on warning pressure during command five. No assertion failure.
   Across 986 samples swap stays zero; 268 owned identities are reconciled,
   one owned git-daemon is terminated and none remain.
-- Native `38189486586`: Ubuntu, Windows and both observer jobs pass;
-  the macOS test job remains active.
+- Native `38189486586`: SUCCESS at `e8a154b`, all five required jobs pass,
+  release skipped.
 
 ## Next Steps
 
-1. Await native CI `38189486586` without cancelling it with a new push.
-2. Preserve the stopped local run at
-   `bin/roc-s0-20261011/final-gate/evidence/`. Obtain more runtime memory
-   headroom before scheduling a fresh full gate; do not weaken the guard or
-   treat post-stop normal pressure as proof the heavy command will fit.
+1. Preserve the completed native CI result and the original resource-stop
+   evidence at `bin/roc-s0-20261011/final-gate/evidence/`.
+2. Retry the complete local gate at unchanged `e8a154b`, with fresh caches/
+   evidence after the operator-approved idle Docker shutdown. All original
+   admission/runtime safeguards stay enabled; post-stop normal pressure is
+   not proof the heavy command will fit.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -174,10 +180,9 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-No review findings remain, but warning memory pressure interrupted full local
-validation at 4/22 commands. More runtime headroom and a complete gate are needed.
-Native macOS completion is also pending. No local Go workload remains running;
-S1 stays undispatched.
+No review/native CI findings remain. The initial local gate stopped at warning
+pressure after 4/22 commands. Idle Docker shutdown is approved and complete;
+the fresh complete local retry remains required. S1 stays undispatched.
 
 ## Context for Next Agent
 
