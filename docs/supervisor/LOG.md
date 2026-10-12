@@ -1,3 +1,17 @@
+## GH #13 S0 Follow-up Review — APPROVED — 2026-10-11
+
+**Reviewer**: `roc-s0-openai-review` / `e17d29e2-bd48-4003-80a9-c0b61112dc09`.
+**Model**: explicitly selected and runtime-confirmed `gpt-5.4`.
+**Correction checkpoint**: `cb96eb5a7710941b0d5643e45ac52e10f7ad4686`.
+**Verdict**: APPROVED. Both medium findings are closed; no residual blockers
+or optional findings were reported.
+
+The fixed scope and cohort guards pass the full S0 suite twice without
+recapturing goldens. Updated-source vet and CLI build also pass under fresh
+admission; full workflow/store packages previously passed. Archive the reviewed
+handoff, publish the approved checkpoint, then run the complete mechanical
+gate/native CI. Do not claim full S0 acceptance or start S1 before those finish.
+
 ## GH #13 S0 Review Corrections PASS — follow-up review — 2026-10-11
 
 Both corrections pass formatting and all S0 checks twice with normal golden

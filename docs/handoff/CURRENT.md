@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Both review corrections pass repeated checks; follow-up review pending
+- **Status**: Independent review approved at cb96eb5; full gate/native validation pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -57,6 +57,10 @@ fallthrough, with missing-recipe/dropped-operation negative controls.
 Goldens and production code are unchanged. Reformatting and a full two-repeat
 S0 comparison pass (workflow 6.625s, CLI 1.869s, store 0.183s). Return the
 bounded fixes to the same reviewer before final acceptance.
+Follow-up review at `cb96eb5a7710941b0d5643e45ac52e10f7ad4686` is APPROVED
+with both findings closed and no residual notes. The reviewer remains
+runtime-confirmed `gpt-5.4`. Updated-source vet/build pass; final full gate
+and native CI remain pending.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -141,13 +145,14 @@ and CHANGELOG remain untouched.
 - Full workflow/store packages pass (117.346s/2.766s), and vet/build pass.
   Review has two medium findings; these validation passes do not close them.
 - Both review corrections pass all S0 checks twice (6.625s/1.869s/0.183s)
-  with ordinary golden comparison. Reviewer closure is pending.
+  with ordinary golden comparison. Follow-up review is APPROVED.
+- Updated-source vet and CLI build pass. Full gate/native CI are not yet run.
 
 ## Next Steps
 
-1. Address both review findings in test scaffolding without changing goldens
-   or production behavior.
-2. Rerun focused checks and request a follow-up from the same reviewer.
+1. Publish the independently approved checkpoint with archived review context.
+2. Run the full mechanical gate and native CI under the adopted policy,
+   with golden capture disabled and the explicit bbb7a43 wave base.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -155,9 +160,8 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-Two medium review findings remain: broad shared-helper capture permission and
-indistinguishable phase-2 input cohorts. Full S0 closure waits for correction
-and review approval.
+No review blockers remain. Full mechanical and native validation still gate
+S0 acceptance; S1 remains undispatched.
 
 ## Context for Next Agent
 
