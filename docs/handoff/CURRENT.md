@@ -13,10 +13,11 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Independent review approved at cb96eb5; full gate/native validation pending
+- **Status**: Independent review approved; full gate/native CI running at e8a154b
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
+- **Full-validation checkpoint**: `e8a154bd954815cefccdacd160b70f183ead4eb4`
 
 WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
 
@@ -61,6 +62,9 @@ Follow-up review at `cb96eb5a7710941b0d5643e45ac52e10f7ad4686` is APPROVED
 with both findings closed and no residual notes. The reviewer remains
 runtime-confirmed `gpt-5.4`. Updated-source vet/build pass; final full gate
 and native CI remain pending.
+The complete gate is now active at pushed `e8a154b`, with fresh isolated
+source/caches, golden capture explicitly disabled and checks 1-6 passed.
+Native CI is `38189486586`; gate liveness/telemetry are verified.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -147,12 +151,15 @@ and CHANGELOG remain untouched.
 - Both review corrections pass all S0 checks twice (6.625s/1.869s/0.183s)
   with ordinary golden comparison. Follow-up review is APPROVED.
 - Updated-source vet and CLI build pass. Full gate/native CI are not yet run.
+- The actual full gate is running at `e8a154b` with checks 1-6 passed and
+  all nine routing controls green. Native `38189486586` is running.
 
 ## Next Steps
 
-1. Publish the independently approved checkpoint with archived review context.
-2. Run the full mechanical gate and native CI under the adopted policy,
-   with golden capture disabled and the explicit bbb7a43 wave base.
+1. Await native CI `38189486586` without cancelling it with a new push.
+2. Await shell `roc-s0-final-gate-20261011`; evidence is retained at
+   `bin/roc-s0-20261011/final-gate/evidence/`. It uses the adopted policy,
+   capture disabled and explicit bbb7a43 base. Do not start a duplicate.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -160,8 +167,8 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-No review blockers remain. Full mechanical and native validation still gate
-S0 acceptance; S1 remains undispatched.
+No review blockers remain. Full mechanical/native validation are running and
+still gate S0 acceptance; S1 remains undispatched.
 
 ## Context for Next Agent
 

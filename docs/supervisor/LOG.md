@@ -1,3 +1,19 @@
+## GH #13 S0 Full Validation Dispatched — 2026-10-11
+
+Published checkpoint `e8a154bd954815cefccdacd160b70f183ead4eb4` is running
+the complete mechanical gate with fresh isolated source/caches and explicit
+`WAVE_BASE=bbb7a4310b2ebea095890a284997fbbb42535bc7`. Golden-capture mode is
+explicitly removed from the gate environment. All nine routing controls pass;
+checks 1-6 pass and the vet/build/test pipeline is active.
+Exact-checkpoint native CI:
+[38189486586](https://github.com/tesseracode/tesserapatch/actions/runs/38189486586).
+
+**Resume point**: shell `roc-s0-final-gate-20261011`; private evidence
+`bin/roc-s0-20261011/final-gate/evidence/`. Preserve both current runs; do not
+duplicate validation or push another tracking checkpoint before native CI
+finishes. This dispatch is committed locally for interruption recovery.
+Full S0 acceptance remains pending and S1 is not dispatched.
+
 ## GH #13 S0 Follow-up Review — APPROVED — 2026-10-11
 
 **Reviewer**: `roc-s0-openai-review` / `e17d29e2-bd48-4003-80a9-c0b61112dc09`.

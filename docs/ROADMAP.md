@@ -1465,6 +1465,9 @@ Both corrections pass the two-repeat S0 suite without changing any golden
 or production bytes; follow-up review at `cb96eb5` is APPROVED with no notes.
 Updated vet/build pass. Full mechanical/native validation remain before S0
 acceptance; S1 is not dispatched.
+The full gate is now running at pushed `e8a154b` with checks 1-6 passed,
+capture disabled and fresh caches; exact-checkpoint native CI is `38189486586`.
+Preserve both runs and the recorded resume point before further dispatch.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
