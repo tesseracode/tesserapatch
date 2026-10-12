@@ -1,3 +1,24 @@
+## GH #13 S0 Local Gate Resource Stop — 2026-10-12
+
+The `e8a154b` gate passes checks 1-7 and four complete test commands. During
+command five (`TestS7ARRev(21|23|24)`), macOS pressure changes from normal to
+warning and the adopted runtime guard stops owned work. No assertion failure
+is reported. This is **4/22 completed test commands**, not a full gate pass.
+Elapsed time is 1993.27s; swap remains zero across 986 samples. Peak sampled
+owned RSS is 9,481,846,784 bytes. No external Go is observed.
+
+The controller reconciles 268 sampled owned identities, explicitly terminates
+one retained owned git-daemon and verifies zero remaining processes. The source
+checkout stays clean and the release tag is unchanged. After stopping, the host
+returns to normal pressure/load 3.0/zero swap, which is not evidence that the
+same heavy workload now has sufficient headroom.
+
+Native `38189486586` has Ubuntu, Windows and both observer jobs passed; the
+macOS test job is still active. Preserve that run and all local evidence.
+S0 remains review-approved but blocked on complete local validation. Do not
+weaken pressure guards, automatically rerun the same workload without addressing
+headroom, or dispatch S1.
+
 ## GH #13 S0 Full Validation Dispatched — 2026-10-11
 
 Published checkpoint `e8a154bd954815cefccdacd160b70f183ead4eb4` is running

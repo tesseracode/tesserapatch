@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #13 S0 is dispatched from the clean, pushed, native-green `bbb7a43`
 baseline. S0 freezes existing reconciliation behavior and candidate expectation
@@ -13,7 +13,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Independent review approved; full gate/native CI running at e8a154b
+- **Status**: Review approved; local full gate resource-blocked after 4/22 commands; native macOS pending
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
@@ -62,9 +62,12 @@ Follow-up review at `cb96eb5a7710941b0d5643e45ac52e10f7ad4686` is APPROVED
 with both findings closed and no residual notes. The reviewer remains
 runtime-confirmed `gpt-5.4`. Updated-source vet/build pass; final full gate
 and native CI remain pending.
-The complete gate is now active at pushed `e8a154b`, with fresh isolated
-source/caches, golden capture explicitly disabled and checks 1-6 passed.
-Native CI is `38189486586`; gate liveness/telemetry are verified.
+The complete gate at `e8a154b` is stopped: checks 1-7 and four test commands
+pass, then warning-level OS pressure stops `TestS7ARRev(21|23|24)`.
+No assertion failure is reported; zero swapping persists. The controller
+terminates one observed owned git-daemon during reconciliation and verifies
+zero remaining owned processes. Source and prior evidence remain unchanged.
+Native `38189486586` has four required jobs passed; macOS tests remain active.
 
 The legacy gate-on expectation is not a new confirmation: the legacy fixture
 has no eligible coverage and must fall through. A recipe-absent test-only
@@ -132,7 +135,6 @@ and CHANGELOG remain untouched.
 - Prior latest-tip native CI `38170635445`: SUCCESS at `bbb7a43`.
 - Prior correction: full 8/8 gate and native CI at `608714b`, with all
   25 top-level commands / 22 test commands passed.
-- No new S0 Go validation or fixture-generation result is claimed yet.
 - Initial formatting stopped on a misplaced new test declaration, before any
   tests ran. Its scope is corrected and formatting passes.
 - Corrected formatting passes. Initial capture records twelve of thirteen
@@ -150,16 +152,21 @@ and CHANGELOG remain untouched.
   Review has two medium findings; these validation passes do not close them.
 - Both review corrections pass all S0 checks twice (6.625s/1.869s/0.183s)
   with ordinary golden comparison. Follow-up review is APPROVED.
-- Updated-source vet and CLI build pass. Full gate/native CI are not yet run.
-- The actual full gate is running at `e8a154b` with checks 1-6 passed and
-  all nine routing controls green. Native `38189486586` is running.
+- Updated-source vet and CLI build pass; all nine routing controls pass.
+- The full gate at `e8a154b` passes checks 1-7 and 4/22 test commands,
+  then stops on warning pressure during command five. No assertion failure.
+  Across 986 samples swap stays zero; 268 owned identities are reconciled,
+  one owned git-daemon is terminated and none remain.
+- Native `38189486586`: Ubuntu, Windows and both observer jobs pass;
+  the macOS test job remains active.
 
 ## Next Steps
 
 1. Await native CI `38189486586` without cancelling it with a new push.
-2. Await shell `roc-s0-final-gate-20261011`; evidence is retained at
-   `bin/roc-s0-20261011/final-gate/evidence/`. It uses the adopted policy,
-   capture disabled and explicit bbb7a43 base. Do not start a duplicate.
+2. Preserve the stopped local run at
+   `bin/roc-s0-20261011/final-gate/evidence/`. Obtain more runtime memory
+   headroom before scheduling a fresh full gate; do not weaken the guard or
+   treat post-stop normal pressure as proof the heavy command will fit.
 3. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 4. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -167,8 +174,10 @@ and CHANGELOG remain untouched.
 
 ## Blockers
 
-No review blockers remain. Full mechanical/native validation are running and
-still gate S0 acceptance; S1 remains undispatched.
+No review findings remain, but warning memory pressure interrupted full local
+validation at 4/22 commands. More runtime headroom and a complete gate are needed.
+Native macOS completion is also pending. No local Go workload remains running;
+S1 stays undispatched.
 
 ## Context for Next Agent
 
