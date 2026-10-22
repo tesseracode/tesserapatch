@@ -12227,6 +12227,12 @@ Stage explicit file paths and retain the required Copilot co-author trailer.
 
 # 2026-10-22 — GH #13 S0 and bounded memo-lifetime fix — TERMINAL ACCEPTANCE
 
+**Archival acceptance checkpoint**: `d7460945159b66dca2ed9fa43720965029cf3317`.
+**Terminal accepted range**:
+`bbb7a4310b2ebea095890a284997fbbb42535bc7..d7460945159b66dca2ed9fa43720965029cf3317`.
+The final tracking follow-through records these endpoints without changing
+the exact `bdfe3b1` gate/native evidence or the verbatim snapshot below.
+
 **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`. **Validated checkpoint**: `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0`. **Memo fix**: `4e56e8559ec305f40ad18690eec8353412c546d2`.
 
 **Scoreboard**: independent OpenAI gpt-5.4 review APPROVED, all findings closed; 13 runtime goldens and mutation-sensitive contract controls; all six roots/85 leaves of the corrected group pass; complete local gate 8/8 with exact25/22 command parity; native CI `39728657049` SUCCESS, five required jobs passed, release skipped.

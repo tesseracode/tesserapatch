@@ -1447,6 +1447,10 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`.
 **Validated range**: `bbb7a43..bdfe3b1`; measured/reviewed maintenance fix `4e56e85`.
+**Terminal accepted range**:
+`bbb7a4310b2ebea095890a284997fbbb42535bc7..d7460945159b66dca2ed9fa43720965029cf3317`.
+This closing tracking record identifies archival acceptance; no next slice
+is dispatched.
 Independent OpenAI review approves S0 and the explicit twelve-line test-only
 cache exception, with all findings closed. The complete local gate passes
 8/8 without warnings, including all 22 test commands; native CI `39728657049`

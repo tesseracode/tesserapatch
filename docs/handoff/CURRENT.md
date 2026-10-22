@@ -21,6 +21,7 @@ native CI passes all five required jobs. S1 is not dispatched.
 - **Pre-maintenance checkpoint**: `89e481c0ee882c1c9668f8b8d2296a48acaa4eed`
 - **Reviewed/measured fix**: `4e56e8559ec305f40ad18690eec8353412c546d2`
 - **Full-validation checkpoint**: `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0`
+- **Archival acceptance checkpoint**: `d7460945159b66dca2ed9fa43720965029cf3317`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, PRD §8 S0
 
 WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
@@ -59,6 +60,9 @@ capture disabled and the original S0 wave base. All 25 top-level commands/
 22 test commands pass with exact parity. Native CI `39728657049` is SUCCESS
 at that exact SHA, all five required jobs passed and release skipped.
 Subsequent closure changes are tracking-only; validated source is unchanged.
+The terminal accepted range is
+`bbb7a4310b2ebea095890a284997fbbb42535bc7..d7460945159b66dca2ed9fa43720965029cf3317`;
+this final tracking follow-through records its known endpoints for publication.
 
 ## Current State
 

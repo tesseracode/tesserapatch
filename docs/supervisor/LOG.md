@@ -1,3 +1,18 @@
+## GH #13 S0 Terminal Closing Record — 2026-10-22
+
+Archival acceptance checkpoint:
+`d7460945159b66dca2ed9fa43720965029cf3317`.
+Terminal accepted range:
+`bbb7a4310b2ebea095890a284997fbbb42535bc7..d7460945159b66dca2ed9fa43720965029cf3317`.
+The local gate/native CI evidence stays pinned to exact checkpoint `bdfe3b1`;
+this final tracking follow-through records the known terminal range without
+changing validated code or contracts.
+
+**Action**: push the saved dispatch/results, archival acceptance and closing
+record together, then verify HEAD equals origin/main, the worktree is clean,
+all wave trailers parse, and the v0.17.0 tag/source invariants remain unchanged.
+No S1, production replay implementation or release is dispatched.
+
 ## GH #13 S0 ACCEPTED — complete gate and native CI — 2026-10-22
 
 At exact pushed checkpoint `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0`,
