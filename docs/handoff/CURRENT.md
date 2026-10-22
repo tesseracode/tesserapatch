@@ -2,21 +2,21 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-The S0 baseline and authorized six-loop test-memory correction are independently
-approved. The formerly blocked group now passes completely with bounded memory.
-Full S0 local/native validation and terminal publication remain pending;
-APPROVED is a review verdict, not full acceptance. S1 is not dispatched.
+S0 and its authorized six-loop test-memory correction are accepted. Independent
+review is approved, the complete local gate passes 8/8 and exact-checkpoint
+native CI passes all five required jobs. S1 is not dispatched.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Frozen S0 baseline plus explicitly authorized test-only memory unblock
-- **Status**: Review and exact-group measurement pass; full local/native gates running
+- **Status**: Complete — independent review, full local gate and native CI accepted
 - **Assigned**: 2026-10-11
 - **Maintenance authorized**: 2026-10-21
+- **Completed**: 2026-10-22
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Pre-maintenance checkpoint**: `89e481c0ee882c1c9668f8b8d2296a48acaa4eed`
 - **Reviewed/measured fix**: `4e56e8559ec305f40ad18690eec8353412c546d2`
@@ -54,9 +54,11 @@ unchanged. Independent reviewer `e17d29e2-bd48-4003-80a9-c0b61112dc09`,
 explicitly selected/runtime-confirmed OpenAI `gpt-5.4`, returns APPROVED for
 `89e481c..4e56e85`, with no findings.
 
-The full gate is now running at pushed `bdfe3b1`, with fresh source/caches,
-capture disabled and the original S0 wave base. Checks 1-6 pass; liveness and
-telemetry are verified. Native CI is `39728657049`.
+The complete gate passes 8/8 at pushed `bdfe3b1`, with fresh source/caches,
+capture disabled and the original S0 wave base. All 25 top-level commands/
+22 test commands pass with exact parity. Native CI `39728657049` is SUCCESS
+at that exact SHA, all five required jobs passed and release skipped.
+Subsequent closure changes are tracking-only; validated source is unchanged.
 
 ## Current State
 
@@ -72,6 +74,14 @@ memoization costs recomputation; earlier passing unscoped commands were about
 speed improvement. All 201 samples show normal pressure and no new swap-outs.
 Historical occupied swap is unchanged at 3,323,063,173 bytes; it is NOT zero.
 The frozen source stays clean and zero sampled owned processes remain.
+
+The full gate takes 4009.71s with all 2009 samples at normal pressure and no
+new swap-outs. Historical occupied swap decreases from 3,289,508,741 to
+3,264,342,917 bytes. The corrected group uses about 1.32 GiB sampled peak
+RSS inside the full run (317.64s), while the entire suite still peaks around
+10.37 GiB in the first broad command. This is a bounded group-memory fix,
+not a claim that every test now has a small footprint. All 380 sampled owned
+process identities are reconciled; none remain and no extra termination is needed.
 
 ## Files Changed
 
@@ -99,20 +109,23 @@ canonical CI/shards, test timeouts and pressure safeguards are unchanged.
 - Independent follow-up review: APPROVED, no findings.
 - Prior S0 native CI `38189486586` and pre-maintenance latest-tip
   `38218488185` passed. They do not substitute for fixed-source CI.
-- Complete local/native validation of the new fix is running at `bdfe3b1`;
-  local checks 1-6 pass and all nine routing controls pass.
+- Full local gate at `bdfe3b1`: **8/8**, no warnings; all 25 top-level
+  commands / 22 test commands and all nine routing controls pass.
+- All 25 admission/runtime windows replay successfully; no new swap-outs
+  or pressure warnings, no owned validation processes remain.
+- Exact-checkpoint [native CI 39728657049](https://github.com/tesseracode/tesserapatch/actions/runs/39728657049):
+  **SUCCESS**, all five required jobs pass, release skipped. The historical
+  allowed-failure Windows full-suite step remains owned by GH #17.
 
 Measurement evidence: `bin/roc-memo-scope-20261021/measurement/evidence/`.
+Final gate evidence: `bin/roc-memo-scope-20261021/final-gate/evidence/`.
 Hashes and prior failed outcomes are recorded in LOG and the archived handoff.
 
 ## Next Steps
 
-1. Await native CI `39728657049` without cancelling it with a tracking push.
-2. Await shell `roc-memo-final-gate-20261021`; private evidence:
-   `bin/roc-memo-scope-20261021/final-gate/evidence/`. It uses the original
-   commands/safeguards and S0 wave base. Do not start a duplicate.
-3. Reconcile owned processes and preserve actual outcomes before acceptance.
-4. Archive/close/push S0 only after complete validation. Do not dispatch S1.
+No new task is dispatched. S1 requires a separate bounded assignment against
+the accepted ADR-037/ADR-043/PRD rev-7 contract. Preserve these S0 baselines
+and the adopted resource policy when planning that slice.
 
 ## Validation Policy — GH #13 Local Work
 
@@ -129,8 +142,8 @@ No old-host admission claim or profiler-default/hosted-CI change is implied.
 
 ## Blockers
 
-No review or measured-group blocker remains. Complete local/native gates still
-block S0 acceptance. The full local gate and native CI are currently running.
+None for S0 or the authorized maintenance fix. No local validation workload
+remains running.
 
 ## Context for Next Agent
 

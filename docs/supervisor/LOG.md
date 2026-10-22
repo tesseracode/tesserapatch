@@ -1,3 +1,41 @@
+## GH #13 S0 ACCEPTED — complete gate and native CI — 2026-10-22
+
+At exact pushed checkpoint `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0`,
+`make wave-close-check WAVE_BASE=bbb7a4310b2ebea095890a284997fbbb42535bc7`
+passes all eight checks without warnings. All 25 top-level commands and all
+22 original test commands pass with exact command parity; golden capture is
+disabled. Replay confirms every admission/runtime safety window.
+Native CI `39728657049` completes SUCCESS at the same SHA, with all five
+required jobs passed and release skipped. Pre-existing allowed-failure Windows
+full-suite coverage remains owned by GH #17; no wider Windows claim is made.
+
+The full local run takes 4009.71s. All 2009 samples have normal pressure and
+no new swap-outs. Historical occupied swap decreases from 3,289,508,741 to
+3,264,342,917 bytes; do not call it zero swap usage. Peak sampled owned RSS
+across the complete suite is about 10.37 GiB, in the first broad command.
+The corrected AR rev-21/23/24 group completes in 317.64s with
+1,419,722,752 bytes (about 1.32 GiB) sampled peak RSS. This fixes that group's
+retention problem, not every large test in the repository.
+
+All 380 sampled owned identities are reconciled with zero remaining processes;
+no extra termination is needed. The isolated checkout stays clean and the
+v0.17.0 tag is unchanged. Independent OpenAI `gpt-5.4` reviews approved both
+S0 and the explicit twelve-line maintenance exception; all review findings
+are closed. Prior partial runs remain preserved, never substituted for this pass.
+
+**Action**: accept S0 and its authorized test-only cache-lifetime fix; archive
+the complete terminal handoff, flip ROADMAP/CURRENT and push tracking-only
+closure. No production replay feature, S1 dispatch, release/tag or resource
+safeguard change.
+
+**Final evidence**: `bin/roc-memo-scope-20261021/final-gate/evidence/`.
+Summary SHA-256 `04100a8ca0248b7f433856a922e1b122b935ca8e98dd5eb252df1414703a2755`;
+samples `f1fe6d1e2ae50a0ca94e51b1abb61e2b5c2cc4b072de25797f6a2a4ba2fbe67c`;
+gate log `3b2803b37b07bf72a58290d55ef9139acbcf4f741da81e356e8de6d82b383442`;
+cleanup `fefdfe4b37655e7dcb97168b5452db8283cc0f0dd26d9d1e9eab7ca2a53f0897`.
+Largest sample gap is 2.100430s; no external Go activity is observed in this
+run, though the adopted policy permits it.
+
 ## Full S0 Gate Dispatched with Memo Fix — 2026-10-21
 
 Published checkpoint `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0` is running

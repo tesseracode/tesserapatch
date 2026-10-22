@@ -1443,9 +1443,26 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S0 frozen baseline dispatched — 2026-10-11
+### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 
 **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`.
+**Validated range**: `bbb7a43..bdfe3b1`; measured/reviewed maintenance fix `4e56e85`.
+Independent OpenAI review approves S0 and the explicit twelve-line test-only
+cache exception, with all findings closed. The complete local gate passes
+8/8 without warnings, including all 22 test commands; native CI `39728657049`
+passes all five required jobs at exact checkpoint `bdfe3b1`.
+
+The six-loop fix preserves all 85 assertions and exact golden/production bytes.
+Its isolated group peaks at 1.34 GiB; inside the full run it peaks at about
+1.32 GiB and takes 317.64s. The whole suite still peaks near 10.37 GiB in a
+different command. The RAM/recomputation tradeoff, previous failed attempts
+and complete evidence are retained in HISTORY/LOG. All local samples remain
+normal-pressure with no new swap-outs; owned cleanup is complete.
+No production replay feature, release/tag or S1 dispatch.
+
+<details>
+<summary>Historical S0 dispatch, resource stops and authorized fix — superseded by acceptance above</summary>
+
 The operator authorizes S0 against accepted ADR-037/ADR-043/PRD rev-7.
 Latest closing-tip native CI `38170635445` is green and the baseline is clean.
 Freeze current phase/session/evidence/confirmation/summary/CLI/legacy behavior,
@@ -1512,6 +1529,8 @@ of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
 serial, runtime pressure/swap/telemetry stops. No percentage cutoff or global
 Go veto; no extra-swap allowance. The policy applies to the current 32 GiB Mac,
 not an unproven older-host workload or a change to hosted-CI commands.
+
+</details>
 
 ### Before GH #13 — ✅ Linux canonical-reapply correction ACCEPTED — 2026-10-11
 
