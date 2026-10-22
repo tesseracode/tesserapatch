@@ -13,15 +13,30 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S0 — frozen reconcile, evidence, confirmation, CLI and legacy baselines
-- **Status**: Local gate resource-blocked; one-probe investigation complete, maintenance scope decision pending
+- **Status**: Authorized test-only six-loop cache-lifetime fix in progress
 - **Assigned**: 2026-10-11
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
 - **Full-validation checkpoint**: `e8a154bd954815cefccdacd160b70f183ead4eb4`
+- **Pre-maintenance checkpoint**: `89e481c0ee882c1c9668f8b8d2296a48acaa4eed`
 
 WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
 
 ## Session Summary
+
+**2026-10-21 update**: the operator authorizes the recommended bounded test-only
+cache-lifetime fix. Fresh baseline is clean/pushed `89e481c`, no stash, one
+worktree; native CI `38218488185` passes. Add only existing four-fixture scope
+registrations to the six AR rev-21/23/24 roots/callbacks. Preserve every
+assertion and the helper's existing lifetime contract.
+
+S0's old-test-file exception must verify an exact twelve-line insertion against
+the frozen baseline, not expand its generic allowlist. Add sensitivity controls
+for missing/extra registrations, unrelated edits, assertion drift and parallel
+execution. Production, goldens, analyzer internals, helper implementation,
+canonical grouping/timeouts and pressure safeguards remain untouched.
+Validate the exact six-root/85-leaf group and report runtime/memory tradeoffs
+before full closure. The original S0 wave base remains `bbb7a43`.
 
 The operator approved recording #13's admission policy and starting S0.
 Fresh verification finds HEAD equal to fetched origin/main at `bbb7a43`,
@@ -158,6 +173,10 @@ in the same package, and `internal/cli/operation_candidate_s0_test.go` /
 Fixture data/documentation: `internal/workflow/testdata/roc-s0/`.
 Private monitored command runner: ignored `bin/roc-s0-20261011/`.
 S0 implementation remains limited to test helpers, fixtures/goldens and tracking.
+The authorized maintenance exception touches only
+`internal/cli/prepare_s7_ar_guard_test.go` (six scope pairs) and
+`internal/workflow/operation_candidate_s0_guards_test.go` (exact-delta proof/
+sensitivity controls), plus directly related fixture README/tracking.
 Production Go, SPEC, assets, accepted ADR/PRD semantics, dependencies, CI/shards
 and CHANGELOG remain untouched.
 
@@ -206,12 +225,11 @@ and CHANGELOG remain untouched.
 2. Preserve the second stopped run at
    `bin/roc-s0-20261011/final-gate-retry/evidence/`. No local Go run remains.
    The authorized investigation/probe is complete; its evidence is at
-   `bin/roc-s0-20261011/heavy-shard-probe/evidence/`. No additional probe or
-   full retry is authorized.
-3. Obtain a separate decision on a bounded test-only memo-lifetime correction
-   for the six existing serial fixture loops. Reuse the established helper only
-   with verified independent lifetimes and all assertions/immutable state intact.
-   Any S0 scope-guard exception needs explicit authorization and review.
+   `bin/roc-s0-20261011/heavy-shard-probe/evidence/`.
+3. Implement the now-authorized bounded lifetime correction for the six loops.
+   Reuse the unchanged helper after confirming independent lifetimes. Keep the
+   exact-delta S0 exception narrow and mutation-sensitive, then validate/review
+   before a fresh full gate.
 4. Preserve existing failure evidence; do not alter production or accepted
    contracts to make a baseline test pass.
 5. Validate, review and close S0 with the explicit wave base; do not start S1
@@ -222,10 +240,9 @@ and CHANGELOG remain untouched.
 No review/native CI findings remain. Both full local attempts stopped on
 warning pressure in the fifth test command, including the approved retry after
 idle Docker shutdown. Full local validation is incomplete; S1 stays undispatched.
-No new memory-optimization implementation or canonical-shard change is authorized.
-The read-only investigation and single permitted probe are complete; a resulting
-test-lifetime implementation requires a separate scope decision. Review/native
-CI remain green, but full local validation is still incomplete.
+The test-only lifetime fix is now authorized; canonical-shard and safeguard
+changes remain forbidden. Full local validation is still incomplete. The new
+scope exception/call sites require validation and independent review.
 
 ## Context for Next Agent
 

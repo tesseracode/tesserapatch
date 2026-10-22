@@ -1486,6 +1486,12 @@ This excludes preceding full-suite execution as a necessary trigger and is
 consistent with cross-fixture cache retention; no per-cache heap attribution
 is claimed. A separately authorized bounded test-only memo-lifetime fix is
 recommended before further full retries. S0 stays blocked, S1 undispatched.
+**2026-10-21 authorized maintenance**: from clean/native-green `89e481c`,
+reuse the existing four-fixture memo scope in exactly the six rev-21/23/24
+roots/callbacks, preserving all 85 assertions, immutable/import state and
+canonical grouping/timeouts. S0's exception validates exactly those twelve
+insertions, not arbitrary edits to the old test file. Focused measurements,
+independent review and full gates remain required; no production or S1 work.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

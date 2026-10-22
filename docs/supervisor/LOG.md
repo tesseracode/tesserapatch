@@ -1,3 +1,32 @@
+## AR rev-21/23/24 Cache-Lifetime Fix Authorized — 2026-10-21
+
+The operator explicitly authorizes the recommended test-only lifetime fix.
+Fresh baseline: clean main at fetched origin/main
+`89e481c0ee882c1c9668f8b8d2296a48acaa4eed`, no stash, one worktree; latest
+native CI `38218488185` is SUCCESS. Keep the overall S0 wave base `bbb7a43`;
+record `89e481c` as the immediate pre-maintenance checkpoint.
+
+**Implementation scope**: reuse unchanged `s6SerialAnalyzerMemoScope` in exactly
+six serial AR rev-21/23/24 test roots and their fixture callbacks. The existing
+four-completed-fixture batch releases fifteen transient memos while preserving
+active-fixture identity, immutable/import baseline state and partial-type
+registrations. No production, analyzer logic, fixture assertions, grouping,
+timeouts, GC tuning or resource-safeguard change.
+
+**S0 exception boundary**: do not broadly allowlist the old analyzer test file.
+Validate its complete bytes against the frozen pre-S0 baseline with only the
+six root-scope registrations and six child-scope registrations inserted.
+The unchanged path guard must still reject arbitrary shared-helper changes.
+Add mutation controls rejecting missing/extra cleanup, changed assertions,
+parallel execution and edits elsewhere. Independent review must verify this
+explicit maintenance exception before S0 closure.
+
+**Validation**: focused scope/cache correctness, exact six-root/85-leaf runtime
+coverage with monitored memory and honest runtime tradeoffs, affected checks,
+review, and complete local/native gates under the existing admitted policy.
+Preserve all failed probes. No benefit or full-gate pass is claimed in advance;
+S1 remains undispatched.
+
 ## GH #13 S0 Heavy-Shard Investigation Complete — one probe exhausted — 2026-10-12
 
 The single authorized isolated probe at unchanged `e8a154b` reproduces the
