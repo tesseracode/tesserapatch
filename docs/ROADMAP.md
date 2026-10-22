@@ -1498,6 +1498,11 @@ existing cache controls pass. Exact-group measurement and independent review
 are next; no memory improvement or full acceptance is claimed yet.
 Independent follow-up review of `89e481c..4e56e85` is APPROVED with no
 findings. The exact-group measurement remains active before full validation.
+The exact-group measurement now passes all six roots/85 leaves at `4e56e85`,
+with 1.34 GiB sampled peak RSS (old interrupted probe: 10.08 GiB), normal
+pressure and no new swap-outs. Historical occupied swap remains unchanged.
+Package time is 317.009s; this is a memory/recomputation tradeoff. Vet/build
+pass; full S0 mechanical/native validation is next.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

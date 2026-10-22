@@ -1,3 +1,44 @@
+## Six-Loop Fix Ready for Full Validation — 2026-10-21
+
+The measured/reviewed code remains frozen at `4e56e85`. Archive the complete
+S0 blocker/maintenance handoff and replace live CURRENT with concise approved
+state, accurate memory/recomputation results and preserved S0 wave base.
+Publish this tracking checkpoint for native CI, then run the complete gate
+with fresh caches and all original commands/safeguards. The scoped group
+pass is not a full gate certificate. No S1 or release is dispatched.
+
+## Six-Loop Measurement PASS — complete coverage with bounded memory — 2026-10-21
+
+At frozen `4e56e85`, all six roots and all 85 original leaf fixtures pass,
+including both previously incomplete rev-21 limit cases. The exact 91-path
+RUN/PASS set matches the pre-fix inventory without additions, omissions or
+duplicate executions; the package and command complete successfully.
+
+Peak sampled owned RSS is 1,439,350,784 bytes (about **1.34 GiB**), versus
+10.08 GiB observed before the old probe was stopped. These are sampled
+process-tree sums, not uniquely owned physical memory or a matched completed
+before/after heap profile. All 201 samples have normal pressure and there are
+no new swap-outs. Historical occupied swap stays unchanged at 3,323,063,173
+bytes; do not describe this as zero occupied swap.
+
+The package takes 317.009s and the fresh-cache command 347.08s, within the
+30m operational budget. Releasing memos increases recomputation; earlier
+passing unscoped commands took 125.01/128.57s in different runs, so this is not
+a speed improvement or a controlled runtime ratio. Source stays clean and
+zero sampled owned processes remain. Vet and CLI build also pass afterward.
+
+**Action**: retain the independently approved fix and measured tradeoff;
+publish an approved full-validation checkpoint, then run the complete unchanged
+mechanical/native gates. The formerly blocked group now passes, but S0 is not
+fully accepted until the entire local gate completes.
+
+**Evidence**: `bin/roc-memo-scope-20261021/measurement/evidence/`.
+Summary SHA-256 `d9c210d52756ae15e1faa0583786064ed5a5abb93436a8ea1c62c262c031dad9`;
+samples `2351804eaa012a47e460a481335cce4218ea4de048cda5b6a50ab9118da24cba`;
+command log `c1cee69fa5ffc6c9dc03a27606fcb8244a8bed5e870a5d862328550966816872`;
+path inventory `4c711edc55525b60c3bf006438c4ccfce9c5eb640a0ac94fb1de80c046f2483f`;
+RUN/PASS results `38dda5ec3ff7f89081f02c02ced28f3a9e794d1bb99dba0947a4054708b3744b`.
+
 ## Six-Loop Fix Review — APPROVED — 2026-10-21
 
 **Reviewer**: `roc-s0-openai-review` / `e17d29e2-bd48-4003-80a9-c0b61112dc09`.
