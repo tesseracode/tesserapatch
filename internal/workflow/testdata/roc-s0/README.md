@@ -32,6 +32,14 @@ The capture allowlist names only the five new S0 test files, this fixture
 directory and tracking documents. Existing shared fixture builders cannot
 change while new snapshots are captured.
 
+The operator-authorized 2026-10-21 maintenance exception is not a generic
+allowlist entry. `prepare_s7_ar_guard_test.go` must equal its frozen baseline
+plus exactly twelve registrations of the unchanged four-fixture memo scope,
+in the six serial rev-21/23/24 roots and their local validators. Every fixture,
+assertion and unrelated byte stays pinned. Missing/duplicate registrations,
+parallelism or any other change fails the exact-delta check. The cache helper,
+immutable/import state and S0 golden bytes remain unchanged.
+
 Plain strict, applicable-only and mixed operation fixtures intentionally have
 the same shipped output: applicable-only/mixed phase 2 emits no note today.
 Their actual recipe presence and evaluator counts are asserted before pipeline

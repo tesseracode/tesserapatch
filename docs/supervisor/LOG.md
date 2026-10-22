@@ -1,3 +1,33 @@
+## Six-Loop Scope Controls PASS — measurement and review next — 2026-10-21
+
+Formatting and focused S0/scope/mutation plus existing cache lifecycle,
+identity, baseline, partial-type and stable-key checks pass (workflow 3.783s,
+CLI 52.089s, store 0.161s). Ordinary golden comparison is used; no recapture.
+The test-file change remains exactly twelve insertions and the helper is
+unchanged. Preserve that implementation checkpoint before running the exact
+six-root/85-leaf group with the same JSON-event monitoring and fresh caches.
+Report complete coverage and actual runtime/memory, not only a process exit.
+Independent review must confirm the new scope exception; S0 is not closed.
+
+## Six-Loop Memo Scope Implemented — validation pending — 2026-10-21
+
+Exactly twelve lines register the existing four-fixture scope in the six
+authorized roots/local validators. Each validator's model is local and fully
+consumed before returning its error; one synchronous call occurs per child.
+No model or analysis result crosses a fixture boundary. The unchanged helper
+releases fifteen coupled transient memos after four completed children and at
+root cleanup, preserving shared immutable/import state.
+
+The S0 scope guard does not allowlist this file. It derives the twelve permitted
+insertions from the frozen `bbb7a43` source and compares the full result
+byte-for-byte. Mutation controls reject missing/extra registrations, parent/
+child parallelism, changed assertions, unrelated edits and malformed baselines.
+The fixture README records the authorized exception.
+
+Non-Go source verification confirms every other old-test byte is unchanged.
+Next run formatting and cache/S0 controls, then the exact monitored group.
+No memory improvement or runtime success is claimed yet.
+
 ## AR rev-21/23/24 Cache-Lifetime Fix Authorized — 2026-10-21
 
 The operator explicitly authorizes the recommended test-only lifetime fix.

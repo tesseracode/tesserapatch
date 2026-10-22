@@ -7367,6 +7367,7 @@ func TestS7ARRev20ReviewerRepros(t *testing.T) {
 }
 
 func TestS7ARRev21ReviewerRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -7374,6 +7375,7 @@ func TestS7ARRev21ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -7658,6 +7660,7 @@ func TestS7ARRev21ReviewerRepros(t *testing.T) {
 }
 
 func TestS7ARRev23ScheduledClosureAliasRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -7665,6 +7668,7 @@ func TestS7ARRev23ScheduledClosureAliasRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -7961,6 +7965,7 @@ func TestS7ARRev23ScheduledClosureAliasRepros(t *testing.T) {
 }
 
 func TestS7ARRev24ScheduledSelfCaptureRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -7968,6 +7973,7 @@ func TestS7ARRev24ScheduledSelfCaptureRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -8087,6 +8093,7 @@ func TestS7ARRev24ScheduledSelfCaptureRepros(t *testing.T) {
 }
 
 func TestS7ARRev24StaticChallenges(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -8094,6 +8101,7 @@ func TestS7ARRev24StaticChallenges(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -10742,6 +10750,7 @@ func TestS7ARRev26StaticChallenges(t *testing.T) {
 }
 
 func TestS7ARRev23StaticChallenges(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -10749,6 +10758,7 @@ func TestS7ARRev23StaticChallenges(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -11022,6 +11032,7 @@ func TestS7ARRev23StaticChallenges(t *testing.T) {
 }
 
 func TestS7ARRev21StaticChallenges(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -11029,6 +11040,7 @@ func TestS7ARRev21StaticChallenges(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(

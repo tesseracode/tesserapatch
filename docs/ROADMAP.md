@@ -1492,6 +1492,10 @@ roots/callbacks, preserving all 85 assertions, immutable/import state and
 canonical grouping/timeouts. S0's exception validates exactly those twelve
 insertions, not arbitrary edits to the old test file. Focused measurements,
 independent review and full gates remain required; no production or S1 work.
+The twelve scope registrations and exact-delta exception are implemented;
+every other analyzer-test byte remains pinned. Formatting and focused S0/
+existing cache controls pass. Exact-group measurement and independent review
+are next; no memory improvement or full acceptance is claimed yet.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

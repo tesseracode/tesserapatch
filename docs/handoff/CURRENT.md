@@ -38,6 +38,17 @@ canonical grouping/timeouts and pressure safeguards remain untouched.
 Validate the exact six-root/85-leaf group and report runtime/memory tradeoffs
 before full closure. The original S0 wave base remains `bbb7a43`.
 
+The twelve registrations are implemented using the existing rev-19/rev-20
+pattern. Each new validator builds and consumes its model locally, returns
+only an error, and is invoked once per nonparallel child fixture. The helper
+clears after four completed children and at root cleanup, not during active
+analysis. Source comparison proves all other old analyzer-test bytes unchanged.
+The S0 exception derives those exact insertions from the pinned baseline and
+rejects missing/extra scope calls, parallelism, assertion drift and unrelated
+edits. Formatting and focused S0/cache-lifecycle controls pass
+(workflow 3.783s, CLI 52.089s, store 0.161s). The exact heavy group's
+coverage/memory run and independent follow-up review are next.
+
 The operator approved recording #13's admission policy and starting S0.
 Fresh verification finds HEAD equal to fetched origin/main at `bbb7a43`,
 no tracked/untracked changes, no stash and one main worktree. Latest native
@@ -217,6 +228,9 @@ and CHANGELOG remain untouched.
   216.92s total (60.22s admission); five roots/83 leaves pass, zero assertions
   fail, and two leaves are incomplete/unstarted. Peak sampled RSS 10.08 GiB;
   zero swap, no owned processes remain. It is not a passing shard certificate.
+- Authorized six-loop fix: formatting and S0/existing cache controls pass
+  (workflow 3.783s, CLI 52.089s, store 0.161s). Heavy-group/full-gate results
+  remain unverified; no memory-reduction claim yet.
 
 ## Next Steps
 
