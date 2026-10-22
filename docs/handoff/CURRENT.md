@@ -53,6 +53,10 @@ The correction is frozen at `4e56e85`; request a same-S0 follow-up review of
 the exact maintenance delta and run the unchanged group with all 91 expected
 RUN/PASS paths (six roots plus 85 leaves), fresh caches and original safeguards.
 Do not claim a controlled speed ratio against the old interrupted probe.
+Follow-up independent review of `89e481c..4e56e85` is APPROVED with no
+findings; reviewer metadata reconfirms OpenAI `gpt-5.4`. The exact-group
+measurement is running under shell `roc-memo-six-loop-measurement`; no
+completed runtime/memory result is claimed yet.
 
 The operator approved recording #13's admission policy and starting S0.
 Fresh verification finds HEAD equal to fetched origin/main at `bbb7a43`,

@@ -1496,6 +1496,8 @@ The twelve scope registrations and exact-delta exception are implemented;
 every other analyzer-test byte remains pinned. Formatting and focused S0/
 existing cache controls pass. Exact-group measurement and independent review
 are next; no memory improvement or full acceptance is claimed yet.
+Independent follow-up review of `89e481c..4e56e85` is APPROVED with no
+findings. The exact-group measurement remains active before full validation.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work
