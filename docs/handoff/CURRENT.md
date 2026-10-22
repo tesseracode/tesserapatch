@@ -14,12 +14,13 @@ APPROVED is a review verdict, not full acceptance. S1 is not dispatched.
 - **Task ID**: `implement-operation-replay-candidate-s0`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Frozen S0 baseline plus explicitly authorized test-only memory unblock
-- **Status**: Review, focused checks and exact-group measurement pass; full gates pending
+- **Status**: Review and exact-group measurement pass; full local/native gates running
 - **Assigned**: 2026-10-11
 - **Maintenance authorized**: 2026-10-21
 - **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
 - **Pre-maintenance checkpoint**: `89e481c0ee882c1c9668f8b8d2296a48acaa4eed`
 - **Reviewed/measured fix**: `4e56e8559ec305f40ad18690eec8353412c546d2`
+- **Full-validation checkpoint**: `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0`
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, PRD §8 S0
 
 WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
@@ -52,6 +53,10 @@ unrelated edits and malformed baselines. Original goldens and production are
 unchanged. Independent reviewer `e17d29e2-bd48-4003-80a9-c0b61112dc09`,
 explicitly selected/runtime-confirmed OpenAI `gpt-5.4`, returns APPROVED for
 `89e481c..4e56e85`, with no findings.
+
+The full gate is now running at pushed `bdfe3b1`, with fresh source/caches,
+capture disabled and the original S0 wave base. Checks 1-6 pass; liveness and
+telemetry are verified. Native CI is `39728657049`.
 
 ## Current State
 
@@ -94,16 +99,18 @@ canonical CI/shards, test timeouts and pressure safeguards are unchanged.
 - Independent follow-up review: APPROVED, no findings.
 - Prior S0 native CI `38189486586` and pre-maintenance latest-tip
   `38218488185` passed. They do not substitute for fixed-source CI.
-- Complete local/native validation of the new fix is pending.
+- Complete local/native validation of the new fix is running at `bdfe3b1`;
+  local checks 1-6 pass and all nine routing controls pass.
 
 Measurement evidence: `bin/roc-memo-scope-20261021/measurement/evidence/`.
 Hashes and prior failed outcomes are recorded in LOG and the archived handoff.
 
 ## Next Steps
 
-1. Publish the approved full-validation checkpoint without changing reviewed code.
-2. Run the original complete mechanical gate with the explicit S0 wave base,
-   fresh isolated source/caches and golden capture disabled; await exact-source CI.
+1. Await native CI `39728657049` without cancelling it with a tracking push.
+2. Await shell `roc-memo-final-gate-20261021`; private evidence:
+   `bin/roc-memo-scope-20261021/final-gate/evidence/`. It uses the original
+   commands/safeguards and S0 wave base. Do not start a duplicate.
 3. Reconcile owned processes and preserve actual outcomes before acceptance.
 4. Archive/close/push S0 only after complete validation. Do not dispatch S1.
 
@@ -123,7 +130,7 @@ No old-host admission claim or profiler-default/hosted-CI change is implied.
 ## Blockers
 
 No review or measured-group blocker remains. Complete local/native gates still
-block S0 acceptance. No validation workload is currently running.
+block S0 acceptance. The full local gate and native CI are currently running.
 
 ## Context for Next Agent
 

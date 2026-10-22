@@ -1503,6 +1503,9 @@ with 1.34 GiB sampled peak RSS (old interrupted probe: 10.08 GiB), normal
 pressure and no new swap-outs. Historical occupied swap remains unchanged.
 Package time is 317.009s; this is a memory/recomputation tradeoff. Vet/build
 pass; full S0 mechanical/native validation is next.
+The complete gate is now running at pushed `bdfe3b1` with checks 1-6 passed,
+fresh caches, capture disabled and unchanged safeguards. Exact-checkpoint
+native CI is `39728657049`; full acceptance still awaits both results.
 
 #13's local validation policy is explicitly recorded in CURRENT: sixty seconds
 of normal pressure/no new swap-outs/load<=5, external Go allowed, own work

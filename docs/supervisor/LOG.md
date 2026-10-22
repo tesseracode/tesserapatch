@@ -1,3 +1,17 @@
+## Full S0 Gate Dispatched with Memo Fix — 2026-10-21
+
+Published checkpoint `bdfe3b1b6a1383dcef06dbe3159089ac6c9801c0` is running
+the complete original gate, with fresh isolated source/caches, golden capture
+disabled and `WAVE_BASE=bbb7a4310b2ebea095890a284997fbbb42535bc7`.
+All nine routing controls and checks 1-6 pass; vet/build/test execution and
+resource telemetry are active. Exact-checkpoint native CI:
+[39728657049](https://github.com/tesseracode/tesserapatch/actions/runs/39728657049).
+
+**Resume point**: shell `roc-memo-final-gate-20261021`; evidence
+`bin/roc-memo-scope-20261021/final-gate/evidence/`. Preserve this run and
+exact-checkpoint CI; do not duplicate work or push tracking over active CI.
+Final S0 acceptance awaits complete local/native results; no S1 dispatch.
+
 ## Six-Loop Fix Ready for Full Validation — 2026-10-21
 
 The measured/reviewed code remains frozen at `4e56e85`. Archive the complete
