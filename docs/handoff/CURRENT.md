@@ -19,6 +19,7 @@ fixtures before any production edit. S1 and later slices are not dispatched.
 - **Contract**: accepted ADR-037/ADR-043 and PRD rev-7, especially PRD §8 S0
 - **Full-validation checkpoint**: `e8a154bd954815cefccdacd160b70f183ead4eb4`
 - **Pre-maintenance checkpoint**: `89e481c0ee882c1c9668f8b8d2296a48acaa4eed`
+- **Memo-lifetime checkpoint**: `4e56e8559ec305f40ad18690eec8353412c546d2`
 
 WAVE_BASE = bbb7a4310b2ebea095890a284997fbbb42535bc7
 
@@ -48,6 +49,10 @@ rejects missing/extra scope calls, parallelism, assertion drift and unrelated
 edits. Formatting and focused S0/cache-lifecycle controls pass
 (workflow 3.783s, CLI 52.089s, store 0.161s). The exact heavy group's
 coverage/memory run and independent follow-up review are next.
+The correction is frozen at `4e56e85`; request a same-S0 follow-up review of
+the exact maintenance delta and run the unchanged group with all 91 expected
+RUN/PASS paths (six roots plus 85 leaves), fresh caches and original safeguards.
+Do not claim a controlled speed ratio against the old interrupted probe.
 
 The operator approved recording #13's admission policy and starting S0.
 Fresh verification finds HEAD equal to fetched origin/main at `bbb7a43`,

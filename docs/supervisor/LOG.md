@@ -1,3 +1,17 @@
+## Six-Loop Fix Frozen — S0 Review Follow-up Dispatched — 2026-10-21
+
+Implementation checkpoint `4e56e8559ec305f40ad18690eec8353412c546d2`;
+maintenance range `89e481c..4e56e85`. Return the explicit S0 exception and
+twelve lifetime registrations to the existing OpenAI S0 reviewer
+`e17d29e2-bd48-4003-80a9-c0b61112dc09` (previous runtime model `gpt-5.4`).
+Keep the review read-only, with no Go commands or nested agents.
+
+Independently run the exact unchanged AR rev-21/23/24 selector on this frozen
+source with fresh caches, JSON events, all original admission/runtime stops,
+and the existing 30m measurement budget. Prove all six roots/85 leaves pass.
+The prior probe's interrupted 83-leaf result is not a completed baseline and
+must not be presented as a controlled performance comparison.
+
 ## Six-Loop Scope Controls PASS — measurement and review next — 2026-10-21
 
 Formatting and focused S0/scope/mutation plus existing cache lifecycle,
