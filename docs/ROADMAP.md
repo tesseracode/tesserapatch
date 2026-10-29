@@ -1644,6 +1644,11 @@ wait for stable headroom; the 39-shard proposal is not yet fully validated.
 The operator requests resumption after freeing resources. The five remaining
 pilots restart behind fresh continuous 60-second admission, serial and
 fail-fast, at unchanged reviewed `31fd46e`; no acceptance is implied.
+All six pilots now pass: purge/observer peak 1.55/1.74 GiB, AR16/17/18
+0.47/1.10/1.11 GiB, new catch-all 1.43 GiB (sampled combined RSS).
+Executions remain at normal pressure with zero new swap-outs; owned cleanup
+is verified. Prepare full 39-command/native validation of the unchanged
+reviewed proposal. Extracted families still need full execution; S1 is not accepted.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation

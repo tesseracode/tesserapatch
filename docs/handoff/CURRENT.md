@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
@@ -17,7 +17,7 @@ warning OS memory pressure. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 closure — test-only memory-bounded validation maintenance
-- **Status**: Resuming the five remaining memory pilots after operator-requested admission
+- **Status**: Static review and all six pilots passed; preparing full 39-shard/native validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -121,6 +121,31 @@ purge pilot is not repeated. Shell `roc-sharding-remaining-pilots` owns this
 sequence, with output in `bin/roc-sharding-20261029/remaining-pilots-resume1.log`.
 Every command retains its own fresh 60-second admission, 600-second admission
 budget and immediate resource/failure stop. No duplicate Go workload.
+All five resumed pilots now pass at unchanged `31fd46e`, completing all six
+pilots. Each execution stays at normal memory pressure with zero new swap-outs.
+Admission takes 61.6-163.2s as needed for a full qualifying minute. All 225
+sampled owned process identities from the resumed sequence are gone.
+
+| Pilot | Sampled combined peak RSS | Command seconds |
+|-------|---------------------------|-----------------|
+| Purge guard (earlier completed pilot) | 1.55 GiB | 186.00 |
+| Purge observer | 1.74 GiB | 191.42 |
+| AR16 | 0.47 GiB | 15.13 |
+| AR17 | 1.10 GiB | 71.70 |
+| AR18 | 1.11 GiB | 100.50 |
+| New catch-all | 1.43 GiB | 838.30 |
+
+The directly comparable purge/observer baselines were 9.08/9.80 GiB.
+The old combined AR16-18 process peaked at 9.15 GiB. The new catch-all excludes
+the fifteen extracted family shards, so its peak is not a measurement of
+their combined coverage. These six results do not establish a memory ceiling
+or a pass for the complete 39-command partition.
+
+With static review, preservation controls and pilots passing, prepare the
+reviewed proposal for native CI and the full admitted gate. The canonical
+APPROVED field records code/proposal approval only; S1 acceptance still needs
+all 39 test commands and native CI. No production/test code changes follow
+the frozen review checkpoint.
 
 ## Session Summary
 
@@ -388,13 +413,12 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Await the existing `roc-sharding-remaining-pilots` sequence at frozen
-   proposal `31fd46e`: purge observer, AR16, AR17, AR18 and the new catch-all.
-   Do not duplicate it or overwrite any previous evidence.
-2. Measure the remaining family shards and complete vet/build/native/full
-   validation before adopting the 39-command proposal. Static review and one
-   improved shard do not establish its full memory budget or complete coverage
-   in execution. Only the resumed pilot sequence owns Go validation.
+1. Publish the reviewed, pilot-validated proposal for required native CI, then
+   run the full admitted gate at that exact checkpoint. The pilot sequence has
+   exited with no owned survivors; do not rerun the completed pilots separately.
+2. Complete all 39 shards, formatting, vet/build and native validation before
+   S1 acceptance. The fifteen extracted family shards still need execution
+   in the complete partition; six successful pilots are not the full gate.
 3. Keep WAVE_BASE `5120dc9`, unchanged admission/stop policy and all failed-run
    evidence. Publish only a reviewed validation checkpoint; no S1 acceptance
    until the complete gate succeeds, and no automatic S2 dispatch.
@@ -412,10 +436,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 ## Blockers
 
 No open S1 production-code finding; its required native CI passes.
-The newer test-only proposal `31fd46e` has static approval and one successful
-memory pilot. Remaining measurements are resuming after the operator freed
-resources; actual admission and runtime conditions must still qualify.
-Its full 39-command/native validation remains pending, so S1 is not accepted.
+The newer test-only proposal `31fd46e` has static approval and all six memory
+pilots pass without runtime pressure or new swap-outs. Its full 39-command/
+native validation remains pending, so S1 is not accepted.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent

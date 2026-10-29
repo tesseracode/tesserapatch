@@ -1,3 +1,23 @@
+## Measurement Complete — all six shard pilots pass — 2026-10-29
+
+The five resumed pilots pass at frozen `31fd46e`, completing all six.
+Sampled combined RSS / command time: purge observer 1.74 GiB / 191.42s;
+AR16 0.47 / 15.13s; AR17 1.10 / 71.70s; AR18 1.11 / 100.50s;
+new catch-all 1.43 / 838.30s. The earlier purge guard passed at
+1.55 GiB / 186.00s. The directly comparable purge/observer baselines were
+9.08/9.80 GiB, and the old combined AR16-18 process peaked at 9.15 GiB.
+
+Every execution retains normal pressure and zero new swap-outs. Each first
+qualifies for a continuous minute (admission 61.6-163.2s); all 225 sampled
+owned identities from the resumed sequence are absent after cleanup.
+The measured source remains clean and unchanged.
+
+Do not interpret the new catch-all's lower peak as covering the fifteen
+extracted family shards: they still need complete execution. Static review,
+scope/coverage controls and six successful pilots justify proceeding to
+full 39-command/native validation, not S1 acceptance. Publish a reviewed
+validation checkpoint, retain WAVE_BASE `5120dc9` and the unchanged safeguards.
+
 ## Measurement Resume — five remaining pilots — 2026-10-29
 
 The operator explicitly requests a continuous 60-second pressure check and
