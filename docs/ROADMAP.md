@@ -1641,6 +1641,9 @@ with command time 78.62→186.00s across the recorded runs. Observer measurement
 then stops on new system swap-outs at 1.52 GiB sampled owned RSS; the remaining
 four pilots do not start. No owned survivors remain. Retain the guards and
 wait for stable headroom; the 39-shard proposal is not yet fully validated.
+The operator requests resumption after freeing resources. The five remaining
+pilots restart behind fresh continuous 60-second admission, serial and
+fail-fast, at unchanged reviewed `31fd46e`; no acceptance is implied.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation

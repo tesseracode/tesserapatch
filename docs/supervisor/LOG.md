@@ -1,3 +1,16 @@
+## Measurement Resume — five remaining pilots — 2026-10-29
+
+The operator explicitly requests a continuous 60-second pressure check and
+automatic continuation if healthy after freeing resources. The last snapshot
+is normal with about 9.8 GiB free; it is not a substitute for the full
+qualifying window. The pilot checkout is clean at reviewed `31fd46e`.
+
+Run observer, AR16, AR17, AR18 and catch-all serially under shell
+`roc-sharding-remaining-pilots`, using new `*-resume1-20261029` stage IDs.
+Each command retains fresh admission and the original runtime stop policy;
+stop the sequence on the first failure. Do not repeat the passed purge pilot.
+Preserve all previous evidence and record actual outcomes before adoption.
+
 ## Measurement — purge memory reduction; observer resource stop — 2026-10-29
 
 The first freshly admitted pilot passes every purge-guard assertion at frozen

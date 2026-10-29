@@ -17,7 +17,7 @@ warning OS memory pressure. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 closure — test-only memory-bounded validation maintenance
-- **Status**: Sharding proposal statically approved; further memory pilots resource-blocked
+- **Status**: Resuming the five remaining memory pilots after operator-requested admission
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -111,6 +111,16 @@ Evidence: `bin/roc-sharding-20261029/shard-pilot-purge-20261029/` and
 both records and obtain a stable, quieter memory window before continuing
 the five remaining pilots; do not weaken the no-new-swap rule. The draft
 remains local, statically approved but not adopted as a successful full gate.
+The operator has now requested a fresh continuous 60-second pressure check
+and automatic continuation if it qualifies. The 16:09 snapshot is normal
+with about 9.8 GiB free RAM; this snapshot alone is not admission.
+The clean pilot checkout still equals reviewed `31fd46e`; only tracking
+has changed in the parent. Resume observer, AR16, AR17, AR18 and catch-all
+serially using fresh `*-resume1-20261029` evidence stages. The successful
+purge pilot is not repeated. Shell `roc-sharding-remaining-pilots` owns this
+sequence, with output in `bin/roc-sharding-20261029/remaining-pilots-resume1.log`.
+Every command retains its own fresh 60-second admission, 600-second admission
+budget and immediate resource/failure stop. No duplicate Go workload.
 
 ## Session Summary
 
@@ -378,13 +388,13 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Establish a stable, quieter memory window, then resume the five uncompleted
-   pilots at frozen proposal `31fd46e`: purge observer, AR16, AR17, AR18 and
-   the new catch-all. Use new evidence stages; do not overwrite either run.
+1. Await the existing `roc-sharding-remaining-pilots` sequence at frozen
+   proposal `31fd46e`: purge observer, AR16, AR17, AR18 and the new catch-all.
+   Do not duplicate it or overwrite any previous evidence.
 2. Measure the remaining family shards and complete vet/build/native/full
    validation before adopting the 39-command proposal. Static review and one
    improved shard do not establish its full memory budget or complete coverage
-   in execution. No validator remains active and no duplicate work is needed.
+   in execution. Only the resumed pilot sequence owns Go validation.
 3. Keep WAVE_BASE `5120dc9`, unchanged admission/stop policy and all failed-run
    evidence. Publish only a reviewed validation checkpoint; no S1 acceptance
    until the complete gate succeeds, and no automatic S2 dispatch.
@@ -403,7 +413,8 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 No open S1 production-code finding; its required native CI passes.
 The newer test-only proposal `31fd46e` has static approval and one successful
-memory pilot, but further measurement is blocked on system swapping.
+memory pilot. Remaining measurements are resuming after the operator freed
+resources; actual admission and runtime conditions must still qualify.
 Its full 39-command/native validation remains pending, so S1 is not accepted.
 Do not dispatch a later slice or claim acceptance until they complete.
 
