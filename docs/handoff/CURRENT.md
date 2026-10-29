@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Corrected implementation frozen for independent review; remaining validation pending
+- **Status**: Correcting one residual inherited Git-config input after independent review
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -113,6 +113,12 @@ This is part of ADR-044's existing exclusion obligation, not a new API.
 The shared-state fix is saved at `f6bae35`. Its clean-checkout formatting and
 complete candidate/candidatelock/gitutil/workflow packages pass. Return this
 frozen revision to the existing reviewer; no code acceptance is implied.
+That review closes composition, cleanup, source guards and copied-handle
+lifetime, but returns NEEDS REVISION for inherited `GIT_CONFIG_PARAMETERS`.
+The parent is scrubbing it and strengthening both subprocess envelope tests.
+The missing scrub is implemented. Both strengthened tests fail against the
+pre-fix helper specifically for inherited `GIT_CONFIG_PARAMETERS`; positive
+revalidation and independent closure of this correction are next.
 
 ## Current State — bounded S1 requirements
 
@@ -204,14 +210,26 @@ and the required Copilot co-author trailer remain mandatory.
   candidatelock (0.167s), gitutil (10.689s), workflow (111.458s) pass, uncached
   and serial. Evidence: `s1-capability-format-check-20261029`,
   `s1-capability-affected-packages-20261029`; command 130.71s, no resource stop.
+- Remaining local checks at `f6bae35` all pass: CLI integration (3.715s),
+  race candidate/locks (2.808s/1.200s), vet, CLI build, Windows candidate/lock
+  cross-compilation. Evidence stages `s1-capability-{cli-integration,race,vet,
+  build,windows-compile}-20261029`; each freshly admitted, no resource stops.
+  Cross-compilation is not native Windows execution.
+- Independent code review of `f6bae35`: NEEDS REVISION for one medium
+  inherited `GIT_CONFIG_PARAMETERS` gap; prior lifetime/cleanup/guard findings
+  closed. Retained reviewer runtime reconfirmed OpenAI `gpt-5.3-codex`.
+- `s1-config-parameters-negative-20261029`: both real subprocess envelope
+  regressions fail at the intended unsafe-variable assertion with the pre-fix
+  helper. The inherited input is an inert `core.autocrlf=false` setting; no
+  injected command is needed to prove the guards detect the gap.
 
 ## Next Steps
 
-1. Review frozen `f6bae35` through existing reviewer
-   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`. Do not restart the failed implementer.
-2. Complete admitted race/CLI integration/vet/build/Windows cross-compilation.
-   Only after code approval publish for required native-platform coverage and
-   run full closure validation before acceptance.
+1. Correct the residual inherited Git-config input, demonstrate envelope-test
+   sensitivity and rerun affected admitted checks.
+2. Return the correction to existing reviewer
+   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`. Only after code approval publish
+   for required native-platform coverage and full closure validation.
 3. Update tracking at each transition; do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13

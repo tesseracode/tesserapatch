@@ -1,3 +1,25 @@
+## Review — S1 recovered capability revision — 2026-10-29
+
+**Reviewer**: `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`, runtime
+OpenAI `gpt-5.3-codex` reconfirmed.
+**Checkpoint**: `f6bae35f77bb142ab6784c734808440b15c679b5`.
+**Verdict**: NEEDS REVISION.
+
+The reviewer closes caller-held composition, prune ownership/cleanup, source
+guards and copied-handle exclusion. One medium finding remains:
+`HardenedNoLazyGitEnv` still inherits `GIT_CONFIG_PARAMETERS`, permitting
+environment-supplied configuration during candidate/tree Git operations.
+A disposable Git reproducer confirms the injection reaches a clean filter.
+
+Parent will scrub that variable and extend both actual-subprocess envelope
+tests, demonstrating that their new assertions fail against the old helper.
+The correction is now implemented. Both tests were run against the old helper
+and fail exactly on the unsafe inherited variable (stage
+`s1-config-parameters-negative-20261029`). Positive checks are pending.
+All admitted local checks at this checkpoint pass (including CLI integration,
+race, vet, build and Windows cross-compilation); they did not cover this input.
+Native Windows execution and full-gate acceptance remain unclaimed.
+
 ## Review Dispatch — S1 recovered capability revision — 2026-10-29
 
 **Frozen code**: `f6bae35f77bb142ab6784c734808440b15c679b5`.

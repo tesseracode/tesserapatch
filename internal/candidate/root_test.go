@@ -578,10 +578,10 @@ func TestCandidateGitSubprocessesUseNoLazyFetchAndScrubHostileEnv(t *testing.T) 
 	shimDir := t.TempDir()
 	logPath := filepath.Join(shimDir, "env.log")
 	script := fmt.Sprintf(`#!/bin/sh
-printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
+printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
   "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_NO_REPLACE_OBJECTS-}" \
   "${GIT_DIR-}" "${GIT_WORK_TREE-}" "${GIT_COMMON_DIR-}" "${GIT_INDEX_FILE-}" \
-  "${GIT_CONFIG_GLOBAL-}" "${GIT_CONFIG_SYSTEM-}" "${GIT_CONFIG_NOSYSTEM-}" "${GIT_REPLACE_REF_BASE-}" "$*" >> %q
+  "${GIT_CONFIG_GLOBAL-}" "${GIT_CONFIG_SYSTEM-}" "${GIT_CONFIG_NOSYSTEM-}" "${GIT_REPLACE_REF_BASE-}" "${GIT_CONFIG_PARAMETERS-}" "$*" >> %q
 exec %q "$@"
 `, logPath, realGit)
 	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
@@ -598,6 +598,7 @@ exec %q "$@"
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(foreignRoot, ".gitconfig"))
 	t.Setenv("GIT_CONFIG_SYSTEM", filepath.Join(foreignRoot, "system.gitconfig"))
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_PARAMETERS", "'core.autocrlf'='false'")
 	t.Setenv("GIT_REPLACE_REF_BASE", "refs/replace-foreign/")
 	t.Setenv("GIT_CONFIG_COUNT", "1")
 	t.Setenv("GIT_CONFIG_KEY_0", "alias.cat-file")
@@ -637,7 +638,7 @@ exec %q "$@"
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(logBytes)), "\n") {
 		fields := strings.Split(line, "\x1f")
-		if len(fields) != 12 {
+		if len(fields) != 13 {
 			t.Fatalf("unexpected env log row %q", line)
 		}
 		if fields[0] != "1" || fields[1] != "C" || fields[2] != "1" {
@@ -647,6 +648,7 @@ exec %q "$@"
 			{"GIT_DIR", ""}, {"GIT_WORK_TREE", ""}, {"GIT_COMMON_DIR", ""}, {"GIT_INDEX_FILE", ""},
 			{"GIT_CONFIG_GLOBAL", os.DevNull}, {"GIT_CONFIG_SYSTEM", os.DevNull},
 			{"GIT_CONFIG_NOSYSTEM", "1"}, {"GIT_REPLACE_REF_BASE", ""},
+			{"GIT_CONFIG_PARAMETERS", ""},
 		} {
 			if fields[3+index] != value.want {
 				t.Fatalf("candidate git call has unsafe %s: %q", value.name, line)

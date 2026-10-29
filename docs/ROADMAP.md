@@ -1665,6 +1665,9 @@ native/full validation remain outstanding. No S1 publication or acceptance.
 The copy-lifetime regression fails on the old code and the fix is frozen at
 `f6bae35`. Formatting and all four affected primitive/workflow packages pass.
 Independent review and remaining validation are active; S1 stays in flight.
+Review of `f6bae35` closes lifetime/cleanup/guard findings but retains one
+medium inherited `GIT_CONFIG_PARAMETERS` gap. Local CLI/race/vet/build/Windows
+cross-compilation pass; parent corrects the missing scrub before code approval.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

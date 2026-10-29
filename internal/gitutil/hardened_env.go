@@ -48,6 +48,7 @@ func scrubHardenedGitVariable(name string) bool {
 		"GIT_CONFIG_GLOBAL",
 		"GIT_CONFIG_SYSTEM",
 		"GIT_CONFIG_NOSYSTEM",
+		"GIT_CONFIG_PARAMETERS",
 		"GIT_CONFIG_COUNT":
 		return true
 	}
