@@ -1,3 +1,13 @@
+## ADR-044 Independent Review Requested — 2026-10-29
+
+Draft checkpoint `9bd80fa9a47a0d444f4d431c0ff35fafa3195a95` is submitted
+to the existing S1 reviewer `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`
+(previously runtime-confirmed OpenAI `gpt-5.3-codex`).
+Review is confined to the proposed ownership/signature clarification and its
+test obligations. Existing S1 implementation findings are still open; an
+approved proposal will not constitute code acceptance.
+No production changes or new Go commands run while that decision is reviewed.
+
 ## ADR-044 Drafted — explicit caller-held lock capabilities — 2026-10-29
 
 The operator selected `amend-capabilities`: draft/review a narrow contract

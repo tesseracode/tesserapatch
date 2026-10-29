@@ -75,6 +75,9 @@ borrow explicit live feature/global handles while the caller owns acquisition,
 transaction-wide hold and release. Both named constructors remain; only the
 candidate constructor's required parameters and prune contract change.
 Independent review must approve this narrow proposal before code changes.
+Proposed amendment checkpoint `9bd80fa` is under same-context read-only review
+by `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`; wait for that known agent's
+result. Approval of the paper alone will not close the implementation findings.
 
 ## Current State — bounded S1 requirements
 
