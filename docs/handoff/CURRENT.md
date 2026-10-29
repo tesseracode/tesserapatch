@@ -36,11 +36,11 @@ contract, candidate namespace, nonblocking lock/filesystem rules and current
 S0 scope guard. Existing Windows CI does not imply every new package's tests
 are blocking; native S1 lock assertions need explicit required-job coverage.
 The first S1 implementation is present in the worktree but not accepted.
-Implementation is assigned to `roc-s1-implementation`,
+Implementation was initially assigned to `roc-s1-implementation`,
 agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c`, with OpenAI `gpt-5.3-codex`
 explicitly requested and now confirmed by runtime metadata.
-It owns code/tests and necessary native-CI registration, not tracking or Git
-commits. Use this existing agent for same-task follow-up; do not duplicate work.
+It owned code/tests and necessary native-CI registration, not tracking or Git
+commits. After its connection failure the parent owns all implementation.
 The admitted command runner is `bin/roc-s1-20261029/validate.py`, with separate
 S1 evidence/cache paths and the unchanged pressure/swap/load policy.
 Parent review identified held-root/cleanup ownership gaps, inherited Git
@@ -53,12 +53,11 @@ The same implementer has returned revised code and admitted focused passes:
 held roots, identity/environment checks, safer locks, actual termination tests,
 stronger scope/envelope guards and a worktree-tree hashing primitive.
 No independent approval, full suite or native Windows runtime pass is claimed.
-Independent review is now active under agent
+Independent review was dispatched under agent
 `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e` against frozen `f5df785`,
 with OpenAI `gpt-5.3-codex` explicitly selected. Parent integration shell
-`roc-s1-parent-integration` is waiting for resource admission, not yet running
-Go. Its saved stage is `s1-parent-s0-ci-integration`. Do not start duplicate
-work or interpret the admission wait as a test result.
+`roc-s1-parent-integration` waited for resource admission without running
+Go. Its saved stage is `s1-parent-s0-ci-integration`; it later timed out.
 Independent review by `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e` confirms runtime
 OpenAI `gpt-5.3-codex` and returns NEEDS REVISION: non-composable lock ownership,
 half-closed prune failure cleanup, weaker tree-hash environment, and incomplete
@@ -84,10 +83,9 @@ ownership clauses are updated. All nine paired parity blocks and existing
 matrix row identities remain unchanged; the frozen ADR index is untouched.
 Implement the accepted API and remaining findings without reopening other
 decisions. No revised-code acceptance is claimed by the paper approval.
-The existing implementer `6c67ce6f-1058-4f46-bd48-8c663eafe87c` is now
-applying that contract and the outstanding cleanup/environment/source-guard
-corrections. Preserve its work and await its result; do not start a duplicate
-implementation or parent Go workload while it owns admitted checks.
+The existing implementer `6c67ce6f-1058-4f46-bd48-8c663eafe87c` attempted
+that contract and the outstanding cleanup/environment/source-guard
+corrections before its connection failure.
 The implementer has now failed on model-request network timeouts. Its partial
 code edits survived and no validation process remains active. The parent resumes
 directly without reset/cleanup or another implementation agent.
@@ -104,6 +102,13 @@ The dependent inventory is updated to pin the original three prepare sites
 plus the two S1 sites, with moved/unregistered negative controls.
 The CI guard's ignored-bin clone scan requires a clean isolated checkout for
 the rerun, not deletion of evidence or changes to the scanner.
+Recovery checkpoint `9198c0ac5e7dac1fac76902f0863662e37af9f82` is saved locally.
+The clean-checkout focused integration now passes all five selected packages,
+including S0, AVP-141 and the CI guards, without golden capture.
+A final lifetime check identified that copying an exported Handle could give
+one descriptor independent borrow counters. The parent is correcting this
+with shared private state and a copy/release regression, including CLW-005.
+This is part of ADR-044's existing exclusion obligation, not a new API.
 
 ## Current State — bounded S1 requirements
 
@@ -180,13 +185,22 @@ and the required Copilot co-author trailer remain mandatory.
 - ADR-044 proposal review is APPROVED; the contract amendment is accepted.
   A non-Go comparison confirms all nine parity blocks and matrix row identities
   are unchanged. Implementation validation remains separate.
+- Recovered clean integration at `9198c0a`: PASS, stage
+  `s1-recovered-clean-integration-20261029`, all five selected packages.
+  Admission 128.54s, command 33.24s; no resource stop. The later shared-state
+  correction remains to be validated. All earlier failure evidence is retained.
+- Copy-lifetime negative control: the new regression fails at pre-fix `9198c0a`
+  with "a handle copy closed a borrowed descriptor". This isolated negative
+  disables test vet only to observe the runtime failure despite the old
+  copied-mutex warning; ordinary validation retains vet. Stage
+  `s1-handle-copy-negative-20261029` preserves the expected failure.
 
 ## Next Steps
 
-1. Implement accepted ADR-044 with the remaining cleanup, tree-environment
-   and source-guard findings, using the existing implementer/admitted runner.
-2. Run focused admitted checks, required native-platform coverage, affected
-   tests and full closure validation; review independently before acceptance.
+1. Finish the parent's shared-state correction and admitted affected-package
+   checks in the clean checkout. Do not restart the failed implementer.
+2. Return the frozen revision to the existing independent reviewer, then run
+   required native-platform coverage and full closure validation before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13

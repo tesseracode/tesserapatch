@@ -112,12 +112,18 @@ func TestCandidateLockNativeWindows(t *testing.T) {
 		if err != nil {
 			t.Fatalf("acquire: %v", err)
 		}
+		t.Cleanup(func() { _ = handle.Release() })
+		copied := *handle
 		releaseBorrow, err := handle.Borrow(lockPath)
 		if err != nil {
 			t.Fatalf("borrow: %v", err)
 		}
+		t.Cleanup(releaseBorrow)
 		if err := handle.Release(); err == nil {
 			t.Fatal("release unexpectedly succeeded while borrowed")
+		}
+		if err := copied.Release(); err == nil {
+			t.Fatal("handle copy released a borrowed lock")
 		}
 		if _, err := TryAcquire(lockPath); !IsCode(err, CodeCandidateLockHeld) {
 			t.Fatalf("lock became available while borrowed, err=%v", err)

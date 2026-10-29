@@ -1,3 +1,21 @@
+## Recovered S1 Checkpoint — borrow-copy lifetime follow-up — 2026-10-29
+
+Local `9198c0a` passes the clean-checkout five-package focused integration,
+including S0, AVP-141 and the CI registration guards. Golden capture is disabled;
+admission takes 128.54s and the command 33.24s, without a resource stop.
+
+Final lifetime inspection finds an exported Handle value copy can duplicate
+its mutex/borrow count while retaining the same descriptor. Move that state
+behind a shared private pointer so Release through any copy observes the same
+borrows. Add a runtime regression and include copy exclusion in native CLW-005.
+The new regression was exercised against pre-fix `9198c0a` in an isolated
+negative checkout and failed exactly at "a handle copy closed a borrowed
+descriptor". Vet was disabled only for that negative so its copied-mutex
+diagnostic would not mask the runtime reproduction; normal checks retain vet.
+This enforces accepted ADR-044 without changing its public signatures.
+The parent remains sole implementer; independent code approval, native runtime
+and full validation are still pending. Preserve the previous failing logs.
+
 ## Recovered S1 Integration — dependent guard corrections — 2026-10-29
 
 Candidate and lock packages now pass. The wider admitted selection exposes

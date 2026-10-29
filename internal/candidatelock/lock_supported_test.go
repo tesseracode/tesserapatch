@@ -118,6 +118,43 @@ func TestHandleReleaseRefusesWhileBorrowed(t *testing.T) {
 	}
 }
 
+func TestHandleCopiesShareBorrowLifetime(t *testing.T) {
+	lockPath := filepath.Join(t.TempDir(), "copied.lock")
+	handle, err := TryAcquire(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = handle.Release() })
+	copied := *handle
+	release, err := handle.Borrow(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(release)
+	if err := copied.Release(); err == nil {
+		t.Fatal("a handle copy closed a borrowed descriptor")
+	}
+	if other, err := TryAcquire(lockPath); err == nil {
+		_ = other.Release()
+		t.Fatal("copy release lost kernel exclusion")
+	}
+	release()
+	if err := copied.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if release, err := handle.Borrow(lockPath); err == nil {
+		release()
+		t.Fatal("original handle ignored release through a copy")
+	}
+	next, err := TryAcquire(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := next.Release(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTryAcquireFilesystemRefusalDoesNotWrite(t *testing.T) {
 	original := acquireFilesystemClassifier
 	acquireFilesystemClassifier = func(string, *os.File) error {

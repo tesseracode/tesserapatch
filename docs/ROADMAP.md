@@ -1657,6 +1657,11 @@ caller preserves the transaction hold. Independent proposal review is APPROVED;
 ADR-044 is accepted and its narrow PRD/ADR clauses are updated, preserving all
 nine parity blocks and matrix row identities. Implementation of the amendment
 and remaining review corrections is next; no broader design is reopened.
+After implementation-agent network failure, the parent recovered surviving
+edits directly. Local checkpoint `9198c0a` passes clean-checkout focused S0/S1
+and CI integration. A final shared-state fix must ensure copied lock handles
+cannot release a borrowed descriptor; frozen code review, affected-package/
+native/full validation remain outstanding. No S1 publication or acceptance.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

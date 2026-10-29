@@ -191,7 +191,7 @@ func TestCreateCandidateRootRejectsInvalidLockCapabilities(t *testing.T) {
 				return &zero
 			}(),
 			global:    globalLock,
-			wantError: "released",
+			wantError: "not initialized",
 		},
 		{
 			name: "closed-feature",

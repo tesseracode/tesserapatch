@@ -67,5 +67,5 @@ func TryAcquire(path string) (*Handle, error) {
 		}
 		return nil, fmt.Errorf("acquire advisory lock: %w", err)
 	}
-	return &Handle{file: file, path: lockPath}, nil
+	return &Handle{state: &lockState{file: file, path: lockPath}}, nil
 }

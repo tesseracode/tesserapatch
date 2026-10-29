@@ -95,7 +95,7 @@ func TryAcquire(path string) (*Handle, error) {
 		}
 		return nil, fmt.Errorf("lock file: %w", err)
 	}
-	return &Handle{file: file, path: lockPath}, nil
+	return &Handle{state: &lockState{file: file, path: lockPath}}, nil
 }
 
 func lockFileEx(file *os.File) error {
