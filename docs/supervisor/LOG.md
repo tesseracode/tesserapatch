@@ -1,3 +1,40 @@
+## GH #13 S1 Dispatched — typed roots, locks and Git primitives — 2026-10-29
+
+Intake CI `40834229022` passed all five required jobs. The user's support-line
+clarification and backlog-only research decision are now pushed at
+`5120dc9395769fe8148b61836e546729b66cb4dc`; HEAD equals fetched origin/main
+and the worktree is clean. Record this actual pre-S1 ancestor as WAVE_BASE.
+The research remains queued in ROADMAP, with no strategy/ADR/cluster adoption.
+
+**Scope**: accepted ADR-037 D12/D28 and PRD §8 S1 only. Add typed
+ReferenceRoot/CandidateRoot boundaries with the two named constructors,
+offline commit validation and no-lazy-fetch Git calls; isolated candidate
+worktrees; a tree-hash primitive; and the new nonblocking advisory-lock
+abstraction with Linux/macOS/Windows native paths, unknown/remote filesystem
+refusal and unsupported stubs elsewhere. Mutating candidate work requires
+the prescribed feature/global holds. Do not reuse resource-capture locks or
+resolver shadow lifecycle.
+
+**Guard transition**: retain all S0 golden bytes and runtime assertions.
+Replace only the stage-specific no-production prohibition with a narrowly
+enumerated S1 scope/inventory gate; golden recapture must still prove the
+original baseline. Preserve the exact twelve-line prior test-memory exception.
+All new guard claims need negative controls. Ensure native Windows lock tests
+run in a required CI path, not only the existing allowed-failure Windows suite.
+
+**Forbidden scope**: S2 eligibility/config gate, S3 alignment, S4 executor,
+candidate metadata schemas/status pointers, phase integration, CLI flags,
+acceptance/recovery/publication, public SPEC/assets, dependency additions,
+release/tag changes and the new upstream-strategy research.
+
+One implementation context owns the S1 files sequentially; no overlapping
+implementers. Planned surfaces: new internal candidate/lock files, a bounded
+Git tree primitive, test-only inventory/scope transition, and any necessary
+native-CI registration with its directly coupled parity controls. File additions
+must be enumerated before staging. The supervisor owns tracking/commits and
+admitted validation. Carry forward the established #13 pressure/no-new-swap/
+load minute with external Go observed and own validation serial.
+
 ## Research Deferred; S1 Selected — support-branch clarification — 2026-10-29
 
 The operator selects `backlog-then-s1`: preserve the investigation without a

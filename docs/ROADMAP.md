@@ -1623,6 +1623,19 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S1 typed roots, locks and Git primitives — 2026-10-29
+
+**WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
+The operator selected S1 after deferring the new Git-strategy investigation
+to the research backlog. Intake and decision records are pushed; S0 stays
+accepted and its golden/runtime contracts remain frozen.
+
+Implement accepted PRD §8 S1 only: the two typed-root constructors, offline
+Git/tree primitives, isolated candidate worktrees and portable nonblocking
+locks with filesystem refusal and required native-platform tests. Transition
+the S0 stage guard explicitly and narrowly; no candidate eligibility, alignment,
+schemas, phase/CLI wiring, public-contract or dependency changes. No S2 dispatch.
+
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 
 **WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`.
