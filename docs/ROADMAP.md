@@ -1638,6 +1638,10 @@ schemas, phase/CLI wiring, public-contract or dependency changes. No S2 dispatch
 One bounded implementation context is active (`roc-s1-implementation`, explicitly
 requested OpenAI `gpt-5.3-codex`); implementation and validation results are not
 yet claimed. Tracking/review coordination remains with the parent.
+The first implementation returns focused checks/build/cross-compilation passes,
+but parent review requires revisions to held-root/cleanup identity, Git
+environment isolation, lock path/runtime tests, capture/source guards and
+uncommitted candidate-tree hashing. S1 remains in progress, not accepted.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

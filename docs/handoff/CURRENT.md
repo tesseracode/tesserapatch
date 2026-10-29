@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: In progress — single bounded implementation context started
+- **Status**: First implementation returned; direct review requires bounded revisions
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
@@ -32,14 +32,19 @@ Preflight reads confirm the two typed-root constructor signatures, no-lazy-fetch
 contract, candidate namespace, nonblocking lock/filesystem rules and current
 S0 scope guard. Existing Windows CI does not imply every new package's tests
 are blocking; native S1 lock assertions need explicit required-job coverage.
-No S1 production changes or new validation results are claimed yet.
+The first S1 implementation is present in the worktree but not accepted.
 Implementation is assigned to `roc-s1-implementation`,
 agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c`, with OpenAI `gpt-5.3-codex`
-explicitly requested. Runtime metadata still needs confirmation on result.
+explicitly requested and now confirmed by runtime metadata.
 It owns code/tests and necessary native-CI registration, not tracking or Git
 commits. Use this existing agent for same-task follow-up; do not duplicate work.
 The admitted command runner is `bin/roc-s1-20261029/validate.py`, with separate
 S1 evidence/cache paths and the unchanged pressure/swap/load policy.
+Parent review identified held-root/cleanup ownership gaps, inherited Git
+environment redirection, lock path/type issues, a non-crash crash test,
+capture/source-guard weaknesses and a committed-tree-only hash primitive.
+The full finding details are prepended to LOG. Return corrections to the
+same implementer rather than dispatch a competing agent on these files.
 
 ## Current State — bounded S1 requirements
 
@@ -76,9 +81,12 @@ exact-twelve-line cache-lifetime exception and its negative controls.
 
 ## Files Changed
 
-Dispatch tracking only so far: CURRENT, HISTORY, ROADMAP and supervisor LOG.
-S1 code is planned in new internal candidate/lock files plus a bounded Git tree
-primitive, guard tests and directly necessary native-CI test registration.
+Tracking: CURRENT, HISTORY, ROADMAP and supervisor LOG.
+First implementation: `internal/candidate/{root,root_test,source_guard_test}.go`,
+new `internal/candidatelock/` platform implementations/tests,
+`internal/gitutil/tree_hash{,_test}.go`,
+`internal/workflow/operation_candidate_s0_guards_test.go`, and
+`.github/workflows/ci.yml` required Windows lock step.
 Only one implementation context edits these surfaces; explicit file staging
 and the required Copilot co-author trailer remain mandatory.
 
@@ -88,13 +96,17 @@ and the required Copilot co-author trailer remain mandatory.
   closing-tip CI `39735631640` passed at `6ab3929`.
 - Research intake: `40834229022` passed at `7231514`; subsequent intake
   decision changes are tracking-only.
-- No new S1 tests, builds or runtime-support claims yet.
+- First-pass focused candidate/lock/tree/S0-scope checks and CLI build pass.
+  Windows candidate/lock test binaries cross-compile. Native runtime CI has
+  not run; cross-compilation is not evidence of Windows lock correctness.
+- Earlier failed implementation iterations are retained in the admitted runner
+  logs. Parent review has six bounded findings; focused passes do not close them.
 
 ## Next Steps
 
-1. Await the bounded implementer result, then inspect its actual delta and
-   admitted focused outcomes. If it reports a contract ambiguity, resolve it
-   explicitly before making architectural changes.
+1. Address the six direct-review findings documented in LOG, preserving
+   accepted constructor/lock contracts and S0 golden bytes. If a contract
+   ambiguity prevents a safe correction, surface it before changing the design.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
@@ -111,9 +123,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-None confirmed at dispatch. If contract ambiguities affect root ownership,
-filesystem safety or lock lifetime, record them and ask before changing a
-locked architectural decision.
+The first pass does not yet satisfy held-root/ownership, lock correctness,
+tree-construction and guard-preservation requirements. No S1 acceptance or
+later-slice dispatch until these are corrected and validated.
 
 ## Context for Next Agent
 

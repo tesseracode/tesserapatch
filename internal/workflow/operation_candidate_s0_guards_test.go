@@ -19,17 +19,26 @@ func rocS0ValidateChangedPaths(paths []string) error {
 		"docs/handoff/HISTORY.md":                                   true,
 		"docs/ROADMAP.md":                                           true,
 		"docs/supervisor/LOG.md":                                    true,
+		".github/workflows/ci.yml":                                  true,
 		"internal/workflow/operation_candidate_s0_test.go":          true,
 		"internal/workflow/operation_candidate_s0_guards_test.go":   true,
 		"internal/workflow/operation_candidate_s0_fixtures_test.go": true,
 		"internal/cli/operation_candidate_s0_test.go":               true,
 		"internal/store/operation_candidate_s0_test.go":             true,
+		"internal/gitutil/tree_hash.go":                             true,
+		"internal/gitutil/tree_hash_test.go":                        true,
 	}
 	for _, path := range paths {
 		if path != "" && filepath.ToSlash(filepath.Clean(path)) != path {
 			return fmt.Errorf("non-canonical S0 path: %q", path)
 		}
 		if path == "" || allowed[path] {
+			continue
+		}
+		if strings.HasPrefix(path, "internal/candidate/") {
+			continue
+		}
+		if strings.HasPrefix(path, "internal/candidatelock/") {
 			continue
 		}
 		if strings.HasPrefix(path, "internal/workflow/testdata/roc-s0/") {
@@ -80,6 +89,14 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"docs/handoff/HISTORY.md",
 		"docs/ROADMAP.md",
 		"docs/supervisor/LOG.md",
+		".github/workflows/ci.yml",
+		"internal/candidate/root.go",
+		"internal/candidate/root_test.go",
+		"internal/candidate/source_guard_test.go",
+		"internal/candidatelock/lock_unix.go",
+		"internal/candidatelock/lock_windows_native_test.go",
+		"internal/gitutil/tree_hash.go",
+		"internal/gitutil/tree_hash_test.go",
 	} {
 		if err := rocS0ValidateChangedPaths([]string{path}); err != nil {
 			t.Fatalf("valid S0 path rejected: %v", err)
@@ -109,10 +126,12 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"CHANGELOG.md",
 		"go.mod",
 		"go.sum",
-		".github/workflows/ci.yml",
 		"scripts/wave-close-test-shards.sh",
 		"docs/adrs/ADR-037-reconcile-operation-replay-candidate-authority.md",
 		"internal/workflow/testdata/roc-s0/../../reconcile.go",
+		"internal/candidatex/root.go",
+		"internal/candidatelockx/lock_unix.go",
+		"internal/gitutil/treehash.go",
 	} {
 		t.Run(path, func(t *testing.T) {
 			if err := rocS0ValidateChangedPaths([]string{path}); err == nil {

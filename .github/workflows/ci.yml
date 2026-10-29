@@ -187,6 +187,24 @@ jobs:
             fi
           done
 
+      - name: "Test (Windows candidate lock runtime — blocking)"
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/candidate-lock-windows.log"
+          go test -v -count=1 -run '^TestCandidateLockNativeWindows$' ./internal/candidatelock 2>&1 | tee "$log"
+          for selector in \
+            TestCandidateLockNativeWindows \
+            TestCandidateLockNativeWindows/CLW-001-acquire-release \
+            TestCandidateLockNativeWindows/CLW-002-contention \
+            TestCandidateLockNativeWindows/CLW-003-crash-release; do
+            if ! grep -q -- "--- PASS: ${selector}" "$log"; then
+              echo "::error::${selector} did not execute on this runner"
+              exit 1
+            fi
+          done
+
       # The rest of the repository has 200 pre-existing windows-latest
       # top-level test failures (283 counting subtests) across six packages —
       # internal/cli, internal/gitutil, internal/provider, internal/rescap,

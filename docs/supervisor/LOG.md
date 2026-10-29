@@ -1,3 +1,46 @@
+## GH #13 S1 First Implementation Review — NEEDS REVISION — 2026-10-29
+
+Implementation agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c` returned code;
+runtime metadata confirms the explicitly selected OpenAI `gpt-5.3-codex`.
+Focused candidate/lock/tree/scope checks, CLI build and Windows cross-compiles
+pass through the admitted runner. Earlier failed local iterations remain in
+`bin/roc-s1-20261029/`; no native Windows result or S1 acceptance is claimed.
+
+Parent inspection finds concrete contract gaps:
+
+1. CandidateRoot holds only path strings, and ReadFile checks Lstat before
+   reopening an absolute path. It does not implement ADR-034's held-root
+   confinement; Prune also trusts a stale path and can remove replacement
+   data. Zero/closed values, ancestor swaps, nonregular files and ownership
+   at destructive cleanup need explicit defenses and deterministic regressions.
+2. New Git commands inherit repository-routing environment such as GIT_DIR
+   and GIT_WORK_TREE, so typed-root identity can be redirected independently
+   of cmd.Dir. Local object and root tests must cover poisoned environments.
+3. Lock paths are trimmed, silently changing whitespace-bearing names; opening
+   follows symlink leaves and checks the filesystem only on an ancestor path.
+   Windows unnecessarily seeds a byte before taking the lock, conflicting with
+   the inert-residue model. Preserve exact path identity, validate the opened
+   regular lock/parent and avoid pre-lock content writes.
+4. The Windows test named crash-release merely waits for a helper's normal
+   timed exit. Test actual forced termination, deterministic lifetime and
+   cleanup, with native contention/reacquisition coverage and real filesystem
+   classifier controls.
+5. The S0 guard now permits whole candidate/lock directories and uses that same
+   relaxed path during golden capture. Split stage permission from the original
+   capture baseline. The candidate source guard only checks a parameter named
+   repoRoot and token counts; it misses existing bare-root helpers and permits
+   spoofed/no-lazy-fetch omissions. Enforce actual boundaries/envelopes with
+   same-validator negative controls, not names/comments/count coincidence.
+6. TreeHash currently resolves a committed ref's tree only. PRD §6.8 and §2's
+   missing-primitive row require detecting the candidate result's uncommitted
+   tree changes. Supply the needed isolated tree construction/hash primitive
+   and prove edits/creations/deletions change it without altering real index/refs.
+
+**Action**: preserve the first implementation checkpoint and return these
+bounded corrections to the same implementer. No production phase/CLI wiring,
+later-slice behavior, new dependencies or research work. This is a direct
+implementation review, not an independent final approval.
+
 ## GH #13 S1 Implementation Context Started — 2026-10-29
 
 **Implementer**: `roc-s1-implementation` /
