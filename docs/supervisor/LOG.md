@@ -1,3 +1,23 @@
+## Validation Blocker — S1 local memory pressure — 2026-10-29
+
+The full gate at published `ddc59b7` stops after 809.63s on warning OS memory
+pressure during stage `04-go`, the first broad test shard. Checks 1-7 pass;
+0/22 whole test commands finish. Assets/buildinfo/candidate/candidatelock
+package results precede the interrupted CLI package, with no assertion failure
+reported and empty stderr. This is a resource stop, not a suite pass.
+
+Peak sampled owned RSS is 3,850,108,928 bytes; no external Go is sampled.
+Swap-out delta is zero (historical occupied swap is not newly created swap).
+Owned-process reconciliation finds zero survivors; source is clean and the
+release tag unchanged. Preserve all evidence and keep the admission/stop
+policy intact. Do not blindly relaunch without additional memory headroom.
+
+Native Windows job `123600508248` succeeds; downloaded job logs verify actual
+PASS lines for `TestCandidateLockNativeWindows/CLW-001` through `CLW-005`.
+Ubuntu observers also succeed; the other CI jobs remain in progress. Keep
+watching the existing run without a tracking-only push. Code approval stands,
+but full native/local validation still blocks S1 acceptance and S2 dispatch.
+
 ## CI Watch Recovery — S1 validation unchanged — 2026-10-29
 
 The first local `gh run watch` process exited on a connection error to

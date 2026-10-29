@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
@@ -15,7 +15,7 @@ required native CI and the complete local gate. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Code independently approved; exact-checkpoint native CI and full local gate running
+- **Status**: Code approved; full local gate resource-blocked, native CI still running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -134,6 +134,12 @@ Native CI `40917207659` and the isolated full local gate are running against
 that exact checkpoint. The gate has passed mechanical checks 1-5, including
 all 19 wave trailers; Go validation has begun admission. This progress record
 is committed locally only while CI is in flight, avoiding cancellation.
+The local gate has now stopped on warning OS memory pressure during its first
+test command, after mechanical checks 1-7 passed. No assertion failure is
+reported in the captured output; zero complete test shards are credited.
+There were no new swap-outs and owned-process reconciliation finds no survivors.
+Do not relax admission or blindly repeat the same load; more runtime headroom
+is needed before a full retry. Native CI continues independently.
 
 ## Current State — bounded S1 requirements
 
@@ -261,15 +267,29 @@ and the required Copilot co-author trailer remain mandatory.
   `roc-s1-native-ci-ddc59b7-retry1`, log
   `bin/roc-s1-20261029/native-ci-ddc59b7-retry1.log`; the original log and
   unchanged CI run are preserved. The full local gate continues separately.
+- Final local gate at `ddc59b7`: RESOURCE-BLOCKED in stage `04-go` (the first
+  broad test shard), after 809.63s. Checks 1-7 pass; 3/25 top-level commands
+  and 0/22 complete test commands pass. Captured package output passes assets,
+  buildinfo, candidate and candidatelock before the CLI package is interrupted;
+  stderr is empty. Peak sampled owned RSS 3,850,108,928 bytes; pressure changed
+  from normal to warning. No external Go was sampled, swap-out delta is zero,
+  historical swap occupancy remains, and owned survivors are zero.
+  Source remains clean and v0.17.0 unchanged. The raw failed-run evidence stays
+  in `bin/roc-s1-20261029/full-gate/evidence/`; do not reuse/overwrite it.
+- Native Windows job `123600508248` is successful. Its saved log
+  `bin/roc-s1-20261029/native-windows-ddc59b7.log` contains actual
+  `TestCandidateLockNativeWindows/CLW-001` through `CLW-005` PASS lines,
+  including crash release and borrowed/copy release exclusion.
+  Ubuntu observers also pass; remaining CI jobs were still running at this
+  checkpoint. The whole CI run is not yet claimed green.
 
 ## Next Steps
 
-1. Await the existing native-CI and full-gate processes; do not launch duplicate
-   validation or push tracking-only commits while exact-tip CI is running.
-2. Verify the isolated full local gate with WAVE_BASE `5120dc9`, the original
-   22-command partition and fresh admission for every top-level Go command.
-   Verify required Windows CLW-001 through CLW-005 actually run; cross-compile
-   evidence does not replace this.
+1. Await the existing native-CI watcher; do not push tracking-only commits while
+   exact-tip CI is running. The local gate has exited and has no owned survivors.
+2. Establish more memory headroom before a fresh isolated full-gate attempt
+   at the same reviewed code, retaining WAVE_BASE `5120dc9`, all 22 commands,
+   admission/stop policy and the failed-run evidence. Do not relax guards.
 3. On completion reconcile owned processes and archive actual results, then
    commit/push closure tracking only if every required check succeeds.
    Do not dispatch S2 automatically.
@@ -286,8 +306,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-No open code finding. Required native runtime CI and the full local gate
-still block S1 acceptance; publication is now for validation, not a release.
+No open code finding. Full local validation is blocked on runtime memory
+headroom. Windows native lock rows pass, but complete native CI and a full
+local gate still block S1 acceptance; publication is for validation, not release.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent

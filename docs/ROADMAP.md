@@ -1677,6 +1677,11 @@ local gate; S1 remains in flight until both validation paths finish.
 Validation checkpoint `ddc59b7` is published. Native CI `40917207659` and the
 isolated full local gate are running; only mechanical checks 1-5 have been
 confirmed so far. Do not infer S1 acceptance or dispatch S2.
+The local gate passes checks 1-7 but is resource-blocked during the first test
+shard by warning OS memory pressure (zero new swap-outs, zero owned survivors,
+no reported assertion failure). All five required native Windows CLW rows
+pass; the rest of CI continues. More runtime headroom and a complete local
+retry are required; retain guards and failed-run evidence.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 
