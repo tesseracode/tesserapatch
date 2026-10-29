@@ -18,6 +18,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
 - **Prior accepted S0 close**: `6ab392996467662572b155574a0509a6269cae8f`
+- **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
@@ -45,6 +46,9 @@ environment redirection, lock path/type issues, a non-crash crash test,
 capture/source-guard weaknesses and a committed-tree-only hash primitive.
 The full finding details are prepended to LOG. Return corrections to the
 same implementer rather than dispatch a competing agent on these files.
+The first pass and findings are committed locally at `252e494`, not pushed.
+The same implementer is now revising those six areas. No final independent
+review, full suite or native Windows runtime pass is claimed.
 
 ## Current State — bounded S1 requirements
 

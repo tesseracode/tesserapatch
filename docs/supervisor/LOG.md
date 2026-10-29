@@ -1,3 +1,16 @@
+## GH #13 S1 Revision Returned to Implementer — 2026-10-29
+
+The unaccepted first implementation is preserved locally at
+`252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`; it is not pushed or marked
+approved. The same OpenAI implementer is addressing the six direct-review
+findings below, with deterministic negative regressions and admitted validation.
+No parallel code editor, full-suite run or later-slice dispatch is active.
+Parent tracking remains separate from the implementer's code/test surface.
+
+**Resume point**: agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c`; use its
+same-task result/follow-up rather than launching competing work. Await corrected
+code or a concrete accepted-contract ambiguity before final independent review.
+
 ## GH #13 S1 First Implementation Review — NEEDS REVISION — 2026-10-29
 
 Implementation agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c` returned code;
