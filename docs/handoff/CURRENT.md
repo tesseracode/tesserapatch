@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Revised checkpoint frozen at f5df785 for independent review/integration checks
+- **Status**: Independent review needs revision; explicit lock-ownership decision pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
@@ -58,6 +58,18 @@ with OpenAI `gpt-5.3-codex` explicitly selected. Parent integration shell
 `roc-s1-parent-integration` is waiting for resource admission, not yet running
 Go. Its saved stage is `s1-parent-s0-ci-integration`. Do not start duplicate
 work or interpret the admission wait as a test result.
+Independent review by `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e` confirms runtime
+OpenAI `gpt-5.3-codex` and returns NEEDS REVISION: non-composable lock ownership,
+half-closed prune failure cleanup, weaker tree-hash environment, and incomplete
+root/Git source-inventory guards. Parent also found unreleased lock handles on
+Prune's success path. Full findings are in the latest LOG entry.
+
+The first finding crosses the accepted fixed constructor signatures and
+transaction hold scope. Ask for a narrow ownership/API contract clarification
+before inventing implicit reentrancy or another root constructor.
+The parent integration check has now stopped after its 600-second admission
+budget without launching Go. This is not a test failure. No validation workload
+is running; retain the existing logs and wait for the API decision.
 
 ## Current State — bounded S1 requirements
 
@@ -121,11 +133,15 @@ and the required Copilot co-author trailer remain mandatory.
 - Revision passes focused candidate/lock, tree-hash, S0/native-CI guard tests,
   vet, CLI build and Windows cross-compilation. Existing integration guards
   and independent review still need to confirm the correction.
+- Independent review of `f5df785`: NEEDS REVISION (two high, two medium findings).
+  Focused passes do not establish the missing lifecycle/identity invariants.
+- Parent S0/CI integration: admission timeout after 600.72s, before Go starts.
+  No integration pass or assertion failure is claimed.
 
 ## Next Steps
 
-1. Independently review the revised snapshot against the six findings and the
-   accepted S1 contract; verify existing S0/CI guards before publication.
+1. Resolve the explicit lock-ownership API/contract decision with the operator,
+   then correct all independent-review findings and coupled cleanup issues.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
@@ -142,9 +158,10 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-Revision validation and independent review remain outstanding. No S1 acceptance
-or later-slice dispatch until actual contract fidelity and native runtime
-coverage are established.
+Lock ownership cannot currently compose with the accepted transaction scopes.
+An explicit API/contract decision and the remaining review fixes block S1.
+No publication/acceptance or later slice until corrections, independent review
+and native runtime validation complete.
 
 ## Context for Next Agent
 

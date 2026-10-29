@@ -1645,6 +1645,11 @@ uncommitted candidate-tree hashing. S1 remains in progress, not accepted.
 The revised implementation now passes focused tests/vet/build/cross-compilation;
 independent review and existing S0/CI integration checks are next. Native Windows
 runtime and complete local/native gates remain unverified.
+Independent review of `f5df785` returns NEEDS REVISION: create/prune lock
+ownership conflicts with outer transaction holds, prune cleanup is incomplete,
+tree-hash environment hardening differs, and source guards miss alternate
+entrypoints. Resolve an explicit lock-capability/API clarification before
+another implementation revision; S1 is not accepted or pushed.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

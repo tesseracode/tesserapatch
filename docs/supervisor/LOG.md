@@ -1,3 +1,51 @@
+## S1 Integration Admission Blocked — no Go test executed — 2026-10-29
+
+The parent integration stage `s1-parent-s0-ci-integration` exhausted its
+600-second admission budget without a continuous qualifying minute. No Go
+test process was launched, so this is a resource-admission block, not an S0
+or CI assertion failure. Preserve the existing log and do not automatically
+retry while the independent-review API decision below remains unresolved.
+No parent validation workload is running.
+
+## GH #13 S1 Independent Review — NEEDS REVISION — 2026-10-29
+
+**Reviewer**: `roc-s1-openai-review` /
+`e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`.
+**Model**: explicitly selected and runtime-confirmed OpenAI `gpt-5.3-codex`.
+**Reviewed range**: `5120dc9..f5df785`.
+**Verdict**: NEEDS REVISION.
+
+1. **HIGH — lock ownership composition** (`internal/candidate/root.go:122`):
+   create/prune acquire feature/global locks internally, but accepted PRD
+   §6.13 requires caller-held scopes across finalization/acceptance. Same-process
+   reacquisition correctly refuses, so these primitives cannot compose with
+   the prescribed transaction hold without changing ownership.
+2. **MEDIUM — incomplete prune failure cleanup** (`root.go:341-364`):
+   closing the worktree handle before Git removal leaves parent/repo handles
+   open and a half-closed object on later failure; full cleanup runs only on
+   the success path.
+3. **HIGH — tree-hash environment is weaker** (`internal/gitutil/tree_hash.go:142-146`):
+   it omits candidate Git's replacement/config hardening, allowing environment/
+   replacement influences inconsistent with the typed candidate identity.
+4. **MEDIUM — source guard misses alternate paths**
+   (`internal/candidate/source_guard_test.go:270-287,447-470`):
+   it checks only callers of one root-opening helper and literal Git executable
+   names, allowing alternative string-root entrypoints and dynamic/wrapped
+   subprocess paths to evade the claimed guard.
+
+Parent follow-up inspection also finds a coupled success-path cleanup defect:
+`Prune` sets featureLock/globalLock to nil after closing the root but never
+releases those local lock handles; the deferred releases then skip them.
+Fix with explicit release/ownership transfer and a deterministic post-prune
+reacquisition assertion, not reliance on descriptor finalizers.
+
+**Decision needed**: resolve lock ownership explicitly before another production
+revision. Recommended direction is typed caller-held lock capabilities for
+worktree mutation, with a narrow accepted-contract/API clarification if the
+two currently fixed constructor signatures must change. No implicit reentrancy,
+ambient ownership registry or broad constructor exception. The other concrete
+findings remain required corrections. S1 stays unaccepted and unpushed.
+
 ## GH #13 S1 Review and Integration Resume Points — 2026-10-29
 
 Independent reviewer `roc-s1-openai-review` /
