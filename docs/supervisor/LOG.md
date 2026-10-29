@@ -1,3 +1,19 @@
+## S1 Capability Revision Dispatched under Accepted ADR-044 — 2026-10-29
+
+Accepted amendment checkpoint `8b22f99263827a53b5b66fb534e86921563a5d9f`
+is returned to implementer `6c67ce6f-1058-4f46-bd48-8c663eafe87c`.
+Implement the mandatory borrowed lock arguments and ADR-044's lifetime/
+validation obligations together with all remaining independent-review findings.
+Code/test/CI ownership remains with that single OpenAI implementation context;
+parent owns contracts, tracking and commits. No concurrent Go validation or
+competing code edits are dispatched.
+
+The finite S1 scope registry may admit only the exact approved contract files
+and directly needed implementation files; original S0 capture remains frozen.
+No broad document exemption, reentrancy, new public holder type or later-slice
+transaction implementation. Await concrete code and admitted results before
+returning it to independent review. Nothing in the local S1 work is yet pushed.
+
 ## ADR-044 Accepted Clauses Applied — implementation revision next — 2026-10-29
 
 ADR-044 is marked Accepted. ADR-037 D12/D28 and PRD 6.9/6.13/S1/ROC-120 now

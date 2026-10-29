@@ -13,13 +13,14 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: ADR-044 accepted; lock-capability and remaining S1 revisions next
+- **Status**: ADR-044 accepted; same implementer is revising lock capabilities and remaining findings
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
 - **Prior accepted S0 close**: `6ab392996467662572b155574a0509a6269cae8f`
 - **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
 - **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
+- **Accepted amendment checkpoint**: `8b22f99263827a53b5b66fb534e86921563a5d9f`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
@@ -83,6 +84,10 @@ ownership clauses are updated. All nine paired parity blocks and existing
 matrix row identities remain unchanged; the frozen ADR index is untouched.
 Implement the accepted API and remaining findings without reopening other
 decisions. No revised-code acceptance is claimed by the paper approval.
+The existing implementer `6c67ce6f-1058-4f46-bd48-8c663eafe87c` is now
+applying that contract and the outstanding cleanup/environment/source-guard
+corrections. Preserve its work and await its result; do not start a duplicate
+implementation or parent Go workload while it owns admitted checks.
 
 ## Current State — bounded S1 requirements
 
