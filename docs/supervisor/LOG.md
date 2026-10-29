@@ -1,3 +1,15 @@
+## Maintenance Review and Measurement Dispatch — 2026-10-29
+
+Freeze `31fd46e` for independent review of test-only coverage/lifetime changes.
+The corrected exact-command controls now pass workflow (7.052s) and CLI
+(2.230s), with no resource stop; profiler's 40 unit tests also pass.
+Scope stays narrow: seven additional AR insertions, unchanged assertions and
+observer marker flow, all-package family coverage, 39 serial commands.
+
+Parent alone runs freshly admitted purge/observer, revision 16/17/18 and
+catch-all pilots. Reviewer must not run Go or modify source. Do not equate
+control passes with measured memory reduction or complete validation.
+
 ## Maintenance Controls — finer sharding draft — 2026-10-29
 
 Draft `7a1052d` contains only eight bounded test/tooling surfaces. The AR file

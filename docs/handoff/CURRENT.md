@@ -72,6 +72,11 @@ commands and the former two all-package invocations. Correct those anchors
 and validate each of the now-seventeen all-package invocations against its
 exact command/step contract, including explicit non-CLI-coverage negatives.
 No memory result or proposal acceptance is claimed yet.
+Revision `31fd46e` now passes all selected workflow/CLI controls: S0 byte/scope
+preservation, cache lifecycle, shard ownership, exact CI/script parity, AVP
+root inventory and native Windows registration. Fresh admission completed
+without resource stops. Freeze this code for independent review and measure
+the purge guard/observer, revisions 16/17/18 and the new catch-all separately.
 
 ## Session Summary
 

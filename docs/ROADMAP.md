@@ -1631,6 +1631,9 @@ passes). Split the broad S6/S7/AVP families without losing non-CLI tests,
 separate AR revisions 16-18, and bound flat purge-fixture memo lifetimes.
 Keep all assertions, golden bytes, native blocking rows and pressure policy.
 Update CI/local/profiler coverage guards together; no S1 acceptance or S2.
+Draft `31fd46e` passes profiler and selected S0/CLI parity/lifecycle controls.
+Independent review and admitted per-process memory pilots are next; the
+39-command partition is not yet a full-gate success or published acceptance.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation
