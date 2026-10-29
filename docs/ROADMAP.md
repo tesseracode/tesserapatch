@@ -1674,6 +1674,9 @@ closure of that one residual finding is pending.
 Residual review at `3054b84` is APPROVED, with all prior code findings already
 closed. Updated vet/build pass. Publish for native CI and run the full admitted
 local gate; S1 remains in flight until both validation paths finish.
+Validation checkpoint `ddc59b7` is published. Native CI `40917207659` and the
+isolated full local gate are running; only mechanical checks 1-5 have been
+confirmed so far. Do not infer S1 acceptance or dispatch S2.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

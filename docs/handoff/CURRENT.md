@@ -15,7 +15,7 @@ required native CI and the complete local gate. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Code independently approved; native CI and full local gate pending
+- **Status**: Code independently approved; exact-checkpoint native CI and full local gate running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -24,6 +24,7 @@ required native CI and the complete local gate. This is not a shipped slice.
 - **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
 - **Accepted amendment checkpoint**: `8b22f99263827a53b5b66fb534e86921563a5d9f`
 - **Current frozen code checkpoint**: `3054b84e9ea175ac6a959d32d012788e584918df`
+- **Published validation checkpoint**: `ddc59b70042ef3fdca299963292fc5e42149a7d6`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
@@ -128,6 +129,11 @@ The reviewer now APPROVES the residual correction at `3054b84`, closing the
 last code finding. Updated vet/build pass. Publish the reviewed checkpoint
 with this tracking transition for native CI and a clean-source full gate.
 Do not push additional tracking-only commits while its exact-tip CI runs.
+Published `ddc59b7` was fetched equal to origin/main, with v0.17.0 unchanged.
+Native CI `40917207659` and the isolated full local gate are running against
+that exact checkpoint. The gate has passed mechanical checks 1-5, including
+all 19 wave trailers; Go validation has begun admission. This progress record
+is committed locally only while CI is in flight, avoiding cancellation.
 
 ## Current State — bounded S1 requirements
 
@@ -240,15 +246,27 @@ and the required Copilot co-author trailer remain mandatory.
 - Independent residual review APPROVED at `3054b84`; retained OpenAI
   `gpt-5.3-codex` runtime confirmed. Together with the prior explicit closures
   this leaves no open code finding, but native/full validation is still pending.
+- Full gate running: shell `roc-s1-full-gate-ddc59b7`, runner
+  `bin/roc-s1-20261029/full-gate/run-gate.py`, evidence in its `evidence/`
+  directory. Fresh isolated source/caches, original shard hash
+  `7e9bebd164e73bdbadd4e8363b6be31d974b1e4133b6f086fc1c84d218eb6f10`,
+  all nine wrapper routing controls pass; golden capture explicitly disabled.
+  Checks 1-5 pass, not a complete gate result.
+- Native CI running: https://github.com/tesseracode/tesserapatch/actions/runs/40917207659
+  at `ddc59b7`. Watch shell `roc-s1-native-ci-ddc59b7`; output retained at
+  `bin/roc-s1-20261029/native-ci-ddc59b7.log`. No native PASS claim yet.
 
 ## Next Steps
 
-1. Publish the independently approved code/tracking checkpoint for native CI.
-2. Run the isolated full local gate with WAVE_BASE `5120dc9`, the original
+1. Await the existing native-CI and full-gate processes; do not launch duplicate
+   validation or push tracking-only commits while exact-tip CI is running.
+2. Verify the isolated full local gate with WAVE_BASE `5120dc9`, the original
    22-command partition and fresh admission for every top-level Go command.
    Verify required Windows CLW-001 through CLW-005 actually run; cross-compile
    evidence does not replace this.
-3. Update tracking at each transition; do not dispatch S2 automatically.
+3. On completion reconcile owned processes and archive actual results, then
+   commit/push closure tracking only if every required check succeeds.
+   Do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13
 

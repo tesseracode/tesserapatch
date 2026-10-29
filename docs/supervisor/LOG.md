@@ -1,3 +1,21 @@
+## Validation Running — S1 exact published checkpoint — 2026-10-29
+
+Published and fetched HEAD/origin/main:
+`ddc59b70042ef3fdca299963292fc5e42149a7d6`; v0.17.0 unchanged.
+Only tracking differs from independently reviewed code `3054b84`.
+Native CI `40917207659` and full-gate shell `roc-s1-full-gate-ddc59b7`
+are running against that exact checkpoint.
+
+The full gate uses a clean clone, fresh caches, the unchanged 22-command test
+partition, explicit WAVE_BASE `5120dc9`, and fresh pressure admission per Go
+command. Its nine fail-fast routing controls pass and golden capture is off.
+Mechanical checks 1-5 pass (including all 19 commit trailers); no full-gate
+or native Windows success is claimed. Preserve raw evidence.
+
+This running-state tracking commit remains local until CI completes to avoid
+cancelling exact-checkpoint jobs. Do not launch duplicate validations or
+dispatch S2; closure still depends on both full/native results.
+
 ## Review and Validation Dispatch — S1 code approved — 2026-10-29
 
 **Reviewer**: `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`, OpenAI
