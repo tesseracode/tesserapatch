@@ -1,3 +1,11 @@
+## CI Watch Recovery — S1 validation unchanged — 2026-10-29
+
+The first local `gh run watch` process exited on a connection error to
+api.github.com. This is not a native CI failure: a new API query reports
+run `40917207659` and all five jobs still in progress, with no failed steps.
+Resume only the watcher (`roc-s1-native-ci-ddc59b7-retry1`), preserving both
+logs; do not rerun CI or interrupt the independent full local gate.
+
 ## Validation Running — S1 exact published checkpoint — 2026-10-29
 
 Published and fetched HEAD/origin/main:

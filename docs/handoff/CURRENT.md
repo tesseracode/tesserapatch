@@ -255,6 +255,12 @@ and the required Copilot co-author trailer remain mandatory.
 - Native CI running: https://github.com/tesseracode/tesserapatch/actions/runs/40917207659
   at `ddc59b7`. Watch shell `roc-s1-native-ci-ddc59b7`; output retained at
   `bin/roc-s1-20261029/native-ci-ddc59b7.log`. No native PASS claim yet.
+- The initial CI watcher exited on `error connecting to api.github.com`,
+  not a failed job. A fresh API query confirms all five jobs remain running
+  with no failed step reported. Monitoring resumes in shell
+  `roc-s1-native-ci-ddc59b7-retry1`, log
+  `bin/roc-s1-20261029/native-ci-ddc59b7-retry1.log`; the original log and
+  unchanged CI run are preserved. The full local gate continues separately.
 
 ## Next Steps
 
