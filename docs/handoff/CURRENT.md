@@ -86,6 +86,10 @@ fresh admission and evidence for each. Do not start another Go workload.
 The eventual full-gate harness is prepared in
 `bin/roc-sharding-20261029/full-gate/`; its nine routing controls pass, but
 the full gate is not configured or running yet.
+The independent review now APPROVES static code at
+`31fd46ece44806c63eefb76a0760a0a504e05269`, with no significant issues.
+Runtime metadata confirms `gpt-5.3-codex`. Parent-owned memory pilots remain
+the next evidence; no measured reduction, native or full-gate pass is implied.
 
 ## Session Summary
 

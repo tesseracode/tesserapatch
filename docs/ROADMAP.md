@@ -1634,6 +1634,8 @@ Update CI/local/profiler coverage guards together; no S1 acceptance or S2.
 Draft `31fd46e` passes profiler and selected S0/CLI parity/lifecycle controls.
 Independent review and admitted per-process memory pilots are next; the
 39-command partition is not yet a full-gate success or published acceptance.
+Independent static review of `31fd46e` is APPROVED; the six freshly admitted
+memory pilots and eventual complete/native validation remain outstanding.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation
