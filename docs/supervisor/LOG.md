@@ -1,3 +1,22 @@
+## Research Deferred; S1 Selected — support-branch clarification — 2026-10-29
+
+The operator selects `backlog-then-s1`: preserve the investigation without a
+full deliverable now, then proceed to bounded S1. The clarified scenario is
+library/SDK compatibility lines maintained as long-lived major-version branches,
+with independent patch/security releases and selective backports/forward ports.
+No branching policy is adopted by this clarification.
+
+The supplied GitLab branch-strategies page is accessible and documents
+long-lived release lines. GitVersion's GitFlow examples independently document
+support branches for concurrent major/minor maintenance. Add these verified
+sources and the scenario to ROADMAP. The historical "Lib Flow" name is not
+verified as a public standard; do not attribute unverified provenance.
+
+**Action**: finish/preserve this intake decision, await active intake CI
+`40834229022` before another push, then record a fresh wave base and dispatch
+accepted PRD §8 S1 only. No research cluster, ADR, Git-replacement work or
+automatic adoption of the supplied conversation's unverified source claims.
+
 ## Upstream Git-Strategy Proposal Recorded — decision pause — 2026-10-29
 
 The durable research-backlog item `research-upstream-git-strategies` is now

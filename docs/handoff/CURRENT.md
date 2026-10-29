@@ -6,15 +6,15 @@
 
 Documentation-only intake is complete; the research idea is queued in ROADMAP.
 S0 remains accepted at closing commit `6ab3929`; S1 is paused for the
-operator's requested scheduling decision, not blocked by a demonstrated
-technical dependency on this research.
+operator's scheduling decision, now resolved as backlog-only research with S1
+next. No technical dependency of S1 on this research was established.
 
 ## Active Task
 
 - **Task ID**: `research-upstream-git-strategies-intake`
 - **Milestone**: Paper-only backlog intake, before the S1 scheduling decision
 - **Description**: Capture research on long-lived downstream patches, upstream bases and Git branch history
-- **Status**: Intake complete — awaiting operator sequencing decision
+- **Status**: Intake complete — research deferred; operator selected bounded S1 next
 - **Assigned**: 2026-10-29
 - **Intake base**: `6ab392996467662572b155574a0509a6269cae8f`
 - **Accepted S0 WAVE_BASE**: `bbb7a4310b2ebea095890a284997fbbb42535bc7`
@@ -37,6 +37,11 @@ The durable item is `research-upstream-git-strategies` in
 It contains current-state anchors, a topology/release matrix, verified
 prior-art leads, candidate strategies, proposed deliverables and two sequencing
 options. S1 has not started.
+The operator selected `backlog-then-s1` and clarified the library/SDK scenario:
+long-lived compatibility branches supporting independent hotfix/patch releases.
+The supplied GitLab branch-strategies page and GitVersion support-branch docs
+were verified and added to the brief. "Lib Flow" remains an unverified name,
+not an assumed public standard.
 
 ## Current State
 
@@ -50,7 +55,8 @@ Selected primary sources cover Quilt, StGit, TopGit, gbp pq, Git workflows,
 git-flow, GitHub flow, Jujutsu's operation log and Git range-diff. This is
 orientation, not a complete survey or an adopted default. The gbp pq distinction
 between durable patch history and disposable queue history is a promising lead,
-not a selected architecture. "lib-flow" still needs an exact reference.
+not a selected architecture. The relevant long-lived support-branch mechanism
+is now identified; the historical "lib-flow" label remains unverified.
 
 No independent central-store/meta-repo backend was established: reviewed
 `Store.Root` and `--path` behavior couples metadata to the target workspace.
@@ -71,12 +77,11 @@ gate/CI results and evidence remain unchanged; this is not a new gate pass.
 
 ## Next Steps
 
-1. Pause for the operator to choose full paper research before S1, with later
-   explicit cluster triage, or keep the proposal queued and assign S1 next.
-2. Clarify the intended "lib-flow" project when a reference is available;
-   do not treat the unresolved name as a research result.
-3. Do not start either path, adopt a branching strategy or create an ADR
-   without that scheduling decision.
+1. Preserve the selected backlog-only sequence and clarified sources.
+2. Await intake-checkpoint CI `40834229022` before the next push, then persist
+   this final intake decision and record the actual pre-S1 wave base.
+3. Dispatch only accepted PRD §8 S1: typed roots, locks and missing Git
+   primitives. No full research deliverable or branching-policy adoption.
 
 ## Validation Policy — carry forward for GH #13
 
@@ -90,9 +95,10 @@ timeouts. No such workload is scheduled for this intake.
 
 ## Blockers
 
-No technical blocker at intake. The next activity requires the requested
-operator decision. The exact reference meant by "lib-flow" is not yet identified;
-record that uncertainty rather than silently substituting another workflow.
+No technical blocker at intake; the operator's sequencing decision is recorded.
+The current intake CI run is still active and must not be cancelled by a new
+push. The historical "lib-flow" name is unresolved but the intended support-
+branch scenario is clear and remains queued research, not an S1 blocker.
 
 ## Context for Next Agent
 

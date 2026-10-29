@@ -1444,13 +1444,14 @@ acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 ## Research backlog — upstream Git and patch-management strategies — 2026-10-29
 
 **ID**: `research-upstream-git-strategies`.
-**Status**: **Queued research brief — intake only; sequencing decision pending**.
+**Status**: **Queued research brief — deferred; operator selected S1 next**.
 **Origin**: operator proposal before GH #13 S1.
 **Baseline inspected**: `6ab392996467662572b155574a0509a6269cae8f`.
 **Scope**: paper-only comparison and eventual operator guidance, not a new
 branch policy, replay algorithm, storage backend or Git-replacement decision.
-**Next gate**: pause after this intake; choose a full investigation deliverable
-before S1 versus keeping this in the backlog and assigning S1 next.
+**Sequencing decision (2026-10-29)**: keep the investigation in the backlog
+and proceed to a separately scoped S1 assignment. No full deliverable or
+research implementation is currently dispatched.
 No implementation cluster is queued by this entry.
 
 ### Problem and desired outcome
@@ -1520,17 +1521,32 @@ No third-party tool was installed or executed during intake.
 | [git-buildpackage `gbp pq`](https://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.patches.html) | Durable `debian/patches` on the packaging branch, imported into a disposable patch-queue branch and exported back. The manual explicitly distinguishes lost queue-branch history from retained packaging history. This closely matches the question of stable intent/history versus regenerated code branches. |
 | [Git workflows](https://git-scm.com/docs/gitworkflows) | Topic/integration/maintenance branches and throw-away integration; rebasing an already merged topic conflicts with shared-history expectations. Compare oldest-supported-branch fixes, forward ports and explicit upstream integration points. |
 | [git-flow](https://nvie.com/posts/a-successful-git-branching-model/) / [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow) | Release-oriented branches versus lightweight branch/PR integration. Git-flow's author cautions against treating it as universal and distinguishes versioned multi-release software from continuous delivery. Neither is, by itself, a downstream patch-identity system. |
+| [GitLab long-lived release branches](https://docs.gitlab.com/user/project/repository/branches/strategies/#long-lived-release-branches) / [GitVersion support branches](https://gitversion.net/docs/learn/branching-strategies/gitflow/examples#support-branches) | Current and legacy package versions can require separate maintained lines and explicit hotfix/security-release policies. GitVersion documents `support/<major>.x` and minor-line alternatives; its version-increment rules are tool-specific, not universal Git behavior. |
 | [Jujutsu operation log](https://docs.jj-vcs.dev/latest/operation-log/) / [Git range-diff](https://git-scm.com/docs/git-range-diff) | Operation snapshots/recovery versus review of two patch-series revisions. Compare what is retained, transported and reconstructible; range-diff's similarity matching is review assistance, not proof of feature identity or safe replay. |
 
 Full-survey candidates still to verify: Mercurial MQ/evolve, git-debrebase,
 git rerere and reflog retention, Yocto/OpenEmbedded patch layers, Buildroot
 external patch directories, GitLab flow and relevant meta-repo tooling.
 Do not convert these names into findings before consulting primary sources.
-The attempted GitLab-flow documentation URL redirected to an inaccessible
-sign-in page; no source-backed claim is made about that workflow here.
-The operator's **"lib-flow"** reference remains unresolved after a limited
-repository-name search; request the exact project/author/URL rather than
-assuming it means GitLab flow or inventing a canonical "lib-flow" model.
+The initial GitLab-flow URL was inaccessible; the operator subsequently supplied
+the branch-strategies page above, which was read successfully. This supports
+the specific long-lived-release mechanism, not every claim about "GitLab flow."
+
+**Operator clarification (2026-10-29)**: the important remembered property is
+long-lived library/SDK compatibility lines such as `1.x`, `2.x` and `3.x`,
+with independent patch/security releases and selective fixes across versions.
+Treat these as illustrative names, not a confirmed public standard called
+"Lib Flow." Its exact original name/source remains unverified, but that no
+longer blocks identifying the research scenario. The supplied conversation's
+other source claims are leads only until independently checked.
+
+Explicitly include a fork that stays on upstream major A while adding local
+features, still ships hotfixes for A after opening a major-B line, and forward-
+ports/backports only applicable changes. Define compatibility/support windows,
+which line gets a fix first, tags identifying each published version, and how
+base commit plus tpatch feature generations bind each release. Never assume a
+merge of a newer line into an older one is safe or that every fix applies to
+all supported versions.
 
 ### Candidate strategies to compare — none selected
 
@@ -1587,7 +1603,10 @@ operator concurrency and published-versus-private rewrite policy.
 investigation plan, not benchmark results, a validated branching playbook,
 an agreed architecture or a new implementation cluster.
 
-### Sequencing decision reserved for the operator
+### Sequencing decision
+
+The operator selected **backlog only, S1 next** after intake. Retain the
+alternative below for future prioritization; do not silently promote the brief.
 
 - **Full deliverable first**: authorize paper research and review now, then
   explicitly triage any resulting guidance/PRDs into a proposed future cluster.
@@ -1598,8 +1617,9 @@ an agreed architecture or a new implementation cluster.
 
 No technical dependency of S1 on this investigation is established by intake.
 #13's no-history-rewrite and accepted storage/identity boundaries remain binding.
-Earlier Copilot CLI intake precedent and the requested pause are recorded in
-the supervisor log; CURRENT must not lose this backlog item when S1 starts.
+Earlier Copilot CLI intake precedent, the requested pause and the subsequent
+backlog-only selection are recorded in the supervisor log. CURRENT must not
+lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
