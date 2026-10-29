@@ -1650,6 +1650,11 @@ ownership conflicts with outer transaction holds, prune cleanup is incomplete,
 tree-hash environment hardening differs, and source guards miss alternate
 entrypoints. Resolve an explicit lock-capability/API clarification before
 another implementation revision; S1 is not accepted or pushed.
+The operator authorizes a narrow amendment:
+[Proposed ADR-044](adrs/ADR-044-candidate-caller-held-lock-capabilities.md)
+adds explicit borrowed feature/global lock handles to create/prune while the
+caller preserves the transaction hold. Independent review precedes changes
+to accepted PRD/ADR clauses and implementation; no broader design is reopened.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

@@ -1,3 +1,23 @@
+## ADR-044 Drafted — explicit caller-held lock capabilities — 2026-10-29
+
+The operator selected `amend-capabilities`: draft/review a narrow contract
+amendment, then implement it and the remaining S1 corrections.
+`docs/adrs/ADR-044-candidate-caller-held-lock-capabilities.md` is Proposed.
+It reuses live `candidatelock.Handle` capabilities as mandatory constructor/
+prune arguments, preserves the two bare-root constructor names and defines
+caller-owned release versus per-operation borrowing. No implicit reentrancy,
+optional lock argument, ownership transfer or new transaction scope.
+
+The draft requires binding each capability to its requested role/root/path/
+live descriptor, safe borrowing across concurrent release, and composition/
+failure-cleanup/negative tests. Existing PRD/ADR semantics are not edited before
+review; the explicit amendment map identifies the limited post-approval updates.
+All nine parity blocks and the frozen ADR index remain untouched.
+
+**Action**: independent same-context review of the proposal before production
+changes. Keep S1 paused; retain the existing admission failure and all code
+findings. No new Go workload or accepted design is claimed yet.
+
 ## S1 Integration Admission Blocked — no Go test executed — 2026-10-29
 
 The parent integration stage `s1-parent-s0-ci-integration` exhausted its

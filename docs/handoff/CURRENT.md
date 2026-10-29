@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Independent review needs revision; explicit lock-ownership decision pending
+- **Status**: Narrow lock-capability amendment drafted; independent review required before implementation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
@@ -70,6 +70,11 @@ before inventing implicit reentrancy or another root constructor.
 The parent integration check has now stopped after its 600-second admission
 budget without launching Go. This is not a test failure. No validation workload
 is running; retain the existing logs and wait for the API decision.
+The operator selected `amend-capabilities`. Proposed ADR-044 makes create/prune
+borrow explicit live feature/global handles while the caller owns acquisition,
+transaction-wide hold and release. Both named constructors remain; only the
+candidate constructor's required parameters and prune contract change.
+Independent review must approve this narrow proposal before code changes.
 
 ## Current State — bounded S1 requirements
 
@@ -137,11 +142,13 @@ and the required Copilot co-author trailer remain mandatory.
   Focused passes do not establish the missing lifecycle/identity invariants.
 - Parent S0/CI integration: admission timeout after 600.72s, before Go starts.
   No integration pass or assertion failure is claimed.
+- ADR-044 is a proposed documentation-only amendment, not an accepted
+  implementation or a new Go-validation result.
 
 ## Next Steps
 
-1. Resolve the explicit lock-ownership API/contract decision with the operator,
-   then correct all independent-review findings and coupled cleanup issues.
+1. Review proposed ADR-044 independently. After approval, update only the
+   listed PRD/ADR clauses and implement it with the remaining review fixes.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
@@ -158,8 +165,8 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-Lock ownership cannot currently compose with the accepted transaction scopes.
-An explicit API/contract decision and the remaining review fixes block S1.
+The operator authorized a narrow amendment, now drafted as Proposed ADR-044.
+Independent design review and the remaining implementation fixes block S1.
 No publication/acceptance or later slice until corrections, independent review
 and native runtime validation complete.
 
