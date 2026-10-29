@@ -1662,6 +1662,9 @@ edits directly. Local checkpoint `9198c0a` passes clean-checkout focused S0/S1
 and CI integration. A final shared-state fix must ensure copied lock handles
 cannot release a borrowed descriptor; frozen code review, affected-package/
 native/full validation remain outstanding. No S1 publication or acceptance.
+The copy-lifetime regression fails on the old code and the fix is frozen at
+`f6bae35`. Formatting and all four affected primitive/workflow packages pass.
+Independent review and remaining validation are active; S1 stays in flight.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

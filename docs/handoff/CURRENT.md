@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Recovering directly from surviving ADR-044 edits after agent connection failure
+- **Status**: Corrected implementation frozen for independent review; remaining validation pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -21,6 +21,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
 - **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
 - **Accepted amendment checkpoint**: `8b22f99263827a53b5b66fb534e86921563a5d9f`
+- **Current frozen code checkpoint**: `f6bae35f77bb142ab6784c734808440b15c679b5`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
@@ -109,6 +110,9 @@ A final lifetime check identified that copying an exported Handle could give
 one descriptor independent borrow counters. The parent is correcting this
 with shared private state and a copy/release regression, including CLW-005.
 This is part of ADR-044's existing exclusion obligation, not a new API.
+The shared-state fix is saved at `f6bae35`. Its clean-checkout formatting and
+complete candidate/candidatelock/gitutil/workflow packages pass. Return this
+frozen revision to the existing reviewer; no code acceptance is implied.
 
 ## Current State — bounded S1 requirements
 
@@ -159,6 +163,8 @@ Revision adds candidate read flags/Unix tests, platform filesystem/Unix lock
 safety tests, and `internal/cli/prepare_s7_platform_guard_test.go` native-CI
 registration controls. It also updates S0 capture routing in
 `internal/workflow/operation_candidate_s0_test.go` without changing goldens.
+Recovery also adds `internal/gitutil/hardened_env.go` and updates the directly
+dependent `internal/cli/prepare_avp2_test.go` exact root inventory.
 The approved documentation amendment adds ADR-044 and changes only the
 enumerated ADR-037/PRD clauses; the parent owns those contract/tracking files.
 Only one implementation context edits these surfaces; explicit file staging
@@ -194,13 +200,18 @@ and the required Copilot co-author trailer remain mandatory.
   disables test vet only to observe the runtime failure despite the old
   copied-mutex warning; ordinary validation retains vet. Stage
   `s1-handle-copy-negative-20261029` preserves the expected failure.
+- Corrected `f6bae35`: clean `gofmt -l .`; all tests in candidate (1.644s),
+  candidatelock (0.167s), gitutil (10.689s), workflow (111.458s) pass, uncached
+  and serial. Evidence: `s1-capability-format-check-20261029`,
+  `s1-capability-affected-packages-20261029`; command 130.71s, no resource stop.
 
 ## Next Steps
 
-1. Finish the parent's shared-state correction and admitted affected-package
-   checks in the clean checkout. Do not restart the failed implementer.
-2. Return the frozen revision to the existing independent reviewer, then run
-   required native-platform coverage and full closure validation before acceptance.
+1. Review frozen `f6bae35` through existing reviewer
+   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`. Do not restart the failed implementer.
+2. Complete admitted race/CLI integration/vet/build/Windows cross-compilation.
+   Only after code approval publish for required native-platform coverage and
+   run full closure validation before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13

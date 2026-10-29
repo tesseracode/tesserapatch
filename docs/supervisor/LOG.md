@@ -1,3 +1,21 @@
+## Review Dispatch — S1 recovered capability revision — 2026-10-29
+
+**Frozen code**: `f6bae35f77bb142ab6784c734808440b15c679b5`.
+**Reviewer**: existing `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`
+(previously confirmed OpenAI `gpt-5.3-codex`; reconfirm on return).
+
+Formatting and complete candidate/candidatelock/gitutil/workflow packages pass
+in the isolated source checkout, serial/uncached/admitted. All five selected
+integration packages passed at predecessor `9198c0a`; the new copy regression
+fails there and passes with shared lock state at `f6bae35`.
+
+Request explicit closure or residual findings for all original code issues,
+ADR-044 capabilities, copied-handle exclusion, success/failure root ownership,
+tree/Git environment, guards and dependent AVP/native-CI changes. Proposal
+acceptance alone is not implementation acceptance. No reviewer Go workload
+without admission; parent owns remaining serial validation. No publication,
+native Windows correctness or full-gate result is claimed yet.
+
 ## Recovered S1 Checkpoint — borrow-copy lifetime follow-up — 2026-10-29
 
 Local `9198c0a` passes the clean-checkout five-package focused integration,
