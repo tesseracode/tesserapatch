@@ -7,7 +7,8 @@
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
 No strategy policy, full research deliverable or research cluster was adopted.
-The implementation is independently approved and required native CI passes.
+The S1 production implementation is independently approved and its required
+native CI passes. The newer test-only sharding proposal below is not published.
 S1 acceptance is still blocked on the complete local gate, which stopped on
 warning OS memory pressure. This is not a shipped slice.
 
@@ -16,7 +17,7 @@ warning OS memory pressure. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 closure — test-only memory-bounded validation maintenance
-- **Status**: Implementing the operator-authorized finer-sharding proposal
+- **Status**: Sharding proposal statically approved; further memory pilots resource-blocked
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -90,6 +91,26 @@ The independent review now APPROVES static code at
 `31fd46ece44806c63eefb76a0760a0a504e05269`, with no significant issues.
 Runtime metadata confirms `gpt-5.3-codex`. Parent-owned memory pilots remain
 the next evidence; no measured reduction, native or full-gate pass is implied.
+The first pilot now passes: purge guard sampled combined RSS falls from
+9,750,872,064 bytes (9.08 GiB, prior successful gate) to 1,665,761,280 bytes
+(1.55 GiB), about 83% lower. OS-reported maximum RSS is 1,884,553,216 bytes
+(1.76 GiB). Command time is 186.00s versus the prior 78.62s; these are
+recorded runs, not a controlled speed benchmark (the new run observed up to
+four external Go processes). The assertions pass without new swap-outs.
+
+The observer pilot was then stopped by the unchanged guard on 21,682 new
+system swap-out pages, despite normal pressure samples. It reached
+1,630,289,920 bytes sampled owned RSS (1.52 GiB) before stopping; that is
+not a completed-run peak or a pass. Up to three external Go processes were
+observed, but the system-wide swapping cannot be attributed from this data.
+Fail-fast prevented revisions 16/17/18 and catch-all from starting.
+All thirteen sampled owned process identities are gone after cleanup.
+
+Evidence: `bin/roc-sharding-20261029/shard-pilot-purge-20261029/` and
+`shard-pilot-purge-observer-20261029/`. No validators remain active. Preserve
+both records and obtain a stable, quieter memory window before continuing
+the five remaining pilots; do not weaken the no-new-swap rule. The draft
+remains local, statically approved but not adopted as a successful full gate.
 
 ## Session Summary
 
@@ -357,16 +378,16 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Publish the saved tracking and final CI result now that exact-tip CI has
-   completed; these commits do not change reviewed production/test code.
-2. Establish more memory headroom before a fresh isolated full-gate attempt.
-   Prepare a new checkout/config for the then-current published checkpoint
-   (reviewed code is still `3054b84`), retaining WAVE_BASE `5120dc9`, all 22
-   commands, admission/stop policy and failed-run evidence. Do not relax guards
-   or reuse the failed runner's evidence directory.
-3. On completion reconcile owned processes and archive actual results, then
-   commit/push closure tracking only if every required check succeeds.
-   Do not dispatch S2 automatically.
+1. Establish a stable, quieter memory window, then resume the five uncompleted
+   pilots at frozen proposal `31fd46e`: purge observer, AR16, AR17, AR18 and
+   the new catch-all. Use new evidence stages; do not overwrite either run.
+2. Measure the remaining family shards and complete vet/build/native/full
+   validation before adopting the 39-command proposal. Static review and one
+   improved shard do not establish its full memory budget or complete coverage
+   in execution. No validator remains active and no duplicate work is needed.
+3. Keep WAVE_BASE `5120dc9`, unchanged admission/stop policy and all failed-run
+   evidence. Publish only a reviewed validation checkpoint; no S1 acceptance
+   until the complete gate succeeds, and no automatic S2 dispatch.
 
 ## Validation Policy — GH #13
 
@@ -380,9 +401,10 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-No open code finding and all required native CI passes. Full local validation
-is blocked on runtime memory headroom; a complete local gate still blocks S1
-acceptance. Publication is for validation/tracking, not release.
+No open S1 production-code finding; its required native CI passes.
+The newer test-only proposal `31fd46e` has static approval and one successful
+memory pilot, but further measurement is blocked on system swapping.
+Its full 39-command/native validation remains pending, so S1 is not accepted.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent

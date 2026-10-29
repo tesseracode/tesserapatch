@@ -1,3 +1,26 @@
+## Measurement — purge memory reduction; observer resource stop — 2026-10-29
+
+The first freshly admitted pilot passes every purge-guard assertion at frozen
+`31fd46e`. Sampled combined owned RSS is 1,665,761,280 bytes (1.55 GiB),
+versus 9,750,872,064 bytes (9.08 GiB) in the prior successful full gate:
+about 83% lower. OS-reported max RSS is 1.76 GiB. Command time is 186.00s
+versus the prior 78.62s; do not present this as a controlled speed benchmark
+or a speed improvement. The current run observes up to four external Go
+processes, normal pressure and zero new swap-outs.
+
+The observer pilot then stops on 21,682 new system swap-out pages, after
+fresh 61.76s admission and about 70s of execution. Its sampled owned RSS
+reaches 1.52 GiB, pressure samples stay normal, and up to three external Go
+processes are observed. System-wide swap activity is not attributable to a
+specific process from these measurements. This is not a completed observer
+result. Fail-fast prevents revisions 16/17/18 and catch-all from starting.
+
+All thirteen sampled owned process identities are absent after cleanup.
+Retain both evidence directories under `bin/roc-sharding-20261029/`.
+No guard relaxation or blind same-load retry. The static review approval
+stands, but the remaining five pilots and full/native validation need a
+stable memory window. Keep the unaccepted proposal local for now.
+
 ## Review — memory-bounded sharding proposal — 2026-10-29
 
 **Reviewer**: `72126da2-3640-4113-b76e-7724dc2109e3`,

@@ -1636,6 +1636,11 @@ Independent review and admitted per-process memory pilots are next; the
 39-command partition is not yet a full-gate success or published acceptance.
 Independent static review of `31fd46e` is APPROVED; the six freshly admitted
 memory pilots and eventual complete/native validation remain outstanding.
+First pilot passes: purge guard sampled RSS 9.08→1.55 GiB (~83% lower),
+with command time 78.62→186.00s across the recorded runs. Observer measurement
+then stops on new system swap-outs at 1.52 GiB sampled owned RSS; the remaining
+four pilots do not start. No owned survivors remain. Retain the guards and
+wait for stable headroom; the 39-shard proposal is not yet fully validated.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation
