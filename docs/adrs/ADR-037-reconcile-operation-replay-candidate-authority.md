@@ -2,6 +2,10 @@
 
 **Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implementation undispatched
 **Date**: 2026-09-22
+**S1 API amendment (2026-10-29)**:
+[ADR-044](ADR-044-candidate-caller-held-lock-capabilities.md) is accepted;
+the caller-held lock signatures and borrowing rules below supersede only
+D12/D28's S1 primitive ownership boundary. Other rev-7 decisions are unchanged.
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
@@ -1214,8 +1218,24 @@ type CandidateRoot struct{ /* isolated detached worktree at upstreamCommit */ }
 
 ```go
 func OpenReferenceRoot(repoRoot string, commit string) (*ReferenceRoot, error)
-func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (*CandidateRoot, error)
+func CreateCandidateRoot(
+    repoRoot, slug, candidateID, commit string,
+    featureLock, worktreeMutationLock *candidatelock.Handle,
+) (*CandidateRoot, error)
+
+func (r *CandidateRoot) Prune(
+    featureLock, worktreeMutationLock *candidatelock.Handle,
+) error
 ```
+
+**ADR-044 caller-held capability amendment.** Creation and pruning require
+both live handles for the requested repository/feature and global mutation
+lock. They validate and borrow those capabilities before mutation, never
+reacquire or release the caller's locks. The caller owns the broader D28 hold.
+Nil/zero/released/wrong-role/wrong-root/replaced handles refuse; borrowing pins
+descriptor lifetime and concurrent release refuses while borrowed. Close owns
+only rooted filesystem resources, including complete cleanup on failure.
+The reference signature and the exact two bare-root constructor names remain.
 
 Each constructor, and nothing else in the candidate package, may take a bare
 `string` root. Each (1) validates `commit` as 40 lowercase hex and confirms the
@@ -2402,6 +2422,13 @@ Properties, each stated because rev-0 got one of them wrong:
   `git worktree add` / `git worktree remove`. Acceptance holds both for the
   whole transaction. Rejection (D23) and recovery (D29b) hold the per-feature
   lock. **No candidate-state mutation happens outside a hold** (D21).
+- **ADR-044 ownership clarification.** The caller owns acquisition in the
+  feature-then-global order and release in reverse order. Worktree creation/
+  pruning borrow both explicit live handles; they do not reacquire, release
+  or retain them after returning. Preflight/rejection/recovery additionally
+  hold global for worktree removal, without extending it over unrelated work.
+  Strict live-object/root/role validation and borrow lifetime follow ADR-044
+  D3. No implicit reentrancy or ambient lock registry is introduced.
 - **Unsupported platforms are named, not silent.** With `Supported == false`,
   candidate finalization records a **nonterminal** phase-2 refusal
   `lock-unsupported` and falls through, so reconcile behaves exactly as it does
@@ -3088,7 +3115,9 @@ their boundaries makes the check implementable without a heuristic.
    `WriteTree`/`hash-object` wrapper exists in `internal/gitutil/`), the
    portable advisory-lock abstraction with its linux/darwin/windows primitives,
    its stub for every other target and its filesystem-class refusal, and the
-   candidate namespace.
+   candidate namespace. Creation/pruning take the mandatory caller-held
+   feature/global capabilities specified by accepted ADR-044, with composition
+   and failure-cleanup controls; they do not own the transaction's locks.
 3. The eligibility gate E1-E15 in D4's order over the paired ADR-036 /
    ADR-041 strict decoders, D7b's feature-state precondition, and the
    `operation_candidate_enabled` config gate.

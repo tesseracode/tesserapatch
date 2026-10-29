@@ -1651,10 +1651,12 @@ tree-hash environment hardening differs, and source guards miss alternate
 entrypoints. Resolve an explicit lock-capability/API clarification before
 another implementation revision; S1 is not accepted or pushed.
 The operator authorizes a narrow amendment:
-[Proposed ADR-044](adrs/ADR-044-candidate-caller-held-lock-capabilities.md)
+[ADR-044](adrs/ADR-044-candidate-caller-held-lock-capabilities.md)
 adds explicit borrowed feature/global lock handles to create/prune while the
-caller preserves the transaction hold. Independent review precedes changes
-to accepted PRD/ADR clauses and implementation; no broader design is reopened.
+caller preserves the transaction hold. Independent proposal review is APPROVED;
+ADR-044 is accepted and its narrow PRD/ADR clauses are updated, preserving all
+nine parity blocks and matrix row identities. Implementation of the amendment
+and remaining review corrections is next; no broader design is reopened.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

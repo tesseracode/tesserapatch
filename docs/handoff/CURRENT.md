@@ -13,10 +13,10 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Narrow lock-capability amendment drafted; independent review required before implementation
+- **Status**: ADR-044 accepted; lock-capability and remaining S1 revisions next
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
-- **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
+- **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
 - **Prior accepted S0 close**: `6ab392996467662572b155574a0509a6269cae8f`
 - **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
 - **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
@@ -67,22 +67,28 @@ Prune's success path. Full findings are in the latest LOG entry.
 The first finding crosses the accepted fixed constructor signatures and
 transaction hold scope. Ask for a narrow ownership/API contract clarification
 before inventing implicit reentrancy or another root constructor.
-The parent integration check has now stopped after its 600-second admission
-budget without launching Go. This is not a test failure. No validation workload
-is running; retain the existing logs and wait for the API decision.
-The operator selected `amend-capabilities`. Proposed ADR-044 makes create/prune
+The parent integration check stopped after its 600-second admission budget
+without launching Go. This is not a test failure; retain its logs.
+The operator selected `amend-capabilities`. The ADR-044 draft made create/prune
 borrow explicit live feature/global handles while the caller owns acquisition,
 transaction-wide hold and release. Both named constructors remain; only the
 candidate constructor's required parameters and prune contract change.
-Independent review must approve this narrow proposal before code changes.
-Proposed amendment checkpoint `9bd80fa` is under same-context read-only review
-by `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`; wait for that known agent's
-result. Approval of the paper alone will not close the implementation findings.
+Proposal checkpoint `9bd80fa` was submitted for same-context read-only review
+by `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`. Approval of the paper alone
+does not close the implementation findings.
+
+The proposal is now independently APPROVED (OpenAI `gpt-5.3-codex` runtime
+reconfirmed), and ADR-044 is Accepted. The narrow ADR-037/PRD signature and
+ownership clauses are updated. All nine paired parity blocks and existing
+matrix row identities remain unchanged; the frozen ADR index is untouched.
+Implement the accepted API and remaining findings without reopening other
+decisions. No revised-code acceptance is claimed by the paper approval.
 
 ## Current State — bounded S1 requirements
 
 1. `OpenReferenceRoot(repoRoot string, commit string)` and
-   `CreateCandidateRoot(repoRoot, slug, candidateID, commit string)` are the
+   `CreateCandidateRoot(repoRoot, slug, candidateID, commit string,
+   featureLock, worktreeMutationLock *candidatelock.Handle)` are the
    only candidate-package bare-root constructors. Validate lowercase 40-hex
    commits and local object presence; keep subsequent repository IO typed.
 2. Every candidate/reference Git subprocess uses `GIT_NO_LAZY_FETCH=1`;
@@ -96,12 +102,15 @@ result. Approval of the paper alone will not close the implementation findings.
 5. Preserve feature-before-global lock order and locked candidate mutations;
    failed acquisition releases earlier holds. Scope is primitives, not later
    acceptance or candidate-state implementation.
+   Per ADR-044, create/prune borrow mandatory live feature/global handles;
+   they never reacquire or release caller-owned locks.
 6. Add focused positive/negative runtime and inventory tests, including native
    Windows contention/release/crash behavior in a required CI path.
 
 S2 eligibility and config flags, S3 alignment, candidate execution/schemas,
 phase/CLI wiring and publication/acceptance/recovery are not part of S1.
-Public SPEC/assets and accepted contract semantics remain unchanged.
+Public SPEC/assets remain unchanged. Contract changes are limited to the
+explicitly accepted ADR-044 ownership/signature clarification.
 
 ## S0 preservation and scope transition
 
@@ -124,6 +133,8 @@ Revision adds candidate read flags/Unix tests, platform filesystem/Unix lock
 safety tests, and `internal/cli/prepare_s7_platform_guard_test.go` native-CI
 registration controls. It also updates S0 capture routing in
 `internal/workflow/operation_candidate_s0_test.go` without changing goldens.
+The approved documentation amendment adds ADR-044 and changes only the
+enumerated ADR-037/PRD clauses; the parent owns those contract/tracking files.
 Only one implementation context edits these surfaces; explicit file staging
 and the required Copilot co-author trailer remain mandatory.
 
@@ -145,13 +156,14 @@ and the required Copilot co-author trailer remain mandatory.
   Focused passes do not establish the missing lifecycle/identity invariants.
 - Parent S0/CI integration: admission timeout after 600.72s, before Go starts.
   No integration pass or assertion failure is claimed.
-- ADR-044 is a proposed documentation-only amendment, not an accepted
-  implementation or a new Go-validation result.
+- ADR-044 proposal review is APPROVED; the contract amendment is accepted.
+  A non-Go comparison confirms all nine parity blocks and matrix row identities
+  are unchanged. Implementation validation remains separate.
 
 ## Next Steps
 
-1. Review proposed ADR-044 independently. After approval, update only the
-   listed PRD/ADR clauses and implement it with the remaining review fixes.
+1. Implement accepted ADR-044 with the remaining cleanup, tree-environment
+   and source-guard findings, using the existing implementer/admitted runner.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
@@ -168,8 +180,8 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-The operator authorized a narrow amendment, now drafted as Proposed ADR-044.
-Independent design review and the remaining implementation fixes block S1.
+ADR-044 is accepted. Its implementation and the remaining code findings
+still block S1.
 No publication/acceptance or later slice until corrections, independent review
 and native runtime validation complete.
 

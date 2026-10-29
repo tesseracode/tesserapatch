@@ -1,6 +1,6 @@
 # ADR-044 — Caller-held lock capabilities for candidate worktrees
 
-**Status**: Proposed — narrow S1 amendment; implementation waits for review
+**Status**: Accepted — independent proposal review approved 2026-10-29; implementation validation pending
 **Date**: 2026-10-29
 **Owner**: Core
 **Issue**: GH #13
@@ -28,7 +28,7 @@ Independent review identified this mismatch at unaccepted checkpoint
 `internal/candidate/root.go:122-189,309-364`. The locked lifecycle is already
 explicit in `docs/prds/PRD-reconcile-operation-replay-candidate.md:2171-2184`.
 The operator authorized a narrow lock-capability/API amendment before further
-implementation. This ADR proposes that amendment; it does not authorize S2+
+implementation. This ADR records that accepted amendment; it does not authorize S2+
 behavior or a change in repository branching strategy.
 
 ## Existing primitives and alternatives
@@ -44,7 +44,7 @@ label or stored candidate metadata cannot prove a live lock hold.
 | Temporarily release the caller's locks | Reject: breaks the accepted transaction's scope/revalidation. |
 | Make locks reentrant through ambient process state | Reject: hides ownership, complicates independent callers, and changes the accepted nonblocking lock contract. |
 | Create an unlocked public mutation helper | Reject: makes correct locking a caller convention rather than a checked precondition. |
-| Pass the existing live lock handles explicitly | Proposed: preserves kernel exclusion and makes ownership/borrowing inspectable at each mutation boundary. |
+| Pass the existing live lock handles explicitly | Accepted: preserves kernel exclusion and makes ownership/borrowing inspectable at each mutation boundary. |
 
 ## D1 — The caller owns acquisition, order and release
 
@@ -170,7 +170,7 @@ Before acceptance of the implementation, prove at least:
 No extra production transaction or post-S1 behavior is needed to demonstrate
 composition: synthetic disposable repos and real caller-held handles suffice.
 
-## Amendment map after review approval
+## Accepted amendment map
 
 | Surface | Narrow update |
 |---|---|
@@ -179,14 +179,15 @@ composition: synthetic disposable repos and real caller-held handles suffice.
 | PRD S1 / ROC-120 and lock/prune test obligations | Require lock-aware creation/pruning and focused composition/invalid-capability controls; do not renumber existing rows or claim later-slice tests are implemented. |
 | S1 code/guard registry | Include only this authorized contract amendment and necessary capability validation; retain original S0 capture restrictions and dependency boundaries. |
 
-The frozen ADR index is not silently rewritten by this proposal. Register this
+The frozen ADR index is not silently rewritten by this amendment. Register this
 ADR through these explicit links and current tracking; any index maintenance
 must preserve its existing frozen contract tests. No full-suite pass is claimed
 for documentation-only drafting.
 
-## Open questions
+## Review disposition
 
-Independent review must confirm that passing the existing handles is sufficient
-without a second public ownership type. If it is not, revise this proposal
-explicitly before implementation rather than add an undocumented constructor
-or implicit ownership mechanism.
+Independent OpenAI `gpt-5.3-codex` review approved the proposal at `9bd80fa`
+on 2026-10-29, confirming that strict borrowing/validation of the existing
+handles is sufficient; no second public ownership type is required.
+This approves the contract only. The implementation's cleanup, environment,
+source-guard and native-runtime findings remain open until separately verified.

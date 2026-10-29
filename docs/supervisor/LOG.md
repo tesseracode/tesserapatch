@@ -1,3 +1,37 @@
+## ADR-044 Accepted Clauses Applied — implementation revision next — 2026-10-29
+
+ADR-044 is marked Accepted. ADR-037 D12/D28 and PRD 6.9/6.13/S1/ROC-120 now
+state mandatory borrowed feature/global handles, caller-owned release and
+complete owned-root cleanup. A direct comparison proves all nine parity
+regions unchanged on both sides and all existing matrix row IDs preserved.
+The frozen ADR index and S1 code remain unchanged during this documentation
+step; the amendment is discoverable through explicit parent-contract links.
+
+Return the accepted API and still-open implementation findings to
+`6c67ce6f-1058-4f46-bd48-8c663eafe87c`. Add only exact required contract-file
+paths to the S1 stage registry while preserving original S0 capture refusal.
+No code acceptance or native runtime pass is implied by this amendment.
+
+## ADR-044 Independent Review — APPROVED (proposal only) — 2026-10-29
+
+**Reviewer**: `roc-s1-openai-review` /
+`e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`, runtime-confirmed OpenAI
+`gpt-5.3-codex`.
+**Reviewed draft**: `9bd80fa`.
+**Verdict**: APPROVED at proposal level, not implementation acceptance.
+
+The reviewer confirms that two mandatory borrowed `candidatelock.Handle`
+arguments make create/prune composable without a new capability type,
+implicit reentrancy or ambient registries. Caller lifetime, strict live-object
+validation and concurrent-release refusal are sufficient at contract level.
+The two named constructors and reference signature stay intact.
+
+**Action**: mark ADR-044 accepted; apply its narrow D12/D28/PRD signature and
+ownership clarification with all nine existing parity blocks unchanged.
+Then return to the same implementer for that amendment and the still-open
+cleanup, tree-environment and source-guard findings. Proposal approval closes
+no code finding by itself; native runtime/full validation remain outstanding.
+
 ## ADR-044 Independent Review Requested — 2026-10-29
 
 Draft checkpoint `9bd80fa9a47a0d444f4d431c0ff35fafa3195a95` is submitted

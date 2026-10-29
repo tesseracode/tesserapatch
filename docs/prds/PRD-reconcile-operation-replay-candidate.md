@@ -2,6 +2,10 @@
 
 **Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implementation undispatched
 **Date**: 2026-09-22
+**S1 API amendment (2026-10-29)**:
+[ADR-044](../adrs/ADR-044-candidate-caller-held-lock-capabilities.md) is accepted;
+sections 6.9/6.13 and S1 below use caller-held lock capabilities. This does not
+change rev-7 eligibility, identity, alignment or publication semantics.
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13) —
 `reconcile: implement safe phase-2 operation replay candidate generation`
@@ -1556,8 +1560,24 @@ package:**
 
 ```go
 func OpenReferenceRoot(repoRoot string, commit string) (*ReferenceRoot, error)
-func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (*CandidateRoot, error)
+func CreateCandidateRoot(
+    repoRoot, slug, candidateID, commit string,
+    featureLock, worktreeMutationLock *candidatelock.Handle,
+) (*CandidateRoot, error)
+
+func (r *CandidateRoot) Prune(
+    featureLock, worktreeMutationLock *candidatelock.Handle,
+) error
 ```
+
+**ADR-044 caller-held capability amendment.** Creation and pruning require
+both live handles for the requested repository/feature and global mutation
+lock. They validate and borrow those capabilities before mutation, never
+reacquire or release the caller's locks. The caller owns the broader section
+6.13 hold. Nil/zero/released/wrong-role/wrong-root/replaced handles refuse;
+borrowing pins descriptor lifetime and concurrent release refuses while borrowed.
+Close owns only rooted filesystem resources, including complete cleanup on
+failure. The reference signature and two bare-root constructor names remain.
 
 Each constructor, and nothing else, may take a bare `string` root. Each:
 
@@ -2167,6 +2187,13 @@ Properties, each stated because rev-0 got one of them wrong:
   failed attempt leaves nothing held.
 
 **Scope — every candidate-state mutation is inside a hold.**
+
+**ADR-044 ownership clarification.** The caller acquires feature then global
+and releases in reverse order. Creation/pruning borrow mandatory live handles
+and never acquire, release or retain caller locks. The broader scopes below
+are unchanged; preflight/rejection/recovery also hold global specifically for
+worktree removal. Strict live-object/root/role validation and borrow lifetime
+follow ADR-044 D3. No implicit reentrancy or ambient registry is permitted.
 
 | Phase of work | Locks held | Why |
 |---|---|---|
@@ -3043,6 +3070,10 @@ staging.
 - Add candidate-namespace worktree create/prune that does **not** call
   `CreateShadow`, `ResolveShadow`, `PruneShadow` or `PruneAllShadows`, and that
   is only ever reachable while the per-feature lock is held.
+- Apply accepted ADR-044's mandatory caller-held feature/global capabilities
+  for create/prune. Prove composition under outer holds, invalid-capability
+  refusal, borrow/release lifetime and cleanup on failure, without adding any
+  later-slice transaction behavior.
 - Add the source-inventory guards for live-root calls, lazy fetch and the
   module dependency set (§9.11).
 
@@ -3360,7 +3391,7 @@ IDs are contiguous `ROC-001` … `ROC-306`.
 
 | ID | Kind | Case | Observable |
 |---|---|---|---|
-| ROC-120 | U | Typed roots are structural | Candidate file IO accepts `ReferenceRoot` or `CandidateRoot` and no bare `string` root; `OpenReferenceRoot` and `CreateCandidateRoot` are the only candidate-package functions taking one, `.tpatch/` reads go through `*store.Store`, and a signature taking `string` elsewhere fails the row at compile time |
+| ROC-120 | U | Typed roots are structural | Candidate file IO accepts `ReferenceRoot` or `CandidateRoot` and no bare `string` root; `OpenReferenceRoot` and `CreateCandidateRoot` are the only candidate-package functions taking one, `.tpatch/` reads go through `*store.Store`, and a signature taking `string` elsewhere fails the row at compile time. ADR-044 additionally requires explicit caller-held feature/global capabilities for create/prune; missing or invalid capabilities refuse and the primitives never reacquire or release the caller's locks. |
 | ROC-121 | G | The guard excludes symbols, not scopes | Wrong-input fixture `third-bare-root-constructor` (a new candidate-package helper taking a `string` root) fails the same source-inventory guard that the two sanctioned constructors pass |
 | ROC-122 | C | Constructors validate their commit | A malformed, non-hex or locally absent commit refuses at the constructor, before any read |
 | ROC-123 | S | Constructors validate their path | A candidate root path escaping the store root is refused by `safety.EnsureSafeRepoPath` (`internal/safety/safety.go:12`) at construction |
