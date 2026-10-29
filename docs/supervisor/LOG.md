@@ -1,3 +1,58 @@
+## Upstream Git-Strategy Proposal Recorded — decision pause — 2026-10-29
+
+The durable research-backlog item `research-upstream-git-strategies` is now
+in ROADMAP, with a bounded source-backed orientation, current-contract anchors,
+deployment/upstream matrices, strategy candidates and a full-deliverable outline.
+No standalone whitepaper, PRD, ADR or implementation cluster is created.
+
+The key distinction is durable patch/intent history versus materialized source
+and Git ref/commit history. gbp pq explicitly separates durable packaging/patch
+history from a disposable patch-queue branch; TopGit and StGit provide different
+base/topic/stack models. Git-flow is context-specific release guidance, not a
+general patch-identity solution. These are research leads, not adopted defaults.
+
+The inspected Store.Root/--path path does not establish independent central
+patch-store support; the brief distinguishes meta-repo orchestration from that
+unproven capability. #13's no-history-rewrite rule and WP-006's exploratory
+Git-replacement boundary remain intact. The "lib-flow" identity is unresolved;
+the attempted GitLab-flow page was inaccessible, so neither is treated as a
+verified workflow in the source comparison.
+
+**Action**: publish the tracking-only intake, then use the operator's requested
+decision point: full investigation deliverable/explicit future-cluster triage
+before S1, or backlog-only deferral and a separate S1 assignment. No S1 or
+research execution beyond intake starts automatically. Recommend not treating
+this as a technical prerequisite for the already accepted S1 contract.
+No Go workload or new wave-close certificate is claimed for this intake.
+
+## Upstream Git-Strategy Research Intake — 2026-10-29
+
+The operator asks to record a research idea before S1: maintain downstream
+features against pinned/evolving upstream versions without losing provenance
+as branch tips and base commits move. Compare prior patch tools and branching
+models; distinguish in-repo/fork metadata from meta-repo/external layouts.
+Consider an opinionated default plus justified alternatives, with a possible
+Git-replacement substrate explicitly separated as long-term exploration.
+
+**Scope**: documentation-only backlog intake and a small source-verified
+orientation, then pause for a full-deliverable-versus-S1 scheduling decision.
+No production, workflow policy, storage schema, accepted ADR or S1 changes.
+The clean/pushed starting point is `6ab392996467662572b155574a0509a6269cae8f`.
+The accepted S0 handoff is archived unchanged.
+
+Prior Copilot CLI history was consulted: this session's turns 38-40 separate
+paper intake/status reconciliation from implementation, and the earlier
+`bd523642-be95-4ac1-a626-98a64158d1c8` turn 14 asks whether an exploratory
+idea warrants a whitepaper/PRD/ADR before building it. The repository protocol
+in `docs/whitepapers/README.md` makes whitepapers exploratory and ADRs locked
+decisions. This intake makes neither a design decision nor a research-complete
+claim. Use a durable ROADMAP research-backlog brief now; a paper/turn log can
+follow only if the operator selects the full investigation.
+
+Keeping intake in the existing tracking files also preserves S0's explicit
+scope guard without adding an unrelated document exception or weakening a test.
+Do not interpret that mechanical constraint as a reason to omit the idea.
+
 ## GH #13 S0 Terminal Closing Record — 2026-10-22
 
 Archival acceptance checkpoint:

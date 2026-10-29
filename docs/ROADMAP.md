@@ -1441,6 +1441,166 @@ now reused through a pinned POSIX script and parity guard; implementation
 acceptance is unchanged. `make wave-close-check WAVE_BASE=3b579fc...` passes
 8/8 at `2df3346`.
 
+## Research backlog — upstream Git and patch-management strategies — 2026-10-29
+
+**ID**: `research-upstream-git-strategies`.
+**Status**: **Queued research brief — intake only; sequencing decision pending**.
+**Origin**: operator proposal before GH #13 S1.
+**Baseline inspected**: `6ab392996467662572b155574a0509a6269cae8f`.
+**Scope**: paper-only comparison and eventual operator guidance, not a new
+branch policy, replay algorithm, storage backend or Git-replacement decision.
+**Next gate**: pause after this intake; choose a full investigation deliverable
+before S1 versus keeping this in the backlog and assigning S1 next.
+No implementation cluster is queued by this entry.
+
+### Problem and desired outcome
+
+Long-lived downstream projects need to keep adding features against a specific
+upstream base while also preparing later upstream upgrades. Rebase/replay can
+change commit identities and branch ancestry; a moving `main` may cease to
+explain which base, patch revisions and conflict resolutions produced a
+particular downstream release. The operator reports this as a recurring
+workflow problem. This intake has not reproduced a new tpatch data-loss bug.
+
+Investigate an opinionated Git-first default, or a small named suite of
+strategies when upstream release/branch structures genuinely require different
+answers. Guidance must explain which history is durable, which worktrees or
+branches are disposable, and how a colleague reconstructs and reviews the
+same patched release after the upstream base changes.
+
+Separate three questions: **Git commit/ref history**, **tpatch feature/patch
+generation history**, and **the materialized downstream source tree**.
+Changing one is not proof that either of the others is safely preserved.
+
+### Current contract grounding — not assumptions
+
+| Observation | Verified anchor / boundary |
+|---|---|
+| A feature's current canonical diff is `artifacts/post-apply.patch`; numbered `patches/` files are historical full snapshots, not a sequence to blindly replay. | `docs/feature-layout.md:3-5,23-40,123-132`. The same document's later incremental-patch prose is historical; current routing must be checked against `internal/workflow/reconcile.go:329-352`, which gates incremental input on `CumulativeLegacy`. |
+| Stable slug and changing patch identity are separate; generation history is a per-feature manifest, not automatically a branch/release catalog. | `docs/adrs/ADR-015-prior-art-identity-mapping.md:99-115`; `docs/adrs/ADR-024-patch-generation-manifest-boundary.md:48-88`. Check existing primitives before inventing another identity object. |
+| Accept refresh can replace patch/evidence artifacts; it is not synonymous with rebasing Git history. | `internal/workflow/refresh.go:48-77`; `docs/reconcile.md:44-57`. The proposed #13 consumer explicitly forbids commit/amend/rebase/reset/ref moves: `docs/adrs/ADR-037-reconcile-operation-replay-candidate-authority.md:2797-2804`. |
+| `land` is the explicit bridge to an ordinary Git commit with feature/patch/recipe/base trailers. | `docs/land.md:1-5`. Research must distinguish upstream integration done by operators from tpatch's own artifact changes and landing. |
+| The inspected API couples workspace metadata and the target tree to one `Store.Root`. | `internal/store/store.go:18-39,134-143,779-790`; `internal/cli/cobra.go:74,3900-3910`; `internal/workflow/reconcile.go:208,459,511`. `--path` selects a workspace, not a separately configurable patch-store root. |
+| Tracked and untracked `.tpatch/` have different clone/backup properties. | `docs/feature-layout.md:110-119`. Private `.tpatch/local/` recovery state and retained intent archives must not be mistaken for a distributable canonical patch store. |
+| Nested linked-worktree exclusion is a capture-safety feature, not multi-repository orchestration. | `docs/record.md:25-27`. An ordinary submodule/gitlink is distinct from a registered nested linked worktree; pointing tpatch into a target worktree does not establish meta-repo-wide atomic tracking. |
+| Separate metadata branches/notes/object stores are not already an approved capture backend. | `docs/adrs/ADR-027-capture-context-privacy-boundary.md:104-117,339-342`; any extension must respect its capture-context scope and privacy boundary. |
+| Replacing Git is exploratory, not an accepted near-term milestone. | `docs/whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md:24-62`; `docs/adrs/ADR-015-prior-art-identity-mapping.md:196-202` rejects requiring every tpatch patch to be a Git commit. Borrow workflow ideas without silently adopting another tool's storage model. |
+
+### Deployment and upstream matrix to investigate
+
+These axes must be crossed, not collapsed into a single branch naming recipe.
+
+| Layout | Intake assessment | Questions for the full investigation |
+|---|---|---|
+| `.tpatch/` committed with patched source in the same repo/fork | Existing workspace layout. | How do feature metadata, base pins and published source branches evolve together? Does merging metadata resurrect a retired feature or obscure the current patch generation? |
+| `.tpatch/` local/untracked or intentionally ignored in the target repo | Current files can be local; persistence differs from tracked artifacts. | What survives clone, branch switch, clean, restore and handoff? What explicit export/backup is needed rather than assumed? |
+| A meta-repo orchestrating several separate target clones/worktrees | Treat orchestration as a workflow to verify, not proof of a separate central-store feature. | Per-target `.tpatch` and `--path`, target identity, pinned revisions, independent failure recovery and aggregate release manifests. |
+| A parent repo tracking vendored trees or submodule revisions | Distinct Git topologies; current gitlink/capture handling is not a complete orchestration contract. | Which Git root owns a patch, where are relative paths resolved, and does an upstream update change content or only a gitlink? |
+| One central `.tpatch/` outside multiple targets, separate metadata branch or external patch repository | Capability/design question; not established as a supported independent-store backend in this intake. | Root selection, reconstruction, reachability, concurrent writers, portability, publication order and privacy. Separate wrappers/conventions from CLI/backend changes. |
+| Non-Git / tpatch-native version control | WP-006 long-term exploration only. | What would replace object storage, refs, ancestry, transport, collaboration and recovery? Exclude this implementation from the Git-first guidance deliverable. |
+
+Upstream patterns: immutable release tags/pinned commits; a rolling main/trunk;
+multiple supported stable/LTS branches; rewritten/moved/deleted upstream refs;
+source drops/tarballs; and meta-repos with independently versioned components.
+Distinguish continuing features on base A, porting to base B, and supporting A
+and B concurrently. A per-feature current generation is not automatically a
+multi-base support matrix.
+
+### Selected prior art — source-checked orientation, not a completed survey
+
+Sources below were consulted on 2026-10-29. They establish mechanisms worth
+comparing, not empirical reliability rankings or automatic tpatch compatibility.
+No third-party tool was installed or executed during intake.
+
+| Family / source | Mechanism and question to carry forward |
+|---|---|
+| [Quilt](https://savannah.nongnu.org/projects/quilt/) | Applied/unapplied/refreshed patch series as files. Study versioning the patch set independently of an extracted or materialized source tree, including source/base identification and refresh history. |
+| [StGit](https://stacked-git.github.io/) / [rebase](https://stacked-git.github.io/man/stg-rebase/) | Commits managed as a stack; rebase pops patches, moves the base and pushes them again. Study stack identity and recovery, while explicitly respecting tpatch's different patch-as-artifact model. |
+| [TopGit README at the consulted revision](https://github.com/mackyle/topgit/blob/b7cd1459d3df770b31f8bc6f6e9681d9b45fee38/README.md) | A patch is the difference between its topic and base branches; `.topdeps` describes dependencies. Compare this paired-branch graph with rebased linear queues, including the complexity of publishing base refs and propagating changes. |
+| [git-buildpackage `gbp pq`](https://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.patches.html) | Durable `debian/patches` on the packaging branch, imported into a disposable patch-queue branch and exported back. The manual explicitly distinguishes lost queue-branch history from retained packaging history. This closely matches the question of stable intent/history versus regenerated code branches. |
+| [Git workflows](https://git-scm.com/docs/gitworkflows) | Topic/integration/maintenance branches and throw-away integration; rebasing an already merged topic conflicts with shared-history expectations. Compare oldest-supported-branch fixes, forward ports and explicit upstream integration points. |
+| [git-flow](https://nvie.com/posts/a-successful-git-branching-model/) / [GitHub flow](https://docs.github.com/en/get-started/using-github/github-flow) | Release-oriented branches versus lightweight branch/PR integration. Git-flow's author cautions against treating it as universal and distinguishes versioned multi-release software from continuous delivery. Neither is, by itself, a downstream patch-identity system. |
+| [Jujutsu operation log](https://docs.jj-vcs.dev/latest/operation-log/) / [Git range-diff](https://git-scm.com/docs/git-range-diff) | Operation snapshots/recovery versus review of two patch-series revisions. Compare what is retained, transported and reconstructible; range-diff's similarity matching is review assistance, not proof of feature identity or safe replay. |
+
+Full-survey candidates still to verify: Mercurial MQ/evolve, git-debrebase,
+git rerere and reflog retention, Yocto/OpenEmbedded patch layers, Buildroot
+external patch directories, GitLab flow and relevant meta-repo tooling.
+Do not convert these names into findings before consulting primary sources.
+The attempted GitLab-flow documentation URL redirected to an inaccessible
+sign-in page; no source-backed claim is made about that workflow here.
+The operator's **"lib-flow"** reference remains unresolved after a limited
+repository-name search; request the exact project/author/URL rather than
+assuming it means GitLab flow or inventing a canonical "lib-flow" model.
+
+### Candidate strategies to compare — none selected
+
+| Candidate | Intended use / main tradeoff to test |
+|---|---|
+| Stable published downstream history plus explicit upstream merges | Shared fork/main must retain ancestry. Measure conflict-review cost, patch extraction ambiguity and handling of features absorbed upstream. |
+| Versioned patch/intent history plus disposable integration branches per pinned base | Continuing feature authoring while regenerating patched source. Establish the authoritative store, reproducible outputs and a rule against downstream work depending on disposable commits. |
+| Topic/dependency branches with explicit base refs | Independent features with dependencies and multiple maintenance lines. Evaluate graph/ref proliferation, integration order and collaborator recovery. |
+| Separate maintained downstream lines per upstream release/base | Long-lived A and B support, backports and security fixes. Specify which feature generation is valid on which base, without pretending the current schema already encodes this catalog. |
+| Meta-repo release manifest plus per-target patch workspaces | Several upstream components with independent lifecycles. Evaluate per-target identities and two-repository publication/recovery rather than promising cross-repo atomicity. |
+
+For each candidate, state the roles of upstream-tracking refs, patch-authoring
+history, published downstream branches and disposable worktrees. Do not assume
+the name `main` has the same role in every project. Compare merge, rebase,
+cherry-pick and replay explicitly; pin the upstream commit and relevant patch/
+generation identifiers, and distinguish names from immutable object identity.
+
+### Proposed full deliverable and graduation gate
+
+If selected, produce an exploratory paper with an append-only turn log under
+the existing whitepaper protocol (tentative next ID WP-008; recheck availability
+at dispatch), with detailed prior-art notes under `docs/state-of-the-art/`.
+It should contain:
+
+1. A current-support matrix with code/test anchors; identify wrappers and
+   manual conventions separately from native tpatch capabilities.
+2. A source/version-pinned comparison of the strategy families above:
+   durable history, rewrite scope, clone/transport, rollback, dependency handling,
+   operational complexity and limits. Explain whether a default is defensible
+   or a small strategy catalog is necessary, with selection criteria.
+3. Synthetic case studies in disposable repositories: add features while A
+   stays pinned, upgrade A to B, maintain both, retire an absorbed patch, handle
+   changed dependencies/upstream branch names, and recover an interrupted
+   publication. Include same-repo/fork, local metadata and meta-repo layouts.
+4. Reconstruct an earlier published downstream result after an upgrade and
+   from a fresh clone. Identify every required Git ref, object, patch generation
+   and external input; reflog/private cache availability alone is insufficient.
+   Preserve branch/patch lineage and explain any non-fast-forward publication.
+5. A proposed operator playbook/default plus exceptions, with safe diagrams,
+   branch-role examples and recovery paths. Do not change shared history,
+   refs, remotes or user repositories as part of the research.
+6. Separate conclusions into **docs-only guidance**, **CLI/metadata capability
+   gaps needing PRDs**, and **architecture changes needing an ADR**. Keep
+   Git-replacement work in WP-006's separate long-term lane.
+
+Before proposing another data-model object, test existing slug, patch hash,
+base commit, generation manifest, land trailers, upstream.lock, evidence and
+ordinary Git refs against these needs. In particular, investigate whether old
+base objects remain reachable after ref rewrites or clone/GC; a stored hash is
+not a retention guarantee. Cover privacy of central metadata, dependency drift,
+operator concurrency and published-versus-private rewrite policy.
+
+**Evidence limit**: this intake contains a bounded orientation and an
+investigation plan, not benchmark results, a validated branching playbook,
+an agreed architecture or a new implementation cluster.
+
+### Sequencing decision reserved for the operator
+
+- **Full deliverable first**: authorize paper research and review now, then
+  explicitly triage any resulting guidance/PRDs into a proposed future cluster.
+  No implementation is implied; S1 waits only by the chosen schedule.
+- **Backlog only**: preserve this brief, then separately assign #13 S1 under
+  the accepted contract. Revisit the research when upstream-maintenance guidance
+  is prioritized or a concrete finding demonstrates a dependency.
+
+No technical dependency of S1 on this investigation is established by intake.
+#13's no-history-rewrite and accepted storage/identity boundaries remain binding.
+Earlier Copilot CLI intake precedent and the requested pause are recorded in
+the supervisor log; CURRENT must not lose this backlog item when S1 starts.
+
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
