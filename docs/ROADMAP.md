@@ -1682,6 +1682,9 @@ shard by warning OS memory pressure (zero new swap-outs, zero owned survivors,
 no reported assertion failure). All five required native Windows CLW rows
 pass; the rest of CI continues. More runtime headroom and a complete local
 retry are required; retain guards and failed-run evidence.
+Native CI `40917207659` at `ddc59b7` is now SUCCESS: all five required jobs
+pass with no failed steps. Only the resource-blocked full local gate remains
+before S1 acceptance. No S2 dispatch or guard relaxation.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

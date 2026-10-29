@@ -1,3 +1,17 @@
+## Native CI Complete — S1 local gate still blocked — 2026-10-29
+
+CI `40917207659` completes SUCCESS at
+`ddc59b70042ef3fdca299963292fc5e42149a7d6`. All five required jobs pass,
+with no failed steps; the unrequested release job is skipped. Required
+Windows CLW-001 through CLW-005 were already verified from actual job logs.
+
+There is no native CI or code-review blocker left. The full local gate's
+warning-pressure stop remains unresolved; do not count native success as its
+replacement or accept S1 prematurely. No validator/watch process remains
+active. Publish the saved tracking now that exact-tip CI has finished; these
+commits change no production/test code. A later full retry needs more runtime
+headroom and a new isolated runner at the then-current published checkpoint.
+
 ## Validation Blocker — S1 local memory pressure — 2026-10-29
 
 The full gate at published `ddc59b7` stops after 809.63s on warning OS memory

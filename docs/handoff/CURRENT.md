@@ -7,15 +7,16 @@
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
 No strategy policy, full research deliverable or research cluster was adopted.
-The implementation is independently approved; S1 acceptance is still pending
-required native CI and the complete local gate. This is not a shipped slice.
+The implementation is independently approved and required native CI passes.
+S1 acceptance is still blocked on the complete local gate, which stopped on
+warning OS memory pressure. This is not a shipped slice.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Code approved; full local gate resource-blocked, native CI still running
+- **Status**: Code approved and native CI passed; full local gate resource-blocked
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -140,6 +141,11 @@ reported in the captured output; zero complete test shards are credited.
 There were no new swap-outs and owned-process reconciliation finds no survivors.
 Do not relax admission or blindly repeat the same load; more runtime headroom
 is needed before a full retry. Native CI continues independently.
+Native CI `40917207659` has now completed successfully at `ddc59b7`: all five
+required jobs pass, including Linux/macOS suites, both observer jobs and
+Windows. Release is correctly skipped. No validation processes remain active.
+The previously local progress records can now be pushed without cancelling
+that completed exact-checkpoint run; no S1 acceptance is implied.
 
 ## Current State — bounded S1 requirements
 
@@ -282,14 +288,20 @@ and the required Copilot co-author trailer remain mandatory.
   including crash release and borrowed/copy release exclusion.
   Ubuntu observers also pass; remaining CI jobs were still running at this
   checkpoint. The whole CI run is not yet claimed green.
+- Final CI result: `40917207659` SUCCESS at `ddc59b7`, all five required jobs
+  successful with no failed steps; release skipped. The watcher completed
+  successfully. Full local validation remains incomplete because of its
+  resource stop, regardless of this native success.
 
 ## Next Steps
 
-1. Await the existing native-CI watcher; do not push tracking-only commits while
-   exact-tip CI is running. The local gate has exited and has no owned survivors.
-2. Establish more memory headroom before a fresh isolated full-gate attempt
-   at the same reviewed code, retaining WAVE_BASE `5120dc9`, all 22 commands,
-   admission/stop policy and the failed-run evidence. Do not relax guards.
+1. Publish the saved tracking and final CI result now that exact-tip CI has
+   completed; these commits do not change reviewed production/test code.
+2. Establish more memory headroom before a fresh isolated full-gate attempt.
+   Prepare a new checkout/config for the then-current published checkpoint
+   (reviewed code is still `3054b84`), retaining WAVE_BASE `5120dc9`, all 22
+   commands, admission/stop policy and failed-run evidence. Do not relax guards
+   or reuse the failed runner's evidence directory.
 3. On completion reconcile owned processes and archive actual results, then
    commit/push closure tracking only if every required check succeeds.
    Do not dispatch S2 automatically.
@@ -306,9 +318,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-No open code finding. Full local validation is blocked on runtime memory
-headroom. Windows native lock rows pass, but complete native CI and a full
-local gate still block S1 acceptance; publication is for validation, not release.
+No open code finding and all required native CI passes. Full local validation
+is blocked on runtime memory headroom; a complete local gate still blocks S1
+acceptance. Publication is for validation/tracking, not release.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent
