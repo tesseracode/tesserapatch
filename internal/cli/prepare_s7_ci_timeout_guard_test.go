@@ -73,7 +73,8 @@ const (
 	s7CIAXObserverPattern          = `^TestS7ObservedAXRegistrationAuthority$`
 	s7CINonWindowsFullCommand      = `go test ./... -count=1 -timeout 40m -skip '` + s7CISplitPattern + `'`
 	s7CIGenericCommandPrefix       = `go test ./... -count=1 -timeout 40m -run '`
-	s7CIGenericTestScript          = s7CIGenericCommandPrefix + s7CIAVPPattern + "'\n" +
+	s7CINonWindowsAVPCommand       = s7CIGenericCommandPrefix + s7CIAVPPattern + "'"
+	s7CIGenericTestScript          = s7CINonWindowsAVPCommand + "\n" +
 		s7CIGenericCommandPrefix + s7CIS6AFPattern + "'\n" +
 		s7CIGenericCommandPrefix + s7CIS6GLPattern + "'\n" +
 		s7CIGenericCommandPrefix + s7CIS6MRPattern + "'\n" +
@@ -176,7 +177,7 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 			name: "shards-reordered",
 			mutateScript: func(body string) string {
 				first := strings.Replace(s7CINonWindowsFullCommand, "go test ", "go test -p=1 ", 1) + "\n"
-				second := strings.Replace(s7CINonWindowsARLegacyCommand, "go test ", "go test -p=1 ", 1) + "\n"
+				second := strings.Replace(s7CINonWindowsAVPCommand, "go test ", "go test -p=1 ", 1) + "\n"
 				return strings.Replace(body, first+second, second+first, 1)
 			},
 		},
@@ -871,6 +872,20 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			),
 		},
 		{
+			name:     "memory-family-omitted",
+			mutation: strings.Replace(workflow, "          "+s7CINonWindowsAVPCommand+"\n", "", 1),
+		},
+		{
+			name: "memory-family-loses-non-cli-coverage",
+			mutation: strings.Replace(workflow, s7CINonWindowsAVPCommand,
+				strings.Replace(s7CINonWindowsAVPCommand, "./...", "./internal/cli", 1), 1),
+		},
+		{
+			name: "memory-family-selector-narrowed",
+			mutation: strings.Replace(workflow, s7CINonWindowsAVPCommand,
+				strings.Replace(s7CINonWindowsAVPCommand, s7CIAVPPattern, "^TestAVPRoot.*$", 1), 1),
+		},
+		{
 			name: "ar-partition-removed",
 			mutation: strings.Replace(
 				workflow, "\n          "+s7CINonWindowsARLegacyCommand, "", 1,
@@ -906,7 +921,7 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 				s7CINonWindowsFullCommand,
 				strings.Replace(
 					s7CINonWindowsFullCommand,
-					s7CIARPartitionPattern,
+					s7CISplitPattern,
 					`^TestS7AR.*$`,
 					1,
 				),
@@ -918,8 +933,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			mutation: strings.Replace(
 				workflow,
 				"          "+s7CINonWindowsFullCommand+"\n"+
-					"          "+s7CINonWindowsARLegacyCommand,
-				"          "+s7CINonWindowsARLegacyCommand+"\n"+
+					"          "+s7CINonWindowsAVPCommand,
+				"          "+s7CINonWindowsAVPCommand+"\n"+
 					"          "+s7CINonWindowsFullCommand,
 				1,
 			),
@@ -1242,8 +1257,9 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 			})
 		}
 	}
-	if len(fullSuites) != 2 {
-		return fmt.Errorf("full-suite `go test` invocation count = %d, want exactly 2", len(fullSuites))
+	allPackageCommands := strings.Split(s7CINonWindowsFullCommand+"\n"+s7CIGenericTestScript, "\n")
+	if len(fullSuites) != len(allPackageCommands)+1 {
+		return fmt.Errorf("all-package `go test` invocation count = %d, want %d", len(fullSuites), len(allPackageCommands)+1)
 	}
 
 	nonWindowsCount := 0
@@ -1255,18 +1271,21 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 		}
 		switch normalizeS7CICondition(step.condition) {
 		case nonWindowsCondition:
-			nonWindowsCount++
+			if nonWindowsCount >= len(allPackageCommands) {
+				return errors.New("extra non-Windows all-package invocation")
+			}
 			if mode := classifyS7CIContinueOnError(step.continueOnError); mode != "blocking" {
 				return fmt.Errorf("non-Windows full suite is %s, want blocking", mode)
 			}
 			if err := validateS7FullSuiteInvocation(
-				invocation.argv, invocation.args, s7CINonWindowsFullCommand, "40m",
+				invocation.argv, invocation.args, allPackageCommands[nonWindowsCount], "40m",
 			); err != nil {
 				return fmt.Errorf("non-Windows full suite: %w", err)
 			}
 			if err := validateS7NonWindowsTestPartition(step); err != nil {
 				return err
 			}
+			nonWindowsCount++
 		case windowsCondition:
 			windowsCount++
 			wantKeys := map[string]int{
@@ -1302,8 +1321,8 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 			return fmt.Errorf("full-suite step %q has noncanonical condition %q", step.name, step.condition)
 		}
 	}
-	if nonWindowsCount != 1 {
-		return fmt.Errorf("blocking non-Windows full-suite step count = %d, want exactly 1", nonWindowsCount)
+	if nonWindowsCount != len(allPackageCommands) {
+		return fmt.Errorf("blocking non-Windows all-package invocation count = %d, want %d", nonWindowsCount, len(allPackageCommands))
 	}
 	if windowsCount != 1 {
 		return fmt.Errorf("Windows allowed-failure full-suite step count = %d, want exactly 1", windowsCount)

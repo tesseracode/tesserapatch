@@ -1,3 +1,16 @@
+## Maintenance Controls — finer sharding draft — 2026-10-29
+
+Draft `7a1052d` contains only eight bounded test/tooling surfaces. The AR file
+has exactly seven additional lines, preserving every assertion and fixture.
+All 40 profiler tests pass; admitted formatting passes after repairing
+misplaced declarations. Admitted workflow/S0 controls pass.
+
+CLI controls find stale test assumptions about command adjacency and exactly
+two all-package invocations. Fix the negative fixture and enumerate the exact
+new all-package commands; do not merely relax their count. Explicit controls
+must reject losing non-CLI family tests, narrowing a family or dropping one.
+Preserve all failed logs. Measurement and independent review remain pending.
+
 ## Maintenance Dispatch — finer test sharding proposal — 2026-10-29
 
 The operator authorizes implementation and measurement of finer sharding.

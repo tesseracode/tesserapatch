@@ -65,6 +65,13 @@ The draft touches eight bounded test/tooling files. All 40 profiler unit tests
 pass. The first admitted formatter run caught misplaced new test declarations;
 their placement is corrected before retrying. That failed log is preserved
 under `bin/roc-sharding-20261029/shard-proposal-format-20261029/`.
+Draft checkpoint `7a1052d` formats successfully. Admitted controls pass the
+workflow/S0 package, including the nineteen-line exact-delta guard, but expose
+two stale CI-test assumptions: the reorder fixture's formerly adjacent
+commands and the former two all-package invocations. Correct those anchors
+and validate each of the now-seventeen all-package invocations against its
+exact command/step contract, including explicit non-CLI-coverage negatives.
+No memory result or proposal acceptance is claimed yet.
 
 ## Session Summary
 
