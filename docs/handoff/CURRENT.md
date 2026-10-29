@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: ADR-044 accepted; same implementer is revising lock capabilities and remaining findings
+- **Status**: Recovering directly from surviving ADR-044 edits after agent connection failure
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -88,6 +88,11 @@ The existing implementer `6c67ce6f-1058-4f46-bd48-8c663eafe87c` is now
 applying that contract and the outstanding cleanup/environment/source-guard
 corrections. Preserve its work and await its result; do not start a duplicate
 implementation or parent Go workload while it owns admitted checks.
+The implementer has now failed on model-request network timeouts. Its partial
+code edits survived and no validation process remains active. The parent resumes
+directly without reset/cleanup or another implementation agent.
+Last admitted stage `s1r3-gofmt-20261029a` failed on misplaced declarations;
+repair that syntax before any new test run. No post-amendment pass is claimed.
 
 ## Current State — bounded S1 requirements
 

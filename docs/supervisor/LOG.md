@@ -1,3 +1,19 @@
+## S1 Connection Recovery — surviving ADR-044 edits retained — 2026-10-29
+
+The implementation agent failed after model-request timeouts, not a reported
+compiler/test failure. Inspection confirms substantial uncommitted ADR-044
+code/test edits survived, including borrowed lock handles, shared Git envelope,
+composition tests and source-guard changes. The last admitted stage
+`s1r3-gofmt-20261029a` failed on misplaced test/helper declarations; no
+post-amendment test pass exists yet.
+
+No agent validation process remains active. Continue directly from the
+surviving work, preserving its logs and the accepted `8b22f99` amendment.
+Do not reset/clean the worktree or relaunch a competing implementer.
+Repair syntax, inspect the surviving scope/capability corrections, then resume
+the original admitted validation and independent review. No S1 publication or
+acceptance is claimed.
+
 ## S1 Capability Revision Dispatched under Accepted ADR-044 — 2026-10-29
 
 Accepted amendment checkpoint `8b22f99263827a53b5b66fb534e86921563a5d9f`
