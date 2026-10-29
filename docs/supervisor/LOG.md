@@ -9,6 +9,11 @@ observer marker flow, all-package family coverage, 39 serial commands.
 Parent alone runs freshly admitted purge/observer, revision 16/17/18 and
 catch-all pilots. Reviewer must not run Go or modify source. Do not equate
 control passes with measured memory reduction or complete validation.
+Reviewer dispatched as `72126da2-3640-4113-b76e-7724dc2109e3`
+(`roc-memory-shard-review`), explicitly requested OpenAI `gpt-5.3-codex`;
+confirm runtime on return. Pilot shell `roc-sharding-memory-pilots` is the
+only Go workload. The prepared full-gate wrapper's nine routing controls pass;
+that gate has not started.
 
 ## Maintenance Controls — finer sharding draft — 2026-10-29
 

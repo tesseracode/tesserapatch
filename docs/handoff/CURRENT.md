@@ -77,6 +77,15 @@ preservation, cache lifecycle, shard ownership, exact CI/script parity, AVP
 root inventory and native Windows registration. Fresh admission completed
 without resource stops. Freeze this code for independent review and measure
 the purge guard/observer, revisions 16/17/18 and the new catch-all separately.
+Independent reviewer: `72126da2-3640-4113-b76e-7724dc2109e3`,
+`roc-memory-shard-review`, explicitly requested OpenAI `gpt-5.3-codex`
+(runtime confirmation pending). It is read-only and must not run Go.
+Parent pilot shell `roc-sharding-memory-pilots` runs the six selections
+serially from `bin/roc-sharding-20261029/proposal-rev1-source`, with separate
+fresh admission and evidence for each. Do not start another Go workload.
+The eventual full-gate harness is prepared in
+`bin/roc-sharding-20261029/full-gate/`; its nine routing controls pass, but
+the full gate is not configured or running yet.
 
 ## Session Summary
 
