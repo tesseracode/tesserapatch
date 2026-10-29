@@ -8,7 +8,8 @@ GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
 No strategy policy, full research deliverable or research cluster was adopted.
 The S1 production implementation is independently approved and its required
-native CI passes. The newer test-only sharding proposal below is not published.
+native CI passes. The newer test-only sharding proposal is published for full
+validation, not yet accepted as a completed slice.
 S1 acceptance is still blocked on the complete local gate, which stopped on
 warning OS memory pressure. This is not a shipped slice.
 
@@ -17,7 +18,7 @@ warning OS memory pressure. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 closure — test-only memory-bounded validation maintenance
-- **Status**: Static review and all six pilots passed; preparing full 39-shard/native validation
+- **Status**: Static review and all six pilots passed; full 39-shard/native validation running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -34,6 +35,7 @@ WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
 - **Task ID**: `maintain-memory-bounded-test-shards`
 - **Maintenance base**: `56311c4fa13fa45b28ebb00a86ef3021d70c7b04`
+- **Maintenance validation checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`
 - **Authorization**: operator requested implementation and measurement of the
   finer-sharding proposal. S1 code stays frozen; this is not S2.
 - **Baseline**: clean HEAD equals fetched origin/main; no stashes, one main
@@ -146,6 +148,18 @@ reviewed proposal for native CI and the full admitted gate. The canonical
 APPROVED field records code/proposal approval only; S1 acceptance still needs
 all 39 test commands and native CI. No production/test code changes follow
 the frozen review checkpoint.
+The reviewed/pilot-validated proposal is now published at `24be224`, verified
+equal to origin/main. Only tracking differs from reviewed `31fd46e`; no
+production code, assets, dependencies or public contract changed.
+The full gate runs in `bin/roc-sharding-20261029/full-gate/repo`, with fresh
+isolated caches, 42 top-level commands including all 39 test shards, and
+WAVE_BASE `5120dc9`. Shell `roc-sharding-full-gate-24be224` owns that workload.
+Its first five mechanical checks pass, including all 32 wave trailers;
+this is not a completed gate result. Evidence is in the adjacent `evidence/`.
+Native CI `40975085201` runs at the same checkpoint, watched by shell
+`roc-sharding-native-ci-24be224`; log is
+`bin/roc-sharding-20261029/native-ci-24be224.log`.
+Keep running-state tracking local until exact-checkpoint CI completes.
 
 ## Session Summary
 
@@ -413,9 +427,9 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Publish the reviewed, pilot-validated proposal for required native CI, then
-   run the full admitted gate at that exact checkpoint. The pilot sequence has
-   exited with no owned survivors; do not rerun the completed pilots separately.
+1. Await existing full-gate shell `roc-sharding-full-gate-24be224` and native
+   CI `40975085201`; do not duplicate workloads or push tracking-only commits
+   while exact-checkpoint CI is in flight.
 2. Complete all 39 shards, formatting, vet/build and native validation before
    S1 acceptance. The fifteen extracted family shards still need execution
    in the complete partition; six successful pilots are not the full gate.
@@ -438,7 +452,7 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 No open S1 production-code finding; its required native CI passes.
 The newer test-only proposal `31fd46e` has static approval and all six memory
 pilots pass without runtime pressure or new swap-outs. Its full 39-command/
-native validation remains pending, so S1 is not accepted.
+native validation is running at `24be224`, so S1 is not accepted yet.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent

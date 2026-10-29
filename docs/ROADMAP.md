@@ -1649,6 +1649,9 @@ All six pilots now pass: purge/observer peak 1.55/1.74 GiB, AR16/17/18
 Executions remain at normal pressure with zero new swap-outs; owned cleanup
 is verified. Prepare full 39-command/native validation of the unchanged
 reviewed proposal. Extracted families still need full execution; S1 is not accepted.
+Validation checkpoint `24be224` is published; native CI `40975085201` and
+the full 39-shard admitted local gate are running. The gate's first five
+mechanical checks pass. No full result or S1 acceptance is claimed yet.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation

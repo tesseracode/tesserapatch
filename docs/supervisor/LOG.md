@@ -1,3 +1,20 @@
+## Full Validation Running — measured sharding proposal — 2026-10-29
+
+Published and verified HEAD/origin/main:
+`24be224e46cb0569de3488bf466467e9c252fd8b`.
+Only tracking differs from reviewed `31fd46e`; the maintenance changes no
+production Go, assets, dependencies or public contract.
+
+Native CI `40975085201` and local shell `roc-sharding-full-gate-24be224`
+run against the exact checkpoint. The local gate uses clean source/fresh
+caches, 42 top-level commands (39 tests), explicit WAVE_BASE `5120dc9`,
+fresh admission per command and unchanged runtime stops. Its first five
+mechanical checks pass, including all 32 trailers; no full result is claimed.
+Native watch shell: `roc-sharding-native-ci-24be224`.
+
+Keep progress-only commits local while CI runs. The pilot evidence supports
+this full attempt, but does not replace it or authorize S2/S1 acceptance.
+
 ## Measurement Complete — all six shard pilots pass — 2026-10-29
 
 The five resumed pilots pass at frozen `31fd46e`, completing all six.
