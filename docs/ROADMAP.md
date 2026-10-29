@@ -1625,6 +1625,13 @@ lose this backlog item when S1 starts.
 
 ### GH #13 — 🚧 S1 typed roots, locks and Git primitives — 2026-10-29
 
+**Active validation maintenance**: the operator authorizes finer serial
+sharding and measurement from clean `56311c4` (tracking-tip CI `40927388746`
+passes). Split the broad S6/S7/AVP families without losing non-CLI tests,
+separate AR revisions 16-18, and bound flat purge-fixture memo lifetimes.
+Keep all assertions, golden bytes, native blocking rows and pressure policy.
+Update CI/local/profiler coverage guards together; no S1 acceptance or S2.
+
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation
 to the research backlog. Intake and decision records are pushed; S0 stays

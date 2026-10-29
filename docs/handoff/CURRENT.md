@@ -15,8 +15,8 @@ warning OS memory pressure. This is not a shipped slice.
 
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
-- **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Code approved and native CI passed; full local gate resource-blocked
+- **Description**: S1 closure — test-only memory-bounded validation maintenance
+- **Status**: Implementing the operator-authorized finer-sharding proposal
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -28,6 +28,39 @@ warning OS memory pressure. This is not a shipped slice.
 - **Published validation checkpoint**: `ddc59b70042ef3fdca299963292fc5e42149a7d6`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
+
+## Active Maintenance — memory-bounded test shards
+
+- **Task ID**: `maintain-memory-bounded-test-shards`
+- **Maintenance base**: `56311c4fa13fa45b28ebb00a86ef3021d70c7b04`
+- **Authorization**: operator requested implementation and measurement of the
+  finer-sharding proposal. S1 code stays frozen; this is not S2.
+- **Baseline**: clean HEAD equals fetched origin/main; no stashes, one main
+  worktree. Tracking-tip CI `40927388746` passes.
+
+The previous successful gate's largest processes were the broad shard
+(10.37 GiB), purge observer (9.80), AR revisions 16-18 (9.15), and purge guard
+(9.08). The purge observer executes the same purge guard through its existing
+marker overlay, so fixing the guard's fixture lifetime can improve both
+without changing observer assertions.
+
+Propose 39 serial test commands: retain all existing AR/observer coverage,
+split revisions 16/17/18 into separate processes, and partition the broad
+S6/S7/AVP families into smaller groups. New family commands must cover all
+packages, not just CLI: static inspection found matching names in intent,
+gitutil, store and other packages. Keep a complementary catch-all command.
+
+For oversized individual tests, reuse the existing four-fixture memo lifetime.
+The purge guard has flat loops rather than leaf subtests; provide a completion
+callback for those loops without moving or dropping assertions. Keep the
+six prior memo-scope changes and extend the exact-delta guard only for the
+new named loops. Preserve the stricter S0 golden-capture boundary.
+
+Bounded surfaces: CI, the canonical shard script, profiler and its tests,
+S7 CI partition guards, S6 test-cache helper, the named AR test loops, finite
+S0/S1 scope guards, and tracking. No production, contract, assets, golden,
+dependency or resource-admission changes. Measure the proposal before claiming
+lower peak memory or adopting it as successful full validation.
 
 ## Session Summary
 

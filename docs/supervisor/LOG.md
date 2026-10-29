@@ -1,3 +1,22 @@
+## Maintenance Dispatch — finer test sharding proposal — 2026-10-29
+
+The operator authorizes implementation and measurement of finer sharding.
+Maintenance base `56311c4` is clean and equal to origin/main; its native CI
+`40927388746` passes. Overall S1 WAVE_BASE remains `5120dc9`.
+
+Scope only test execution/fixture memory: propose 39 serial commands by
+partitioning broad S6/S7/AVP coverage and separating AR revisions 16-18.
+Family prefixes also occur outside CLI; new generic family shards must cover
+those packages, with an exhaustive complementary catch-all.
+
+Purge's large flat fixture loops retain analyzer memos across mutations.
+Reuse the existing four-completion policy via a flat-loop callback, preserving
+all assertions and the observer's original execution/marker contract.
+Extend the exact-delta scope guard narrowly; do not broaden golden capture.
+Keep CI, local script, profiler and mutation-sensitive coverage guards aligned.
+No production changes, S2, reduced assertions, relaxed pressure limits or
+acceptance claims. Parent implements; independent review follows frozen results.
+
 ## Native CI Complete — S1 local gate still blocked — 2026-10-29
 
 CI `40917207659` completes SUCCESS at
