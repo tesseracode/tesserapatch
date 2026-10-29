@@ -13,43 +13,89 @@ import (
 	"testing"
 )
 
-func rocS0ValidateChangedPaths(paths []string) error {
-	allowed := map[string]bool{
-		"docs/handoff/CURRENT.md":                                   true,
-		"docs/handoff/HISTORY.md":                                   true,
-		"docs/ROADMAP.md":                                           true,
-		"docs/supervisor/LOG.md":                                    true,
-		".github/workflows/ci.yml":                                  true,
-		"internal/workflow/operation_candidate_s0_test.go":          true,
-		"internal/workflow/operation_candidate_s0_guards_test.go":   true,
-		"internal/workflow/operation_candidate_s0_fixtures_test.go": true,
-		"internal/cli/operation_candidate_s0_test.go":               true,
-		"internal/store/operation_candidate_s0_test.go":             true,
-		"internal/gitutil/tree_hash.go":                             true,
-		"internal/gitutil/tree_hash_test.go":                        true,
-	}
+var rocS0CaptureAllowedPaths = map[string]bool{
+	"docs/handoff/CURRENT.md":                                   true,
+	"docs/handoff/HISTORY.md":                                   true,
+	"docs/ROADMAP.md":                                           true,
+	"docs/supervisor/LOG.md":                                    true,
+	".github/workflows/ci.yml":                                  true,
+	"internal/workflow/operation_candidate_s0_test.go":          true,
+	"internal/workflow/operation_candidate_s0_guards_test.go":   true,
+	"internal/workflow/operation_candidate_s0_fixtures_test.go": true,
+	"internal/cli/operation_candidate_s0_test.go":               true,
+	"internal/store/operation_candidate_s0_test.go":             true,
+}
+
+var rocS1AllowedPaths = map[string]bool{
+	"docs/handoff/CURRENT.md":                                   true,
+	"docs/handoff/HISTORY.md":                                   true,
+	"docs/ROADMAP.md":                                           true,
+	"docs/supervisor/LOG.md":                                    true,
+	".github/workflows/ci.yml":                                  true,
+	"internal/workflow/operation_candidate_s0_test.go":          true,
+	"internal/workflow/operation_candidate_s0_guards_test.go":   true,
+	"internal/workflow/operation_candidate_s0_fixtures_test.go": true,
+	"internal/cli/operation_candidate_s0_test.go":               true,
+	"internal/store/operation_candidate_s0_test.go":             true,
+	"internal/candidate/root.go":                                true,
+	"internal/candidate/readflags_other.go":                     true,
+	"internal/candidate/readflags_unix.go":                      true,
+	"internal/candidate/root_test.go":                           true,
+	"internal/candidate/root_unix_test.go":                      true,
+	"internal/candidate/source_guard_test.go":                   true,
+	"internal/candidatelock/error.go":                           true,
+	"internal/candidatelock/lock_common.go":                     true,
+	"internal/candidatelock/lock_unix.go":                       true,
+	"internal/candidatelock/lock_windows.go":                    true,
+	"internal/candidatelock/lock_unsupported.go":                true,
+	"internal/candidatelock/filesystem_linux.go":                true,
+	"internal/candidatelock/filesystem_darwin.go":               true,
+	"internal/candidatelock/lock_supported_test.go":             true,
+	"internal/candidatelock/lock_windows_native_test.go":        true,
+	"internal/candidatelock/lock_unsupported_test.go":           true,
+	"internal/candidatelock/source_guard_test.go":               true,
+	"internal/candidatelock/lock_unix_safety_test.go":           true,
+	"internal/candidatelock/filesystem_linux_test.go":           true,
+	"internal/candidatelock/filesystem_darwin_test.go":          true,
+	"internal/candidatelock/filesystem_windows_test.go":         true,
+	"internal/gitutil/tree_hash.go":                             true,
+	"internal/gitutil/tree_hash_test.go":                        true,
+	"internal/cli/prepare_s7_platform_guard_test.go":            true,
+}
+
+func rocS0ValidateCaptureChangedPaths(paths []string) error {
 	for _, path := range paths {
 		if path != "" && filepath.ToSlash(filepath.Clean(path)) != path {
 			return fmt.Errorf("non-canonical S0 path: %q", path)
 		}
-		if path == "" || allowed[path] {
-			continue
-		}
-		if strings.HasPrefix(path, "internal/candidate/") {
-			continue
-		}
-		if strings.HasPrefix(path, "internal/candidatelock/") {
+		if path == "" || rocS0CaptureAllowedPaths[path] {
 			continue
 		}
 		if strings.HasPrefix(path, "internal/workflow/testdata/roc-s0/") {
 			continue
 		}
-		return fmt.Errorf("S0 changed a non-test/public-contract path: %s", path)
+		return fmt.Errorf("S0 golden capture changed a non-baseline path: %s", path)
 	}
 	return nil
 }
 
-func rocS0AssertTestOnlyScope(t *testing.T) {
+func rocS1ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if path != "" && filepath.ToSlash(filepath.Clean(path)) != path {
+			return fmt.Errorf("non-canonical S1 path: %q", path)
+		}
+		if path == "" || rocS1AllowedPaths[path] {
+			continue
+		}
+		if strings.HasPrefix(path, "internal/workflow/testdata/roc-s0/") {
+			continue
+		}
+		return fmt.Errorf("S1 scope includes an unregistered path: %s", path)
+	}
+	return nil
+}
+
+func rocS0AssertChangedPaths(t *testing.T, validator func([]string) error) {
 	t.Helper()
 	root := rgaS0RepoRoot(t)
 	changed := git(t, root, "diff", "--no-renames", "--name-only", rocS0Baseline, "--")
@@ -70,13 +116,23 @@ func rocS0AssertTestOnlyScope(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := rocS0ValidateChangedPaths(ordinary); err != nil {
+	if err := validator(ordinary); err != nil {
 		t.Fatal(err)
 	}
 }
 
+func rocS0AssertCaptureOnlyScope(t *testing.T) {
+	t.Helper()
+	rocS0AssertChangedPaths(t, rocS0ValidateCaptureChangedPaths)
+}
+
+func rocS0AssertStageScope(t *testing.T) {
+	t.Helper()
+	rocS0AssertChangedPaths(t, rocS1ValidateStageChangedPaths)
+}
+
 func TestROCS0NoProductionChanges(t *testing.T) {
-	rocS0AssertTestOnlyScope(t)
+	rocS0AssertStageScope(t)
 }
 
 func TestROCS0ScopeGuardSensitivity(t *testing.T) {
@@ -98,7 +154,7 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"internal/gitutil/tree_hash.go",
 		"internal/gitutil/tree_hash_test.go",
 	} {
-		if err := rocS0ValidateChangedPaths([]string{path}); err != nil {
+		if err := rocS1ValidateStageChangedPaths([]string{path}); err != nil {
 			t.Fatalf("valid S0 path rejected: %v", err)
 		}
 	}
@@ -134,10 +190,34 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"internal/gitutil/treehash.go",
 	} {
 		t.Run(path, func(t *testing.T) {
-			if err := rocS0ValidateChangedPaths([]string{path}); err == nil {
+			if err := rocS1ValidateStageChangedPaths([]string{path}); err == nil {
 				t.Fatalf("scope guard accepted %s", path)
 			}
 		})
+	}
+}
+
+func TestROCS0CaptureScopeRejectsS1ProductionPaths(t *testing.T) {
+	for _, path := range []string{
+		"internal/candidate/root.go",
+		"internal/candidate/source_guard_test.go",
+		"internal/candidatelock/lock_unix.go",
+		"internal/gitutil/tree_hash.go",
+		"internal/cli/prepare_s7_platform_guard_test.go",
+	} {
+		if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
+			t.Fatalf("capture scope accepted S1 production path %s", path)
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/operation_candidate_s0_test.go",
+		"internal/workflow/operation_candidate_s0_guards_test.go",
+		"internal/workflow/testdata/roc-s0/phase1-confirmed.golden",
+		".github/workflows/ci.yml",
+	} {
+		if err := rocS0ValidateCaptureChangedPaths([]string{path}); err != nil {
+			t.Fatalf("capture scope rejected baseline path %s: %v", path, err)
+		}
 	}
 }
 

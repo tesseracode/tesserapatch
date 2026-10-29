@@ -46,22 +46,43 @@ func TryAcquire(path string) (*Handle, error) {
 	if err != nil {
 		return nil, err
 	}
-	ancestor, err := nearestExistingAncestor(filepath.Dir(lockPath))
+	if err := acquireFilesystemClassifier(lockPath, nil); err != nil {
+		return nil, err
+	}
+	parentPath := filepath.Dir(lockPath)
+	leaf := filepath.Base(lockPath)
+
+	ancestor, err := nearestExistingAncestor(parentPath)
 	if err != nil {
 		return nil, err
 	}
-	if err := acquireFilesystemClassifier(ancestor); err != nil {
+	ancestorFile, err := openClassifierFile(ancestor)
+	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+	if err := acquireFilesystemClassifier(ancestor, ancestorFile); err != nil {
+		_ = ancestorFile.Close()
+		return nil, err
+	}
+	if err := ancestorFile.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(parentPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create lock directory: %w", err)
 	}
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	parentRoot, parentDir, err := openLockParent(parentPath)
 	if err != nil {
-		return nil, fmt.Errorf("open lock file: %w", err)
+		return nil, err
 	}
-	if err := ensureLockSentinelByte(file); err != nil {
-		_ = file.Close()
+	defer parentDir.Close()
+	defer parentRoot.Close()
+
+	if err := acquireFilesystemClassifier(parentPath, parentDir); err != nil {
+		return nil, err
+	}
+	file, err := openLockLeaf(parentRoot, leaf)
+	if err != nil {
 		return nil, err
 	}
 	if err := lockFileEx(file); err != nil {
@@ -75,20 +96,6 @@ func TryAcquire(path string) (*Handle, error) {
 		return nil, fmt.Errorf("lock file: %w", err)
 	}
 	return &Handle{file: file, path: lockPath}, nil
-}
-
-func ensureLockSentinelByte(file *os.File) error {
-	info, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("stat lock file: %w", err)
-	}
-	if info.Size() > 0 {
-		return nil
-	}
-	if _, err := file.WriteAt([]byte{0}, 0); err != nil {
-		return fmt.Errorf("seed lock file: %w", err)
-	}
-	return nil
 }
 
 func lockFileEx(file *os.File) error {
@@ -111,7 +118,24 @@ func lockFileEx(file *os.File) error {
 	return syscall.EINVAL
 }
 
-func classifyLockFilesystem(path string) error {
+func classifyWindowsDriveType(driveType uint32) error {
+	switch driveType {
+	case driveFixed, driveRemovable, driveRAMDisk:
+		return nil
+	case driveRemote, driveUnknown, driveNoRootDir, driveCDROM:
+		return &Error{
+			Code:   CodeLockFilesystemUnsupported,
+			Detail: fmt.Sprintf("drive type %d is not supported for candidate locks", driveType),
+		}
+	default:
+		return &Error{
+			Code:   CodeLockFilesystemUnsupported,
+			Detail: fmt.Sprintf("unrecognized drive type %d", driveType),
+		}
+	}
+}
+
+func classifyLockFilesystem(path string, _ *os.File) error {
 	abs := filepath.Clean(path)
 	volume := filepath.VolumeName(abs)
 	if strings.HasPrefix(volume, `\\`) {
@@ -135,18 +159,5 @@ func classifyLockFilesystem(path string) error {
 	if r1 == 0 && e1 != syscall.Errno(0) {
 		return fmt.Errorf("GetDriveTypeW(%s): %w", root, e1)
 	}
-	switch uint32(r1) {
-	case driveFixed, driveRemovable, driveRAMDisk:
-		return nil
-	case driveRemote, driveUnknown, driveNoRootDir, driveCDROM:
-		return &Error{
-			Code:   CodeLockFilesystemUnsupported,
-			Detail: fmt.Sprintf("drive type %d is not supported for candidate locks", r1),
-		}
-	default:
-		return &Error{
-			Code:   CodeLockFilesystemUnsupported,
-			Detail: fmt.Sprintf("unrecognized drive type %d", r1),
-		}
-	}
+	return classifyWindowsDriveType(uint32(r1))
 }

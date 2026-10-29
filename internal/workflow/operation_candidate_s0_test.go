@@ -261,7 +261,7 @@ func rocS0CompareGolden(t *testing.T, name, body string) {
 	path := filepath.Join("testdata", "roc-s0", name+".golden")
 	switch os.Getenv("TPATCH_UPDATE_ROC_S0_GOLDENS") {
 	case "1":
-		rocS0AssertTestOnlyScope(t)
+		rocS0AssertCaptureOnlyScope(t)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}

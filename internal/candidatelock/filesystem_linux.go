@@ -4,6 +4,7 @@ package candidatelock
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 )
 
@@ -23,16 +24,7 @@ var linuxAllowedFilesystems = map[uint32]string{
 	linuxMagicOVERLAY: "overlay",
 }
 
-func normalizeLinuxStatfsType[T ~int32 | ~int64 | ~uint32 | ~uint64](value T) uint32 {
-	return uint32(uint64(value))
-}
-
-func classifyLockFilesystem(path string) error {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return fmt.Errorf("statfs(%s): %w", path, err)
-	}
-	magic := normalizeLinuxStatfsType(stat.Type)
+func classifyLinuxFilesystemType(magic uint32) error {
 	if _, ok := linuxAllowedFilesystems[magic]; ok {
 		return nil
 	}
@@ -40,4 +32,16 @@ func classifyLockFilesystem(path string) error {
 		Code:   CodeLockFilesystemUnsupported,
 		Detail: fmt.Sprintf("filesystem class 0x%08x is not in the local-filesystem allowlist", magic),
 	}
+}
+
+func classifyLockFilesystem(path string, directory *os.File) error {
+	if directory == nil {
+		return fmt.Errorf("classify lock filesystem for %s: nil directory handle", path)
+	}
+	var stat syscall.Statfs_t
+	if err := syscall.Fstatfs(int(directory.Fd()), &stat); err != nil {
+		return fmt.Errorf("fstatfs(%s): %w", path, err)
+	}
+	magic := uint32(uint64(stat.Type))
+	return classifyLinuxFilesystemType(magic)
 }

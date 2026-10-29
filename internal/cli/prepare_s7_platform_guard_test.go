@@ -131,6 +131,129 @@ func TestS7APWindowsDryRunBlockingGuardSensitivity(t *testing.T) {
 	}
 }
 
+func TestS1CandidateLockWindowsBlockingGuard(t *testing.T) {
+	workflowPath := filepath.Join(avpRepoRoot(t), ".github", "workflows", "ci.yml")
+	workflowBytes, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(workflowBytes)
+	if err := validateS1CandidateLockWindowsBlocking(workflow); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestS1CandidateLockWindowsBlockingGuardSensitivity(t *testing.T) {
+	workflowPath := filepath.Join(avpRepoRoot(t), ".github", "workflows", "ci.yml")
+	workflowBytes, err := os.ReadFile(workflowPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(workflowBytes)
+	for _, fixture := range []struct {
+		name     string
+		mutation string
+	}{
+		{
+			name: "target-omitted",
+			mutation: strings.Replace(
+				workflow,
+				"-run '^TestCandidateLockNativeWindows$'",
+				"-run '^TestNothingAtAll$'",
+				1,
+			),
+		},
+		{
+			name: "selector-omitted",
+			mutation: strings.Replace(
+				workflow,
+				"TestCandidateLockNativeWindows/CLW-003-crash-release \\",
+				"",
+				1,
+			),
+		},
+		{
+			name: "selector-omitted-unc",
+			mutation: strings.Replace(
+				workflow,
+				"TestCandidateLockNativeWindows/CLW-004-unc-refusal; do",
+				"TestCandidateLockNativeWindows/CLW-003-crash-release; do",
+				1,
+			),
+		},
+		{
+			name: "condition-narrowed",
+			mutation: strings.Replace(
+				workflow,
+				`      - name: "Test (Windows candidate lock runtime — blocking)"
+        if: runner.os == 'Windows'
+`,
+				`      - name: "Test (Windows candidate lock runtime — blocking)"
+        if: runner.os == 'Windows' && false
+`,
+				1,
+			),
+		},
+		{
+			name: "step-demoted",
+			mutation: strings.Replace(
+				workflow,
+				`      - name: "Test (Windows candidate lock runtime — blocking)"
+        if: runner.os == 'Windows'
+`,
+				`      - name: "Test (Windows candidate lock runtime — blocking)"
+        if: runner.os == 'Windows'
+        continue-on-error: true
+`,
+				1,
+			),
+		},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			if fixture.mutation == workflow {
+				t.Fatal("workflow sensitivity mutation did not apply")
+			}
+			if err := validateS1CandidateLockWindowsBlocking(fixture.mutation); err == nil {
+				t.Fatal("candidate lock blocking guard accepted wrong input")
+			}
+		})
+	}
+}
+
+func validateS1CandidateLockWindowsBlocking(workflow string) error {
+	const header = `      - name: "Test (Windows candidate lock runtime — blocking)"`
+	start := strings.Index(workflow, header)
+	if start < 0 {
+		return &s7WorkflowGuardError{value: header}
+	}
+	step := workflow[start:]
+	if next := strings.Index(step[len(header):], "\n      - name:"); next >= 0 {
+		step = step[:len(header)+next]
+	}
+	required := []string{
+		"\n        if: runner.os == 'Windows'\n",
+		"-run '^TestCandidateLockNativeWindows$'",
+		"./internal/candidatelock 2>&1 | tee \"$log\"",
+		"TestCandidateLockNativeWindows/CLW-001-acquire-release",
+		"TestCandidateLockNativeWindows/CLW-002-contention",
+		"TestCandidateLockNativeWindows/CLW-003-crash-release",
+		"TestCandidateLockNativeWindows/CLW-004-unc-refusal",
+		`--- PASS: ${selector}`,
+	}
+	for _, value := range required {
+		if !strings.Contains(step, value) {
+			return &s7WorkflowGuardError{value: value}
+		}
+	}
+	if strings.Contains(step, "\n        continue-on-error:") {
+		return errors.New("candidate lock Windows blocking step is advisory")
+	}
+	if strings.Contains(step, "if: runner.os == 'Windows' &&") {
+		return errors.New("candidate lock Windows blocking condition is narrowed")
+	}
+	return nil
+}
+
 func validateS7APWindowsDryRunBlocking(workflow string) error {
 	const header = `      - name: "Test (Windows GH #23 resource golden — blocking)"`
 	start := strings.Index(workflow, header)

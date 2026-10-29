@@ -1,3 +1,18 @@
+## GH #13 S1 Revised Implementation Returned — review pending — 2026-10-29
+
+The same OpenAI `gpt-5.3-codex` implementer returns the revision with held
+root handles, Git environment/root identity checks, hardened lock opening,
+forced-termination tests, an isolated worktree-tree hash primitive, and
+separate S0 capture/S1 scope handling. It adds a required Windows UNC row
+and native-CI registration guards. These changes are not accepted until review.
+
+Admitted revision checks pass for candidate/lock packages, Git tree hashes,
+S0-scope/native-CI guards, vet, CLI build and Windows test cross-compilation.
+Earlier formatting/test failures and one interrupted environment check remain
+recorded under `bin/roc-s1-20261029/`; no native Windows runtime pass is claimed.
+Preserve the revised checkpoint for independent read-only review while the
+parent verifies integration with existing S0/CI guard tests.
+
 ## GH #13 S1 Revision Returned to Implementer — 2026-10-29
 
 The unaccepted first implementation is preserved locally at

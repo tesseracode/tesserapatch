@@ -1642,6 +1642,9 @@ The first implementation returns focused checks/build/cross-compilation passes,
 but parent review requires revisions to held-root/cleanup identity, Git
 environment isolation, lock path/runtime tests, capture/source guards and
 uncommitted candidate-tree hashing. S1 remains in progress, not accepted.
+The revised implementation now passes focused tests/vet/build/cross-compilation;
+independent review and existing S0/CI integration checks are next. Native Windows
+runtime and complete local/native gates remain unverified.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

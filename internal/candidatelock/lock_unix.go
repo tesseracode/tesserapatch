@@ -21,19 +21,41 @@ func TryAcquire(path string) (*Handle, error) {
 	if err != nil {
 		return nil, err
 	}
-	ancestor, err := nearestExistingAncestor(filepath.Dir(lockPath))
+	parentPath := filepath.Dir(lockPath)
+	leaf := filepath.Base(lockPath)
+
+	ancestor, err := nearestExistingAncestor(parentPath)
 	if err != nil {
 		return nil, err
 	}
-	if err := acquireFilesystemClassifier(ancestor); err != nil {
+	ancestorFile, err := openClassifierFile(ancestor)
+	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
+	if err := acquireFilesystemClassifier(ancestor, ancestorFile); err != nil {
+		_ = ancestorFile.Close()
+		return nil, err
+	}
+	if err := ancestorFile.Close(); err != nil {
+		return nil, err
+	}
+
+	if err := os.MkdirAll(parentPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create lock directory: %w", err)
 	}
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	parentRoot, parentDir, err := openLockParent(parentPath)
 	if err != nil {
-		return nil, fmt.Errorf("open lock file: %w", err)
+		return nil, err
+	}
+	defer parentDir.Close()
+	defer parentRoot.Close()
+
+	if err := acquireFilesystemClassifier(parentPath, parentDir); err != nil {
+		return nil, err
+	}
+	file, err := openLockLeaf(parentRoot, leaf)
+	if err != nil {
+		return nil, err
 	}
 	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = file.Close()

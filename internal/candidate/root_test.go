@@ -1,10 +1,13 @@
 package candidate
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -50,6 +53,8 @@ func TestOpenReferenceRootUsesCommitSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenReferenceRoot: %v", err)
 	}
+	t.Cleanup(func() { _ = ref.Close() })
+
 	body, err := ref.ReadFile("tracked.txt")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
@@ -97,6 +102,7 @@ func TestCreateCandidateRootRequiresFeatureLock(t *testing.T) {
 		t.Fatalf("hold feature lock: %v", err)
 	}
 	defer held.Release()
+
 	_, err = CreateCandidateRoot(root, "demo", "rc_111111111111", head)
 	if !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
 		t.Fatalf("CreateCandidateRoot err=%v, want %s", err, candidatelock.CodeCandidateLockHeld)
@@ -126,12 +132,19 @@ func TestCreateCandidateRootGlobalLockFailureReleasesFeatureLock(t *testing.T) {
 }
 
 func TestCandidateReadFileRefusesTraversalAndSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink setup on windows requires privileges in CI")
+	}
 	root, head := initCandidateRepo(t)
 	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012345", head)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
-	defer candidateRoot.Prune()
+	t.Cleanup(func() {
+		if !candidateRoot.closed {
+			_ = candidateRoot.Prune()
+		}
+	})
 
 	if _, err := candidateRoot.ReadFile("../tracked.txt"); err == nil {
 		t.Fatal("path traversal unexpectedly succeeded")
@@ -147,8 +160,141 @@ func TestCandidateReadFileRefusesTraversalAndSymlink(t *testing.T) {
 	}
 }
 
-func TestCandidateGitSubprocessesUseNoLazyFetch(t *testing.T) {
+func TestCandidateReadFileUsesHeldRootAfterPathReplacement(t *testing.T) {
 	root, head := initCandidateRepo(t)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012346", head)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	defer candidateRoot.Close()
+
+	moved := candidateRoot.WorktreePath() + "-moved"
+	if err := os.Rename(candidateRoot.WorktreePath(), moved); err != nil {
+		t.Fatalf("rename held worktree: %v", err)
+	}
+	if err := os.MkdirAll(candidateRoot.WorktreePath(), 0o755); err != nil {
+		t.Fatalf("create replacement worktree: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(candidateRoot.WorktreePath(), "tracked.txt"), []byte("replacement\n"), 0o644); err != nil {
+		t.Fatalf("write replacement tracked file: %v", err)
+	}
+
+	body, err := candidateRoot.ReadFile("tracked.txt")
+	if err != nil {
+		t.Fatalf("ReadFile from held root: %v", err)
+	}
+	if string(body) != "v1\n" {
+		t.Fatalf("held root read redirected to replacement path: %q", string(body))
+	}
+
+	_ = os.RemoveAll(candidateRoot.WorktreePath())
+	if err := os.Rename(moved, candidateRoot.WorktreePath()); err != nil {
+		t.Fatalf("restore moved worktree: %v", err)
+	}
+	if err := candidateRoot.Prune(); err != nil {
+		t.Fatalf("Prune after restore: %v", err)
+	}
+}
+
+func TestPruneRefusesReplacementPathAndPreservesReplacementData(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012347", head)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+
+	moved := candidateRoot.WorktreePath() + "-moved"
+	if err := os.Rename(candidateRoot.WorktreePath(), moved); err != nil {
+		t.Fatalf("rename held worktree: %v", err)
+	}
+	if err := os.MkdirAll(candidateRoot.WorktreePath(), 0o755); err != nil {
+		t.Fatalf("create replacement worktree: %v", err)
+	}
+	sentinel := filepath.Join(candidateRoot.WorktreePath(), "sentinel.txt")
+	if err := os.WriteFile(sentinel, []byte("replacement data\n"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	err = candidateRoot.Prune()
+	if err == nil || !strings.Contains(err.Error(), "identity changed") {
+		t.Fatalf("Prune = %v, want identity-changed refusal", err)
+	}
+	if _, statErr := os.Stat(sentinel); statErr != nil {
+		t.Fatalf("replacement sentinel missing after prune refusal: %v", statErr)
+	}
+	if _, statErr := os.Stat(moved); statErr != nil {
+		t.Fatalf("held worktree unexpectedly removed: %v", statErr)
+	}
+
+	if err := os.RemoveAll(candidateRoot.WorktreePath()); err != nil {
+		t.Fatalf("remove replacement path: %v", err)
+	}
+	if err := os.Rename(moved, candidateRoot.WorktreePath()); err != nil {
+		t.Fatalf("restore held worktree path: %v", err)
+	}
+	if err := candidateRoot.Prune(); err != nil {
+		t.Fatalf("Prune after identity restore: %v", err)
+	}
+}
+
+func TestCandidateRootZeroAndClosedState(t *testing.T) {
+	var zero CandidateRoot
+	if _, err := zero.ReadFile("tracked.txt"); err == nil {
+		t.Fatal("zero CandidateRoot read unexpectedly succeeded")
+	}
+	if err := zero.Prune(); err == nil {
+		t.Fatal("zero CandidateRoot prune unexpectedly succeeded")
+	}
+	if err := zero.Close(); err == nil {
+		t.Fatal("zero CandidateRoot close unexpectedly succeeded")
+	}
+
+	root, head := initCandidateRepo(t)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012348", head)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	if err := candidateRoot.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if _, err := candidateRoot.ReadFile("tracked.txt"); err == nil {
+		t.Fatal("closed CandidateRoot read unexpectedly succeeded")
+	}
+}
+
+func TestReferenceRootZeroAndClosedState(t *testing.T) {
+	var zero ReferenceRoot
+	if _, err := zero.ReadFile("tracked.txt"); err == nil {
+		t.Fatal("zero ReferenceRoot read unexpectedly succeeded")
+	}
+	if err := zero.Close(); err == nil {
+		t.Fatal("zero ReferenceRoot close unexpectedly succeeded")
+	}
+
+	root, head := initCandidateRepo(t)
+	ref, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatalf("OpenReferenceRoot: %v", err)
+	}
+	if err := ref.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	if _, err := ref.ReadFile("tracked.txt"); err == nil {
+		t.Fatal("closed ReferenceRoot read unexpectedly succeeded")
+	}
+}
+
+func TestCandidateGitSubprocessesUseNoLazyFetchAndScrubHostileEnv(t *testing.T) {
+	targetRoot, targetHead := initCandidateRepo(t)
+	foreignRoot, _ := initCandidateRepo(t)
+	candidateGit(t, foreignRoot, "checkout", "-q", "-b", "foreign")
+	if err := os.WriteFile(filepath.Join(foreignRoot, "tracked.txt"), []byte("foreign\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, foreignRoot, "add", "tracked.txt")
+	candidateGit(t, foreignRoot, "commit", "-qm", "foreign")
+
+	foreignWorktreesBefore := candidateGit(t, foreignRoot, "worktree", "list", "--porcelain")
 	realGit, err := exec.LookPath("git")
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +302,9 @@ func TestCandidateGitSubprocessesUseNoLazyFetch(t *testing.T) {
 	shimDir := t.TempDir()
 	logPath := filepath.Join(shimDir, "env.log")
 	script := fmt.Sprintf(`#!/bin/sh
-printf '%%s\037%%s\n' "${GIT_NO_LAZY_FETCH-}" "$*" >> %q
+printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
+  "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_NO_REPLACE_OBJECTS-}" \
+  "${GIT_DIR-}" "${GIT_WORK_TREE-}" "${GIT_COMMON_DIR-}" "${GIT_INDEX_FILE-}" "$*" >> %q
 exec %q "$@"
 `, logPath, realGit)
 	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
@@ -164,20 +312,40 @@ exec %q "$@"
 	}
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("GIT_NO_LAZY_FETCH", "0")
+	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("GIT_NO_REPLACE_OBJECTS", "0")
+	t.Setenv("GIT_DIR", filepath.Join(foreignRoot, ".git"))
+	t.Setenv("GIT_WORK_TREE", foreignRoot)
+	t.Setenv("GIT_COMMON_DIR", filepath.Join(foreignRoot, ".git"))
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(foreignRoot, ".git", "index"))
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "alias.cat-file")
+	t.Setenv("GIT_CONFIG_VALUE_0", "!false")
 
-	ref, err := OpenReferenceRoot(root, head)
+	ref, err := OpenReferenceRoot(targetRoot, targetHead)
 	if err != nil {
 		t.Fatalf("OpenReferenceRoot: %v", err)
 	}
-	if _, err := ref.ReadFile("tracked.txt"); err != nil {
+	defer ref.Close()
+	body, err := ref.ReadFile("tracked.txt")
+	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_fedcba987654", head)
+	if string(body) != "v1\n" {
+		t.Fatalf("reference read escaped target repo: %q", string(body))
+	}
+
+	candidateRoot, err := CreateCandidateRoot(targetRoot, "demo-feature", "rc_fedcba987654", targetHead)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
 	if err := candidateRoot.Prune(); err != nil {
 		t.Fatalf("Prune: %v", err)
+	}
+
+	foreignWorktreesAfter := gitWithBinaryAndEnv(t, realGit, foreignRoot, []string{"LC_ALL=C", "LANG=C"}, "worktree", "list", "--porcelain")
+	if foreignWorktreesAfter != foreignWorktreesBefore {
+		t.Fatalf("foreign repo worktrees mutated by hostile env\nbefore:\n%s\nafter:\n%s", foreignWorktreesBefore, foreignWorktreesAfter)
 	}
 
 	logBytes, err := os.ReadFile(logPath)
@@ -186,11 +354,16 @@ exec %q "$@"
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(logBytes)), "\n") {
 		fields := strings.Split(line, "\x1f")
-		if len(fields) != 2 {
+		if len(fields) != 8 {
 			t.Fatalf("unexpected env log row %q", line)
 		}
-		if fields[0] != "1" {
-			t.Fatalf("candidate git call lost GIT_NO_LAZY_FETCH=1: %q", line)
+		if fields[0] != "1" || fields[1] != "C" || fields[2] != "1" {
+			t.Fatalf("candidate git call lost mandatory env envelope: %q", line)
+		}
+		for index, label := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE"} {
+			if fields[3+index] != "" {
+				t.Fatalf("candidate git call leaked %s: %q", label, line)
+			}
 		}
 	}
 }
@@ -211,6 +384,8 @@ func TestOpenReferenceRootMissingPromisorObjectDoesNotFetch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenReferenceRoot: %v", err)
 	}
+	t.Cleanup(func() { _ = ref.Close() })
+
 	_, err = ref.ReadFile("tracked.txt")
 	if err == nil {
 		t.Fatal("missing promisor object unexpectedly succeeded")
@@ -220,6 +395,34 @@ func TestOpenReferenceRootMissingPromisorObjectDoesNotFetch(t *testing.T) {
 	}
 	if !gitutil.IsMissingObjectError(err.Error()) {
 		t.Fatalf("unexpected missing-object error form: %v", err)
+	}
+}
+
+func TestCandidateWorktreeTreeHashReflectsUncommittedChanges(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012349", head)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	defer func() {
+		if !candidateRoot.closed {
+			_ = candidateRoot.Prune()
+		}
+	}()
+
+	before, err := candidateRoot.WorktreeTreeHash()
+	if err != nil {
+		t.Fatalf("WorktreeTreeHash: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(candidateRoot.WorktreePath(), "tracked.txt"), []byte("v2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := candidateRoot.WorktreeTreeHash()
+	if err != nil {
+		t.Fatalf("WorktreeTreeHash after edit: %v", err)
+	}
+	if before == after {
+		t.Fatal("WorktreeTreeHash did not change after uncommitted edit")
 	}
 }
 
@@ -274,5 +477,30 @@ func deleteLooseOrPackedObject(t *testing.T, root, oid string) {
 	}
 	if err := os.Remove(loose); err != nil {
 		t.Fatalf("remove unpacked object: %v", err)
+	}
+}
+
+func gitWithBinaryAndEnv(t *testing.T, gitBin, dir string, env []string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(gitBin, args...)
+	cmd.Dir = dir
+	cmd.Env = env
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git(%s) %v failed: %v\n%s", gitBin, args, err, string(out))
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func TestReferenceReadFileMissingPath(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	ref, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatalf("OpenReferenceRoot: %v", err)
+	}
+	defer ref.Close()
+	_, err = ref.ReadFile("missing.txt")
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("ReadFile missing err=%v, want fs.ErrNotExist", err)
 	}
 }

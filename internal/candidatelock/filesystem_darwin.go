@@ -4,6 +4,7 @@ package candidatelock
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 )
 
@@ -26,18 +27,13 @@ func darwinFilesystemName(raw []int8) string {
 	return string(buf)
 }
 
-func classifyLockFilesystem(path string) error {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return fmt.Errorf("statfs(%s): %w", path, err)
-	}
-	if stat.Flags&darwinMNTLocal == 0 {
+func classifyDarwinFilesystem(name string, local bool) error {
+	if !local {
 		return &Error{
 			Code:   CodeLockFilesystemUnsupported,
 			Detail: "filesystem is not local (MNT_LOCAL is not set)",
 		}
 	}
-	name := darwinFilesystemName(stat.Fstypename[:])
 	if _, ok := darwinAllowedFilesystems[name]; ok {
 		return nil
 	}
@@ -48,4 +44,18 @@ func classifyLockFilesystem(path string) error {
 		Code:   CodeLockFilesystemUnsupported,
 		Detail: fmt.Sprintf("filesystem %q is not in the local-filesystem allowlist", name),
 	}
+}
+
+func classifyLockFilesystem(path string, directory *os.File) error {
+	if directory == nil {
+		return fmt.Errorf("classify lock filesystem for %s: nil directory handle", path)
+	}
+	var stat syscall.Statfs_t
+	if err := syscall.Fstatfs(int(directory.Fd()), &stat); err != nil {
+		return fmt.Errorf("fstatfs(%s): %w", path, err)
+	}
+	return classifyDarwinFilesystem(
+		darwinFilesystemName(stat.Fstypename[:]),
+		stat.Flags&darwinMNTLocal != 0,
+	)
 }

@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: First implementation returned; direct review requires bounded revisions
+- **Status**: Revised implementation returned; independent review/integration checks pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
@@ -47,8 +47,10 @@ capture/source-guard weaknesses and a committed-tree-only hash primitive.
 The full finding details are prepended to LOG. Return corrections to the
 same implementer rather than dispatch a competing agent on these files.
 The first pass and findings are committed locally at `252e494`, not pushed.
-The same implementer is now revising those six areas. No final independent
-review, full suite or native Windows runtime pass is claimed.
+The same implementer has returned revised code and admitted focused passes:
+held roots, identity/environment checks, safer locks, actual termination tests,
+stronger scope/envelope guards and a worktree-tree hashing primitive.
+No independent approval, full suite or native Windows runtime pass is claimed.
 
 ## Current State — bounded S1 requirements
 
@@ -91,6 +93,10 @@ new `internal/candidatelock/` platform implementations/tests,
 `internal/gitutil/tree_hash{,_test}.go`,
 `internal/workflow/operation_candidate_s0_guards_test.go`, and
 `.github/workflows/ci.yml` required Windows lock step.
+Revision adds candidate read flags/Unix tests, platform filesystem/Unix lock
+safety tests, and `internal/cli/prepare_s7_platform_guard_test.go` native-CI
+registration controls. It also updates S0 capture routing in
+`internal/workflow/operation_candidate_s0_test.go` without changing goldens.
 Only one implementation context edits these surfaces; explicit file staging
 and the required Copilot co-author trailer remain mandatory.
 
@@ -105,12 +111,14 @@ and the required Copilot co-author trailer remain mandatory.
   not run; cross-compilation is not evidence of Windows lock correctness.
 - Earlier failed implementation iterations are retained in the admitted runner
   logs. Parent review has six bounded findings; focused passes do not close them.
+- Revision passes focused candidate/lock, tree-hash, S0/native-CI guard tests,
+  vet, CLI build and Windows cross-compilation. Existing integration guards
+  and independent review still need to confirm the correction.
 
 ## Next Steps
 
-1. Address the six direct-review findings documented in LOG, preserving
-   accepted constructor/lock contracts and S0 golden bytes. If a contract
-   ambiguity prevents a safe correction, surface it before changing the design.
+1. Independently review the revised snapshot against the six findings and the
+   accepted S1 contract; verify existing S0/CI guards before publication.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.
@@ -127,9 +135,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-The first pass does not yet satisfy held-root/ownership, lock correctness,
-tree-construction and guard-preservation requirements. No S1 acceptance or
-later-slice dispatch until these are corrected and validated.
+Revision validation and independent review remain outstanding. No S1 acceptance
+or later-slice dispatch until actual contract fidelity and native runtime
+coverage are established.
 
 ## Context for Next Agent
 
