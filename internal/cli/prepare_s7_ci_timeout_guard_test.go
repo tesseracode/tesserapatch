@@ -31,34 +31,70 @@ type s7CITimeoutStep struct {
 }
 
 const (
-	s7CIARPartitionPattern                   = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS|AT|AU|AV|AW|AX)RegistrationAuthority)$`
-	s7CIAMThroughAOObserverPattern           = `^TestS7ObservedAMThroughAORegistrationAuthority$`
-	s7CIAPObserverPattern                    = `^TestS7ObservedAPRegistrationAuthority$`
-	s7CIAQObserverPattern                    = `^TestS7ObservedAQRegistrationAuthority$`
-	s7CIARLegacyPattern                      = `^TestS7ARRev(11|12|13|14|15).*$`
-	s7CIARLegacyMidPattern                   = `^TestS7ARRev(16|17|18).*$`
-	s7CIARLegacyLatePattern                  = `^TestS7ARRev(19|20).*$`
-	s7CIARCurrentPattern                     = `^TestS7ARRev(21|23|24).*$`
-	s7CIARCurrentLatePattern                 = `^TestS7ARRev(25|26|27).*$`
-	s7CIARCorePattern                        = `^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
-	s7CIARAbandonPattern                     = `^TestS7ARAbandonGateTableGuard$`
-	s7CIARPurgePattern                       = `^TestS7ARPurgeProgressGuard$`
-	s7CIARPermanentPattern                   = `^TestS7ARPermanentBlockClaimsGuard$`
-	s7CIARCoreObserverPattern                = `^TestS7ObservedARCoreRegistrationAuthority$`
-	s7CIARPurgeObserverPattern               = `^TestS7ObservedARPurgeRegistrationAuthority$`
-	s7CIARClaimsObserverPattern              = `^TestS7ObservedARClaimsRegistrationAuthority$`
-	s7CIASObserverPattern                    = `^TestS7ObservedASRegistrationAuthority$`
-	s7CIATObserverPattern                    = `^TestS7ObservedATRegistrationAuthority$`
-	s7CIAUObserverPattern                    = `^TestS7ObservedAURegistrationAuthority$`
-	s7CIAVObserverPattern                    = `^TestS7ObservedAVRegistrationAuthority$`
-	s7CIAWObserverPattern                    = `^TestS7ObservedAWRegistrationAuthority$`
-	s7CIAXObserverPattern                    = `^TestS7ObservedAXRegistrationAuthority$`
-	s7CINonWindowsFullCommand                = `go test ./... -count=1 -timeout 40m -skip '` + s7CIARPartitionPattern + `'`
+	s7CISplitPattern               = `^Test(S6[A-Z].*|S7[A-Z].*|AVP.*)$`
+	s7CIAVPPattern                 = `^TestAVP.*$`
+	s7CIS6AFPattern                = `^TestS6[A-F].*$`
+	s7CIS6GLPattern                = `^TestS6[G-L].*$`
+	s7CIS6MRPattern                = `^TestS6[M-R].*$`
+	s7CIS6SZPattern                = `^TestS6[S-Z].*$`
+	s7CIS7EarlyPattern             = `^TestS7A[A-O].*$`
+	s7CIS7APPattern                = `^TestS7AP.*$`
+	s7CIS7AQPattern                = `^TestS7AQ.*$`
+	s7CIS7ASPattern                = `^TestS7AS.*$`
+	s7CIS7ATPattern                = `^TestS7AT.*$`
+	s7CIS7AUPattern                = `^TestS7AU.*$`
+	s7CIS7AVPattern                = `^TestS7AV.*$`
+	s7CIS7AWPattern                = `^TestS7AW.*$`
+	s7CIS7AXPattern                = `^TestS7AX.*$`
+	s7CIS7OtherPattern             = `^TestS7(A([YZ]|[^A-Z]|$)|[B-Z]).*$`
+	s7CIARPartitionPattern         = `^(TestS7AR.*|TestS7Observed(AMThroughAO|AP|AQ|AR(Core|Purge|Claims)|AS|AT|AU|AV|AW|AX)RegistrationAuthority)$`
+	s7CIAMThroughAOObserverPattern = `^TestS7ObservedAMThroughAORegistrationAuthority$`
+	s7CIAPObserverPattern          = `^TestS7ObservedAPRegistrationAuthority$`
+	s7CIAQObserverPattern          = `^TestS7ObservedAQRegistrationAuthority$`
+	s7CIARLegacyPattern            = `^TestS7ARRev(11|12|13|14|15).*$`
+	s7CIARLegacyMidPattern         = `^TestS7ARRev16.*$`
+	s7CIARRev17Pattern             = `^TestS7ARRev17.*$`
+	s7CIARRev18Pattern             = `^TestS7ARRev18.*$`
+	s7CIARLegacyLatePattern        = `^TestS7ARRev(19|20).*$`
+	s7CIARCurrentPattern           = `^TestS7ARRev(21|23|24).*$`
+	s7CIARCurrentLatePattern       = `^TestS7ARRev(25|26|27).*$`
+	s7CIARCorePattern              = `^TestS7AR(ExitSixRouteGuard|PrepareGrammarGuard|DivergenceContracts|AbandonContracts|ArchiveControlContracts|CoverageLedger|CoverageLedgerRejectsEmptyTarget)$`
+	s7CIARAbandonPattern           = `^TestS7ARAbandonGateTableGuard$`
+	s7CIARPurgePattern             = `^TestS7ARPurgeProgressGuard$`
+	s7CIARPermanentPattern         = `^TestS7ARPermanentBlockClaimsGuard$`
+	s7CIARCoreObserverPattern      = `^TestS7ObservedARCoreRegistrationAuthority$`
+	s7CIARPurgeObserverPattern     = `^TestS7ObservedARPurgeRegistrationAuthority$`
+	s7CIARClaimsObserverPattern    = `^TestS7ObservedARClaimsRegistrationAuthority$`
+	s7CIASObserverPattern          = `^TestS7ObservedASRegistrationAuthority$`
+	s7CIATObserverPattern          = `^TestS7ObservedATRegistrationAuthority$`
+	s7CIAUObserverPattern          = `^TestS7ObservedAURegistrationAuthority$`
+	s7CIAVObserverPattern          = `^TestS7ObservedAVRegistrationAuthority$`
+	s7CIAWObserverPattern          = `^TestS7ObservedAWRegistrationAuthority$`
+	s7CIAXObserverPattern          = `^TestS7ObservedAXRegistrationAuthority$`
+	s7CINonWindowsFullCommand      = `go test ./... -count=1 -timeout 40m -skip '` + s7CISplitPattern + `'`
+	s7CIGenericCommandPrefix       = `go test ./... -count=1 -timeout 40m -run '`
+	s7CIGenericTestScript          = s7CIGenericCommandPrefix + s7CIAVPPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS6AFPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS6GLPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS6MRPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS6SZPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7EarlyPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7APPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7AQPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7ASPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7ATPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7AUPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7AVPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7AWPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7AXPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS7OtherPattern + "' -skip '" + s7CIARPartitionPattern + "'"
 	s7CINonWindowsAMThroughAOObserverCommand = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAMThroughAOObserverPattern + `'`
 	s7CINonWindowsAPObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAPObserverPattern + `'`
 	s7CINonWindowsAQObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAQObserverPattern + `'`
 	s7CINonWindowsARLegacyCommand            = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyPattern + `'`
 	s7CINonWindowsARLegacyMidCommand         = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyMidPattern + `'`
+	s7CINonWindowsARRev17Command             = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARRev17Pattern + `'`
+	s7CINonWindowsARRev18Command             = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARRev18Pattern + `'`
 	s7CINonWindowsARLegacyLateCommand        = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARLegacyLatePattern + `'`
 	s7CINonWindowsARCurrentCommand           = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentPattern + `'`
 	s7CINonWindowsARCurrentLateCommand       = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIARCurrentLatePattern + `'`
@@ -77,8 +113,11 @@ const (
 	s7CINonWindowsAXObserverCommand          = `go test ./internal/cli -count=1 -timeout 40m -run '` + s7CIAXObserverPattern + `'`
 	s7CINonWindowsTestScript                 = "set -euo pipefail\n" +
 		s7CINonWindowsFullCommand + "\n" +
+		s7CIGenericTestScript + "\n" +
 		s7CINonWindowsARLegacyCommand + "\n" +
 		s7CINonWindowsARLegacyMidCommand + "\n" +
+		s7CINonWindowsARRev17Command + "\n" +
+		s7CINonWindowsARRev18Command + "\n" +
 		s7CINonWindowsARLegacyLateCommand + "\n" +
 		s7CINonWindowsARCurrentCommand + "\n" +
 		s7CINonWindowsARCurrentLateCommand + "\n" +
@@ -1338,7 +1377,7 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 	}
 	if strings.TrimSpace(step.run) != s7CINonWindowsTestScript {
 		return errors.New(
-			"non-Windows test partition script is not the exact canonical five-command sequence",
+			"non-Windows test partition script is not the exact canonical sequence",
 		)
 	}
 	invocations, err := collectS7ShellInvocations(step.run, 0, map[string]bool{})
@@ -1351,31 +1390,18 @@ func validateS7NonWindowsTestPartition(step s7CITimeoutStep) error {
 			tests = append(tests, invocation)
 		}
 	}
-	if len(tests) != 10 {
+	expectedCommands := strings.Split(s7CINonWindowsTestScript, "\n")[1:]
+	if len(tests) != len(expectedCommands) {
 		return fmt.Errorf(
-			"non-Windows test partition command count = %d, want exactly 10",
-			len(tests),
+			"non-Windows test partition command count = %d, want %d",
+			len(tests), len(expectedCommands),
 		)
 	}
-	for index, expected := range []struct {
-		command string
-		timeout string
-	}{
-		{command: s7CINonWindowsFullCommand, timeout: "40m"},
-		{command: s7CINonWindowsARLegacyCommand, timeout: "40m"},
-		{command: s7CINonWindowsARLegacyMidCommand, timeout: "40m"},
-		{command: s7CINonWindowsARLegacyLateCommand, timeout: "40m"},
-		{command: s7CINonWindowsARCurrentCommand, timeout: "40m"},
-		{command: s7CINonWindowsARCurrentLateCommand, timeout: "40m"},
-		{command: s7CINonWindowsARCoreCommand, timeout: "40m"},
-		{command: s7CINonWindowsARAbandonCommand, timeout: "40m"},
-		{command: s7CINonWindowsARPurgeCommand, timeout: "40m"},
-		{command: s7CINonWindowsARPermanentCommand, timeout: "40m"},
-	} {
+	for index, expected := range expectedCommands {
 		argv := tests[index].argv()
 		args, _ := s7GoTestArgs(argv)
 		if err := validateS7FullSuiteInvocation(
-			argv, args, expected.command, expected.timeout,
+			argv, args, expected, "40m",
 		); err != nil {
 			return fmt.Errorf("non-Windows test partition %d: %w", index, err)
 		}
@@ -1626,31 +1652,84 @@ func validateS7CITestStrategy(
 	return nil
 }
 
-func validateS7ARPartitionTestOwners(root string) error {
-	pattern := regexp.MustCompile(s7CIARPartitionPattern)
-	shards := []*regexp.Regexp{
-		regexp.MustCompile(s7CIAMThroughAOObserverPattern),
-		regexp.MustCompile(s7CIAPObserverPattern),
-		regexp.MustCompile(s7CIAQObserverPattern),
-		regexp.MustCompile(s7CIASObserverPattern),
-		regexp.MustCompile(s7CIATObserverPattern),
-		regexp.MustCompile(s7CIAUObserverPattern),
-		regexp.MustCompile(s7CIAVObserverPattern),
-		regexp.MustCompile(s7CIAWObserverPattern),
-		regexp.MustCompile(s7CIAXObserverPattern),
-		regexp.MustCompile(s7CIARLegacyPattern),
-		regexp.MustCompile(s7CIARLegacyMidPattern),
-		regexp.MustCompile(s7CIARLegacyLatePattern),
-		regexp.MustCompile(s7CIARCurrentPattern),
-		regexp.MustCompile(s7CIARCurrentLatePattern),
-		regexp.MustCompile(s7CIARCorePattern),
-		regexp.MustCompile(s7CIARAbandonPattern),
-		regexp.MustCompile(s7CIARPurgePattern),
-		regexp.MustCompile(s7CIARPermanentPattern),
-		regexp.MustCompile(s7CIARCoreObserverPattern),
-		regexp.MustCompile(s7CIARPurgeObserverPattern),
-		regexp.MustCompile(s7CIARClaimsObserverPattern),
+const s7CIGenericShardCount = 15
+
+func s7CITestShardPatterns() []string {
+	return []string{
+		s7CIAVPPattern, s7CIS6AFPattern, s7CIS6GLPattern, s7CIS6MRPattern, s7CIS6SZPattern,
+		s7CIS7EarlyPattern, s7CIS7APPattern, s7CIS7AQPattern, s7CIS7ASPattern,
+		s7CIS7ATPattern, s7CIS7AUPattern, s7CIS7AVPattern, s7CIS7AWPattern,
+		s7CIS7AXPattern, s7CIS7OtherPattern,
+		s7CIAMThroughAOObserverPattern, s7CIAPObserverPattern, s7CIAQObserverPattern,
+		s7CIASObserverPattern, s7CIATObserverPattern, s7CIAUObserverPattern,
+		s7CIAVObserverPattern, s7CIAWObserverPattern, s7CIAXObserverPattern,
+		s7CIARLegacyPattern, s7CIARLegacyMidPattern, s7CIARRev17Pattern, s7CIARRev18Pattern,
+		s7CIARLegacyLatePattern, s7CIARCurrentPattern, s7CIARCurrentLatePattern,
+		s7CIARCorePattern, s7CIARAbandonPattern, s7CIARPurgePattern, s7CIARPermanentPattern,
+		s7CIARCoreObserverPattern, s7CIARPurgeObserverPattern, s7CIARClaimsObserverPattern,
 	}
+}
+
+func s7CISplitTestOwner(rel, name string, shards []string) (int, error) {
+	if err := validateS7ARPartitionTestOwner(rel, name); err != nil {
+		return -1, err
+	}
+	ar := regexp.MustCompile(s7CIARPartitionPattern).MatchString(name)
+	owner := -1
+	for index, pattern := range shards {
+		if index < s7CIGenericShardCount && ar {
+			continue
+		}
+		matches, err := regexp.MatchString(pattern, name)
+		if err != nil {
+			return -1, err
+		}
+		if matches {
+			if owner >= 0 {
+				return -1, fmt.Errorf("split test %s belongs to overlapping shards", name)
+			}
+			owner = index
+		}
+	}
+	if owner < 0 {
+		return -1, fmt.Errorf("split test %s is omitted from all shards", name)
+	}
+	return owner, nil
+}
+
+func TestS7MemoryShardCoverageSensitivity(t *testing.T) {
+	patterns := s7CITestShardPatterns()
+	for _, row := range []struct{ rel, name string }{
+		{"internal/intent/avp_classification_test.go", "TestAVPStructuralClassification"},
+		{"internal/intentlock/s6_injection_nil_test.go", "TestS6InjectionSeamsNilAtInitialization"},
+		{"internal/cli/prepare_s6_contract_test.go", "TestS6AdvisoryGuardSensitivity"},
+		{"internal/gitutil/s7_ap_git_test.go", "TestS7APGitContracts"},
+		{"internal/store/s7_an_archive_test.go", "TestS7PIB401Example"},
+		{"internal/cli/prepare_s7_ar_guard_test.go", "TestS7ARRev17ReviewerRepros"},
+		{"internal/cli/prepare_s7_registration_test.go", "TestS7ObservedARPurgeRegistrationAuthority"},
+	} {
+		owner, err := s7CISplitTestOwner(row.rel, row.name, patterns)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, replacement := range []string{"^NeverMatches$", row.name + "["} {
+			mutant := slices.Clone(patterns)
+			mutant[owner] = replacement
+			if _, err := s7CISplitTestOwner(row.rel, row.name, mutant); err == nil {
+				t.Fatalf("omitted or invalid selector accepted for %s", row.name)
+			}
+		}
+		duplicate := append(slices.Clone(patterns), patterns[owner])
+		if _, err := s7CISplitTestOwner(row.rel, row.name, duplicate); err == nil {
+			t.Fatalf("overlapping selector accepted for %s", row.name)
+		}
+	}
+}
+
+func validateS7ARPartitionTestOwners(root string) error {
+	pattern := regexp.MustCompile(s7CISplitPattern)
+	arPattern := regexp.MustCompile(s7CIARPartitionPattern)
+	shards := s7CITestShardPatterns()
 	matched := map[string][]int{
 		"linux":  make([]int, len(shards)),
 		"darwin": make([]int, len(shards)),
@@ -1672,8 +1751,9 @@ func validateS7ARPartitionTestOwners(root string) error {
 		if err != nil {
 			return err
 		}
-		if !strings.Contains(string(content), "TestS7AR") &&
-			!strings.Contains(string(content), "TestS7Observed") {
+		if !strings.Contains(string(content), "TestS6") &&
+			!strings.Contains(string(content), "TestS7") &&
+			!strings.Contains(string(content), "TestAVP") {
 			return nil
 		}
 		file, err := parser.ParseFile(token.NewFileSet(), path, content, 0)
@@ -1697,28 +1777,20 @@ func validateS7ARPartitionTestOwners(root string) error {
 			if err != nil {
 				return err
 			}
-			if !eligible["linux"] && !eligible["darwin"] {
+			if !eligible["linux"] && !eligible["darwin"] && arPattern.MatchString(function.Name.Name) {
 				return fmt.Errorf(
 					"S7 AR partition test %s is ineligible on all non-Windows runners: %s",
 					function.Name.Name, rel,
 				)
 			}
-			owners := 0
-			for index, shard := range shards {
-				if shard.MatchString(function.Name.Name) {
-					for goos, included := range eligible {
-						if included {
-							matched[goos][index]++
-						}
-					}
-					owners++
-				}
+			owner, err := s7CISplitTestOwner(rel, function.Name.Name, shards)
+			if err != nil {
+				return err
 			}
-			if owners != 1 {
-				return fmt.Errorf(
-					"S7 AR partition test %s belongs to %d shards, want exactly 1",
-					function.Name.Name, owners,
-				)
+			for goos, included := range eligible {
+				if included {
+					matched[goos][owner]++
+				}
 			}
 		}
 		return nil

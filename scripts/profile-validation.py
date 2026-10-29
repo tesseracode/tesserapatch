@@ -304,12 +304,12 @@ def workload(repo, toolchain, profile="full"):
     if not body.startswith(preamble):
         raise ValueError("shard environment changed; recheck profiling command parity")
     commands = [shlex.split(line) for line in body[len(preamble):].splitlines()]
-    if len(commands) != 22 or any(
+    if len(commands) != 39 or len({tuple(command) for command in commands}) != len(commands) or any(
         command[:3] != ["go", "test", "-p=1"]
         or "-count=1" not in command or command[command.index("-timeout") + 1] != "40m"
         for command in commands
     ):
-        raise ValueError("expected unchanged 22-command serial shard partition")
+        raise ValueError("expected complete 39-command serial shard partition")
     go = str(toolchain / "bin/go")
     stages = [
         ("06-gofmt", [str(toolchain / "bin/gofmt"), "-l", "."]),
@@ -325,13 +325,21 @@ def workload(repo, toolchain, profile="full"):
     if profile == "partition":
         return stages[3:]
     if profile == "broad":
-        return stages[3:4]
-    if profile == "ap-observer":
-        return [(name, command) for name, command in stages if name == "08-shard-15"]
-    if profile != "pilot":
+        return stages[3:19]
+    if profile not in ("ap-observer", "pilot"):
         raise ValueError("unknown workload profile")
-    selected = {"06-gofmt", "07-vet", "07-build", "08-shard-02", "08-shard-15"}
-    return [(name, command) for name, command in stages if name in selected]
+
+    def selected(pattern):
+        found = [(name, command) for name, command in stages[3:]
+                 if "-run" in command and command[command.index("-run") + 1] == pattern]
+        if len(found) != 1:
+            raise ValueError("profiling selector must identify exactly one shard: " + pattern)
+        return found
+
+    observer = selected("^TestS7ObservedAPRegistrationAuthority$")
+    if profile == "ap-observer":
+        return observer
+    return stages[:3] + selected("^TestS7ARRev(11|12|13|14|15).*$") + observer
 
 
 def seed_cache(source, destination, head, version):

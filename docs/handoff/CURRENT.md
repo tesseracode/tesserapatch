@@ -61,6 +61,10 @@ S7 CI partition guards, S6 test-cache helper, the named AR test loops, finite
 S0/S1 scope guards, and tracking. No production, contract, assets, golden,
 dependency or resource-admission changes. Measure the proposal before claiming
 lower peak memory or adopting it as successful full validation.
+The draft touches eight bounded test/tooling files. All 40 profiler unit tests
+pass. The first admitted formatter run caught misplaced new test declarations;
+their placement is corrected before retrying. That failed log is preserved
+under `bin/roc-sharding-20261029/shard-proposal-format-20261029/`.
 
 ## Session Summary
 

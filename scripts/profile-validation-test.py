@@ -272,19 +272,19 @@ class TelemetryTests(unittest.TestCase):
     def test_shards_are_exact_source_commands_and_mutations_refuse(self):
         root = self.root
         stages = profiler.workload(root, Path("/fixture/go"))
-        self.assertEqual(len(stages), 25)
+        self.assertEqual(len(stages), 42)
         original = (root / "scripts/wave-close-test-shards.sh").read_text()
         expected = [shlex.split(line)[1:] for line in original.splitlines()
                     if line.startswith("go test ")]
         self.assertEqual([cmd[1:] for _, cmd in stages[3:]], expected)
         self.assertEqual(profiler.workload(root, Path("/fixture/go"), "partition"), stages[3:])
-        self.assertEqual(profiler.workload(root, Path("/fixture/go"), "broad"), stages[3:4])
+        self.assertEqual(profiler.workload(root, Path("/fixture/go"), "broad"), stages[3:19])
         pilot = profiler.workload(root, Path("/fixture/go"), "pilot")
-        self.assertEqual(pilot, [stages[i] for i in (0, 1, 2, 4, 17)])
+        self.assertEqual(pilot, [stages[i] for i in (0, 1, 2, 19, 34)])
         self.assertIn("^TestS7ARRev(11|12|13|14|15).*$", pilot[3][1])
         self.assertIn("^TestS7ObservedAPRegistrationAuthority$", pilot[4][1])
         self.assertEqual(profiler.workload(root, Path("/fixture/go"), "ap-observer"),
-                         [stages[17]])
+                         [stages[34]])
         with self.assertRaises(ValueError):
             profiler.workload(root, Path("/fixture/go"), "unbounded")
         for changed in (
@@ -293,6 +293,7 @@ class TelemetryTests(unittest.TestCase):
             original.replace("-count=1", "-count=2", 1),
             original.replace("-timeout 40m", "-timeout 60m", 1),
             original[:original.rfind("go test ")],
+            original.replace("-run '^TestS6[A-F].*$'", "-run '^TestAVP.*$'", 1),
         ):
             self.assertNotEqual(changed, original)
             with tempfile.TemporaryDirectory(dir=root / "bin") as directory:

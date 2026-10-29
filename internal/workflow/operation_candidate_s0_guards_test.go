@@ -65,6 +65,11 @@ var rocS1AllowedPaths = map[string]bool{
 	"internal/gitutil/hardened_env.go":                                    true,
 	"internal/cli/prepare_s7_platform_guard_test.go":                      true,
 	"internal/cli/prepare_avp2_test.go":                                   true,
+	"internal/cli/prepare_s6_cache_scope_test.go":                         true,
+	"internal/cli/prepare_s7_ci_timeout_guard_test.go":                    true,
+	"scripts/wave-close-test-shards.sh":                                   true,
+	"scripts/profile-validation.py":                                       true,
+	"scripts/profile-validation-test.py":                                  true,
 }
 
 func rocS0ValidateCaptureChangedPaths(paths []string) error {
@@ -99,7 +104,7 @@ func rocS1ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
-func rocS0AssertChangedPaths(t *testing.T, validator func([]string) error) {
+func rocS0AssertChangedPaths(t *testing.T, validator func([]string) error, memoValidator func(string, string) error) {
 	t.Helper()
 	root := rgaS0RepoRoot(t)
 	changed := git(t, root, "diff", "--no-renames", "--name-only", rocS0Baseline, "--")
@@ -116,7 +121,7 @@ func rocS0AssertChangedPaths(t *testing.T, validator func([]string) error) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := rocS0ValidateMemoScopeChange(before, string(after)); err != nil {
+		if err := memoValidator(before, string(after)); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -127,12 +132,12 @@ func rocS0AssertChangedPaths(t *testing.T, validator func([]string) error) {
 
 func rocS0AssertCaptureOnlyScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS0ValidateCaptureChangedPaths)
+	rocS0AssertChangedPaths(t, rocS0ValidateCaptureChangedPaths, rocS0ValidateMemoScopeChange)
 }
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS1ValidateStageChangedPaths)
+	rocS0AssertChangedPaths(t, rocS1ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {
@@ -161,6 +166,11 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"internal/gitutil/tree_hash.go",
 		"internal/gitutil/tree_hash_test.go",
 		"internal/gitutil/hardened_env.go",
+		"internal/cli/prepare_s6_cache_scope_test.go",
+		"internal/cli/prepare_s7_ci_timeout_guard_test.go",
+		"scripts/wave-close-test-shards.sh",
+		"scripts/profile-validation.py",
+		"scripts/profile-validation-test.py",
 	} {
 		if err := rocS1ValidateStageChangedPaths([]string{path}); err != nil {
 			t.Fatalf("valid S0 path rejected: %v", err)
@@ -178,7 +188,6 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"internal/cli/recipe_authority_s5_cli_test.go",
 		"internal/cli/cobra_test.go",
 		"internal/cli/prepare_s7_ar_guard_test.go",
-		"internal/cli/prepare_s6_cache_scope_test.go",
 		"internal/cli/prepare_s6_contract_test.go",
 		"internal/workflow/testdata/rga-s0/adjacent-cli-args-conflict-2026-08/base.command.go.txt",
 		"internal/cli/testdata/roc-s0/unregistered.json",
@@ -190,7 +199,7 @@ func TestROCS0ScopeGuardSensitivity(t *testing.T) {
 		"CHANGELOG.md",
 		"go.mod",
 		"go.sum",
-		"scripts/wave-close-test-shards.sh",
+		"scripts/unregistered-shards.sh",
 		"docs/adrs/ADR-045-unapproved.md",
 		"internal/workflow/testdata/roc-s0/../../reconcile.go",
 		"internal/candidatex/root.go",
@@ -216,6 +225,11 @@ func TestROCS0CaptureScopeRejectsS1ProductionPaths(t *testing.T) {
 		"internal/candidatelock/lock_unix.go",
 		"internal/gitutil/tree_hash.go",
 		"internal/cli/prepare_s7_platform_guard_test.go",
+		"internal/cli/prepare_s6_cache_scope_test.go",
+		"internal/cli/prepare_s7_ci_timeout_guard_test.go",
+		"scripts/wave-close-test-shards.sh",
+		"scripts/profile-validation.py",
+		"scripts/profile-validation-test.py",
 	} {
 		if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
 			t.Fatalf("capture scope accepted S1 production path %s", path)
@@ -383,13 +397,17 @@ var rocS0MemoScopeTests = []string{
 // The authorized maintenance exception permits only twelve exact insertions;
 // shared fixture builders and every other byte remain pinned to the S0 base.
 func rocS0ExpectedMemoScopeChange(before string) (string, error) {
+	return rocExpectedNamedMemoScopes(before, rocS0MemoScopeTests)
+}
+
+func rocExpectedNamedMemoScopes(before string, names []string) (string, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, rocS0MemoScopeFile, before, 0)
 	if err != nil {
 		return "", err
 	}
-	pending := make(map[string]bool, len(rocS0MemoScopeTests))
-	for _, name := range rocS0MemoScopeTests {
+	pending := make(map[string]bool, len(names))
+	for _, name := range names {
 		pending[name] = true
 	}
 	var expected strings.Builder
@@ -415,8 +433,8 @@ func rocS0ExpectedMemoScopeChange(before string) (string, error) {
 		delete(pending, fn.Name.Name)
 		changed++
 	}
-	if changed != 6 || len(pending) != 0 {
-		return "", fmt.Errorf("expected six frozen memo-scope roots, found %d", changed)
+	if changed != len(names) || len(pending) != 0 {
+		return "", fmt.Errorf("expected %d frozen memo-scope roots, found %d", len(names), changed)
 	}
 	expected.WriteString(before[cursor:])
 	return expected.String(), nil
@@ -433,10 +451,111 @@ func rocS0ValidateMemoScopeChange(before, after string) error {
 	return nil
 }
 
-func TestROCS0MemoScopeMaintenanceSensitivity(t *testing.T) {
+func rocS1ExpectedMemoScopeChange(before string) (string, error) {
+	expected, err := rocS0ExpectedMemoScopeChange(before)
+	if err != nil {
+		return "", err
+	}
+	expected, err = rocExpectedNamedMemoScopes(expected, []string{
+		"TestS7ARRev17ReviewerRepros", "TestS7ARRev18ReviewerRepros",
+	})
+	if err != nil {
+		return "", err
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rocS0MemoScopeFile, expected, 0)
+	if err != nil {
+		return "", err
+	}
+	for _, declaration := range file.Decls {
+		fn, ok := declaration.(*ast.FuncDecl)
+		if !ok || fn.Name.Name != "TestS7ARPurgeProgressGuard" {
+			continue
+		}
+		start, end := fset.Position(fn.Pos()).Offset, fset.Position(fn.End()).Offset
+		body := expected[start:end]
+		if strings.Contains(body, "fixtureMemoDone") || strings.Contains(body, "t.Parallel(") {
+			return "", fmt.Errorf("unexpected frozen flat-fixture scope")
+		}
+		for _, insertion := range []struct{ anchor, added string }{
+			{"\tt.Run(\"PIB-518\", func(t *testing.T) {\n", "\t\tfixtureMemoDone := s6SerialAnalyzerMemoBatch(t)\n"},
+			{"\t\t\t\t\t\tfixture.name, got, ok, fixture.wantActualWrites)\n\t\t\t\t}\n\t\t\t}\n", "\t\t\tfixtureMemoDone()\n"},
+			{"\t\t\t\tt.Fatalf(\"PIB-518 %s created a false inventory: %v\", fixture.name, err)\n\t\t\t}\n", "\t\t\tfixtureMemoDone()\n"},
+		} {
+			if strings.Count(body, insertion.anchor) != 1 {
+				return "", fmt.Errorf("flat-fixture insertion anchor is not unique")
+			}
+			body = strings.Replace(body, insertion.anchor, insertion.anchor+insertion.added, 1)
+		}
+		return expected[:start] + body + expected[end:], nil
+	}
+	return "", fmt.Errorf("missing frozen purge guard")
+}
+
+func rocS1ValidateMemoScopeChange(before, after string) error {
+	expected, err := rocS1ExpectedMemoScopeChange(before)
+	if err != nil {
+		return err
+	}
+	if after != expected {
+		return fmt.Errorf("%s differs beyond the nineteen authorized memo-scope insertions", rocS0MemoScopeFile)
+	}
+	return nil
+}
+
+func TestROCS0ShardingMemoScopeSensitivity(t *testing.T) {
 	root := rgaS0RepoRoot(t)
 	before := gitOutput(t, root, "show", rocS0Baseline+":"+rocS0MemoScopeFile)
 	after := rgaS0ReadRepoFile(t, rocS0MemoScopeFile)
+	if err := rocS1ValidateMemoScopeChange(before, after); err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := rocS0ExpectedMemoScopeChange(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rocS1ValidateMemoScopeChange(before, legacy); err == nil {
+		t.Fatal("missing new memo scopes accepted")
+	}
+	if err := rocS0ValidateMemoScopeChange(before, after); err == nil {
+		t.Fatal("golden capture accepted post-S0 memory maintenance")
+	}
+	for _, anchor := range []string{
+		"\tfixtureMemoScope := s6SerialAnalyzerMemoScope(t)\n",
+		"\t\tfixtureMemoScope(t)\n",
+		"\t\tfixtureMemoDone := s6SerialAnalyzerMemoBatch(t)\n",
+		"\t\t\tfixtureMemoDone()\n",
+	} {
+		for offset := 0; ; {
+			index := strings.Index(after[offset:], anchor)
+			if index < 0 {
+				break
+			}
+			index += offset
+			for _, replacement := range []string{"", anchor + anchor, anchor + "\t\tt.Parallel()\n"} {
+				mutant := after[:index] + replacement + after[index+len(anchor):]
+				if err := rocS1ValidateMemoScopeChange(before, mutant); err == nil {
+					t.Fatal("omitted, duplicated or parallel memo scope accepted")
+				}
+			}
+			offset = index + len(anchor)
+		}
+	}
+	mutant := strings.Replace(after, "fixture.wantActualWrites)", "fixture.wantActualWrites+1)", 1)
+	if mutant == after {
+		t.Fatal("assertion mutation did not change source")
+	}
+	if err := rocS1ValidateMemoScopeChange(before, mutant); err == nil {
+		t.Fatal("changed purge assertion accepted")
+	}
+}
+func TestROCS0MemoScopeMaintenanceSensitivity(t *testing.T) {
+	root := rgaS0RepoRoot(t)
+	before := gitOutput(t, root, "show", rocS0Baseline+":"+rocS0MemoScopeFile)
+	after, err := rocS0ExpectedMemoScopeChange(before)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := rocS0ValidateMemoScopeChange(before, after); err != nil {
 		t.Fatal(err)
 	}

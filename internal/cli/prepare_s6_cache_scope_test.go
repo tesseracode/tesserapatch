@@ -15,18 +15,25 @@ import (
 // Immutable baseline/import caches outlive the scope.
 func s6SerialAnalyzerMemoScope(t *testing.T) func(*testing.T) {
 	t.Helper()
+	completed := s6SerialAnalyzerMemoBatch(t)
+	return func(fixture *testing.T) {
+		fixture.Helper()
+		fixture.Cleanup(completed)
+	}
+}
+
+// Flat fixture loops call completed only after all analysis/assertions finish.
+func s6SerialAnalyzerMemoBatch(t *testing.T) func() {
+	t.Helper()
 	s6ClearAnalyzerMemoization()
 	t.Cleanup(s6ClearAnalyzerMemoization)
 	completed := 0
-	return func(fixture *testing.T) {
-		fixture.Helper()
-		fixture.Cleanup(func() {
-			completed++
-			if completed == 4 {
-				s6ClearAnalyzerMemoization()
-				completed = 0
-			}
-		})
+	return func() {
+		completed++
+		if completed == 4 {
+			s6ClearAnalyzerMemoization()
+			completed = 0
+		}
 	}
 }
 
@@ -186,6 +193,26 @@ func TestS6AnalyzerMemoScopeLifecycle(t *testing.T) {
 	}
 }
 
+func TestS6AnalyzerMemoBatchLifecycle(t *testing.T) {
+	key := &struct{ value string }{"flat-fixture-sentinel"}
+	t.Run("flat-loop", func(t *testing.T) {
+		completed := s6SerialAnalyzerMemoBatch(t)
+		for index := 0; index < 5; index++ {
+			s6TypeModelCache.Store(key, "current-fixture")
+			if _, found := s6TypeModelCache.Load(key); !found {
+				t.Fatal("memo missing during active fixture")
+			}
+			completed()
+			if _, found := s6TypeModelCache.Load(key); found != (index != 3) {
+				t.Fatalf("memo retention after flat fixture %d = %v", index+1, found)
+			}
+		}
+	})
+	if _, found := s6TypeModelCache.Load(key); found {
+		t.Fatal("flat fixture memo survived scope cleanup")
+	}
+}
+
 func TestS6AnalyzerMemoScopeIdentity(t *testing.T) {
 	const rel = "internal/memo_scope_fixture/fixture.go"
 	source := map[string]string{rel: "package memo_scope_fixture\nfunc Value() int { return 1 }\n"}
@@ -199,6 +226,7 @@ func TestS6AnalyzerMemoScopeIdentity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+
 				reused, err := s6BuildSourceTypeModel(source)
 				if err != nil || reused != first {
 					t.Fatalf("fixture-local model identity changed: same=%v err=%v", reused == first, err)

@@ -3435,6 +3435,7 @@ func s7ARSortedKeys(values map[string]bool) []string {
 
 func TestS7ARPurgeProgressGuard(t *testing.T) {
 	t.Run("PIB-518", func(t *testing.T) {
+		fixtureMemoDone := s6SerialAnalyzerMemoBatch(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		cliSource := sources["internal/cli/feature_intent_archive.go"]
@@ -4263,6 +4264,7 @@ func TestS7ARPurgeProgressGuard(t *testing.T) {
 						fixture.name, got, ok, fixture.wantActualWrites)
 				}
 			}
+			fixtureMemoDone()
 		}
 		for _, fixture := range []struct {
 			name        string
@@ -4410,6 +4412,7 @@ func TestS7ARPurgeProgressGuard(t *testing.T) {
 			); err != nil {
 				t.Fatalf("PIB-518 %s created a false inventory: %v", fixture.name, err)
 			}
+			fixtureMemoDone()
 		}
 		decoySources := s6CloneSourceSet(sources)
 		decoySource := strings.Replace(
@@ -5264,6 +5267,7 @@ func TestS7ARRev16ReviewerRepro(t *testing.T) {
 }
 
 func TestS7ARRev17ReviewerRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -5272,6 +5276,7 @@ func TestS7ARRev17ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
@@ -5658,6 +5663,7 @@ func TestS7ARRev17ReviewerRepros(t *testing.T) {
 }
 
 func TestS7ARRev18ReviewerRepros(t *testing.T) {
+	fixtureMemoScope := s6SerialAnalyzerMemoScope(t)
 	const storeCall = "report.PurgeProgress = buildIntentArchivePurgeProgress(result, report.Slug, options)"
 	validate := func(
 		t *testing.T,
@@ -5665,6 +5671,7 @@ func TestS7ARRev18ReviewerRepros(t *testing.T) {
 		extraSource string,
 	) error {
 		t.Helper()
+		fixtureMemoScope(t)
 		storeSource := s6RepoFile(t, "internal/store/intent_archive.go")
 		sources := s7ARProductionSourceSet(t)
 		mutated := strings.Replace(
