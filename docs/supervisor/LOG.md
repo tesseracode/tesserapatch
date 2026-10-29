@@ -1,3 +1,18 @@
+## GH #13 S1 Review and Integration Resume Points — 2026-10-29
+
+Independent reviewer `roc-s1-openai-review` /
+`e7b49e9c-874f-4fa0-935b-852cf6a0ec1e` is active against frozen `f5df785`.
+OpenAI `gpt-5.3-codex` was explicitly requested; confirm runtime metadata on
+return. The implementation agent is idle, with no concurrent code edits.
+
+Parent integration command `s1-parent-s0-ci-integration`, shell
+`roc-s1-parent-integration`, is waiting for the required resource-admission
+window; no Go invocation or integration pass is claimed. It includes all
+TestROCS0 baselines plus existing CI timeout and candidate-lock CI guards.
+Evidence lives under `bin/roc-s1-20261029/s1-parent-s0-ci-integration/`.
+Keep the original 600-second admission budget and stop on failure. Await
+existing results rather than start duplicate review or validation.
+
 ## GH #13 S1 Independent Review Dispatched — 2026-10-29
 
 Freeze revised implementation at `f5df7852a39a476808a9146f65970a809b7ea44c`,

@@ -52,6 +52,12 @@ The same implementer has returned revised code and admitted focused passes:
 held roots, identity/environment checks, safer locks, actual termination tests,
 stronger scope/envelope guards and a worktree-tree hashing primitive.
 No independent approval, full suite or native Windows runtime pass is claimed.
+Independent review is now active under agent
+`e7b49e9c-874f-4fa0-935b-852cf6a0ec1e` against frozen `f5df785`,
+with OpenAI `gpt-5.3-codex` explicitly selected. Parent integration shell
+`roc-s1-parent-integration` is waiting for resource admission, not yet running
+Go. Its saved stage is `s1-parent-s0-ci-integration`. Do not start duplicate
+work or interpret the admission wait as a test result.
 
 ## Current State — bounded S1 requirements
 
