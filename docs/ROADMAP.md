@@ -1671,6 +1671,9 @@ cross-compilation pass; parent corrects the missing scrub before code approval.
 Correction `3054b84` passes formatting, candidate/gitutil and S0/CLI integration.
 Both expanded subprocess guards fail against the pre-fix helper. Independent
 closure of that one residual finding is pending.
+Residual review at `3054b84` is APPROVED, with all prior code findings already
+closed. Updated vet/build pass. Publish for native CI and run the full admitted
+local gate; S1 remains in flight until both validation paths finish.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

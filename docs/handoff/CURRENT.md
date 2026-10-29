@@ -2,18 +2,20 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
 No strategy policy, full research deliverable or research cluster was adopted.
+The implementation is independently approved; S1 acceptance is still pending
+required native CI and the complete local gate. This is not a shipped slice.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Residual config fix validated locally; awaiting independent closure
+- **Status**: Code independently approved; native CI and full local gate pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -122,6 +124,10 @@ revalidation and independent closure of this correction are next.
 Positive formatting, complete candidate/gitutil tests and S0/CLI integration
 now pass at `3054b84`. Return only the residual correction to the retained
 reviewer; previously closed findings remain closed unless new evidence appears.
+The reviewer now APPROVES the residual correction at `3054b84`, closing the
+last code finding. Updated vet/build pass. Publish the reviewed checkpoint
+with this tracking transition for native CI and a clean-source full gate.
+Do not push additional tracking-only commits while its exact-tip CI runs.
 
 ## Current State — bounded S1 requirements
 
@@ -229,13 +235,19 @@ and the required Copilot co-author trailer remain mandatory.
   and targeted S0/CI workflow/CLI integration (4.748s/3.704s) pass.
   Stages `s1-config-parameters-{format-check,packages,integration}-20261029`;
   each freshly admitted, no golden capture or resource stop.
+- Updated vet and CLI build at `3054b84` pass in stages
+  `s1-config-parameters-{vet,build}-20261029`, without resource stops.
+- Independent residual review APPROVED at `3054b84`; retained OpenAI
+  `gpt-5.3-codex` runtime confirmed. Together with the prior explicit closures
+  this leaves no open code finding, but native/full validation is still pending.
 
 ## Next Steps
 
-1. Close the residual correction at `3054b84` through existing reviewer
-   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`; finish updated vet/build.
-2. Only after code approval publish for required native-platform coverage
-   and full closure validation.
+1. Publish the independently approved code/tracking checkpoint for native CI.
+2. Run the isolated full local gate with WAVE_BASE `5120dc9`, the original
+   22-command partition and fresh admission for every top-level Go command.
+   Verify required Windows CLW-001 through CLW-005 actually run; cross-compile
+   evidence does not replace this.
 3. Update tracking at each transition; do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13
@@ -250,10 +262,9 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 
 ## Blockers
 
-ADR-044 is accepted. Its implementation and the remaining code findings
-still block S1.
-No publication/acceptance or later slice until corrections, independent review
-and native runtime validation complete.
+No open code finding. Required native runtime CI and the full local gate
+still block S1 acceptance; publication is now for validation, not a release.
+Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent
 

@@ -1,3 +1,21 @@
+## Review and Validation Dispatch — S1 code approved — 2026-10-29
+
+**Reviewer**: `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`, OpenAI
+`gpt-5.3-codex` runtime reconfirmed.
+**Checkpoint**: `3054b84e9ea175ac6a959d32d012788e584918df`.
+**Verdict**: APPROVED for the residual correction. The preceding review already
+closed all other code findings; no open implementation finding remains.
+
+The missing config input is scrubbed and both real-subprocess assertions
+prove sensitivity. Updated vet/build pass. Native Windows execution and the
+full gate are explicitly not implied by review approval.
+
+Supervisor action: publish the reviewed code plus tracking transition, then
+run required native CI and the isolated pressure-admitted full local gate with
+WAVE_BASE `5120dc9395769fe8148b61836e546729b66cb4dc`. No tracking-only
+push while exact-tip CI is in flight. S1 stays unaccepted pending those results;
+research stays queued and no S2 dispatch is authorized.
+
 ## Review Follow-up — S1 inherited config correction — 2026-10-29
 
 **Frozen correction**: `3054b84e9ea175ac6a959d32d012788e584918df`.
