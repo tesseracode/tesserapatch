@@ -1,3 +1,21 @@
+## GH #13 S1 Implementation Context Started — 2026-10-29
+
+**Implementer**: `roc-s1-implementation` /
+`6c67ce6f-1058-4f46-bd48-8c663eafe87c`.
+**Model requested explicitly**: OpenAI `gpt-5.3-codex`; verify runtime metadata
+with the returned result before claiming model confirmation.
+**Scope/base**: the bounded S1 dispatch below, WAVE_BASE `5120dc9`.
+
+One implementation context owns new candidate/lock/Git-primitives code and
+directly required tests/CI registration; no nested agents or parallel implementers.
+The parent owns tracking, commits and later independent review/full validation.
+Focused Go checks must use the existing admitted runner prepared at
+`bin/roc-s1-20261029/validate.py`; no unguarded Go, fixture recapture or full
+partition launch by the implementer.
+
+Await its implementation result or a concrete contract blocker. Do not start
+another agent on the same code or infer that S1 has passed validation.
+
 ## GH #13 S1 Dispatched — typed roots, locks and Git primitives — 2026-10-29
 
 Intake CI `40834229022` passed all five required jobs. The user's support-line

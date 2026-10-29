@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: In progress — accepted-contract implementation preflight
+- **Status**: In progress — single bounded implementation context started
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
@@ -33,6 +33,13 @@ contract, candidate namespace, nonblocking lock/filesystem rules and current
 S0 scope guard. Existing Windows CI does not imply every new package's tests
 are blocking; native S1 lock assertions need explicit required-job coverage.
 No S1 production changes or new validation results are claimed yet.
+Implementation is assigned to `roc-s1-implementation`,
+agent `6c67ce6f-1058-4f46-bd48-8c663eafe87c`, with OpenAI `gpt-5.3-codex`
+explicitly requested. Runtime metadata still needs confirmation on result.
+It owns code/tests and necessary native-CI registration, not tracking or Git
+commits. Use this existing agent for same-task follow-up; do not duplicate work.
+The admitted command runner is `bin/roc-s1-20261029/validate.py`, with separate
+S1 evidence/cache paths and the unchanged pressure/swap/load policy.
 
 ## Current State — bounded S1 requirements
 
@@ -85,7 +92,9 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Implement and test the accepted S1 primitives without later-slice scope.
+1. Await the bounded implementer result, then inspect its actual delta and
+   admitted focused outcomes. If it reports a contract ambiguity, resolve it
+   explicitly before making architectural changes.
 2. Run focused admitted checks, required native-platform coverage, affected
    tests and full closure validation; review independently before acceptance.
 3. Update tracking at each transition; do not dispatch S2 automatically.

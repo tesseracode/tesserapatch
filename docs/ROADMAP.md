@@ -1635,6 +1635,9 @@ Git/tree primitives, isolated candidate worktrees and portable nonblocking
 locks with filesystem refusal and required native-platform tests. Transition
 the S0 stage guard explicitly and narrowly; no candidate eligibility, alignment,
 schemas, phase/CLI wiring, public-contract or dependency changes. No S2 dispatch.
+One bounded implementation context is active (`roc-s1-implementation`, explicitly
+requested OpenAI `gpt-5.3-codex`); implementation and validation results are not
+yet claimed. Tracking/review coordination remains with the parent.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 
