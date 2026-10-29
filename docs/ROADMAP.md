@@ -1668,6 +1668,9 @@ Independent review and remaining validation are active; S1 stays in flight.
 Review of `f6bae35` closes lifetime/cleanup/guard findings but retains one
 medium inherited `GIT_CONFIG_PARAMETERS` gap. Local CLI/race/vet/build/Windows
 cross-compilation pass; parent corrects the missing scrub before code approval.
+Correction `3054b84` passes formatting, candidate/gitutil and S0/CLI integration.
+Both expanded subprocess guards fail against the pre-fix helper. Independent
+closure of that one residual finding is pending.
 
 ### GH #13 — ✅ S0 frozen baseline ACCEPTED — 2026-10-22
 

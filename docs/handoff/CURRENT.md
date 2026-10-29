@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S1 is dispatched after accepted S0. The upstream Git-strategy research
 remains queued; the operator selected backlog-only research and S1 next.
@@ -13,7 +13,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Correcting one residual inherited Git-config input after independent review
+- **Status**: Residual config fix validated locally; awaiting independent closure
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -21,7 +21,7 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
 - **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
 - **Accepted amendment checkpoint**: `8b22f99263827a53b5b66fb534e86921563a5d9f`
-- **Current frozen code checkpoint**: `f6bae35f77bb142ab6784c734808440b15c679b5`
+- **Current frozen code checkpoint**: `3054b84e9ea175ac6a959d32d012788e584918df`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
@@ -119,6 +119,9 @@ The parent is scrubbing it and strengthening both subprocess envelope tests.
 The missing scrub is implemented. Both strengthened tests fail against the
 pre-fix helper specifically for inherited `GIT_CONFIG_PARAMETERS`; positive
 revalidation and independent closure of this correction are next.
+Positive formatting, complete candidate/gitutil tests and S0/CLI integration
+now pass at `3054b84`. Return only the residual correction to the retained
+reviewer; previously closed findings remain closed unless new evidence appears.
 
 ## Current State — bounded S1 requirements
 
@@ -222,14 +225,17 @@ and the required Copilot co-author trailer remain mandatory.
   regressions fail at the intended unsafe-variable assertion with the pre-fix
   helper. The inherited input is an inert `core.autocrlf=false` setting; no
   injected command is needed to prove the guards detect the gap.
+- Corrected `3054b84`: formatting clean; candidate (1.619s), gitutil (10.322s)
+  and targeted S0/CI workflow/CLI integration (4.748s/3.704s) pass.
+  Stages `s1-config-parameters-{format-check,packages,integration}-20261029`;
+  each freshly admitted, no golden capture or resource stop.
 
 ## Next Steps
 
-1. Correct the residual inherited Git-config input, demonstrate envelope-test
-   sensitivity and rerun affected admitted checks.
-2. Return the correction to existing reviewer
-   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`. Only after code approval publish
-   for required native-platform coverage and full closure validation.
+1. Close the residual correction at `3054b84` through existing reviewer
+   `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`; finish updated vet/build.
+2. Only after code approval publish for required native-platform coverage
+   and full closure validation.
 3. Update tracking at each transition; do not dispatch S2 automatically.
 
 ## Validation Policy — GH #13

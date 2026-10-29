@@ -1,3 +1,13 @@
+## Review Follow-up — S1 inherited config correction — 2026-10-29
+
+**Frozen correction**: `3054b84e9ea175ac6a959d32d012788e584918df`.
+The missing variable is scrubbed and both actual-subprocess guards reject it.
+Their negative controls fail with the old helper; formatting, complete
+candidate/gitutil packages and S0/CLI integration now pass with the fix.
+Return this narrow correction to the retained OpenAI reviewer for closure.
+Previously closed lifetime/cleanup/source findings stay closed; updated
+vet/build, native Windows and full-gate evidence remain distinct.
+
 ## Review — S1 recovered capability revision — 2026-10-29
 
 **Reviewer**: `e7b49e9c-874f-4fa0-935b-852cf6a0ec1e`, runtime
