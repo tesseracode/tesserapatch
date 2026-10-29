@@ -13,12 +13,13 @@ No strategy policy, full research deliverable or research cluster was adopted.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 — typed roots, advisory locks and missing offline Git primitives
-- **Status**: Revised implementation returned; independent review/integration checks pending
+- **Status**: Revised checkpoint frozen at f5df785 for independent review/integration checks
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: accepted ADR-037/PRD rev-7; PRD §8 S1, §6.9, §6.13
 - **Prior accepted S0 close**: `6ab392996467662572b155574a0509a6269cae8f`
 - **Unaccepted first implementation**: `252e4940f04b183a90c0a6a2f6ef7cf4efeb8888`
+- **Revised review checkpoint**: `f5df7852a39a476808a9146f65970a809b7ea44c`
 
 WAVE_BASE = 5120dc9395769fe8148b61836e546729b66cb4dc
 
