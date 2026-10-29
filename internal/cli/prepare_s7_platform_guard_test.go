@@ -176,8 +176,17 @@ func TestS1CandidateLockWindowsBlockingGuardSensitivity(t *testing.T) {
 			name: "selector-omitted-unc",
 			mutation: strings.Replace(
 				workflow,
+				"TestCandidateLockNativeWindows/CLW-004-unc-refusal \\",
+				"",
+				1,
+			),
+		},
+		{
+			name: "selector-omitted-borrow",
+			mutation: strings.Replace(
+				workflow,
+				"TestCandidateLockNativeWindows/CLW-005-borrow-release-exclusion; do",
 				"TestCandidateLockNativeWindows/CLW-004-unc-refusal; do",
-				"TestCandidateLockNativeWindows/CLW-003-crash-release; do",
 				1,
 			),
 		},
@@ -238,6 +247,7 @@ func validateS1CandidateLockWindowsBlocking(workflow string) error {
 		"TestCandidateLockNativeWindows/CLW-002-contention",
 		"TestCandidateLockNativeWindows/CLW-003-crash-release",
 		"TestCandidateLockNativeWindows/CLW-004-unc-refusal",
+		"TestCandidateLockNativeWindows/CLW-005-borrow-release-exclusion",
 		`--- PASS: ${selector}`,
 	}
 	for _, value := range required {

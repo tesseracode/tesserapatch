@@ -1,3 +1,41 @@
+## Recovered S1 Integration — dependent guard corrections — 2026-10-29
+
+Candidate and lock packages now pass. The wider admitted selection exposes
+three remaining test expectations/integration details: tree-envelope checks
+must expect pinned null config and the explicitly owned temporary index;
+the added Windows borrow row moved an existing negative fixture's match
+anchor; and AVP-141's module-wide OpenRoot inventory must account for the two
+new S1 openers without removing the original three prepare sites.
+
+Correct AVP-141 with a per-file exact inventory (prepare 1+2, candidate 1,
+lock parent 1) and missing/moved/unregistered-site controls, not a blanket
+count increase. Add only this directly dependent test file to the finite S1
+stage registry; golden capture remains stricter.
+
+The existing CI timeout guard also scanned ignored historical clones under
+bin in the primary checkout. Do not delete those preserved experiments or
+weaken its scanner. Repeat integration in a fresh isolated source checkout,
+as prior full gates do. Failed-run logs remain retained; no full acceptance.
+
+## Recovered Capability Revision — direct repair and validation — 2026-10-29
+
+The parent repaired misplaced declarations in the surviving test sources.
+Formatting then passed. The first recovered candidate/lock run passed locks
+but found two candidate test expectation mismatches: safe refusal of replaced
+cleanup residue occurred earlier than the asserted error string, and explicit
+null global/system Git-config overrides differed from an old empty-variable
+expectation. Preserve the failed run and update the assertions to verify the
+actual stronger boundary, including retained foreign replacement data and
+complete owned-root closure.
+
+Further direct corrections keep ADR/CI changes in the finite S1 stage registry,
+not the original S0 capture allowlist; pin global/system configuration to null
+sources so default home config cannot redirect tree operations; and make
+root/Git source guards reject alternative openers, package/local executor
+aliases, conditional environments and command-handle escape. Capture goldens
+are unchanged. Native runtime and independent approval remain outstanding.
+All new Go validation still requires the original resource-admission window.
+
 ## S1 Connection Recovery — surviving ADR-044 edits retained — 2026-10-29
 
 The implementation agent failed after model-request timeouts, not a reported

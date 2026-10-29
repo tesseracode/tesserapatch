@@ -199,7 +199,8 @@ jobs:
             TestCandidateLockNativeWindows/CLW-001-acquire-release \
             TestCandidateLockNativeWindows/CLW-002-contention \
             TestCandidateLockNativeWindows/CLW-003-crash-release \
-            TestCandidateLockNativeWindows/CLW-004-unc-refusal; do
+            TestCandidateLockNativeWindows/CLW-004-unc-refusal \
+            TestCandidateLockNativeWindows/CLW-005-borrow-release-exclusion; do
             if ! grep -q -- "--- PASS: ${selector}" "$log"; then
               echo "::error::${selector} did not execute on this runner"
               exit 1

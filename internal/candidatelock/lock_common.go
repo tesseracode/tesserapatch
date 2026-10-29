@@ -6,13 +6,16 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 )
 
 // Handle is one held advisory lock.
 type Handle struct {
-	file *os.File
-	path string
+	mu       sync.Mutex
+	file     *os.File
+	path     string
+	released bool
+	borrowed int
 }
 
 // Path returns the canonical lock path.
@@ -20,21 +23,33 @@ func (h *Handle) Path() string {
 	if h == nil {
 		return ""
 	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	return h.path
 }
 
 // Release closes the underlying descriptor/handle.
 func (h *Handle) Release() error {
-	if h == nil || h.file == nil {
+	if h == nil {
 		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.file == nil || h.released {
+		return nil
+	}
+	if h.borrowed > 0 {
+		return fmt.Errorf("lock handle is borrowed")
 	}
 	file := h.file
 	h.file = nil
+	h.released = true
+	h.path = ""
 	return file.Close()
 }
 
 func canonicalLockPath(path string) (string, error) {
-	if path == "" || strings.TrimSpace(path) == "" {
+	if path == "" {
 		return "", fmt.Errorf("lock path is required")
 	}
 	abs, err := filepath.Abs(path)
@@ -46,6 +61,55 @@ func canonicalLockPath(path string) (string, error) {
 		return "", fmt.Errorf("lock path must be absolute: %s", abs)
 	}
 	return abs, nil
+}
+
+// Borrow validates that h is a live capability for expectedPath and pins the
+// descriptor until the returned release function is called.
+func (h *Handle) Borrow(expectedPath string) (func(), error) {
+	if h == nil {
+		return nil, fmt.Errorf("lock handle is nil")
+	}
+	expectedCanonical, err := canonicalLockPath(expectedPath)
+	if err != nil {
+		return nil, err
+	}
+
+	h.mu.Lock()
+	if h.file == nil || h.released {
+		h.mu.Unlock()
+		return nil, fmt.Errorf("lock handle is released")
+	}
+	if h.path != expectedCanonical {
+		h.mu.Unlock()
+		return nil, fmt.Errorf("lock handle path mismatch: have %s want %s", h.path, expectedCanonical)
+	}
+	file := h.file
+	lockPath := h.path
+	h.borrowed++
+	h.mu.Unlock()
+
+	if err := validateBorrowedLockDescriptor(file, lockPath); err != nil {
+		h.endBorrow()
+		return nil, err
+	}
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			h.endBorrow()
+		})
+	}, nil
+}
+
+func (h *Handle) endBorrow() {
+	if h == nil {
+		return
+	}
+	h.mu.Lock()
+	if h.borrowed > 0 {
+		h.borrowed--
+	}
+	h.mu.Unlock()
 }
 
 func nearestExistingAncestor(path string) (string, error) {
@@ -164,6 +228,43 @@ func validateLockLeafInfo(info os.FileInfo) error {
 	}
 	if !mode.IsRegular() {
 		return fmt.Errorf("lock path must be a regular file")
+	}
+	return nil
+}
+
+func validateBorrowedLockDescriptor(file *os.File, lockPath string) error {
+	if file == nil {
+		return fmt.Errorf("lock handle is missing a file descriptor")
+	}
+	descriptorInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("stat lock descriptor: %w", err)
+	}
+	if err := validateLockLeafInfo(descriptorInfo); err != nil {
+		return err
+	}
+
+	parentPath := filepath.Dir(lockPath)
+	leaf := filepath.Base(lockPath)
+	parentRoot, parentDir, err := openLockParent(parentPath)
+	if err != nil {
+		return err
+	}
+	defer parentDir.Close()
+	defer parentRoot.Close()
+
+	pathInfo, err := parentRoot.Lstat(leaf)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("lock path changed while borrowing: %s", lockPath)
+		}
+		return fmt.Errorf("inspect lock path while borrowing: %w", err)
+	}
+	if err := validateLockLeafInfo(pathInfo); err != nil {
+		return err
+	}
+	if !os.SameFile(descriptorInfo, pathInfo) {
+		return fmt.Errorf("lock path identity changed while borrowing: %s", lockPath)
 	}
 	return nil
 }

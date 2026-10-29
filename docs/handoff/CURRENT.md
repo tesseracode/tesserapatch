@@ -93,6 +93,17 @@ code edits survived and no validation process remains active. The parent resumes
 directly without reset/cleanup or another implementation agent.
 Last admitted stage `s1r3-gofmt-20261029a` failed on misplaced declarations;
 repair that syntax before any new test run. No post-amendment pass is claimed.
+The parent repaired syntax; formatting passes. First recovered candidate/lock
+tests pass the lock package but fail two outdated candidate expectations.
+Corrections now assert refusal of replaced residue/foreign data preservation
+and explicit null Git-config overrides. The S0 capture/stage split and
+alternative-root/Git-command guards are also tightened before the next run.
+Recovered candidate/lock packages pass. Wider checks exposed stale tree-env/
+Windows-row expectations and the original AVP-141 three-opener inventory.
+The dependent inventory is updated to pin the original three prepare sites
+plus the two S1 sites, with moved/unregistered negative controls.
+The CI guard's ignored-bin clone scan requires a clean isolated checkout for
+the rerun, not deletion of evidence or changes to the scanner.
 
 ## Current State — bounded S1 requirements
 

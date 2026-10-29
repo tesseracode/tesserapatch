@@ -47,6 +47,39 @@ func TestTreeHashMatchesGitRevParse(t *testing.T) {
 	}
 }
 
+func TestTreeHashIgnoresReplaceObjects(t *testing.T) {
+	root := treeHashRepo(t)
+	originalHead := treeHashGit(t, root, "rev-parse", "HEAD")
+	originalTree := treeHashGit(t, root, "rev-parse", "--verify", "HEAD^{tree}")
+
+	treeHashGit(t, root, "checkout", "-q", "-b", "replacement-branch")
+	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("replacement-tree\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	treeHashGit(t, root, "add", "tracked.txt")
+	treeHashGit(t, root, "commit", "-qm", "replacement")
+	replacementHead := treeHashGit(t, root, "rev-parse", "HEAD")
+	treeHashGit(t, root, "checkout", "-q", "main")
+
+	treeHashGit(t, root, "replace", originalHead, replacementHead)
+	t.Cleanup(func() {
+		_ = exec.Command("git", "-C", root, "replace", "-d", originalHead).Run()
+	})
+
+	sanity := treeHashGit(t, root, "rev-parse", "--verify", "HEAD^{tree}")
+	if sanity == originalTree {
+		t.Skip("git rev-parse did not follow replace objects in this environment")
+	}
+
+	got, err := TreeHash(root, "HEAD")
+	if err != nil {
+		t.Fatalf("TreeHash: %v", err)
+	}
+	if got != originalTree {
+		t.Fatalf("TreeHash honored replace objects: got %s want %s", got, originalTree)
+	}
+}
+
 func TestTreeHashUsesNoLazyFetchEnvelope(t *testing.T) {
 	root := treeHashRepo(t)
 	realGit, err := exec.LookPath("git")
@@ -56,7 +89,10 @@ func TestTreeHashUsesNoLazyFetchEnvelope(t *testing.T) {
 	shimDir := t.TempDir()
 	logPath := filepath.Join(shimDir, "env.log")
 	script := fmt.Sprintf(`#!/bin/sh
-printf '%%s\037%%s\037%%s\037%%s\037%%s\n' "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_DIR-}" "${GIT_INDEX_FILE-}" "$*" >> %q
+printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
+  "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_NO_REPLACE_OBJECTS-}" \
+  "${GIT_DIR-}" "${GIT_WORK_TREE-}" "${GIT_COMMON_DIR-}" "${GIT_INDEX_FILE-}" \
+  "${GIT_CONFIG_GLOBAL-}" "${GIT_CONFIG_SYSTEM-}" "${GIT_CONFIG_NOSYSTEM-}" "${GIT_REPLACE_REF_BASE-}" "$*" >> %q
 exec %q "$@"
 `, logPath, realGit)
 	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
@@ -65,7 +101,14 @@ exec %q "$@"
 	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("GIT_NO_LAZY_FETCH", "0")
 	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("GIT_NO_REPLACE_OBJECTS", "0")
 	t.Setenv("GIT_DIR", filepath.Join(root, ".git"))
+	t.Setenv("GIT_WORK_TREE", root)
+	t.Setenv("GIT_COMMON_DIR", filepath.Join(root, ".git"))
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(root, ".gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", filepath.Join(root, "system.gitconfig"))
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_REPLACE_REF_BASE", "refs/replace-foreign/")
 
 	if _, err := TreeHash(root, "HEAD"); err != nil {
 		t.Fatalf("TreeHash: %v", err)
@@ -79,14 +122,32 @@ exec %q "$@"
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(logBytes)), "\n") {
 		fields := strings.Split(line, "\x1f")
-		if len(fields) != 5 {
+		if len(fields) != 12 {
 			t.Fatalf("unexpected env log %q", line)
 		}
-		if fields[0] != "1" || fields[1] != "C" {
+		if fields[0] != "1" || fields[1] != "C" || fields[2] != "1" {
 			t.Fatalf("tree hash lost mandatory env envelope: %q", line)
 		}
-		if fields[2] != "" {
-			t.Fatalf("tree hash inherited GIT_DIR unexpectedly: %q", line)
+		temporaryIndex := fields[6]
+		switch fields[11] {
+		case "read-tree HEAD", "add -A -- .", "write-tree":
+			if filepath.Dir(temporaryIndex) != filepath.Join(root, ".git") ||
+				!strings.HasPrefix(filepath.Base(temporaryIndex), ".tpatch-tree-index-") {
+				t.Fatalf("tree hash used an index outside its owned temporary namespace: %q", line)
+			}
+		default:
+			if temporaryIndex != "" {
+				t.Fatalf("read-only tree lookup inherited an index: %q", line)
+			}
+		}
+		for index, value := range []struct{ name, want string }{
+			{"GIT_DIR", ""}, {"GIT_WORK_TREE", ""}, {"GIT_COMMON_DIR", ""}, {"GIT_INDEX_FILE", temporaryIndex},
+			{"GIT_CONFIG_GLOBAL", os.DevNull}, {"GIT_CONFIG_SYSTEM", os.DevNull},
+			{"GIT_CONFIG_NOSYSTEM", "1"}, {"GIT_REPLACE_REF_BASE", ""},
+		} {
+			if fields[3+index] != value.want {
+				t.Fatalf("tree hash has unsafe %s: %q", value.name, line)
+			}
 		}
 	}
 }
@@ -183,6 +244,10 @@ func TestWorktreeTreeHashHonorsHostileGitEnvIsolation(t *testing.T) {
 	t.Setenv("GIT_WORK_TREE", foreign)
 	t.Setenv("GIT_COMMON_DIR", filepath.Join(foreign, ".git"))
 	t.Setenv("GIT_INDEX_FILE", filepath.Join(foreign, ".git", "index"))
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(foreign, ".gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", filepath.Join(foreign, "system.gitconfig"))
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_REPLACE_REF_BASE", "refs/replace-foreign/")
 	t.Setenv("GIT_CONFIG_COUNT", "1")
 	t.Setenv("GIT_CONFIG_KEY_0", "alias.add")
 	t.Setenv("GIT_CONFIG_VALUE_0", "!false")
@@ -197,5 +262,29 @@ func TestWorktreeTreeHashHonorsHostileGitEnvIsolation(t *testing.T) {
 	foreignAfter := treeHashGit(t, foreign, "write-tree")
 	if foreignAfter != foreignBefore {
 		t.Fatalf("foreign index mutated under hostile env: before=%s after=%s", foreignBefore, foreignAfter)
+	}
+}
+
+func TestWorktreeTreeHashIgnoresDefaultGlobalWorktreeOverride(t *testing.T) {
+	target, foreign := treeHashRepo(t), treeHashRepo(t)
+	if err := os.WriteFile(filepath.Join(target, "alpha.txt"), []byte("target\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(foreign, "alpha.txt"), []byte("foreign\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	want, err := WorktreeTreeHash(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	home := t.TempDir()
+	configPath := filepath.Join(home, ".gitconfig")
+	treeHashGit(t, target, "config", "--file", configPath, "core.worktree", foreign)
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("GIT_CONFIG_GLOBAL", configPath)
+	got, err := WorktreeTreeHash(target)
+	if err != nil || got != want {
+		t.Fatalf("global configuration redirected worktree hashing: got=%s want=%s err=%v", got, want, err)
 	}
 }

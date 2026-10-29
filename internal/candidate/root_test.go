@@ -44,6 +44,59 @@ func initCandidateRepo(t *testing.T) (string, string) {
 	return root, candidateGit(t, root, "rev-parse", "HEAD")
 }
 
+func acquireCandidateLocks(t *testing.T, root, slug string) (*candidatelock.Handle, *candidatelock.Handle) {
+	t.Helper()
+	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", slug+".lock")
+	feature, err := candidatelock.TryAcquire(featurePath)
+	if err != nil {
+		t.Fatalf("acquire feature lock: %v", err)
+	}
+	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+	global, err := candidatelock.TryAcquire(globalPath)
+	if err != nil {
+		_ = feature.Release()
+		t.Fatalf("acquire global lock: %v", err)
+	}
+	return feature, global
+}
+
+func releaseCandidateLocks(t *testing.T, feature, global *candidatelock.Handle) {
+	t.Helper()
+	if global != nil {
+		if err := global.Release(); err != nil {
+			t.Fatalf("release global lock: %v", err)
+		}
+	}
+	if feature != nil {
+		if err := feature.Release(); err != nil {
+			t.Fatalf("release feature lock: %v", err)
+		}
+	}
+}
+
+func assertLockHeld(t *testing.T, path string) {
+	t.Helper()
+	h, err := candidatelock.TryAcquire(path)
+	if err == nil {
+		_ = h.Release()
+		t.Fatalf("expected lock to remain held for %s", path)
+	}
+	if !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
+		t.Fatalf("lock error=%v, want %s", err, candidatelock.CodeCandidateLockHeld)
+	}
+}
+
+func assertLockReacquireAfterRelease(t *testing.T, path string) {
+	t.Helper()
+	h, err := candidatelock.TryAcquire(path)
+	if err != nil {
+		t.Fatalf("reacquire lock %s: %v", path, err)
+	}
+	if err := h.Release(); err != nil {
+		t.Fatalf("release reacquired lock %s: %v", path, err)
+	}
+}
+
 func TestOpenReferenceRootUsesCommitSnapshot(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("live-worktree\n"), 0o644); err != nil {
@@ -67,7 +120,10 @@ func TestOpenReferenceRootUsesCommitSnapshot(t *testing.T) {
 func TestCreateCandidateRootNamespaceAndPrune(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	candidateID := "rc_0123456789ab"
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", candidateID, head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", candidateID, head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
@@ -83,7 +139,7 @@ func TestCreateCandidateRootNamespaceAndPrune(t *testing.T) {
 		t.Fatalf("candidate content = %q, want v1\\n", string(got))
 	}
 	before := candidateGit(t, root, "rev-parse", "HEAD")
-	if err := candidateRoot.Prune(); err != nil {
+	if err := candidateRoot.Prune(featureLock, globalLock); err != nil {
 		t.Fatalf("Prune: %v", err)
 	}
 	if _, err := os.Stat(candidateRoot.WorktreePath()); !os.IsNotExist(err) {
@@ -93,42 +149,140 @@ func TestCreateCandidateRootNamespaceAndPrune(t *testing.T) {
 	if before != after {
 		t.Fatalf("prune changed branch history: before=%s after=%s", before, after)
 	}
+
+	assertLockHeld(t, filepath.Join(root, ".tpatch", "locks", "reconcile", "demo-feature.lock"))
+	assertLockHeld(t, filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock"))
 }
 
-func TestCreateCandidateRootRequiresFeatureLock(t *testing.T) {
+func TestCreateCandidateRootRejectsInvalidLockCapabilities(t *testing.T) {
 	root, head := initCandidateRepo(t)
-	held, err := candidatelock.TryAcquire(filepath.Join(root, ".tpatch", "locks", "reconcile", "demo.lock"))
-	if err != nil {
-		t.Fatalf("hold feature lock: %v", err)
-	}
-	defer held.Release()
+	repo2, _ := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	wrongRepoFeature, wrongRepoGlobal := acquireCandidateLocks(t, repo2, "demo-feature")
+	defer releaseCandidateLocks(t, wrongRepoFeature, wrongRepoGlobal)
 
-	_, err = CreateCandidateRoot(root, "demo", "rc_111111111111", head)
-	if !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
-		t.Fatalf("CreateCandidateRoot err=%v, want %s", err, candidatelock.CodeCandidateLockHeld)
-	}
-}
-
-func TestCreateCandidateRootGlobalLockFailureReleasesFeatureLock(t *testing.T) {
-	root, head := initCandidateRepo(t)
+	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", "demo-feature.lock")
 	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
-	global, err := candidatelock.TryAcquire(globalPath)
-	if err != nil {
-		t.Fatalf("hold global lock: %v", err)
-	}
-	defer global.Release()
 
-	_, err = CreateCandidateRoot(root, "demo", "rc_222222222222", head)
-	if !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
-		t.Fatalf("CreateCandidateRoot err=%v, want %s", err, candidatelock.CodeCandidateLockHeld)
+	for _, tc := range []struct {
+		name      string
+		feature   *candidatelock.Handle
+		global    *candidatelock.Handle
+		prepare   func(t *testing.T)
+		wantError string
+	}{
+		{
+			name:      "nil-feature",
+			feature:   nil,
+			global:    globalLock,
+			wantError: "feature lock handle is required",
+		},
+		{
+			name:      "nil-global",
+			feature:   featureLock,
+			global:    nil,
+			wantError: "worktree mutation lock handle is required",
+		},
+		{
+			name: "zero-feature",
+			feature: func() *candidatelock.Handle {
+				var zero candidatelock.Handle
+				return &zero
+			}(),
+			global:    globalLock,
+			wantError: "released",
+		},
+		{
+			name: "closed-feature",
+			feature: func() *candidatelock.Handle {
+				h, err := candidatelock.TryAcquire(filepath.Join(root, ".tpatch", "locks", "reconcile", "closed.lock"))
+				if err != nil {
+					t.Fatalf("acquire closed feature lock: %v", err)
+				}
+				if err := h.Release(); err != nil {
+					t.Fatalf("release closed feature lock: %v", err)
+				}
+				return h
+			}(),
+			global:    globalLock,
+			wantError: "released",
+		},
+		{
+			name:      "duplicate-handle",
+			feature:   featureLock,
+			global:    featureLock,
+			wantError: "must be distinct",
+		},
+		{
+			name:      "swapped-role",
+			feature:   globalLock,
+			global:    featureLock,
+			wantError: "path mismatch",
+		},
+		{
+			name: "wrong-feature",
+			feature: func() *candidatelock.Handle {
+				h, err := candidatelock.TryAcquire(filepath.Join(root, ".tpatch", "locks", "reconcile", "other-feature.lock"))
+				if err != nil {
+					t.Fatalf("acquire wrong-feature lock: %v", err)
+				}
+				t.Cleanup(func() { _ = h.Release() })
+				return h
+			}(),
+			global:    globalLock,
+			wantError: "path mismatch",
+		},
+		{
+			name:      "wrong-repo",
+			feature:   wrongRepoFeature,
+			global:    wrongRepoGlobal,
+			wantError: "path mismatch",
+		},
+		{
+			name:    "replaced-feature-path",
+			feature: featureLock,
+			global:  globalLock,
+			prepare: func(t *testing.T) {
+				if runtime.GOOS == "windows" {
+					t.Skip("lock path replacement is not portable on windows")
+				}
+				moved := featurePath + ".moved"
+				if err := os.Rename(featurePath, moved); err != nil {
+					t.Fatalf("rename feature lock path: %v", err)
+				}
+				t.Cleanup(func() {
+					_ = os.Remove(featurePath)
+					_ = os.Rename(moved, featurePath)
+				})
+				if err := os.WriteFile(featurePath, []byte("replacement"), 0o600); err != nil {
+					t.Fatalf("create replacement lock file: %v", err)
+				}
+			},
+			wantError: "identity changed",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.prepare != nil {
+				tc.prepare(t)
+			}
+			_, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012345", head, tc.feature, tc.global)
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("CreateCandidateRoot err=%v, want substring %q", err, tc.wantError)
+			}
+			worktreePath := filepath.Join(root, ".tpatch", "reconcile-candidates", "demo-feature", "rc_abcdef012345", "worktree")
+			if _, statErr := os.Stat(worktreePath); !os.IsNotExist(statErr) {
+				t.Fatalf("invalid capability mutated candidate namespace: %v", statErr)
+			}
+			if tc.name != "replaced-feature-path" {
+				assertLockHeld(t, featurePath)
+			}
+			assertLockHeld(t, globalPath)
+		})
 	}
 
-	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", "demo.lock")
-	feature, err := candidatelock.TryAcquire(featurePath)
-	if err != nil {
-		t.Fatalf("feature lock was not released after global failure: %v", err)
-	}
-	_ = feature.Release()
+	assertLockHeld(t, featurePath)
+	assertLockHeld(t, globalPath)
 }
 
 func TestCandidateReadFileRefusesTraversalAndSymlink(t *testing.T) {
@@ -136,13 +290,16 @@ func TestCandidateReadFileRefusesTraversalAndSymlink(t *testing.T) {
 		t.Skip("symlink setup on windows requires privileges in CI")
 	}
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012345", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012345", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
 	t.Cleanup(func() {
 		if !candidateRoot.closed {
-			_ = candidateRoot.Prune()
+			_ = candidateRoot.Prune(featureLock, globalLock)
 		}
 	})
 
@@ -162,7 +319,10 @@ func TestCandidateReadFileRefusesTraversalAndSymlink(t *testing.T) {
 
 func TestCandidateReadFileUsesHeldRootAfterPathReplacement(t *testing.T) {
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012346", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012346", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
@@ -191,14 +351,17 @@ func TestCandidateReadFileUsesHeldRootAfterPathReplacement(t *testing.T) {
 	if err := os.Rename(moved, candidateRoot.WorktreePath()); err != nil {
 		t.Fatalf("restore moved worktree: %v", err)
 	}
-	if err := candidateRoot.Prune(); err != nil {
+	if err := candidateRoot.Prune(featureLock, globalLock); err != nil {
 		t.Fatalf("Prune after restore: %v", err)
 	}
 }
 
 func TestPruneRefusesReplacementPathAndPreservesReplacementData(t *testing.T) {
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012347", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012347", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
@@ -215,7 +378,7 @@ func TestPruneRefusesReplacementPathAndPreservesReplacementData(t *testing.T) {
 		t.Fatalf("write sentinel: %v", err)
 	}
 
-	err = candidateRoot.Prune()
+	err = candidateRoot.Prune(featureLock, globalLock)
 	if err == nil || !strings.Contains(err.Error(), "identity changed") {
 		t.Fatalf("Prune = %v, want identity-changed refusal", err)
 	}
@@ -225,6 +388,9 @@ func TestPruneRefusesReplacementPathAndPreservesReplacementData(t *testing.T) {
 	if _, statErr := os.Stat(moved); statErr != nil {
 		t.Fatalf("held worktree unexpectedly removed: %v", statErr)
 	}
+	if candidateRoot.closed {
+		t.Fatal("candidate root closed on pre-mutation identity refusal")
+	}
 
 	if err := os.RemoveAll(candidateRoot.WorktreePath()); err != nil {
 		t.Fatalf("remove replacement path: %v", err)
@@ -232,9 +398,117 @@ func TestPruneRefusesReplacementPathAndPreservesReplacementData(t *testing.T) {
 	if err := os.Rename(moved, candidateRoot.WorktreePath()); err != nil {
 		t.Fatalf("restore held worktree path: %v", err)
 	}
-	if err := candidateRoot.Prune(); err != nil {
+	if err := candidateRoot.Prune(featureLock, globalLock); err != nil {
 		t.Fatalf("Prune after identity restore: %v", err)
 	}
+}
+
+func TestPruneGitRemoveFailureClosesRootAndKeepsCallerLocks(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", "demo-feature.lock")
+	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012351", head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shimDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "worktree" ] && [ "$2" = "remove" ]; then
+  echo "forced remove failure" >&2
+  exit 1
+fi
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err = candidateRoot.Prune(featureLock, globalLock)
+	if err == nil || !strings.Contains(err.Error(), "git worktree remove failed") {
+		t.Fatalf("Prune err=%v, want git worktree remove failure", err)
+	}
+	if !candidateRoot.closed {
+		t.Fatal("candidate root should be closed after git remove failure")
+	}
+	if _, readErr := candidateRoot.ReadFile("tracked.txt"); readErr == nil {
+		t.Fatal("closed candidate root unexpectedly remained readable")
+	}
+	assertLockHeld(t, featurePath)
+	assertLockHeld(t, globalPath)
+
+	releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock, globalLock = nil, nil
+	assertLockReacquireAfterRelease(t, featurePath)
+	assertLockReacquireAfterRelease(t, globalPath)
+}
+
+func TestPruneResidueCleanupFailureClosesRootAndKeepsCallerLocks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink residue fixture is POSIX-specific in CI")
+	}
+	root, head := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", "demo-feature.lock")
+	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012352", head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shimDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "worktree" ] && [ "$2" = "remove" ]; then
+  target="$4"
+  mv "$target" "${target}.original"
+  mkdir -p "${target}.replacement"
+  printf retained > "${target}.replacement/sentinel"
+  ln -s "${target}.replacement" "$target"
+  exit 0
+fi
+exec %q "$@"
+`, realGit)
+	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err = candidateRoot.Prune(featureLock, globalLock)
+	if err == nil || !strings.Contains(err.Error(), "candidate worktree entry changed unexpectedly before cleanup") {
+		t.Fatalf("Prune err=%v, want refusal to remove replaced residue", err)
+	}
+	if !candidateRoot.closed {
+		t.Fatal("candidate root should be closed after residue cleanup failure")
+	}
+	for _, root := range []*heldRoot{candidateRoot.repo, candidateRoot.parent, candidateRoot.worktree} {
+		if !root.closed || root.root != nil {
+			t.Fatal("prune failure left a rooted handle open")
+		}
+	}
+	if body, err := os.ReadFile(filepath.Join(candidateRoot.worktreePath+".replacement", "sentinel")); err != nil || string(body) != "retained" {
+		t.Fatalf("prune removed foreign replacement data: %q %v", body, err)
+	}
+	assertLockHeld(t, featurePath)
+	assertLockHeld(t, globalPath)
+
+	releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock, globalLock = nil, nil
+	assertLockReacquireAfterRelease(t, featurePath)
+	assertLockReacquireAfterRelease(t, globalPath)
 }
 
 func TestCandidateRootZeroAndClosedState(t *testing.T) {
@@ -242,7 +516,7 @@ func TestCandidateRootZeroAndClosedState(t *testing.T) {
 	if _, err := zero.ReadFile("tracked.txt"); err == nil {
 		t.Fatal("zero CandidateRoot read unexpectedly succeeded")
 	}
-	if err := zero.Prune(); err == nil {
+	if err := zero.Prune(nil, nil); err == nil {
 		t.Fatal("zero CandidateRoot prune unexpectedly succeeded")
 	}
 	if err := zero.Close(); err == nil {
@@ -250,7 +524,9 @@ func TestCandidateRootZeroAndClosedState(t *testing.T) {
 	}
 
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012348", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012348", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
@@ -302,9 +578,10 @@ func TestCandidateGitSubprocessesUseNoLazyFetchAndScrubHostileEnv(t *testing.T) 
 	shimDir := t.TempDir()
 	logPath := filepath.Join(shimDir, "env.log")
 	script := fmt.Sprintf(`#!/bin/sh
-printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
+printf '%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\037%%s\n' \
   "${GIT_NO_LAZY_FETCH-}" "${LC_ALL-}" "${GIT_NO_REPLACE_OBJECTS-}" \
-  "${GIT_DIR-}" "${GIT_WORK_TREE-}" "${GIT_COMMON_DIR-}" "${GIT_INDEX_FILE-}" "$*" >> %q
+  "${GIT_DIR-}" "${GIT_WORK_TREE-}" "${GIT_COMMON_DIR-}" "${GIT_INDEX_FILE-}" \
+  "${GIT_CONFIG_GLOBAL-}" "${GIT_CONFIG_SYSTEM-}" "${GIT_CONFIG_NOSYSTEM-}" "${GIT_REPLACE_REF_BASE-}" "$*" >> %q
 exec %q "$@"
 `, logPath, realGit)
 	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte(script), 0o755); err != nil {
@@ -318,6 +595,10 @@ exec %q "$@"
 	t.Setenv("GIT_WORK_TREE", foreignRoot)
 	t.Setenv("GIT_COMMON_DIR", filepath.Join(foreignRoot, ".git"))
 	t.Setenv("GIT_INDEX_FILE", filepath.Join(foreignRoot, ".git", "index"))
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(foreignRoot, ".gitconfig"))
+	t.Setenv("GIT_CONFIG_SYSTEM", filepath.Join(foreignRoot, "system.gitconfig"))
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_REPLACE_REF_BASE", "refs/replace-foreign/")
 	t.Setenv("GIT_CONFIG_COUNT", "1")
 	t.Setenv("GIT_CONFIG_KEY_0", "alias.cat-file")
 	t.Setenv("GIT_CONFIG_VALUE_0", "!false")
@@ -335,13 +616,15 @@ exec %q "$@"
 		t.Fatalf("reference read escaped target repo: %q", string(body))
 	}
 
-	candidateRoot, err := CreateCandidateRoot(targetRoot, "demo-feature", "rc_fedcba987654", targetHead)
+	featureLock, globalLock := acquireCandidateLocks(t, targetRoot, "demo-feature")
+	candidateRoot, err := CreateCandidateRoot(targetRoot, "demo-feature", "rc_fedcba987654", targetHead, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
-	if err := candidateRoot.Prune(); err != nil {
+	if err := candidateRoot.Prune(featureLock, globalLock); err != nil {
 		t.Fatalf("Prune: %v", err)
 	}
+	releaseCandidateLocks(t, featureLock, globalLock)
 
 	foreignWorktreesAfter := gitWithBinaryAndEnv(t, realGit, foreignRoot, []string{"LC_ALL=C", "LANG=C"}, "worktree", "list", "--porcelain")
 	if foreignWorktreesAfter != foreignWorktreesBefore {
@@ -354,15 +637,19 @@ exec %q "$@"
 	}
 	for _, line := range strings.Split(strings.TrimSpace(string(logBytes)), "\n") {
 		fields := strings.Split(line, "\x1f")
-		if len(fields) != 8 {
+		if len(fields) != 12 {
 			t.Fatalf("unexpected env log row %q", line)
 		}
 		if fields[0] != "1" || fields[1] != "C" || fields[2] != "1" {
 			t.Fatalf("candidate git call lost mandatory env envelope: %q", line)
 		}
-		for index, label := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE"} {
-			if fields[3+index] != "" {
-				t.Fatalf("candidate git call leaked %s: %q", label, line)
+		for index, value := range []struct{ name, want string }{
+			{"GIT_DIR", ""}, {"GIT_WORK_TREE", ""}, {"GIT_COMMON_DIR", ""}, {"GIT_INDEX_FILE", ""},
+			{"GIT_CONFIG_GLOBAL", os.DevNull}, {"GIT_CONFIG_SYSTEM", os.DevNull},
+			{"GIT_CONFIG_NOSYSTEM", "1"}, {"GIT_REPLACE_REF_BASE", ""},
+		} {
+			if fields[3+index] != value.want {
+				t.Fatalf("candidate git call has unsafe %s: %q", value.name, line)
 			}
 		}
 	}
@@ -400,13 +687,16 @@ func TestOpenReferenceRootMissingPromisorObjectDoesNotFetch(t *testing.T) {
 
 func TestCandidateWorktreeTreeHashReflectsUncommittedChanges(t *testing.T) {
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012349", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012349", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
 	defer func() {
 		if !candidateRoot.closed {
-			_ = candidateRoot.Prune()
+			_ = candidateRoot.Prune(featureLock, globalLock)
 		}
 	}()
 

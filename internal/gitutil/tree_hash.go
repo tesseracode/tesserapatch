@@ -125,7 +125,7 @@ func runTreeGit(identity rootedIdentity, extraEnv []string, args ...string) (str
 	}
 	cmd := exec.Command("git", args...)
 	cmd.Dir = identity.path
-	cmd.Env = treeHashEnv(extraEnv)
+	cmd.Env = HardenedNoLazyGitEnv(extraEnv...)
 	var stdout, stderr strings.Builder
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -137,11 +137,4 @@ func runTreeGit(identity rootedIdentity, extraEnv []string, args ...string) (str
 		return stdout.String(), stderr.String(), checkErr
 	}
 	return stdout.String(), stderr.String(), err
-}
-
-func treeHashEnv(extra []string) []string {
-	env := prepareGitEnvironment(os.Environ())
-	env = append(env, extra...)
-	env = append(env, NoLazyFetchEnv, CLocaleEnv)
-	return env
 }

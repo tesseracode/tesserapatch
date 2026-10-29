@@ -3,6 +3,7 @@
 package candidatelock
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,6 +22,7 @@ func TestTryAcquireContentionAndReacquire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first lock: %v", err)
 	}
+
 	defer func() {
 		if releaseErr := first.Release(); releaseErr != nil {
 			t.Fatalf("release first lock: %v", releaseErr)
@@ -47,6 +49,72 @@ func TestTryAcquireContentionAndReacquire(t *testing.T) {
 	}
 	if err := third.Release(); err != nil {
 		t.Fatalf("release third lock: %v", err)
+	}
+}
+
+func TestHandleBorrowRejectsInvalidCapability(t *testing.T) {
+	lockPath := filepath.Join(t.TempDir(), "candidate.lock")
+	handle, err := TryAcquire(lockPath)
+	if err != nil {
+		t.Fatalf("TryAcquire: %v", err)
+	}
+	t.Cleanup(func() { _ = handle.Release() })
+	if release, err := handle.Borrow(lockPath + ".other"); err == nil {
+		release()
+		t.Fatal("Borrow accepted wrong path capability")
+	}
+	if err := os.Rename(lockPath, lockPath+".moved"); err != nil {
+		if runtime.GOOS != "windows" || !errors.Is(err, syscall.Errno(32)) {
+			t.Fatal(err)
+		}
+		// A Windows sharing violation can prevent replacement while locked.
+		release, err := handle.Borrow(lockPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		release()
+		return
+	}
+	if err := os.WriteFile(lockPath, []byte("replacement"), 0o600); err != nil {
+		t.Fatalf("write replacement lock file: %v", err)
+	}
+	if release, err := handle.Borrow(lockPath); err == nil {
+		release()
+		t.Fatal("Borrow accepted replaced lock path")
+	}
+}
+
+func TestHandleReleaseRefusesWhileBorrowed(t *testing.T) {
+	lockPath := filepath.Join(t.TempDir(), "candidate.lock")
+	handle, err := TryAcquire(lockPath)
+	if err != nil {
+		t.Fatalf("TryAcquire: %v", err)
+	}
+	t.Cleanup(func() { _ = handle.Release() })
+	releaseBorrow, err := handle.Borrow(lockPath)
+	if err != nil {
+		t.Fatalf("Borrow: %v", err)
+	}
+	t.Cleanup(releaseBorrow)
+	result := make(chan error, 1)
+	go func() { result <- handle.Release() }()
+	if err := <-result; err == nil {
+		t.Fatal("Release succeeded while handle was borrowed")
+	}
+	if second, err := TryAcquire(lockPath); err == nil {
+		_ = second.Release()
+		t.Fatal("lock became available while borrowed")
+	}
+	releaseBorrow()
+	if err := handle.Release(); err != nil {
+		t.Fatalf("Release after borrow: %v", err)
+	}
+	reacquire, err := TryAcquire(lockPath)
+	if err != nil {
+		t.Fatalf("reacquire after release: %v", err)
+	}
+	if err := reacquire.Release(); err != nil {
+		t.Fatalf("release reacquire: %v", err)
 	}
 }
 

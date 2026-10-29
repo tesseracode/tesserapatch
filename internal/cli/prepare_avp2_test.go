@@ -971,7 +971,7 @@ func firstLifecycleLine(rendered string) string {
 // ---------------------------------------------------------------------------
 
 func TestAVPRootLifetimeAndDifferential(t *testing.T) {
-	const moduleOpenRootCallSites = 3
+	const moduleOpenRootCallSites = 5
 
 	t.Run("AVP-141", func(t *testing.T) {
 		fset := token.NewFileSet()
@@ -1007,8 +1007,7 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if closes != 1 {
 			t.Fatalf("root.Close has %d call sites, want exactly 1", closes)
 		}
-		// The module has this accepted read-only root plus the two S4 mutating
-		// prepare call sites. No other production file may add one.
+		// S1 adds two explicit candidate/lock roots; the three prepare sites stay.
 		// The population is the set of **tracked** non-test Go files, taken
 		// from `git ls-files`; walking the working tree instead made this row
 		// depend on whatever happens to exist on disk (a nested `git
@@ -1025,6 +1024,9 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 				"os.OpenRoot appears at %d tracked production call sites module-wide, want %d",
 				count, moduleOpenRootCallSites,
 			)
+		}
+		if err := validateModuleOpenRootInventory(sources); err != nil {
+			t.Fatal(err)
 		}
 		publishPath := filepath.Join("internal", "cli", "prepare_publish.go")
 		publishCount, err := countOpenRootCallSites(map[string]string{
@@ -1047,6 +1049,18 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 			extra[path] = source
 		}
 		extra[filepath.Join("internal", "workflow", "root_probe.go")] = opener
+		if err := validateModuleOpenRootInventory(extra); err == nil {
+			t.Fatal("unregistered module-wide root opener was accepted")
+		}
+		moved := map[string]string{}
+		for path, source := range trackedProductionGoSources(t) {
+			moved[path] = source
+		}
+		delete(moved, filepath.Join("internal", "candidate", "root.go"))
+		moved[filepath.Join("internal", "workflow", "root_probe.go")] = opener
+		if err := validateModuleOpenRootInventory(moved); err == nil {
+			t.Fatal("same-count replacement of a permitted root opener was accepted")
+		}
 		count, err := countOpenRootCallSites(extra)
 		if err != nil {
 			t.Fatal(err)
@@ -1528,6 +1542,29 @@ func trackedProductionGoSources(t *testing.T) map[string]string {
 // countOpenRootCallSites is the AVP-141 module-wide half: a pure function
 // over a tracked-source population, so its sensitivity arm can add a call
 // site without touching the working tree.
+func validateModuleOpenRootInventory(sources map[string]string) error {
+	expected := map[string]int{
+		filepath.Join("internal", "cli", "prepare.go"):               1,
+		filepath.Join("internal", "cli", "prepare_publish.go"):       2,
+		filepath.Join("internal", "candidate", "root.go"):            1,
+		filepath.Join("internal", "candidatelock", "lock_common.go"): 1,
+	}
+	for path, source := range sources {
+		count, err := countOpenRootCallSites(map[string]string{path: source})
+		if err != nil {
+			return err
+		}
+		if count != expected[path] {
+			return fmt.Errorf("unexpected os.OpenRoot inventory in %s: got %d, want %d", path, count, expected[path])
+		}
+		delete(expected, path)
+	}
+	if len(expected) != 0 {
+		return fmt.Errorf("expected root-opening source files missing: %v", expected)
+	}
+	return nil
+}
+
 func countOpenRootCallSites(sources map[string]string) (int, error) {
 	count := 0
 	for path, source := range sources {

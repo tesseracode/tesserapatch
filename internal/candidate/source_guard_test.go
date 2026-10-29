@@ -12,11 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/tesseracode/tesserapatch/internal/candidatelock"
 )
 
 func TestConstructorSignatures(t *testing.T) {
 	var _ func(string, string) (*ReferenceRoot, error) = OpenReferenceRoot
-	var _ func(string, string, string, string) (*CandidateRoot, error) = CreateCandidateRoot
+	var _ func(string, string, string, string, *candidatelock.Handle, *candidatelock.Handle) (*CandidateRoot, error) = CreateCandidateRoot
+	var _ func(*CandidateRoot, *candidatelock.Handle, *candidatelock.Handle) error = (*CandidateRoot).Prune
 }
 
 func TestCandidateProductionSourceInventory(t *testing.T) {
@@ -46,15 +49,31 @@ func TestBareRootConstructorsBoundary(t *testing.T) {
 }
 
 func TestBareRootConstructorsBoundarySensitivity(t *testing.T) {
-	fixture := mustParseCandidateSource(t, "synthetic.go", `package candidate
-func OpenReferenceRoot(repoRoot string, commit string) (*ReferenceRoot, error) { return nil, nil }
-func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (*CandidateRoot, error) { return nil, nil }
-func helper(workspace string) (*ReferenceRoot, error) {
-	return openRepositoryRoot(workspace)
-}
-`)
-	if err := checkBareRootConstructors([]candidateFile{{path: "synthetic.go", file: fixture}}); err == nil {
-		t.Fatal("boundary guard accepted non-constructor bare-root entry")
+	files, err := candidateProductionFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkBareRootConstructors(files); err != nil {
+		t.Fatal(err)
+	}
+	source := mustReadCandidateSource(t, "root.go")
+	for _, extra := range []string{
+		"\nfunc helper(workspace string) (*heldRoot, error) { return openHeldRoot(absoluteRootPath(workspace)) }\n",
+		"\nfunc renamed(path string) (*os.Root, error) { return os.OpenRoot(path) }\n",
+		"\nfunc (r *ReferenceRoot) rawRead(path string) ([]byte, error) { return os.ReadFile(path) }\n",
+		"\nvar alternateOpener = os.OpenRoot\n",
+		"\nvar alternateRead = os.ReadFile\n",
+		"\nvar alternateFactory = openHeldRoot\n",
+	} {
+		mutants := append([]candidateFile(nil), files...)
+		for i := range mutants {
+			if mutants[i].path == "root.go" {
+				mutants[i].file = mustParseCandidateSource(t, "root.go", source+extra)
+			}
+		}
+		if err := checkBareRootConstructors(mutants); err == nil {
+			t.Fatalf("boundary guard accepted %s", extra)
+		}
 	}
 }
 
@@ -90,20 +109,11 @@ func TestGitEnvelopeGuardSensitivity(t *testing.T) {
 		src  string
 	}{
 		{
-			name: "missing-no-lazy",
+			name: "missing-hardened-envelope",
 			src: strings.Replace(
 				string(rootSource),
-				"gitutil.NoLazyFetchEnv",
-				"gitutil.CLocaleEnv",
-				1,
-			),
-		},
-		{
-			name: "missing-env-assignment",
-			src: strings.Replace(
-				string(rootSource),
-				"cmd.Env = candidateGitEnv(extraEnv)",
-				"",
+				"cmd.Env = gitutil.HardenedNoLazyGitEnv(extraEnv...)",
+				"cmd.Env = os.Environ()",
 				1,
 			),
 		},
@@ -117,13 +127,53 @@ func TestGitEnvelopeGuardSensitivity(t *testing.T) {
 			),
 		},
 		{
-			name: "extra-git-call",
+			name: "runner-wrapper",
+			src: strings.Replace(
+				string(rootSource),
+				"cmd := exec.Command(\"git\", args...)",
+				"runner := exec.Command\n\tcmd := runner(\"git\", args...)",
+				1,
+			),
+		},
+		{
+			name: "dynamic-git-name",
+			src: strings.Replace(
+				string(rootSource),
+				"cmd := exec.Command(\"git\", args...)",
+				"commandName := \"git\"\n\tcmd := exec.Command(commandName, args...)",
+				1,
+			),
+		},
+		{
+			name: "unregistered-path-call",
 			src: strings.Replace(
 				string(rootSource),
 				"return strings.Contains(trimmed, \"is not a working tree\") ||",
-				"cmd := exec.Command(\"git\", \"status\")\n\t_ = cmd\n\treturn strings.Contains(trimmed, \"is not a working tree\") ||",
+				"_ = runGitViaHelper(\"git\", \"status\")\n\treturn strings.Contains(trimmed, \"is not a working tree\") ||",
 				1,
 			),
+		},
+		{
+			name: "package-level-executor-alias",
+			src:  string(rootSource) + "\nvar hiddenRunner = exec.Command\n",
+		},
+		{
+			name: "command-handle-alias",
+			src: strings.Replace(string(rootSource), "stdout, err := cmd.Output()",
+				"alias := cmd\n\talias.Env = nil\n\tstdout, err := cmd.Output()", 1),
+		},
+		{
+			name: "conditional-envelope",
+			src: strings.Replace(string(rootSource), "cmd.Env = gitutil.HardenedNoLazyGitEnv(extraEnv...)",
+				"if len(extraEnv) > 0 { cmd.Env = gitutil.HardenedNoLazyGitEnv(extraEnv...) }", 1),
+		},
+		{
+			name: "missing-root-directory",
+			src:  strings.Replace(string(rootSource), "cmd.Dir = repo.path", "", 1),
+		},
+		{
+			name: "wrong-root-directory",
+			src:  strings.Replace(string(rootSource), "cmd.Dir = repo.path", `cmd.Dir = "."`, 1),
 		},
 	} {
 		t.Run(mutation.name, func(t *testing.T) {
@@ -137,6 +187,56 @@ func TestGitEnvelopeGuardSensitivity(t *testing.T) {
 			}
 			if err := checkGitEnvelope(mutant); err == nil {
 				t.Fatal("git envelope guard accepted mutation")
+			}
+		})
+	}
+}
+
+func TestCallerHeldLockBoundary(t *testing.T) {
+	rootSource, err := os.ReadFile("root.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := mustParseCandidateSource(t, "root.go", string(rootSource))
+	if err := checkNoInternalLockAcquireRelease(file); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCallerHeldLockBoundarySensitivity(t *testing.T) {
+	rootSource, err := os.ReadFile("root.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mutation := range []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "try-acquire-reintroduced",
+			src: strings.Replace(
+				string(rootSource),
+				"return nil, err",
+				"_ = candidatelock.TryAcquire(r.featureLockPath())\n\treturn nil, err",
+				1,
+			),
+		},
+		{
+			name: "release-reintroduced",
+			src: strings.Replace(
+				string(rootSource),
+				"return &borrowedMutationLocks{releaseGlobal: releaseGlobal, releaseFeature: releaseFeature}, nil",
+				"_ = featureLock.Release()\n\treturn &borrowedMutationLocks{releaseGlobal: releaseGlobal, releaseFeature: releaseFeature}, nil",
+				1,
+			),
+		},
+	} {
+		t.Run(mutation.name, func(t *testing.T) {
+			if mutation.src == string(rootSource) {
+				t.Fatal("mutation did not change source")
+			}
+			if err := checkNoInternalLockAcquireRelease(mustParseCandidateSource(t, "root.go", mutation.src)); err == nil {
+				t.Fatal("lock boundary guard accepted mutation")
 			}
 		})
 	}
@@ -200,6 +300,11 @@ var _ = syscall.EINVAL
 		{
 			name:   "forbidden-module",
 			goMod:  cleanGoMod + "require golang.org/x/sys v0.33.0\n",
+			source: cleanSources,
+		},
+		{
+			name:   "unused-new-module",
+			goMod:  cleanGoMod + "require example.com/unreviewed/module v1.0.0\n",
 			source: cleanSources,
 		},
 		{
@@ -268,36 +373,244 @@ func candidateProductionFiles() ([]candidateFile, error) {
 }
 
 func checkBareRootConstructors(files []candidateFile) error {
-	required := map[string]bool{
-		"OpenReferenceRoot":   false,
-		"CreateCandidateRoot": false,
-	}
+	required := map[string]bool{"OpenReferenceRoot": false, "CreateCandidateRoot": false}
 	for _, file := range files {
+		imports := importPathIndex(file.file)
+		allowedOpeners := map[*ast.SelectorExpr]bool{}
+		allowedFactories := map[*ast.Ident]bool{}
 		for _, decl := range file.file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Recv != nil {
+			if !ok {
 				continue
 			}
-			if containsCall(fn.Body, "openRepositoryRoot") {
-				if fn.Name.Name != "OpenReferenceRoot" && fn.Name.Name != "CreateCandidateRoot" {
-					return fmt.Errorf("non-constructor function calls openRepositoryRoot: %s", fn.Name.Name)
+			if containsCall(fn.Body, "openHeldRoot") {
+				if fn.Recv != nil || (fn.Name.Name != "OpenReferenceRoot" && fn.Name.Name != "CreateCandidateRoot") {
+					return fmt.Errorf("non-constructor function calls openHeldRoot: %s", fn.Name.Name)
 				}
 				required[fn.Name.Name] = true
 			}
+			if fn.Name.Name == "openHeldRoot" {
+				allowedFactories[fn.Name] = true
+			}
+			ast.Inspect(fn.Body, func(node ast.Node) bool {
+				if call, ok := node.(*ast.CallExpr); ok && isCallToIdent(call, "openHeldRoot") {
+					allowedFactories[call.Fun.(*ast.Ident)] = true
+				}
+				return true
+			})
+			if err := enforceNoAlternateRootOpeners(file.file, fn); err != nil {
+				return err
+			}
+			if fn.Name.Name == "openHeldRoot" && fn.Recv == nil {
+				ast.Inspect(fn.Body, func(node ast.Node) bool {
+					if call, ok := node.(*ast.CallExpr); ok && isSelectorCallOnImport(call, imports, "os", "OpenRoot") {
+						allowedOpeners[call.Fun.(*ast.SelectorExpr)] = true
+					}
+					return true
+				})
+			}
+		}
+		var forbidden bool
+		ast.Inspect(file.file, func(node ast.Node) bool {
+			if id, ok := node.(*ast.Ident); ok && id.Name == "openHeldRoot" && !allowedFactories[id] {
+				forbidden = true
+			}
+			if imp, ok := node.(*ast.ImportSpec); ok && imp.Name != nil && imp.Name.Name == "." {
+				forbidden = true
+			}
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			qualifier, ok := selector.X.(*ast.Ident)
+			if !ok || imports[qualifier.Name] != "os" {
+				return true
+			}
+			switch selector.Sel.Name {
+			case "Open", "OpenFile", "ReadFile", "StartProcess":
+				forbidden = true
+			case "OpenRoot":
+				forbidden = forbidden || !allowedOpeners[selector]
+			}
+			return true
+		})
+		if forbidden {
+			return fmt.Errorf("%s contains an unregistered filesystem opener or alias", file.path)
 		}
 	}
 	if err := checkConstructorSignature(files, "OpenReferenceRoot", []string{"repoRoot", "commit"}, "ReferenceRoot"); err != nil {
 		return err
 	}
-	if err := checkConstructorSignature(files, "CreateCandidateRoot", []string{"repoRoot", "slug", "candidateID", "commit"}, "CandidateRoot"); err != nil {
+	if err := checkCreateCandidateSignature(files); err != nil {
+		return err
+	}
+	if err := checkPruneSignature(files); err != nil {
 		return err
 	}
 	for name, hit := range required {
 		if !hit {
-			return fmt.Errorf("constructor boundary lost openRepositoryRoot call: %s", name)
+			return fmt.Errorf("constructor boundary lost openHeldRoot call: %s", name)
 		}
 	}
 	return nil
+}
+
+func enforceNoAlternateRootOpeners(file *ast.File, fn *ast.FuncDecl) error {
+	if fn.Body == nil {
+		return nil
+	}
+	importPathByAlias := importPathIndex(file)
+	violation := false
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if isCallToIdent(call, "openHeldRoot") &&
+			fn.Name.Name != "OpenReferenceRoot" && fn.Name.Name != "CreateCandidateRoot" {
+			violation = true
+			return false
+		}
+		if isSelectorCallOnImport(call, importPathByAlias, "os", "OpenRoot") && fn.Name.Name != "openHeldRoot" {
+			violation = true
+			return false
+		}
+		for _, name := range []string{"Open", "OpenFile", "ReadFile", "StartProcess"} {
+			if isSelectorCallOnImport(call, importPathByAlias, "os", name) {
+				violation = true
+				return false
+			}
+		}
+		return true
+	})
+	if violation {
+		return fmt.Errorf("function %s introduces an alternate bare-root entry", fn.Name.Name)
+	}
+	return nil
+}
+
+func checkCreateCandidateSignature(files []candidateFile) error {
+	for _, file := range files {
+		for _, decl := range file.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != "CreateCandidateRoot" || fn.Recv != nil {
+				continue
+			}
+			if fn.Type.Params == nil {
+				return fmt.Errorf("CreateCandidateRoot parameter shape changed")
+			}
+			expectNames := []string{"repoRoot", "slug", "candidateID", "commit", "featureLock", "worktreeMutationLock"}
+			gotNames := make([]string, 0, 6)
+			var gotTypes []ast.Expr
+			for _, field := range fn.Type.Params.List {
+				for _, name := range field.Names {
+					gotNames = append(gotNames, name.Name)
+					gotTypes = append(gotTypes, field.Type)
+				}
+			}
+			if len(gotNames) != len(expectNames) {
+				return fmt.Errorf("CreateCandidateRoot parameter count changed: got %d want %d", len(gotNames), len(expectNames))
+			}
+			if strings.Join(gotNames, ",") != strings.Join(expectNames, ",") {
+				return fmt.Errorf("CreateCandidateRoot parameters changed: got %v want %v", gotNames, expectNames)
+			}
+			for _, paramType := range gotTypes[:4] {
+				id, ok := paramType.(*ast.Ident)
+				if !ok || id.Name != "string" {
+					return fmt.Errorf("CreateCandidateRoot first four params must remain string")
+				}
+			}
+			for _, paramType := range gotTypes[4:] {
+				if !isCandidatelockHandlePointer(paramType) {
+					return fmt.Errorf("CreateCandidateRoot lock params must remain *candidatelock.Handle")
+				}
+			}
+			if fn.Type.Results == nil || len(fn.Type.Results.List) != 2 {
+				return fmt.Errorf("CreateCandidateRoot result shape changed")
+			}
+			ptr, ok := fn.Type.Results.List[0].Type.(*ast.StarExpr)
+			if !ok {
+				return fmt.Errorf("CreateCandidateRoot first result must remain pointer")
+			}
+			ret, ok := ptr.X.(*ast.Ident)
+			if !ok || ret.Name != "CandidateRoot" {
+				return fmt.Errorf("CreateCandidateRoot first result changed")
+			}
+			errID, ok := fn.Type.Results.List[1].Type.(*ast.Ident)
+			if !ok || errID.Name != "error" {
+				return fmt.Errorf("CreateCandidateRoot second result must remain error")
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("CreateCandidateRoot constructor not found")
+}
+
+func checkPruneSignature(files []candidateFile) error {
+	for _, file := range files {
+		for _, decl := range file.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != "Prune" || fn.Recv == nil {
+				continue
+			}
+			if len(fn.Recv.List) != 1 {
+				return fmt.Errorf("Prune receiver changed")
+			}
+			recvPtr, ok := fn.Recv.List[0].Type.(*ast.StarExpr)
+			if !ok {
+				return fmt.Errorf("Prune receiver must remain pointer")
+			}
+			recv, ok := recvPtr.X.(*ast.Ident)
+			if !ok || recv.Name != "CandidateRoot" {
+				return fmt.Errorf("Prune receiver changed")
+			}
+			if fn.Type.Params == nil {
+				return fmt.Errorf("Prune parameter shape changed")
+			}
+			expectNames := []string{"featureLock", "worktreeMutationLock"}
+			var got []string
+			var gotTypes []ast.Expr
+			for _, field := range fn.Type.Params.List {
+				for _, name := range field.Names {
+					got = append(got, name.Name)
+					gotTypes = append(gotTypes, field.Type)
+				}
+			}
+			if len(got) != len(expectNames) {
+				return fmt.Errorf("Prune parameter count changed: got %d want %d", len(got), len(expectNames))
+			}
+			for _, paramType := range gotTypes {
+				if !isCandidatelockHandlePointer(paramType) {
+					return fmt.Errorf("Prune parameters must remain *candidatelock.Handle")
+				}
+			}
+			if strings.Join(got, ",") != strings.Join(expectNames, ",") {
+				return fmt.Errorf("Prune parameter names changed: got %v want %v", got, expectNames)
+			}
+			if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+				return fmt.Errorf("Prune results changed")
+			}
+			errID, ok := fn.Type.Results.List[0].Type.(*ast.Ident)
+			if !ok || errID.Name != "error" {
+				return fmt.Errorf("Prune must return error")
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("Prune method not found")
+}
+
+func isCandidatelockHandlePointer(expr ast.Expr) bool {
+	ptr, ok := expr.(*ast.StarExpr)
+	if !ok {
+		return false
+	}
+	sel, ok := ptr.X.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	return ok && pkg.Name == "candidatelock" && sel.Sel.Name == "Handle"
 }
 
 func checkConstructorSignature(files []candidateFile, name string, params []string, result string) error {
@@ -350,31 +663,63 @@ func checkConstructorSignature(files []candidateFile, name string, params []stri
 }
 
 func checkGitEnvelope(files []candidateFile) error {
+	var rootFile *ast.File
+	for _, file := range files {
+		if file.path == "root.go" {
+			rootFile = file.file
+			break
+		}
+	}
+	if rootFile == nil {
+		return fmt.Errorf("root.go not found in source inventory")
+	}
 	var gitCalls int
 	var envAssigns int
 	var invalid bool
-	var hasNoLazy bool
-	var hasCLocale bool
-	var hasScrubber bool
-	var scrubbedVars = map[string]bool{}
-
+	var hasHardenedCall bool
 	for _, file := range files {
+		importPathByAlias := importPathIndex(file.file)
+		allowedExecutors := map[*ast.SelectorExpr]bool{}
 		for _, decl := range file.file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
 			if !ok {
 				continue
 			}
+			if fn.Name.Name == "runGitWithIdentity" {
+				if err := checkCommandHandleUse(fn); err != nil {
+					return err
+				}
+			}
 			ast.Inspect(fn.Body, func(node ast.Node) bool {
 				switch n := node.(type) {
 				case *ast.CallExpr:
-					if !isGitExecCall(n) {
-						return true
+					if isSelectorCallOnImport(n, importPathByAlias, "os/exec", "Command") ||
+						isSelectorCallOnImport(n, importPathByAlias, "os/exec", "CommandContext") {
+						gitCalls++
+						if fn.Name.Name != "runGitWithIdentity" || !firstArgIsLiteralGit(n) {
+							invalid = true
+						} else {
+							allowedExecutors[n.Fun.(*ast.SelectorExpr)] = true
+						}
 					}
-					gitCalls++
-					if fn.Name.Name != "runGitWithIdentity" {
+					if firstArgIsLiteralGit(n) &&
+						!(isSelectorCallOnImport(n, importPathByAlias, "os/exec", "Command") ||
+							isSelectorCallOnImport(n, importPathByAlias, "os/exec", "CommandContext")) {
 						invalid = true
 					}
+					if fn.Name.Name == "runGitWithIdentity" && isHardenedEnvCall(n) {
+						hasHardenedCall = true
+					}
 				case *ast.AssignStmt:
+					for _, rhs := range n.Rhs {
+						if selector, ok := rhs.(*ast.SelectorExpr); ok {
+							if ident, ok := selector.X.(*ast.Ident); ok &&
+								importPathByAlias[ident.Name] == "os/exec" &&
+								(selector.Sel.Name == "Command" || selector.Sel.Name == "CommandContext") {
+								invalid = true
+							}
+						}
+					}
 					if fn.Name.Name != "runGitWithIdentity" {
 						return true
 					}
@@ -388,36 +733,33 @@ func checkGitEnvelope(files []candidateFile) error {
 							continue
 						}
 						envAssigns++
-						if index >= len(n.Rhs) || !isCandidateGitEnvCall(n.Rhs[index]) {
+						if index >= len(n.Rhs) || !isHardenedEnvCallExpr(n.Rhs[index]) {
 							invalid = true
-						}
-					}
-				case *ast.SelectorExpr:
-					if fn.Name.Name == "candidateGitEnv" {
-						if pkg, ok := n.X.(*ast.Ident); ok && pkg.Name == "gitutil" {
-							switch n.Sel.Name {
-							case "NoLazyFetchEnv":
-								hasNoLazy = true
-							case "CLocaleEnv":
-								hasCLocale = true
-							}
-						}
-					}
-				case *ast.Ident:
-					if fn.Name.Name == "candidateGitEnv" && n.Name == "scrubGitVariable" {
-						hasScrubber = true
-					}
-				case *ast.BasicLit:
-					if fn.Name.Name == "scrubGitVariable" && n.Kind == token.STRING {
-						text, unquoteErr := strconv.Unquote(n.Value)
-						if unquoteErr == nil {
-							scrubbedVars[text] = true
 						}
 					}
 				}
 				return true
 			})
 		}
+		ast.Inspect(file.file, func(node ast.Node) bool {
+			if imp, ok := node.(*ast.ImportSpec); ok && imp.Name != nil && imp.Name.Name == "." {
+				invalid = true
+			}
+			selector, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			pkg, ok := selector.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			if importPathByAlias[pkg.Name] == "os/exec" &&
+				(selector.Sel.Name == "Command" || selector.Sel.Name == "CommandContext") &&
+				!allowedExecutors[selector] {
+				invalid = true
+			}
+			return true
+		})
 	}
 	if gitCalls != 1 {
 		return fmt.Errorf("git subprocess call sites = %d, want exactly 1 (runGitWithIdentity)", gitCalls)
@@ -428,34 +770,96 @@ func checkGitEnvelope(files []candidateFile) error {
 	if envAssigns != 1 {
 		return fmt.Errorf("cmd.Env assignment contract changed: got %d", envAssigns)
 	}
-	if !hasNoLazy || !hasCLocale || !hasScrubber {
-		return fmt.Errorf("candidate git environment lost NoLazy/CLocale/scrubber wiring")
-	}
-	for _, required := range []string{
-		"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
-		"GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-		"GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_CONFIG_COUNT",
-		"GIT_REPLACE_REF_BASE",
-	} {
-		if !scrubbedVars[required] {
-			return fmt.Errorf("scrubGitVariable no longer scrubs %s", required)
-		}
+	if !hasHardenedCall {
+		return fmt.Errorf("runGitWithIdentity no longer uses gitutil.HardenedNoLazyGitEnv")
 	}
 	return nil
 }
 
-func isGitExecCall(call *ast.CallExpr) bool {
-	selector, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return false
+func checkCommandHandleUse(fn *ast.FuncDecl) error {
+	if fn.Body == nil {
+		return fmt.Errorf("Git runner has no inspectable body")
 	}
-	pkg, ok := selector.X.(*ast.Ident)
-	if !ok || pkg.Name != "exec" {
-		return false
+	parents := map[ast.Node]ast.Node{}
+	var stack []ast.Node
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		if node == nil {
+			stack = stack[:len(stack)-1]
+			return false
+		}
+		if len(stack) > 0 {
+			parents[node] = stack[len(stack)-1]
+		}
+		stack = append(stack, node)
+		return true
+	})
+	invalid := false
+	fields := map[string]int{}
+	var envPosition, outputPosition token.Pos
+	ast.Inspect(fn.Body, func(node ast.Node) bool {
+		id, ok := node.(*ast.Ident)
+		if !ok || id.Name != "cmd" {
+			return true
+		}
+		switch parent := parents[id].(type) {
+		case *ast.AssignStmt:
+			if parent.Tok != token.DEFINE || len(parent.Lhs) != 1 || parent.Lhs[0] != id ||
+				parents[parent] != fn.Body {
+				invalid = true
+			}
+		case *ast.SelectorExpr:
+			if parent.X != id {
+				invalid = true
+				break
+			}
+			if parent.Sel.Name == "Output" {
+				fields["Output"]++
+				outputPosition = parent.Pos()
+				call, ok := parents[parent].(*ast.CallExpr)
+				if !ok || call.Fun != parent {
+					invalid = true
+				}
+				break
+			}
+			assignment, ok := parents[parent].(*ast.AssignStmt)
+			if !ok || len(assignment.Lhs) != 1 || assignment.Lhs[0] != parent ||
+				parents[assignment] != fn.Body ||
+				(parent.Sel.Name != "Dir" && parent.Sel.Name != "Env" && parent.Sel.Name != "Stderr") {
+				invalid = true
+				break
+			}
+			fields[parent.Sel.Name]++
+			if parent.Sel.Name == "Env" {
+				envPosition = parent.Pos()
+			}
+			if parent.Sel.Name == "Dir" {
+				if len(assignment.Rhs) != 1 {
+					invalid = true
+					break
+				}
+				value, ok := assignment.Rhs[0].(*ast.SelectorExpr)
+				if !ok {
+					invalid = true
+					break
+				}
+				receiver, ok := value.X.(*ast.Ident)
+				if !ok || receiver.Name != "repo" || value.Sel.Name != "path" {
+					invalid = true
+				}
+			}
+		default:
+			invalid = true
+		}
+		return true
+	})
+	if invalid || fields["Dir"] != 1 || fields["Env"] != 1 || fields["Stderr"] != 1 ||
+		fields["Output"] != 1 || envPosition >= outputPosition {
+		return fmt.Errorf("Git command handle escapes or is conditionally configured")
 	}
-	if selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext" {
-		return false
-	}
+	return nil
+}
+
+func firstArgIsLiteralGit(call *ast.CallExpr) bool {
 	if len(call.Args) == 0 {
 		return false
 	}
@@ -464,19 +868,24 @@ func isGitExecCall(call *ast.CallExpr) bool {
 		return false
 	}
 	name, err := strconv.Unquote(first.Value)
-	if err != nil {
-		return false
-	}
-	return name == "git"
+	return err == nil && name == "git"
 }
 
-func isCandidateGitEnvCall(expr ast.Expr) bool {
+func isHardenedEnvCall(call *ast.CallExpr) bool {
+	return isHardenedEnvCallExpr(call)
+}
+
+func isHardenedEnvCallExpr(expr ast.Expr) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
 		return false
 	}
-	ident, ok := call.Fun.(*ast.Ident)
-	return ok && ident.Name == "candidateGitEnv"
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	return ok && pkg.Obj == nil && pkg.Name == "gitutil" && selector.Sel.Name == "HardenedNoLazyGitEnv"
 }
 
 func containsCall(body *ast.BlockStmt, callee string) bool {
@@ -499,10 +908,69 @@ func containsCall(body *ast.BlockStmt, callee string) bool {
 	return hit
 }
 
+func importPathIndex(file *ast.File) map[string]string {
+	aliases := map[string]string{}
+	for _, imp := range file.Imports {
+		pathValue, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			continue
+		}
+		alias := filepath.Base(pathValue)
+		if imp.Name != nil && imp.Name.Name != "_" && imp.Name.Name != "." {
+			alias = imp.Name.Name
+		}
+		aliases[alias] = pathValue
+	}
+	return aliases
+}
+
+func isSelectorCallOnImport(call *ast.CallExpr, aliasToPath map[string]string, wantPath, wantSelector string) bool {
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	alias, ok := selector.X.(*ast.Ident)
+	if !ok || selector.Sel.Name != wantSelector {
+		return false
+	}
+	return aliasToPath[alias.Name] == wantPath
+}
+
+func isCallToIdent(call *ast.CallExpr, name string) bool {
+	ident, ok := call.Fun.(*ast.Ident)
+	return ok && ident.Name == name
+}
+
+func checkNoInternalLockAcquireRelease(file *ast.File) error {
+	imports := importPathIndex(file)
+	var violation bool
+	ast.Inspect(file, func(node ast.Node) bool {
+		selector, ok := node.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if selector.Sel.Name == "Release" {
+			violation = true
+		}
+		if pkg, ok := selector.X.(*ast.Ident); ok &&
+			imports[pkg.Name] == "github.com/tesseracode/tesserapatch/internal/candidatelock" &&
+			selector.Sel.Name == "TryAcquire" {
+			violation = true
+		}
+		return true
+	})
+	if violation {
+		return fmt.Errorf("candidate source acquires or releases caller-owned lock capabilities")
+	}
+	return nil
+}
+
 func validateDependencyContract(goMod string, sources map[string]string) error {
 	requires := parseGoModRequires(goMod)
 	for module := range requires {
-		if module == "golang.org/x/sys" || strings.HasPrefix(module, "golang.org/x/sys/") {
+		switch module {
+		case "github.com/spf13/cobra", "github.com/spf13/pflag", "github.com/inconshreveable/mousetrap":
+		default:
 			return fmt.Errorf("go.mod added forbidden module dependency %s", module)
 		}
 	}

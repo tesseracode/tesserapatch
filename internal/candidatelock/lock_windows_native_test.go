@@ -105,4 +105,33 @@ func TestCandidateLockNativeWindows(t *testing.T) {
 			t.Fatalf("UNC refusal err=%v, want %s", err, CodeLockFilesystemUnsupported)
 		}
 	})
+
+	t.Run("CLW-005-borrow-release-exclusion", func(t *testing.T) {
+		lockPath := filepath.Join(t.TempDir(), "candidate.lock")
+		handle, err := TryAcquire(lockPath)
+		if err != nil {
+			t.Fatalf("acquire: %v", err)
+		}
+		releaseBorrow, err := handle.Borrow(lockPath)
+		if err != nil {
+			t.Fatalf("borrow: %v", err)
+		}
+		if err := handle.Release(); err == nil {
+			t.Fatal("release unexpectedly succeeded while borrowed")
+		}
+		if _, err := TryAcquire(lockPath); !IsCode(err, CodeCandidateLockHeld) {
+			t.Fatalf("lock became available while borrowed, err=%v", err)
+		}
+		releaseBorrow()
+		if err := handle.Release(); err != nil {
+			t.Fatalf("release after borrow: %v", err)
+		}
+		reacquire, err := TryAcquire(lockPath)
+		if err != nil {
+			t.Fatalf("reacquire: %v", err)
+		}
+		if err := reacquire.Release(); err != nil {
+			t.Fatalf("release reacquire: %v", err)
+		}
+	})
 }

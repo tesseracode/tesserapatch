@@ -11,13 +11,15 @@ import (
 
 func TestCandidateReadFileRefusesFIFOWithoutBlocking(t *testing.T) {
 	root, head := initCandidateRepo(t)
-	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012350", head)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_abcdef012350", head, featureLock, globalLock)
 	if err != nil {
 		t.Fatalf("CreateCandidateRoot: %v", err)
 	}
 	defer func() {
 		if !candidateRoot.closed {
-			_ = candidateRoot.Prune()
+			_ = candidateRoot.Prune(featureLock, globalLock)
 		}
 	}()
 

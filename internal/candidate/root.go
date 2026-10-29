@@ -54,9 +54,18 @@ type heldRoot struct {
 	closed   bool
 }
 
+type absoluteRootPath string
+
 // OpenReferenceRoot validates and opens a typed read-only reference root.
 func OpenReferenceRoot(repoRoot string, commit string) (*ReferenceRoot, error) {
-	repo, err := openRepositoryRoot(repoRoot)
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
+	}
+	if err := safety.EnsureSafeRepoPath(repoRootAbs, repoRootAbs); err != nil {
+		return nil, fmt.Errorf("unsafe repo root: %w", err)
+	}
+	repo, err := openHeldRoot(absoluteRootPath(repoRootAbs))
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +83,15 @@ func OpenReferenceRoot(repoRoot string, commit string) (*ReferenceRoot, error) {
 
 // CreateCandidateRoot validates inputs, creates one detached candidate worktree,
 // and returns its typed root.
-func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (_ *CandidateRoot, returnedErr error) {
-	repo, err := openRepositoryRoot(repoRoot)
+func CreateCandidateRoot(repoRoot, slug, candidateID, commit string, featureLock, worktreeMutationLock *candidatelock.Handle) (_ *CandidateRoot, returnedErr error) {
+	repoRootAbs, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
+	}
+	if err := safety.EnsureSafeRepoPath(repoRootAbs, repoRootAbs); err != nil {
+		return nil, fmt.Errorf("unsafe repo root: %w", err)
+	}
+	repo, err := openHeldRoot(absoluteRootPath(repoRootAbs))
 	if err != nil {
 		return nil, err
 	}
@@ -118,16 +134,11 @@ func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (_ *Candida
 	if err := candidateRoot.ensureLockPathSafety(); err != nil {
 		return nil, err
 	}
-
-	featureLock, err := candidatelock.TryAcquire(candidateRoot.featureLockPath())
+	borrowed, err := candidateRoot.borrowMutationLocks(featureLock, worktreeMutationLock)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if featureLock != nil {
-			_ = featureLock.Release()
-		}
-	}()
+	defer borrowed.release()
 
 	if err := repo.root.MkdirAll(parentRel, 0o755); err != nil {
 		return nil, fmt.Errorf("create candidate namespace: %w", err)
@@ -148,17 +159,7 @@ func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (_ *Candida
 		return nil, fmt.Errorf("inspect candidate worktree: %w", err)
 	}
 
-	globalLock, err := candidatelock.TryAcquire(candidateRoot.globalWorktreeMutationLockPath())
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if globalLock != nil {
-			_ = globalLock.Release()
-		}
-	}()
-
-	stderr, err := candidateRoot.runGit(repo.path, nil, "worktree", "add", "--detach", "-q", worktreePath, commit)
+	stderr, err := candidateRoot.runGit("worktree", "add", "--detach", "-q", worktreePath, commit)
 	if err != nil {
 		cleanupErr := candidateRoot.cleanupFailedCreation(parent)
 		if cleanupErr != nil {
@@ -175,18 +176,6 @@ func CreateCandidateRoot(repoRoot, slug, candidateID, commit string) (_ *Candida
 		}
 		return nil, fmt.Errorf("open candidate worktree root: %w", err)
 	}
-
-	if releaseErr := globalLock.Release(); releaseErr != nil {
-		_ = worktree.close()
-		return nil, releaseErr
-	}
-	globalLock = nil
-
-	if releaseErr := featureLock.Release(); releaseErr != nil {
-		_ = worktree.close()
-		return nil, releaseErr
-	}
-	featureLock = nil
 
 	candidateRoot.parent = parent
 	candidateRoot.worktree = worktree
@@ -306,52 +295,32 @@ func (r *CandidateRoot) WorktreeTreeHash() (string, error) {
 }
 
 // Prune removes the detached candidate worktree and any owned residue.
-func (r *CandidateRoot) Prune() (returnedErr error) {
+func (r *CandidateRoot) Prune(featureLock, worktreeMutationLock *candidatelock.Handle) error {
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
 	if err := r.ensureLockPathSafety(); err != nil {
 		return err
 	}
-
-	featureLock, err := candidatelock.TryAcquire(r.featureLockPath())
+	borrowed, err := r.borrowMutationLocks(featureLock, worktreeMutationLock)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if featureLock != nil {
-			_ = featureLock.Release()
-		}
-	}()
-
-	globalLock, err := candidatelock.TryAcquire(r.globalWorktreeMutationLockPath())
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if globalLock != nil {
-			_ = globalLock.Release()
-		}
-	}()
+	defer borrowed.release()
 
 	missing, err := r.worktree.validateCurrentPath(true)
 	if err != nil {
 		return err
 	}
-	if !missing {
-		if err := r.worktree.close(); err != nil {
-			return err
-		}
-	}
 
-	stderr, gitErr := r.runGit(r.repo.path, nil, "worktree", "remove", "--force", r.worktreePath)
+	stderr, gitErr := r.runGit("worktree", "remove", "--force", r.worktreePath)
 	if gitErr != nil && !isGitMissingWorktree(stderr) {
-		return fmt.Errorf("git worktree remove failed: %v: %s", gitErr, strings.TrimSpace(stderr))
+		return r.closeWithContext(fmt.Errorf("git worktree remove failed: %v: %s", gitErr, strings.TrimSpace(stderr)))
 	}
 
 	if !missing {
 		if err := r.removeOwnedWorktreeResidue(); err != nil {
-			return err
+			return r.closeWithContext(err)
 		}
 	}
 
@@ -359,8 +328,6 @@ func (r *CandidateRoot) Prune() (returnedErr error) {
 	if err := r.Close(); err != nil {
 		return err
 	}
-	featureLock = nil
-	globalLock = nil
 	return nil
 }
 
@@ -411,7 +378,7 @@ func (r *ReferenceRoot) ensureLocalCommit() error {
 }
 
 func (r *CandidateRoot) ensureLocalCommit() error {
-	stderr, err := r.runGit(r.repo.path, nil, "cat-file", "-e", r.commit+"^{commit}")
+	stderr, err := r.runGit("cat-file", "-e", r.commit+"^{commit}")
 	if err != nil {
 		return fmt.Errorf("candidate base commit %s is not available locally: %v: %s", r.commit, err, strings.TrimSpace(stderr))
 	}
@@ -427,16 +394,15 @@ func (r *ReferenceRoot) runGitWithOutput(args ...string) ([]byte, string, error)
 	if err := r.ensureAvailable(); err != nil {
 		return nil, "", err
 	}
-	stdout, stderr, err := runGitWithIdentity(r.repo, r.repo.path, nil, args...)
-	return stdout, stderr, err
+	return runGitWithIdentity(r.repo, nil, args...)
 }
 
-func (r *CandidateRoot) runGit(dir string, extraEnv []string, args ...string) (string, error) {
-	_, stderr, err := runGitWithIdentity(r.repo, dir, extraEnv, args...)
+func (r *CandidateRoot) runGit(args ...string) (string, error) {
+	_, stderr, err := runGitWithIdentity(r.repo, nil, args...)
 	return stderr, err
 }
 
-func runGitWithIdentity(repo *heldRoot, dir string, extraEnv []string, args ...string) ([]byte, string, error) {
+func runGitWithIdentity(repo *heldRoot, extraEnv []string, args ...string) ([]byte, string, error) {
 	if repo == nil {
 		return nil, "", fmt.Errorf("repository root is not initialized")
 	}
@@ -444,8 +410,8 @@ func runGitWithIdentity(repo *heldRoot, dir string, extraEnv []string, args ...s
 		return nil, "", err
 	}
 	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	cmd.Env = candidateGitEnv(extraEnv)
+	cmd.Dir = repo.path
+	cmd.Env = gitutil.HardenedNoLazyGitEnv(extraEnv...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	stdout, err := cmd.Output()
@@ -458,71 +424,12 @@ func runGitWithIdentity(repo *heldRoot, dir string, extraEnv []string, args ...s
 	return stdout, stderr.String(), err
 }
 
-func candidateGitEnv(extra []string) []string {
-	env := make([]string, 0, len(os.Environ())+len(extra)+6)
-	for _, entry := range os.Environ() {
-		name, _, ok := strings.Cut(entry, "=")
-		if !ok || scrubGitVariable(name) || name == "LC_ALL" || name == "LANG" {
-			continue
-		}
-		env = append(env, entry)
-	}
-	env = append(env, extra...)
-	env = append(env,
-		"GIT_TERMINAL_PROMPT=0",
-		"GIT_NO_REPLACE_OBJECTS=1",
-		gitutil.NoLazyFetchEnv,
-		gitutil.CLocaleEnv,
-		"LANG=C",
-	)
-	return env
-}
-
-func scrubGitVariable(name string) bool {
-	switch name {
-	case "GIT_DIR",
-		"GIT_WORK_TREE",
-		"GIT_INDEX_FILE",
-		"GIT_COMMON_DIR",
-		"GIT_CEILING_DIRECTORIES",
-		"GIT_OBJECT_DIRECTORY",
-		"GIT_ALTERNATE_OBJECT_DIRECTORIES",
-		"GIT_DISCOVERY_ACROSS_FILESYSTEM",
-		"GIT_PREFIX",
-		"GIT_IMPLICIT_WORK_TREE",
-		"GIT_SUPER_PREFIX",
-		"GIT_REPLACE_REF_BASE",
-		"GIT_CONFIG",
-		"GIT_CONFIG_GLOBAL",
-		"GIT_CONFIG_SYSTEM",
-		"GIT_CONFIG_NOSYSTEM",
-		"GIT_CONFIG_COUNT":
-		return true
-	}
-	for _, prefix := range []string{"GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_"} {
-		if !strings.HasPrefix(name, prefix) {
-			continue
-		}
-		suffix := strings.TrimPrefix(name, prefix)
-		if suffix == "" {
-			return false
-		}
-		for idx := 0; idx < len(suffix); idx++ {
-			if suffix[idx] < '0' || suffix[idx] > '9' {
-				return false
-			}
-		}
-		return true
-	}
-	return false
-}
-
 func (r *CandidateRoot) cleanupFailedCreation(parent *heldRoot) error {
 	if parent == nil {
 		return fmt.Errorf("candidate namespace root is unavailable")
 	}
 	var issues []string
-	stderr, err := r.runGit(r.repo.path, nil, "worktree", "remove", "--force", r.worktreePath)
+	stderr, err := r.runGit("worktree", "remove", "--force", r.worktreePath)
 	if err != nil && !isGitMissingWorktree(stderr) {
 		issues = append(issues, fmt.Sprintf("git worktree remove: %v: %s", err, strings.TrimSpace(stderr)))
 	}
@@ -556,32 +463,32 @@ func (r *CandidateRoot) removeOwnedWorktreeResidue() error {
 	return nil
 }
 
+func (r *CandidateRoot) closeWithContext(primary error) error {
+	if primary == nil {
+		return nil
+	}
+	closeErr := r.Close()
+	if closeErr == nil {
+		return primary
+	}
+	return fmt.Errorf("%w (close: %v)", primary, closeErr)
+}
+
 func (r *CandidateRoot) removeEmptyCandidateAncestors() {
 	_ = r.repo.root.Remove(r.parentRel)
 	_ = r.repo.root.Remove(path.Dir(r.parentRel))
 	_ = r.repo.root.Remove(path.Dir(path.Dir(r.parentRel)))
 }
 
-func openRepositoryRoot(repoRoot string) (*heldRoot, error) {
-	rootAbs, err := filepath.Abs(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("resolve repo root: %w", err)
-	}
-	if err := safety.EnsureSafeRepoPath(rootAbs, rootAbs); err != nil {
-		return nil, fmt.Errorf("unsafe repo root: %w", err)
-	}
-	return openHeldRoot(rootAbs)
-}
-
-func openHeldRoot(path string) (*heldRoot, error) {
-	if err := ensureRootPathOpenable(path); err != nil {
+func openHeldRoot(path absoluteRootPath) (*heldRoot, error) {
+	if err := ensureRootPathOpenable(string(path)); err != nil {
 		return nil, err
 	}
-	root, err := os.OpenRoot(path)
+	root, err := os.OpenRoot(string(path))
 	if err != nil {
-		return nil, fmt.Errorf("open root %s: %w", path, err)
+		return nil, fmt.Errorf("open root %s: %w", string(path), err)
 	}
-	hold, err := holdRoot(path, root)
+	hold, err := holdRoot(string(path), root)
 	if err != nil {
 		_ = root.Close()
 		return nil, err
@@ -740,6 +647,79 @@ func (r *CandidateRoot) ensureLockPathSafety() error {
 		if err := safety.EnsureSafeRepoPath(r.repoRoot, lockPath); err != nil {
 			return fmt.Errorf("lock path escaped repository root: %w", err)
 		}
+	}
+	return nil
+}
+
+type borrowedMutationLocks struct {
+	releaseGlobal  func()
+	releaseFeature func()
+}
+
+func (b *borrowedMutationLocks) release() {
+	if b == nil {
+		return
+	}
+	if b.releaseGlobal != nil {
+		b.releaseGlobal()
+	}
+	if b.releaseFeature != nil {
+		b.releaseFeature()
+	}
+}
+
+func (r *CandidateRoot) borrowMutationLocks(featureLock, worktreeMutationLock *candidatelock.Handle) (*borrowedMutationLocks, error) {
+	if featureLock == nil {
+		return nil, fmt.Errorf("feature lock handle is required")
+	}
+	if worktreeMutationLock == nil {
+		return nil, fmt.Errorf("worktree mutation lock handle is required")
+	}
+	if featureLock == worktreeMutationLock {
+		return nil, fmt.Errorf("feature and worktree mutation lock handles must be distinct")
+	}
+	featurePath := r.featureLockPath()
+	globalPath := r.globalWorktreeMutationLockPath()
+	if err := r.ensureLockPathBoundToRepo(featurePath); err != nil {
+		return nil, err
+	}
+	if err := r.ensureLockPathBoundToRepo(globalPath); err != nil {
+		return nil, err
+	}
+	releaseFeature, err := featureLock.Borrow(featurePath)
+	if err != nil {
+		return nil, err
+	}
+	releaseGlobal, err := worktreeMutationLock.Borrow(globalPath)
+	if err != nil {
+		releaseFeature()
+		return nil, err
+	}
+	return &borrowedMutationLocks{releaseGlobal: releaseGlobal, releaseFeature: releaseFeature}, nil
+}
+
+func (r *CandidateRoot) ensureLockPathBoundToRepo(lockPath string) error {
+	if r.repo == nil || r.repo.root == nil {
+		return fmt.Errorf("repository root is not initialized")
+	}
+	if err := safety.EnsureSafeRepoPath(r.repoRoot, lockPath); err != nil {
+		return fmt.Errorf("lock path escaped repository root: %w", err)
+	}
+	rel, err := filepath.Rel(r.repoRoot, lockPath)
+	if err != nil {
+		return fmt.Errorf("resolve lock path relative to repo root: %w", err)
+	}
+	normalized, err := normalizeRelativePath(rel)
+	if err != nil {
+		return fmt.Errorf("normalize lock path relative to repo root: %w", err)
+	}
+	info, err := r.repo.root.Lstat(normalized)
+	if err != nil {
+		return fmt.Errorf("stat lock path from held repo root: %w", err)
+	}
+	mode := info.Mode()
+	if mode&os.ModeSymlink != 0 || mode&os.ModeIrregular != 0 || !mode.IsRegular() {
+		return fmt.Errorf("lock path must be a regular file inside the repository root")
 	}
 	return nil
 }
