@@ -1,3 +1,17 @@
+## S4 Correction Assignment / Basic Checks Complete — 2026-10-30
+
+Basic checks at `a9e3182` all pass: formatting, affected packages 140.89s,
+vet 9.54s, build 0.51s; normal pressure/no new swap-outs. No parent Go work
+remains. Return exclusive admitted focused-validation ownership to the same
+implementer for the refusal-routing correction.
+
+Require a regression through actual classification/validation, not just a
+helper test. Suggested discriminating case: base a,b,c; feature a,b,b,c;
+upstream a,c. The inserted b may satisfy the old base match, leaving the
+second feature insertion applicable despite exact first-pass execution.
+The same reviewer also checks the bounded concern about expected-body map
+lifetime and candidate snapshot binding; no broader unrelated audit.
+
 ## Review — S4 NEEDS REVISION — 2026-10-30
 
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, runtime

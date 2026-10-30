@@ -1643,6 +1643,8 @@ are active against the frozen draft; no second local Go workload.
 Independent review returns NEEDS REVISION: second-pass non-present effects
 must route to candidate-not-idempotent with detail, not the earlier
 postcondition-failed branch. Narrow correction and re-review required.
+Initial full affected/vet/build checks pass but do not close the semantic
+finding. The same implementer owns correction plus admitted focused checks.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

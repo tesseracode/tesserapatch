@@ -38,15 +38,16 @@ the whole candidate and removes its detached worktree.
 
 Implementation agent: `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, explicitly
 requested and runtime-confirmed OpenAI `gpt-5.3-codex`. It completed the
-bounded draft and focused checks; parent now owns ALL local Go validation.
-Do not launch another workload. Production/test files are frozen at `a9e3182`.
+bounded draft and focused checks. Parent's basic checks have completed;
+implementation now exclusively owns admitted correction formatting/focused
+checks. Do not launch another workload.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate is not configured or running.
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
-explicit OpenAI `gpt-5.3-codex` (runtime confirmation pending), read-only
-and no Go. Parent shell `roc-s4-parent-basic` runs admitted formatting,
-full affected packages, vet and build serially in clean
-`bin/roc-s4-20261030/source-s4-a9e3182`. Stop at first failure.
+runtime-confirmed OpenAI `gpt-5.3-codex`, read-only
+and no Go. Parent shell `roc-s4-parent-basic` completed admitted formatting,
+full affected packages, vet and build in clean
+`bin/roc-s4-20261030/source-s4-a9e3182`, all passing.
 Review returned NEEDS REVISION, runtime confirmed `gpt-5.3-codex`: a
 non-all-present second pass can exit validateApplicableEffects with
 candidate-postcondition-failed before validateSecondPassPlan runs. Every
@@ -99,7 +100,10 @@ tracking to avoid concurrent edits to shared files.
 S4 admitted formatting and targeted S4/S3/S0/source checks PASS at `a9e3182`,
 9.98s, normal pressure and zero new swap-outs. Evidence:
 `bin/roc-s4-20261030/s4-repo-targeted-pass1/`.
-Copied gate routing controls pass 9/9. Full affected/vet/build/review pending.
+Copied gate routing controls pass 9/9. Correction review and full gates remain pending.
+Parent basic checks at `a9e3182` also PASS: formatting, affected packages
+140.89s, vet 9.54s, build 0.51s; normal pressure and zero new swap-outs.
+These passes do not discharge the semantic review finding.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
