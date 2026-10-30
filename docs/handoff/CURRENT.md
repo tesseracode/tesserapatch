@@ -83,6 +83,10 @@ stored-upstream reopening, and recovery scanning (F1/F2/F10/F11), with a
 transitions and composed finalization (F3/F4/F6/missing) remain deferred OPEN.
 Implementer may edit now; parent retains sole Go ownership until the current
 frozen basic run completes, then explicitly hands it back.
+Frozen `108ed61` basic checks have now completed: affected 139.52s, vet
+4.29s, build 0.53s and formatting all pass, normal pressure/no swap-outs.
+Parent explicitly handed sole admitted Go ownership back to implementation
+for the bounded F1/F2/F10/F11 pass. These green checks do not close review findings.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
