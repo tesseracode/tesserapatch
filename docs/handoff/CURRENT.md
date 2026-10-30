@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,7 +14,7 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: Draft implemented; focused and affected tests pass; independent review pending
+- **Status**: NEEDS REVISION — authority, rooted I/O and lifecycle consistency blockers
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -45,6 +45,16 @@ Fresh reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f` is assigned,
 explicit OpenAI `gpt-6-astra` (runtime confirmation pending), read-only/no Go.
 Parent shell `roc-s5-parent-basic` runs admitted formatting/vet/build in the
 verified clean `source-s5-1e1dae6` checkout; prior full affected checks passed.
+Parent basic checks completed successfully; no local Go workload remains.
+Reviewer runtime metadata confirms OpenAI `gpt-6-astra`; verdict NEEDS REVISION.
+Nine findings and missing callable S5 scope are recorded in LOG. Highest risks:
+symlink-following lifecycle writes, unverified reopening acquiring cleanup
+ownership, callback-asserted reuse, fabricated materialization authority,
+missing action recovery/coexistence guards and inconsistent failure transitions.
+Also fix loaded source-state drift, classification/map/count contradictions
+and exact identity comparison. Implement real locked publication and
+rejected-ID-before-creation composition with pre-execution identity projection.
+ADR-048's tree fingerprint is acceptable, lifecycle claims remain unaccepted.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
@@ -90,15 +100,17 @@ S5 focused and full affected candidate/store/workflow tests PASS at `1e1dae6`;
 affected run 124.51s, normal pressure/no new swap-outs. Evidence:
 `bin/roc-s5-20261030/s5-clone-tests-full/`. Copied routing controls pass 9/9.
 Independent review, vet/build and full local/native validation are pending.
+Remaining basic formatting/vet (7.69s)/build (0.46s) also PASS, normal
+pressure/no swap-outs. Review blockers show these checks are not sufficient.
 S4 repair: 8/8 gate, 42/42 commands, 39/39 uncached tests,
 native five jobs and actual Windows CLW pass. Runtime 5,922.25s, peak owned
 RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
 ## Next Steps
 
-1. Independently review frozen `1e1dae6` and proposed ADR-048.
-2. Parent runs admitted remaining basic checks, then full local/native gates
-   only if ready; never declare acceptance from focused checks alone.
+1. Correct reviewed authority/rooted-I/O/lifecycle blockers with real regressions.
+2. Obtain independent re-review before any publication/full gates; do not
+   declare acceptance from passing basic checks or a partial correction.
 3. At the deadline, checkpoint any unfinished code and exact remaining work.
    Deadline timer `overnight-deadline` is active.
 
@@ -112,8 +124,8 @@ Use clean isolated sources and preserve all raw evidence.
 
 ## Blockers
 
-None at dispatch. Do not cancel restored-S4 closing-tip CI with early pushes.
-S5 must not consume the whole remaining window by skipping review or validation.
+S5 review blockers and missing callable scope prohibit acceptance/publication.
+The autonomous deadline remains in force; checkpoint unfinished work honestly.
 
 ## Context for Next Agent
 

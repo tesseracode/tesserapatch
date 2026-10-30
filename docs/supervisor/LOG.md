@@ -1,3 +1,33 @@
+## Review — S5 NEEDS REVISION — 2026-10-30
+
+Reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f`, tool metadata confirms
+OpenAI `gpt-6-astra`, returns NEEDS REVISION on `1e1dae6`. The agent could
+not self-observe its model identity; the parent confirms runtime from metadata.
+
+| Priority | Surface | Finding |
+|---|---|---|
+| High | workflow lifecycle I/O | Bare-path reads/writes follow symlinks; clearing rejected.jsonl can truncate its target; mutation helpers lack capability boundaries. |
+| High | artifact_root.go reopening | Ordinary/foreign/wrong-commit directories gain CandidateRoot cleanup ownership without registered detached worktree/repository verification. |
+| High | reuse check | Caller callback returning nil grants reusable status without actual S4 validation, roots, patch or effects. |
+| High | BuildCandidateArtifact | Public ExecutionResult, arbitrary bindings/effect hashes and optional expected ID can manufacture structural authority without execution/root. |
+| High | reject/clear actions | Recovery-journal and coexistence checks exist separately but are not composed before action mutation. |
+| High | stale/reject failure ordering | State/pointer writes precede prune acquisition; failure leaves inconsistent state or later enables derivation with retained worktree. |
+| Medium | source-state drift | Uses caller state instead of fresh loaded state, and rejects unsupported current states before required stale processing. |
+| Medium | strict artifact consistency | Operation conflict classification can coexist with candidate-applicable resolution and conflict_count zero. |
+| Medium | identity comparison | Compares non-result artifact fields, not the exact canonical identity tuple, causing false collisions. |
+
+Missing callable S5 scope: no locked artifact publication writing
+candidate.json/candidate.patch, no production rejected-ID-before-creation
+composition, and no supported opaque-Plan pre-execution identity projection.
+These are S5 obligations, not S6 wiring. The explicit tree-ID fingerprint
+interpretation is acceptable; lifecycle authority claims in ADR-048 are not.
+
+All basic tests still pass (affected 124.51s, vet 7.69s, build 0.46s;
+normal pressure/no swap-outs), demonstrating coverage gaps rather than safety.
+S5 stays local/unpublished and unaccepted. Return the bounded corrections to
+implementation, preserve all findings and red/green evidence, and do not
+shorten full gates to fit the remaining window.
+
 ## S5 Independent Review Dispatched — 2026-10-30
 
 Fresh reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f`, explicit OpenAI

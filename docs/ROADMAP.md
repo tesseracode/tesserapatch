@@ -1638,6 +1638,10 @@ Draft `1e1dae6` now passes focused and full affected candidate/store/workflow
 tests (124.51s). Fresh independent review and full gates remain required.
 Fresh reviewer `7712b628` and parent-only remaining basic checks are active
 against the frozen draft. No publication or S5 acceptance yet.
+Review NEEDS REVISION: rooted I/O/reopen ownership, genuine execution/reuse
+authority, recovery/coexistence composition, failure consistency, source-state
+and strict identity/schema checks. Locked publication/pre-execution identity
+composition is also missing. S5 remains local/unaccepted despite basic passes.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 
