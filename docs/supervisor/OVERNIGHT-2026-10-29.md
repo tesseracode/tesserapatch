@@ -18,7 +18,7 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
-| GH #13 S4 | Corrections awaiting re-review | `17f76d1`, WAVE_BASE `5d22acf` | Red-before/green-after and guards pass; full/native pending |
+| GH #13 S4 | Corrections approved; contract clarification | `17f76d1`, WAVE_BASE `5d22acf` | Both findings closed; ROC-140 path checked before full/native gates |
 | GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

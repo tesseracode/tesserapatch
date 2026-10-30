@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S4 is assigned after S3's accepted closure was archived and pushed at
 `5d22acfc389d6cb264b994f87c00da31886f1171`. S0-S3 remain accepted.
@@ -14,7 +14,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Both review corrections implemented; focused checks pass; re-review pending
+- **Status**: Corrections independently approved; checking first-pass postcondition refusal reachability
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
@@ -64,6 +64,10 @@ precedes the applicable-effect check, with effect/path/state diagnostics;
 modeled content is replayed/compared one sorted path at a time.
 The actual Execute regression FAILED before with candidate-postcondition-failed
 and PASSES after with candidate-not-idempotent. Guard/multi-path tests pass.
+The same reviewer APPROVES `17f76d1` and closes both findings; ADR-046 stays
+Proposed until full acceptance. Parent checks one narrow follow-up: ROC-140's
+first-pass postcondition failure must remain independently reachable through
+production validation, not only a direct helper fixture.
 S3 closing-tip CI `41028948776` completed successfully, all five required
 jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
 At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
@@ -118,7 +122,8 @@ These passes do not discharge the semantic review finding.
 - Correction evidence: `s4-revfix-failing-before-1` proves the real Execute
   regression failed on the old route. `s4-revfix-targeted-pass-2` and
   `s4-revfix-guards-pass-1` PASS (1.75s/7.55s), normal pressure/no swap-outs.
-  Corrected broader checks and independent finding closure remain pending.
+  Corrected formatting/affected packages PASS (137.03s); vet/build continue.
+  Independent review closes both original findings.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
@@ -143,7 +148,8 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-Both review findings are corrected but await independent closure.
+Both original review findings are closed. First-pass postcondition refusal
+reachability needs clarification before publication.
 Predecessor closing-tip CI has passed. ADR-046 remains Proposed.
 
 ## Context for Next Agent

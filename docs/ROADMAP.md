@@ -1653,6 +1653,9 @@ jobs. S4 remains local and unaccepted pending correction/re-review.
 Corrections are frozen at `17f76d1`; actual Execute regression is red-before/
 green-after, one-path lifetime and guard fixtures pass. Independent re-review
 and corrected broader/full/native checks remain required.
+Re-review APPROVES `17f76d1`, closing both findings; corrected affected
+packages pass. Parent clarifies ROC-140 first-pass postcondition refusal
+reachability before publication; full/native gates remain pending.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

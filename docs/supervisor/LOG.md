@@ -1,3 +1,17 @@
+## Review — S4 Corrections APPROVED — 2026-10-30
+
+Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, runtime OpenAI
+`gpt-5.3-codex`, APPROVES `17f76d1` and explicitly closes both findings:
+second-pass refusal routing and aggregate modeled-body retention. The real
+Execute regression, multi-path fixture and negative retention guard support
+the corrections. ADR-046 remains Proposed until full stage acceptance.
+
+Corrected formatting and full affected packages pass (137.03s); parent
+continues serial vet/build. Before publication, clarify one narrow contract
+question: after the routing fix, can a real first-pass boundary postcondition
+failure still produce ROC-140's candidate-postcondition-failed, independently
+of the mandatory second-pass refusal routing? Do not claim full acceptance.
+
 ## S4 Corrections Frozen for Re-review — 2026-10-30
 
 Freeze `17f76d19f0b41dcf2ab097d4939a403dc01e458f`. Second-pass validation
