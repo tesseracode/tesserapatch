@@ -1,3 +1,13 @@
+## S5 Final Subset Review / Basic Checks Active — 2026-10-30
+
+Same reviewer `7712b628` checks only F1/F2/F10/F11 at `cd4192f`;
+F3/F4/F6 and full finalization remain open. Parent shell `roc-s5-final-basic`
+owns admitted clean-clone formatting/full affected/vet/build. No other Go.
+
+Verify origin/main still equals accepted S4 `f9d5501`; S5 is local only.
+cmd/assets/SPEC/CI/scripts/dependencies/research and v0.17.0 remain unchanged.
+No S6 implementation or full-gate/publication attempt.
+
 ## S5 Final Bounded Checkpoint — 2026-10-30
 
 Freeze `cd4192fdc3b61236f4dbf7c68dccbdca2919b540` at 17:10 UTC.

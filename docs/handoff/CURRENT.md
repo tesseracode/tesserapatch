@@ -94,6 +94,12 @@ Targeted and full candidate/workflow checks pass (9.52s/120.14s) but ran in
 the primary checkout; parent will perform final basic checks in a fresh clone.
 Parent owns all Go again; implementer is idle. No full gate can fit the
 remaining window, and no S5 acceptance/publication is intended.
+Same reviewer `7712b628` now checks only the bounded delta; parent shell
+`roc-s5-final-basic` runs admitted formatting/full affected/vet/build in
+`bin/roc-s5-20261030/final-checkpoint-source`, the sole Go workload.
+Publication boundary verified: origin/main remains accepted S4 `f9d5501`;
+release tag, cmd/assets/SPEC/CI/scripts/dependencies/research are unchanged
+through the local S5 draft. No S6 implementation exists.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
