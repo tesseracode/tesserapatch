@@ -13,13 +13,23 @@ const (
 )
 
 type refusal struct {
-	code string
-	path string
+	code   string
+	path   string
+	detail string
 }
 
-func (e *refusal) Error() string { return e.code }
-func (e *refusal) Code() string  { return e.code }
-func (e *refusal) Path() string  { return e.path }
+func (e *refusal) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.detail == "" {
+		return e.code
+	}
+	return e.code + ": " + e.detail
+}
+func (e *refusal) Code() string   { return e.code }
+func (e *refusal) Path() string   { return e.path }
+func (e *refusal) Detail() string { return e.detail }
 
 type classification string
 

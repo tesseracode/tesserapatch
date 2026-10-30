@@ -114,6 +114,60 @@ func rocS3ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
+var rocS4AllowedPaths = map[string]bool{
+	"docs/adrs/ADR-046-candidate-execution-boundary.md":       true,
+	"internal/candidate/execute.go":                           true,
+	"internal/candidate/writer.go":                            true,
+	"internal/candidate/validation.go":                        true,
+	"internal/candidate/execute_test.go":                      true,
+	"internal/candidate/execute_guard_test.go":                true,
+	"internal/candidate/source_guard_test.go":                 true,
+	"internal/candidate/derivation.go":                        true,
+	"internal/candidate/derivation_guard_test.go":             true,
+	"internal/candidate/snapshot.go":                          true,
+	"internal/gitutil/recipe_authority_s0_pi12_test.go":       true,
+	"internal/workflow/operation_candidate_s0_guards_test.go": true,
+}
+
+func rocS4ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS4AllowedPaths[path] {
+			continue
+		}
+		if err := rocS3ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS4ScopeTransition(t *testing.T) {
+	for path := range rocS4AllowedPaths {
+		if err := rocS4ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if !rocS3AllowedPaths[path] && !rocS2AllowedPaths[path] && !rocS1AllowedPaths[path] && !rocS0CaptureAllowedPaths[path] {
+			if err := rocS3ValidateStageChangedPaths([]string{path}); err == nil {
+				t.Fatalf("S3 accepted S4 path %s", path)
+			}
+		}
+		if !rocS0CaptureAllowedPaths[path] {
+			if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
+				t.Fatalf("capture accepted S4 path %s", path)
+			}
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/reconcile.go", "internal/cli/cobra.go",
+		"internal/store/candidate.go", "internal/candidate/phase5.go",
+		"internal/candidate/./execute.go", "docs/adrs/ADR-047-future.md",
+	} {
+		if err := rocS4ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S4 accepted later/unregistered surface %s", path)
+		}
+	}
+}
+
 func TestROCS3ScopeTransition(t *testing.T) {
 	for path := range rocS3AllowedPaths {
 		if err := rocS3ValidateStageChangedPaths([]string{path}); err != nil {
@@ -234,7 +288,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS3ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS4ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

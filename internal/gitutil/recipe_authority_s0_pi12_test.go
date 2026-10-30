@@ -585,7 +585,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/workflow/reconcile.go|extractUpstreamContext":        1,
 		},
 		"NormalizePatchEffects": {
-			"internal/candidate/derivation.go|Derive":                                    1,
+			"internal/candidate/derivation.go|derive":                                    1,
 			"internal/gitutil/patch_insertions.go|ExtractPatchInsertionRuns":             1,
 			"internal/gitutil/patch_effects.go|PathsAffectedByPatchStrict":               1,
 			"internal/workflow/patch_effect_adapters.go|patchEffectViews":                1,

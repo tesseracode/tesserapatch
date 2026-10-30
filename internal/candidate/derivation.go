@@ -76,9 +76,17 @@ func derivationDomain(effect gitutil.PatchEffect) error {
 	return nil
 }
 
+type snapshotRoot interface {
+	snapshotPaths(paths []string) (treeSnapshot, error)
+}
+
 // Derive creates no worktree and writes nothing. Effects must be the validated
 // paired E/C projections; their observation ceiling is never promoted.
 func Derive(reference, upstream *ReferenceRoot, patch string, effects []gitutil.PatchEffect) (Plan, error) {
+	return derive(reference, upstream, patch, effects)
+}
+
+func derive(reference *ReferenceRoot, upstream snapshotRoot, patch string, effects []gitutil.PatchEffect) (Plan, error) {
 	normalized, err := gitutil.NormalizePatchEffects(patch)
 	if err != nil || len(normalized) == 0 || len(normalized) != len(effects) {
 		return Plan{}, &refusal{code: "fragment-unparseable"}
@@ -99,6 +107,9 @@ func Derive(reference, upstream *ReferenceRoot, patch string, effects []gitutil.
 			return Plan{}, err
 		}
 	}
+	if reference == nil || upstream == nil {
+		return Plan{}, fmt.Errorf("derivation roots are required")
+	}
 	baseSnapshot, err := reference.snapshotPaths(paths)
 	if err != nil {
 		return Plan{}, &refusal{code: "reference-not-reconstructable"}
@@ -112,11 +123,11 @@ func Derive(reference, upstream *ReferenceRoot, patch string, effects []gitutil.
 	var plan Plan
 	for _, index := range order {
 		effect := effects[index]
-		baseEntry := baseSnapshot.entries[effect.Path]
+		baseEntry, _ := baseSnapshot.entry(effect.Path)
 		if baseEntry.Present != effect.PreimagePresent || baseEntry.Mode != effect.OldMode || !effect.PostimagePresent {
 			return Plan{}, &refusal{code: "effect-binding-drift", path: effect.Path}
 		}
-		entry := snapshot.entries[effect.Path]
+		entry, _ := snapshot.entry(effect.Path)
 		if effect.ChangeKind == gitutil.ChangeKindAdd {
 			post, available, err := gitutil.ReconstructPatchPostimage(patch, normalized[index], nil, int64(len(patch)))
 			if err != nil || !available {
@@ -134,7 +145,11 @@ func Derive(reference, upstream *ReferenceRoot, patch string, effects []gitutil.
 				if entry.Mode == gitutil.ModeRegular && entry.Size == int64(len(post)) {
 					body, err := snapshot.read(effect.Path, int64(len(post)))
 					if err != nil {
-						return Plan{}, &refusal{code: "reference-not-reconstructable", path: effect.Path}
+						code := "reference-not-reconstructable"
+						if errors.Is(err, patchobs.ErrCommitObjectLimit) {
+							code = "alignment-limit"
+						}
+						return Plan{}, &refusal{code: code, path: effect.Path}
 					}
 					if bytes.Equal(body, post) {
 						state = present

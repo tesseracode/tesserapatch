@@ -47,7 +47,18 @@ func TestCandidateProductionSourceInventory(t *testing.T) {
 }
 
 func checkCandidateProductionInventory(names []string) error {
-	want := []string{"alignment.go", "derivation.go", "readflags_other.go", "readflags_unix.go", "reference.go", "root.go", "snapshot.go"}
+	want := []string{
+		"alignment.go",
+		"derivation.go",
+		"execute.go",
+		"readflags_other.go",
+		"readflags_unix.go",
+		"reference.go",
+		"root.go",
+		"snapshot.go",
+		"validation.go",
+		"writer.go",
+	}
 	if strings.Join(names, "\n") != strings.Join(want, "\n") {
 		return fmt.Errorf("candidate production file inventory changed:\n got %v\nwant %v", names, want)
 	}
