@@ -1,3 +1,16 @@
+## S5 Final Structural-proof Re-review — 2026-10-30
+
+Freeze `7aac2207f26f214f20a781a7347128172bfdae4e`. Targeted suite passes:
+candidate3.858s, workflow29.648s; normal pressure/no swap-outs. Covers actual
+staged/skip-worktree/assume-unchanged hiding with forged matching integrity,
+positive modeled staging, canonical E formatting, terminal audit boundaries,
+all prior S5 cases and exact consumer/write inventories.
+
+The actual old-code exploit returned nil; preserve that red evidence.
+Retained reviewer verifies F3 closure and ADR-048's stronger tree proof.
+Parent owns fresh admitted full affected/vet/build in the frozen checkout.
+At 23:18 UTC about 2h50 remain. Full gates/push still require code approval.
+
 ## S5 Index-independent Proof Choice — 2026-10-30
 
 The actual staged-unrelated-file fixture returned unsafe success on old code;

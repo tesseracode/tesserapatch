@@ -1639,6 +1639,10 @@ no acceptance or push yet.
 Independent review closes F4/F6/composition, but retains F3 for staged
 unmodeled changes hidden by index-relative diff validation. Correct that
 structural proof before full/native publication.
+Final fix `7aac220` compares immutable materialized tree objects to bound
+upstream, independent of candidate index staging/flags. Real tampering and
+positive staging regressions pass; final independent review and broader checks
+precede complete local/native gates.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

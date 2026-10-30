@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
 The canonical mid-cycle token intentionally prevents a false wave-close pass.
@@ -24,13 +24,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: F4/F6/composition closed; correcting F3 staged-index structural proof gap
+- **Status**: F3 materialized-tree fix passes targeted tests; final re-review/broader checks
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
-- **Frozen review checkpoint**: `69b2f055cb3c6683a0f0e47916fd6fce51ec99f1`
+- **Frozen review checkpoint**: `7aac2207f26f214f20a781a7347128172bfdae4e`
 - **Current window deadline**: `2026-10-31T02:08:53Z`
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -108,6 +108,12 @@ The first materialized-tree check stopped at compile time because the snapshot
 declaration still followed the path check. Move the initial snapshot before
 all structural checks and retain the same post-classifier comparison; any
 post-classifier baseline drift is reported as candidate-not-idempotent.
+Final targeted suite PASS at `7aac220` (candidate3.858s/workflow29.648s),
+including staged/skip-worktree/assume-unchanged tampering with forged integrity,
+valid modeled staging, canonical-event formatting, audit handling and strict
+source inventories. Normal pressure/no swap-outs. Return to the same reviewer
+for F3 closure; parent runs fresh full affected/vet/build. At 23:18 UTC
+about 2h50 remain; no S5 approval or publication is claimed yet.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
