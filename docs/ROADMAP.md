@@ -1654,6 +1654,10 @@ The original production approval stands; full local/native validation remains.
 Corrected full affected-package tests, vet and build now pass without resource
 stops or new swap-outs. Prepare exact-checkpoint native CI and the complete
 39-command local gate; S2 is not accepted yet.
+Reviewed validation checkpoint `1b2f706` is published. Native CI `40997153846`
+and the full admitted local gate are running at that exact SHA, with S2
+WAVE_BASE `bd95a23`. Only the first five mechanical checks are confirmed;
+no S2 acceptance or S3 dispatch.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

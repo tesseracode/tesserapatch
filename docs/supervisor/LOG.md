@@ -1,3 +1,17 @@
+## Full Validation Running — GH #13 S2 — 2026-10-29
+
+Published and fetched HEAD/origin/main:
+`1b2f7064761e84d11cf5b04ca3aaa9b7c374c7c8`. Only tracking differs from
+reviewed `b189770`; production remains the independently approved `2c462a3`.
+
+Native CI `40997153846` and local shell `roc-s2-full-gate-1b2f706` run
+against that exact checkpoint. The local gate uses 42 top-level commands/
+39 test shards, clean source/fresh caches, fresh per-command admission and
+WAVE_BASE `bd95a23`. First five mechanical checks pass, including ten wave
+trailers; this is not a full result. Native watch: `roc-s2-native-ci-1b2f706`.
+Keep tracking-only progress local until the exact-checkpoint runs finish.
+No S2 acceptance, release or S3 dispatch.
+
 ## Basic Validation Complete — GH #13 S2 — 2026-10-29
 
 The corrected serial sequence at reviewed `b189770` passes all five affected

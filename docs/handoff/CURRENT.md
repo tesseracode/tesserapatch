@@ -14,12 +14,14 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Reviewed code and corrected affected packages/vet/build pass; preparing full/native validation
+- **Status**: Reviewed S2 checkpoint published; full 39-shard and native validation running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
 - **Prior accepted S1 validation checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`
 - **Frozen S2 review checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`
+- **Reviewed inventory correction**: `b18977042b79a7e9e2c378f49c97469d93fa03bd`
+- **Published validation checkpoint**: `1b2f7064761e84d11cf5b04ca3aaa9b7c374c7c8`
 
 WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
 
@@ -101,6 +103,15 @@ build at unchanged reviewed code. Command times are 174.67s, 12.82s and 0.54s;
 all executions retain normal pressure and zero new swap-outs. No local
 validator remains active. Prepare a published exact-checkpoint native run
 and the full 39-command admitted gate with S2 WAVE_BASE `bd95a23`.
+Published `1b2f706` is verified equal to origin/main. Only tracking differs
+from the independently reviewed inventory checkpoint. Full gate shell
+`roc-s2-full-gate-1b2f706` runs 42 top-level commands including all 39 test
+shards, from a clean clone/fresh caches in `bin/roc-s2-20261029/full-gate/`.
+Its first five mechanical checks pass, including the ten S2 wave trailers;
+no full-gate result is claimed yet.
+Native CI `40997153846` runs at that exact checkpoint, watched by shell
+`roc-s2-native-ci-1b2f706` with log `bin/roc-s2-20261029/native-ci-1b2f706.log`.
+Keep progress commits local while exact-checkpoint validation is in flight.
 
 ## Current State — bounded S2 scope
 
@@ -179,9 +190,11 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Publish independently approved code plus its reviewed inventory correction
-   for exact-checkpoint native CI and the full admitted 39-command gate.
-2. Verify those complete before acceptance; no basic validator remains active.
+1. Await existing full-gate shell `roc-s2-full-gate-1b2f706` and native CI
+   `40997153846`; do not duplicate Go workloads or cancel CI with tracking-only
+   pushes.
+2. Verify both complete before acceptance; preserve raw logs and reconcile
+   owned processes. S3 remains undispatched.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 
@@ -198,8 +211,9 @@ source/caches and owned-process reconciliation. The canonical partition has
 
 ## Blockers
 
-No prior-CI blocker remains. S2 independent review and broader validation are
-active; no acceptance or publication is authorized by focused passes alone.
+No prior-CI or code-review blocker remains. S2 full 39-command and native
+validation are running at `1b2f706`; publication is for validation, not release
+or acceptance.
 
 ## Context for Next Agent
 
