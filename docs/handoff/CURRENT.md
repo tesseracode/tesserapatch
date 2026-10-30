@@ -2,8 +2,10 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
+This is S3 code/review approval, NOT stage acceptance. Full local/native
+validation is queued at the published checkpoint; S4 remains blocked.
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
 passes independent review, complete local/native validation and durable close.
@@ -14,7 +16,7 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Code and ADR-045 independently approved; completing basic checks before full validation
+- **Status**: Code and basic checks approved; publishing checkpoint for full local/native validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
@@ -41,8 +43,8 @@ become cross-base actions.
 
 Independent reviewer: `d8ddcd54-7b2c-4568-9215-69305451f069`,
 confirmed runtime OpenAI `gpt-5.3-codex`. The initial basic validator completed.
-Parent owns the serial correction checks at
-`bin/roc-s3-20261030/complexity-source`; reviewer runs no Go.
+Parent completed serial correction checks at
+`bin/roc-s3-20261030/complexity-source`; reviewer ran no Go.
 The byte-identical full-gate harness is prepared in
 `bin/roc-s3-20261030/full-gate/` but is not configured or running.
 At 06:44 UTC, roughly 11.25 hours remain in the authorized window.
@@ -113,13 +115,15 @@ Proposed ADR-045 and the overnight log record the implementation choices.
 - Corrected `87bb62a` passes admitted formatting and focused candidate tests
   (1.939s), including exhaustive equivalence, empty sides and dense boundaries.
   Corrected formatting and full affected packages also PASS (134.70s);
-  serial vet/build continue. Independent re-review APPROVED.
+  vet (5.11s) and build (0.48s) also PASS. Every command was separately
+  admitted, with normal pressure and zero new swap-outs. Re-review APPROVED.
+- Full-gate routing controls PASS, 9/9; no real Go workload in those controls.
 - S2 closing-tip CI `41010587650` at `4702b10` PASS, five required jobs.
 
 ## Next Steps
 
-1. Finish admitted vet/build, then publish the independently approved checkpoint.
-2. Complete 39-command/native validation; record
+1. Publish the independently approved checkpoint and freeze its exact SHA.
+2. Complete 39-command/native validation with S3 WAVE_BASE; record
    decisions and failed attempts, not just successes.
 3. Close/archive/push S3 before selecting S4. Do not dispatch dependent work
    against unaccepted or unpushed code. Preserve a clear handoff at the deadline.

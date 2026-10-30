@@ -1,3 +1,16 @@
+## S3 Full-validation Publication — 2026-10-30
+
+Corrected `87bb62a` passes formatting, full affected packages (134.70s),
+vet (5.11s), build (0.48s) and all nine full-gate routing controls.
+Each Go command was separately admitted; normal pressure, no new swap-outs.
+Independent code/ADR approval is unchanged; subsequent commits are tracking only.
+
+Publish this checkpoint, then run the full 39-test/42-command mechanical gate
+with WAVE_BASE `4702b10735681ca63145b67561f33d4612450e69` in a clean,
+full-history isolated checkout and native CI at the same SHA. Canonical
+APPROVED means code review approval only; S3 acceptance and S4 remain gated.
+Keep subsequent progress tracking local while exact-tip CI runs.
+
 ## Review — S3 correction APPROVED — 2026-10-30
 
 Independent reviewer `d8ddcd54-7b2c-4568-9215-69305451f069`
