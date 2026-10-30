@@ -1,3 +1,21 @@
+## S4 Dispatch — 2026-10-30
+
+S3 closure `5d22acfc389d6cb264b994f87c00da31886f1171` is archived and
+pushed. HISTORY's old prefix is unchanged and terminal CURRENT is copied
+byte-for-byte. Fresh fetch gives clean HEAD=origin/main, no stashes and one
+main worktree. Record that SHA verbatim as S4 WAVE_BASE before implementation.
+
+Assign accepted PRD S4 only: closed two-kind execution, complete-set
+abandon/remove on failure, structural postconditions, production-classifier
+second pass over every effect, total absorption and generation write scope.
+Do not add S5 persistence, S6 phase wiring or acceptance/release behavior.
+Keep caller-held feature capability across execution; global only around
+worktree add/remove. Record architectural decisions in ADR-046 and ON-005.
+
+Implementation and independent review remain sequential; the supervisor owns
+tracking while implementation owns production/tests/ADR to avoid file overlap.
+All resource, full-local and native gates remain required.
+
 ## Acceptance — GH #13 S3 exact derivation — 2026-10-30
 
 ACCEPTED at `083d20fb4daad0f3bada71122ac09f890feda710`, range

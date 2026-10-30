@@ -1623,6 +1623,16 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S4 candidate execution and validation — 2026-10-30
+
+**WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`, S3 durable close.
+Accepted PRD S4 only: two-kind writer, all-or-nothing worktree execution,
+structural/path/mode/marker checks, full-effect production reclassification
+with stable tree/diff and total absorption accounting. Preserve the four-set
+generation-scope guard and lock composition. No S5+ or release yet.
+Independent review, admitted local 39-shard gate and native CI remain required
+within the operator's 2026-10-30 18:00 UTC autonomy deadline.
+
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 
 **Accepted checkpoint**: `083d20fb4daad0f3bada71122ac09f890feda710`.

@@ -17,8 +17,9 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | ACCEPTED; archiving/pushing closure | `083d20f` | Review approved; 39/39 local tests; CI five jobs + Windows CLW pass |
-| GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
+| GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review approved; 39/39 local tests; CI five jobs + Windows CLW pass |
+| GH #13 S4 | Implementation scoped | WAVE_BASE `5d22acf` | Review/local/native pending |
+| GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
 
@@ -61,6 +62,12 @@ both the accepted predicate and the exact 8 MiB matrix budget. Validate with
 the exhaustive oracle and a many-boundary case at the L3 ceiling.
 
 ## Operator review notes
+
+S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
+the accepted execution/structural-validation contract only. Parent supervises
+tracking and validation infrastructure; one bounded implementation agent may
+own production/tests/ADR, followed by one fresh independent reviewer. No two
+implementers edit a shared file concurrently.
 
 S0-S2 are accepted. S2 closing-tip CI `41010587650` now passes all five
 required jobs; S2 code was already fully validated at `8d3b9ef`.
