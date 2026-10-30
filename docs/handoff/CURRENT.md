@@ -60,6 +60,9 @@ none of the open findings is claimed closed yet.
 First formatting attempt stopped on a misplaced helper declaration in
 execute.go before any tests or commit. The declaration is moved to package
 scope; retry uses a fresh admission/stage and preserves the failed log.
+Draft `808bb49` formats and candidate checks pass; workflow compilation
+stopped at the typed candidatelock.Code/string boundary. Corrected the local
+refusal-code slice/conversion; retry remains targeted and individually admitted.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

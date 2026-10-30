@@ -200,9 +200,9 @@ func acquireOperationCandidateFeatureLock(repoRoot, slug string) (*candidatelock
 	if err == nil {
 		return lock, operationCandidatePreflightResult{}, nil
 	}
-	for _, code := range []string{candidatelock.CodeCandidateLockHeld, candidatelock.CodeLockUnsupported, candidatelock.CodeLockFilesystemUnsupported} {
+	for _, code := range []candidatelock.Code{candidatelock.CodeCandidateLockHeld, candidatelock.CodeLockUnsupported, candidatelock.CodeLockFilesystemUnsupported} {
 		if candidatelock.IsCode(err, code) {
-			return nil, operationCandidatePreflightResult{Reason: code}, nil
+			return nil, operationCandidatePreflightResult{Reason: string(code)}, nil
 		}
 	}
 	return nil, operationCandidatePreflightResult{}, err
