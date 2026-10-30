@@ -590,6 +590,36 @@ func TestROCS5ResumeReuseBindsRepositoryAndActualCandidate(t *testing.T) {
 	}
 }
 
+func TestROCS5ResumeCanonicalEventFormattingDoesNotStaleCandidate(t *testing.T) {
+	f := rocS2NewFixture(t, true)
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rel, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	before, err := os.Stat(filepath.Join(f.s.Root, filepath.FromSlash(rel)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	formatted, err := json.MarshalIndent(f.event, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.write(t, "recipe-capture-event.json", formatted)
+	again, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil || again.candidateID != prepared.candidateID {
+		t.Fatalf("formatting changed identity: %s %v", again.candidateID, err)
+	}
+	after, err := os.Stat(filepath.Join(f.s.Root, filepath.FromSlash(rel)))
+	if err != nil || !os.SameFile(before, after) {
+		t.Fatalf("formatting pruned a current candidate: %v", err)
+	}
+}
+
 func TestROCS5ResumeReuseRejectsStagedUnmodeledChangeWithForgedIntegrity(t *testing.T) {
 	f := rocS2NewFixture(t, true)
 	writeRepoFile(t, f.s, "unrelated.txt", []byte("upstream\n"))
@@ -693,6 +723,18 @@ func TestROCS5ResumeAcceptedAuditCannotBeRecreated(t *testing.T) {
 	present, err := ref.CandidateWorktreePresent(f.slug, artifact.CandidateID)
 	if err != nil || present {
 		t.Fatalf("accepted worktree was recreated: %t %v", present, err)
+	}
+	if err := os.WriteFile(filepath.Join(f.s.Root, filepath.FromSlash(dir), candidate.CandidateMetadataName), []byte("audit-only"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	preflight, err := runOperationCandidatePreflight(f.s, f.slug, candidate.CandidateStalenessInput{
+		UpstreamCommit: f.invocation.upstreamCommit, SourceFeatureState: "applied", Bindings: artifact.Bindings,
+	})
+	if err != nil || !preflight.DerivationEnabled {
+		t.Fatalf("unpointed accepted audit gated preflight: %+v %v", preflight, err)
+	}
+	if _, err := finalizeOperationCandidate(f.s, f.slug, prepared); err == nil || !strings.Contains(err.Error(), "candidate-already-accepted") {
+		t.Fatalf("accepted state was not checked before immutable artifact inspection: %v", err)
 	}
 }
 

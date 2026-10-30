@@ -93,6 +93,11 @@ existing candidate metadata writer wrapper and isolate/register the new
 read-only binding snapshot in the eligibility file, with negative controls.
 No inventories are bypassed. Current formatter/red-proof command is awaiting
 the required continuous admission window; pressure is normal, load fluctuated.
+The red proof now reproduces unsafe success on old code. Corrected runtime/
+inventory cases pass, but adding a second canonical-event call exposed an
+old S2 mutation anchor's file-wide uniqueness assumption. Give the snapshot
+reader's value its distinct captured name, retain the original gate mutation,
+and add a real event-formatting/no-stale regression before re-review.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

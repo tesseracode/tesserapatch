@@ -103,11 +103,11 @@ func assessOperationCandidateEligibility(s *store.Store, slug string, invocation
 
 func snapshotOperationCandidateBindings(s *store.Store, slug string) (candidate.CandidateBindings, error) {
 	snapshot := SnapshotRecipeCoverage(s.Root, slug)
-	event, err := DecodeRecipeCaptureEvent(snapshot.Event.Bytes)
+	captured, err := DecodeRecipeCaptureEvent(snapshot.Event.Bytes)
 	if err != nil {
 		return candidate.CandidateBindings{}, fmt.Errorf("capture-event-unusable: %w", err)
 	}
-	digest, err := RecipeCaptureEventIdentity(event)
+	digest, err := RecipeCaptureEventIdentity(captured)
 	if err != nil {
 		return candidate.CandidateBindings{}, err
 	}

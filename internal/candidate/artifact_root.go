@@ -487,14 +487,39 @@ func (r *ReferenceRoot) ReadCandidateMetadata(slug, candidateID string) (Candida
 	return artifact, state, nil
 }
 
-type CandidateMetadata struct {
-	Artifact CandidateArtifact
-	State    CandidateState
+func (r *ReferenceRoot) ReadCandidateState(slug, candidateID string) (CandidateState, error) {
+	if err := r.ensureAvailable(); err != nil {
+		return CandidateState{}, err
+	}
+	rel, err := CandidateDirectoryRelative(slug, candidateID)
+	if err != nil {
+		return CandidateState{}, err
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, rel, false); err != nil {
+		return CandidateState{}, err
+	}
+	root, err := r.repo.openNestedRoot(rel)
+	if err != nil {
+		return CandidateState{}, err
+	}
+	defer root.close()
+	body, err := readRootedRegularFile(root.root, CandidateStateName)
+	if err != nil {
+		return CandidateState{}, err
+	}
+	state, err := DecodeCandidateState(body)
+	if err != nil {
+		return CandidateState{}, err
+	}
+	if state.CandidateID != candidateID {
+		return CandidateState{}, fmt.Errorf("candidate state namespace mismatch")
+	}
+	return state, nil
 }
 
-// ListCandidateMetadata includes incomplete directories as errors, so a failed
-// publication cannot hide from preflight merely because no pointer was saved.
-func (r *ReferenceRoot) ListCandidateMetadata(slug string) ([]CandidateMetadata, error) {
+// ListCandidateStates discovers orphan pending records without inspecting
+// immutable accepted/rejected artifact bodies or worktree content.
+func (r *ReferenceRoot) ListCandidateStates(slug string) ([]CandidateState, error) {
 	root, err := r.openCandidateSlugRoot(slug, false)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -512,7 +537,7 @@ func (r *ReferenceRoot) ListCandidateMetadata(slug string) ([]CandidateMetadata,
 	if err != nil {
 		return nil, err
 	}
-	var result []CandidateMetadata
+	var result []CandidateState
 	for _, entry := range entries {
 		if !candidateIDPattern.MatchString(entry.Name()) {
 			continue
@@ -520,11 +545,11 @@ func (r *ReferenceRoot) ListCandidateMetadata(slug string) ([]CandidateMetadata,
 		if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() {
 			return nil, fmt.Errorf("candidate metadata directory is not a regular directory")
 		}
-		artifact, state, err := r.ReadCandidateMetadata(slug, entry.Name())
+		state, err := r.ReadCandidateState(slug, entry.Name())
 		if err != nil {
 			return nil, fmt.Errorf("candidate %s metadata is incomplete: %w", entry.Name(), err)
 		}
-		result = append(result, CandidateMetadata{Artifact: artifact, State: state})
+		result = append(result, state)
 	}
 	return result, nil
 }

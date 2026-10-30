@@ -91,31 +91,38 @@ func inspectOperationCandidateInventory(reference *candidate.ReferenceRoot, slug
 	if pointer != nil && pointer.Status != candidate.CandidateStatusPending {
 		return fmt.Errorf("candidate-integrity-drift: live pointer is not pending")
 	}
-	rows, err := reference.ListCandidateMetadata(slug)
+	rows, err := reference.ListCandidateStates(slug)
 	if err != nil {
 		return fmt.Errorf("candidate-integrity-drift: %w", err)
 	}
 	found := false
 	for _, row := range rows {
-		owned := pointer != nil && pointer.CandidateID == row.Artifact.CandidateID
+		owned := pointer != nil && pointer.CandidateID == row.CandidateID
+		if !owned && (row.Status == candidate.CandidateStatusAccepted || row.Status == candidate.CandidateStatusRejected) {
+			continue
+		}
+		artifact, _, err := reference.ReadCandidateMetadata(slug, row.CandidateID)
+		if err != nil {
+			return fmt.Errorf("candidate-integrity-drift: %w", err)
+		}
 		if owned {
-			expectedPath, _ := candidate.CandidatePointerPath(slug, row.Artifact.CandidateID)
-			if pointer.Path != expectedPath || pointer.SourceFeatureState != row.Artifact.SourceFeatureState ||
-				row.State.Status == candidate.CandidateStatusAccepted {
+			expectedPath, _ := candidate.CandidatePointerPath(slug, row.CandidateID)
+			if pointer.Path != expectedPath || pointer.SourceFeatureState != artifact.SourceFeatureState ||
+				row.Status == candidate.CandidateStatusAccepted {
 				return fmt.Errorf("candidate-integrity-drift: pointer/metadata mismatch")
 			}
 			found = true
 		}
-		if row.State.Status == candidate.CandidateStatusPending && !owned {
-			return fmt.Errorf("candidate-integrity-drift: orphan pending candidate %s", row.Artifact.CandidateID)
+		if row.Status == candidate.CandidateStatusPending && !owned {
+			return fmt.Errorf("candidate-integrity-drift: orphan pending candidate %s", row.CandidateID)
 		}
-		if row.State.Status == candidate.CandidateStatusStale && !owned {
-			present, err := reference.CandidateWorktreePresent(slug, row.Artifact.CandidateID)
+		if row.Status == candidate.CandidateStatusStale && !owned {
+			present, err := reference.CandidateWorktreePresent(slug, row.CandidateID)
 			if err != nil {
 				return err
 			}
 			if present {
-				return fmt.Errorf("candidate-integrity-drift: unfinished stale candidate %s", row.Artifact.CandidateID)
+				return fmt.Errorf("candidate-integrity-drift: unfinished stale candidate %s", row.CandidateID)
 			}
 		}
 	}
@@ -648,13 +655,18 @@ func finalizeOperationCandidate(s *store.Store, slug string, expected operationC
 		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-pending")
 	}
 	var prior *candidate.CandidateArtifact
-	artifact, state, metadataErr := upstream.ReadCandidateMetadata(slug, prepared.candidateID)
+	var artifact candidate.CandidateArtifact
+	state, metadataErr := upstream.ReadCandidateState(slug, prepared.candidateID)
 	if metadataErr == nil {
 		switch state.Status {
 		case candidate.CandidateStatusAccepted:
 			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-already-accepted")
 		case candidate.CandidateStatusRejected:
 			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-rejected")
+		}
+		artifact, _, err = upstream.ReadCandidateMetadata(slug, prepared.candidateID)
+		if err != nil {
+			return candidate.CandidateArtifact{}, err
 		}
 		if err := matchOperationCandidateIdentity(prepared, artifact); err != nil {
 			return candidate.CandidateArtifact{}, err
