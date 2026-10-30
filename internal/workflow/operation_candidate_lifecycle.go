@@ -1,16 +1,16 @@
 package workflow
 
 import (
-	"bufio"
-	"errors"
+	"bytes"
 	"fmt"
-	"io/fs"
-	"os"
+	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/candidate"
 	"github.com/tesseracode/tesserapatch/internal/candidatelock"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -24,6 +24,14 @@ type operationCandidatePreflightResult struct {
 type operationCandidateReuseResult struct {
 	Reusable    bool
 	RefusalCode string
+}
+
+type operationCandidatePrepared struct {
+	Preparation        candidate.CandidatePreparation
+	CandidateID        string
+	SourceFeatureState string
+	ReferenceCommit    string
+	UpstreamCommit     string
 }
 
 var operationCandidateLifecycleInspectHook = func() {}
@@ -43,7 +51,13 @@ func runOperationCandidatePreflight(
 	defer func() { _ = lock.Release() }()
 	operationCandidateLifecycleInspectHook()
 
-	recoveryPath, err := findOperationCandidateRecoveryJournal(s.Root, slug)
+	reference, err := openOperationCandidateReference(s.Root, "")
+	if err != nil {
+		return operationCandidatePreflightResult{}, err
+	}
+	defer func() { _ = reference.Close() }()
+
+	recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug)
 	if err != nil {
 		return operationCandidatePreflightResult{}, err
 	}
@@ -106,10 +120,35 @@ func stalePendingOperationCandidate(
 	if status.Reconcile.ShadowPath != "" {
 		return "", fmt.Errorf("shadow-pending")
 	}
-	artifact, state, err := readOperationCandidateArtifacts(s.Root, slug, pointer)
+	reference, err := openOperationCandidateReference(s.Root, current.UpstreamCommit)
 	if err != nil {
 		return "", err
 	}
+	defer func() { _ = reference.Close() }()
+	artifact, state, root, err := readOperationCandidateArtifacts(reference, slug, pointer)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
+	if state.Status == candidate.CandidateStatusStale {
+		releaseMutation, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
+		if err != nil {
+			return "", err
+		}
+		defer releaseMutation()
+		if err := pruneOperationCandidateWorktree(s.Root, root, featureLock); err != nil {
+			return "", err
+		}
+		status.Reconcile.OperationCandidate = nil
+		if err := s.SaveFeatureStatus(status); err != nil {
+			return "", err
+		}
+		return artifact.CandidateID, nil
+	}
+	if state.Status != candidate.CandidateStatusPending {
+		return "", nil
+	}
+	current.SourceFeatureState = string(status.State)
 	needsStale, err := candidate.CandidateNeedsStaleMark(artifact, state, current)
 	if err != nil {
 		return "", err
@@ -117,20 +156,16 @@ func stalePendingOperationCandidate(
 	if !needsStale {
 		return "", nil
 	}
-	state.Status = candidate.CandidateStatusStale
-	stateRaw, err := candidate.EncodeCandidateState(state)
+	releaseMutation, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
 	if err != nil {
 		return "", err
 	}
-	statePath := filepath.Join(s.Root, filepath.FromSlash(pointer.Path), candidate.CandidateStateName)
-	if err := os.WriteFile(statePath, stateRaw, 0o644); err != nil {
+	defer releaseMutation()
+	state.Status = candidate.CandidateStatusStale
+	if err := root.WriteState(state); err != nil {
 		return "", err
 	}
-	status.Reconcile.OperationCandidate.Status = candidate.CandidateStatusStale
-	if err := s.SaveFeatureStatus(status); err != nil {
-		return "", err
-	}
-	if err := pruneOperationCandidateWorktree(s.Root, slug, pointer.CandidateID, artifact.UpstreamCommit, featureLock); err != nil {
+	if err := pruneOperationCandidateWorktree(s.Root, root, featureLock); err != nil {
 		return "", err
 	}
 	status.Reconcile.OperationCandidate = nil
@@ -158,100 +193,54 @@ func acquireOperationCandidateFeatureLock(repoRoot, slug string) (*candidatelock
 	}
 }
 
-func findOperationCandidateRecoveryJournal(repoRoot, slug string) (string, error) {
-	slugRel, err := candidate.CandidateSlugRelative(slug)
-	if err != nil {
-		return "", err
-	}
-	slugAbs := filepath.Join(repoRoot, filepath.FromSlash(slugRel))
-	info, err := os.Stat(slugAbs)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return "", nil
-		}
-		return "", err
-	}
-	if !info.IsDir() {
-		return "", fmt.Errorf("candidate slug root is not a directory: %s", slugRel)
-	}
-	var found string
-	walkErr := filepath.WalkDir(slugAbs, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || entry.Name() != candidate.CandidateJournalName {
-			return nil
-		}
-		rel, err := filepath.Rel(repoRoot, path)
-		if err != nil {
-			return err
-		}
-		found = filepath.ToSlash(rel)
-		return fs.SkipAll
-	})
-	if walkErr != nil && !errors.Is(walkErr, fs.SkipAll) {
-		return "", walkErr
-	}
-	return found, nil
+func findOperationCandidateRecoveryJournal(reference *candidate.ReferenceRoot, slug string) (string, error) {
+	return reference.FindCandidateRecoveryJournal(slug)
 }
 
-func readOperationCandidateArtifacts(repoRoot, slug string, pointer *store.OperationCandidateSummary) (candidate.CandidateArtifact, candidate.CandidateState, error) {
+func readOperationCandidateArtifacts(reference *candidate.ReferenceRoot, slug string, pointer *store.OperationCandidateSummary) (candidate.CandidateArtifact, candidate.CandidateState, *candidate.CandidateRoot, error) {
 	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
 	}
 	expectedPath, err := candidate.CandidatePointerPath(slug, pointer.CandidateID)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
 	}
 	if pointer.Path != expectedPath {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, fmt.Errorf("candidate pointer path mismatch: have %s want %s", pointer.Path, expectedPath)
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer path mismatch: have %s want %s", pointer.Path, expectedPath)
 	}
-	base := filepath.Join(repoRoot, filepath.FromSlash(pointer.Path))
-	rawArtifact, err := os.ReadFile(filepath.Join(base, candidate.CandidateMetadataName))
+	root, err := candidate.OpenExistingCandidateRoot(reference, slug, pointer.CandidateID)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
 	}
-	artifact, err := candidate.DecodeCandidateArtifact(rawArtifact)
+	artifact, err := root.ReadArtifact()
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
+		_ = root.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
 	}
-	rawState, err := os.ReadFile(filepath.Join(base, candidate.CandidateStateName))
+	state, err := root.ReadState()
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
-	}
-	state, err := candidate.DecodeCandidateState(rawState)
-	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, err
+		_ = root.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
 	}
 	if artifact.CandidateID != pointer.CandidateID || state.CandidateID != pointer.CandidateID {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, fmt.Errorf("candidate pointer/id mismatch")
+		_ = root.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer/id mismatch")
 	}
-	if pointer.Status != state.Status || pointer.SourceFeatureState != artifact.SourceFeatureState {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, fmt.Errorf("candidate pointer state drift")
+	if pointer.SourceFeatureState != artifact.SourceFeatureState {
+		_ = root.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer state drift")
 	}
-	return artifact, state, nil
+	if pointer.Status != state.Status &&
+		!(pointer.Status == candidate.CandidateStatusPending && (state.Status == candidate.CandidateStatusStale || state.Status == candidate.CandidateStatusRejected)) {
+		_ = root.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer state drift")
+	}
+	return artifact, state, root, nil
 }
 
-func pruneOperationCandidateWorktree(repoRoot, slug, candidateID, upstreamCommit string, featureLock *candidatelock.Handle) error {
-	worktreeRel, err := candidate.CandidateWorktreeRelative(slug, candidateID)
-	if err != nil {
-		return err
-	}
-	worktreeAbs := filepath.Join(repoRoot, filepath.FromSlash(worktreeRel))
-	if _, err := os.Stat(worktreeAbs); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	reference, err := candidate.OpenReferenceRoot(repoRoot, upstreamCommit)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = reference.Close() }()
-	root, err := candidate.OpenExistingCandidateRoot(reference, slug, candidateID)
-	if err != nil {
-		return err
+func pruneOperationCandidateWorktree(repoRoot string, root *candidate.CandidateRoot, featureLock *candidatelock.Handle) error {
+	if root == nil {
+		return fmt.Errorf("candidate root is required")
 	}
 	globalPath := filepath.Join(repoRoot, ".tpatch", "locks", "worktree-mutation.lock")
 	global, err := candidatelock.TryAcquire(globalPath)
@@ -266,7 +255,7 @@ func pruneOperationCandidateWorktree(repoRoot, slug, candidateID, upstreamCommit
 	return releaseErr
 }
 
-func operationCandidateReuseCheck(existingArtifact candidate.CandidateArtifact, existingState candidate.CandidateState, derived candidate.CandidateArtifact, validate func() error) (operationCandidateReuseResult, error) {
+func operationCandidateReuseCheck(preparation candidate.CandidatePreparation, existingArtifact candidate.CandidateArtifact, existingState candidate.CandidateState, derived candidate.CandidateArtifact, root *candidate.CandidateRoot) (operationCandidateReuseResult, error) {
 	decision, err := candidate.CompareExistingCandidate(existingArtifact, existingState, derived)
 	if err != nil {
 		return operationCandidateReuseResult{}, err
@@ -274,88 +263,47 @@ func operationCandidateReuseCheck(existingArtifact candidate.CandidateArtifact, 
 	if !decision.Reusable {
 		return operationCandidateReuseResult{RefusalCode: decision.RefusalCode}, nil
 	}
-	if validate == nil {
-		return operationCandidateReuseResult{}, fmt.Errorf("reuse validation function is required")
+	if root == nil {
+		return operationCandidateReuseResult{}, fmt.Errorf("reusable candidate root is required")
 	}
-	if err := validate(); err != nil {
+	result, err := preparation.ValidateReusableCandidate(root)
+	if err != nil {
 		return operationCandidateReuseResult{}, err
+	}
+	if !reflect.DeepEqual(result, existingArtifact.Result) {
+		return operationCandidateReuseResult{RefusalCode: "candidate-integrity-drift"}, nil
 	}
 	return operationCandidateReuseResult{Reusable: true}, nil
 }
 
-func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact) error {
+func appendRejectedOperationCandidateWithReference(reference *candidate.ReferenceRoot, slug string, artifact candidate.CandidateArtifact) error {
 	record := candidate.RejectedRecordFromArtifact(artifact)
-	body, err := candidate.EncodeRejectedRecord(record)
-	if err != nil {
-		return err
-	}
-	pathRel, err := candidate.CandidateRejectedLogRelative(slug)
-	if err != nil {
-		return err
-	}
-	pathAbs := filepath.Join(repoRoot, filepath.FromSlash(pathRel))
-	file, err := os.OpenFile(pathAbs, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	if _, err := file.Write(body); err != nil {
-		return err
-	}
-	return nil
+	return reference.AppendRejectedRecord(slug, record)
 }
 
-func readRejectedOperationCandidates(repoRoot, slug string) ([]candidate.CandidateRejectedRecord, error) {
-	pathRel, err := candidate.CandidateRejectedLogRelative(slug)
+func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact) error {
+	reference, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	pathAbs := filepath.Join(repoRoot, filepath.FromSlash(pathRel))
-	file, err := os.Open(pathAbs)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	defer file.Close()
-	var rows []candidate.CandidateRejectedRecord
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-		row, err := candidate.DecodeRejectedRecord([]byte(line))
-		if err != nil {
-			return nil, err
-		}
-		rows = append(rows, row)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return rows, nil
+	defer func() { _ = reference.Close() }()
+	return appendRejectedOperationCandidateWithReference(reference, slug, artifact)
 }
 
-func isOperationCandidateRejected(repoRoot, slug, candidateID string) (bool, error) {
-	rows, err := readRejectedOperationCandidates(repoRoot, slug)
+func readRejectedOperationCandidates(reference *candidate.ReferenceRoot, slug string) ([]candidate.CandidateRejectedRecord, error) {
+	return reference.ReadRejectedRecords(slug)
+}
+
+func isOperationCandidateRejected(reference *candidate.ReferenceRoot, slug, candidateID string) (bool, error) {
+	rows, err := readRejectedOperationCandidates(reference, slug)
 	if err != nil {
 		return false, err
 	}
 	return candidate.RejectedContainsCandidateID(rows, candidateID), nil
 }
 
-func clearOperationCandidateRejections(repoRoot, slug string) error {
-	pathRel, err := candidate.CandidateRejectedLogRelative(slug)
-	if err != nil {
-		return err
-	}
-	pathAbs := filepath.Join(repoRoot, filepath.FromSlash(pathRel))
-	if err := os.MkdirAll(filepath.Dir(pathAbs), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(pathAbs, []byte{}, 0o644)
+func clearOperationCandidateRejections(reference *candidate.ReferenceRoot, slug string) error {
+	return reference.ClearRejectedRecords(slug)
 }
 
 func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error) {
@@ -367,41 +315,48 @@ func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error
 		return "", fmt.Errorf("%s", lockResult.Reason)
 	}
 	defer func() { _ = lock.Release() }()
+	reference, err := openOperationCandidateReference(s.Root, "")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = reference.Close() }()
+	status, pointer, err := operationCandidateActionPreflight(s, slug, "candidate-action", reference, true)
+	if err != nil {
+		return "", err
+	}
+	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return "", err
+	}
+	defer releaseMutation()
+	artifact, state, root, err := readOperationCandidateArtifacts(reference, slug, pointer)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = root.Close() }()
 
-	status, err := s.LoadFeatureStatus(slug)
-	if err != nil {
-		return "", err
-	}
-	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
-	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
-		return "", err
-	}
-	if pointer == nil {
-		return "", fmt.Errorf("candidate-absent")
-	}
-	artifact, state, err := readOperationCandidateArtifacts(s.Root, slug, pointer)
-	if err != nil {
-		return "", err
-	}
 	if state.Status == candidate.CandidateStatusAccepted {
 		return "", fmt.Errorf("candidate-not-pending")
 	}
-	if state.Status != candidate.CandidateStatusPending && state.Status != candidate.CandidateStatusStale {
+	if state.Status != candidate.CandidateStatusPending && state.Status != candidate.CandidateStatusStale && state.Status != candidate.CandidateStatusRejected {
 		return "", fmt.Errorf("candidate-not-pending")
 	}
-	if err := appendRejectedOperationCandidate(s.Root, slug, artifact); err != nil {
-		return "", err
+	if state.Status != candidate.CandidateStatusRejected {
+		rejected, err := isOperationCandidateRejected(reference, slug, artifact.CandidateID)
+		if err != nil {
+			return "", err
+		}
+		if !rejected {
+			if err := appendRejectedOperationCandidate(s.Root, slug, artifact); err != nil {
+				return "", err
+			}
+		}
+		state.Status = candidate.CandidateStatusRejected
+		if err := root.WriteState(state); err != nil {
+			return "", err
+		}
 	}
-	state.Status = candidate.CandidateStatusRejected
-	stateRaw, err := candidate.EncodeCandidateState(state)
-	if err != nil {
-		return "", err
-	}
-	statePath := filepath.Join(s.Root, filepath.FromSlash(pointer.Path), candidate.CandidateStateName)
-	if err := os.WriteFile(statePath, stateRaw, 0o644); err != nil {
-		return "", err
-	}
-	if err := pruneOperationCandidateWorktree(s.Root, slug, pointer.CandidateID, artifact.UpstreamCommit, lock); err != nil {
+	if err := pruneOperationCandidateWorktree(s.Root, root, lock); err != nil {
 		return "", err
 	}
 	status.Reconcile.OperationCandidate = nil
@@ -420,7 +375,174 @@ func clearOperationCandidateRejectionsLocked(s *store.Store, slug string) error 
 		return fmt.Errorf("%s", lockResult.Reason)
 	}
 	defer func() { _ = lock.Release() }()
-	return clearOperationCandidateRejections(s.Root, slug)
+	reference, err := openOperationCandidateReference(s.Root, "")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = reference.Close() }()
+	if _, _, err := operationCandidateActionPreflight(s, slug, "candidate-action", reference, false); err != nil {
+		return err
+	}
+	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return err
+	}
+	defer releaseMutation()
+	return clearOperationCandidateRejections(reference, slug)
+}
+
+func prepareOperationCandidate(
+	s *store.Store,
+	slug string,
+	eligibility operationCandidateEligibility,
+	patch string,
+	effects []gitutil.PatchEffect,
+	effectSHA256ByOrdinal map[int]string,
+) (operationCandidatePrepared, error) {
+	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	if lockResult.Reason != "" {
+		return operationCandidatePrepared{}, fmt.Errorf("%s", lockResult.Reason)
+	}
+	defer func() { _ = lock.Release() }()
+
+	reference, err := openOperationCandidateReference(s.Root, eligibility.referenceCommit)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	defer func() { _ = reference.Close() }()
+	if recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug); err != nil {
+		return operationCandidatePrepared{}, err
+	} else if recoveryPath != "" {
+		return operationCandidatePrepared{}, fmt.Errorf("recovery-required")
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	if refusal := operationCandidateCoexistenceRefusal(status, "candidate-derivation"); refusal != "" {
+		return operationCandidatePrepared{}, fmt.Errorf("%s", refusal)
+	}
+	if status.State != store.StateApplied && status.State != store.StateBlocked {
+		return operationCandidatePrepared{}, fmt.Errorf("candidate-feature-state-unsupported")
+	}
+	upstream, err := openOperationCandidateReference(s.Root, eligibility.upstreamCommit)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	defer func() { _ = upstream.Close() }()
+	preparation, err := candidate.PrepareCandidateArtifact(candidate.CandidatePrepareInput{
+		Feature:               slug,
+		SourceFeatureState:    string(status.State),
+		UpstreamCommit:        eligibility.upstreamCommit,
+		ReferenceCommit:       eligibility.referenceCommit,
+		Bindings:              operationCandidateBindings(eligibility),
+		Reference:             reference,
+		Upstream:              upstream,
+		Patch:                 patch,
+		Effects:               effects,
+		EffectSHA256ByOrdinal: effectSHA256ByOrdinal,
+	})
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	candidateID, err := preparation.CandidateID()
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	rejected, err := isOperationCandidateRejected(reference, slug, candidateID)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	if rejected {
+		return operationCandidatePrepared{}, fmt.Errorf("candidate-rejected")
+	}
+	return operationCandidatePrepared{
+		Preparation:        preparation,
+		CandidateID:        candidateID,
+		SourceFeatureState: string(status.State),
+		ReferenceCommit:    eligibility.referenceCommit,
+		UpstreamCommit:     eligibility.upstreamCommit,
+	}, nil
+}
+
+func publishOperationCandidate(
+	s *store.Store,
+	slug string,
+	prepared operationCandidatePrepared,
+	execution candidate.ExecutionResult,
+) (candidate.CandidateArtifact, error) {
+	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if lockResult.Reason != "" {
+		return candidate.CandidateArtifact{}, fmt.Errorf("%s", lockResult.Reason)
+	}
+	defer func() { _ = lock.Release() }()
+
+	reference, err := openOperationCandidateReference(s.Root, prepared.ReferenceCommit)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer func() { _ = reference.Close() }()
+	if _, _, err := operationCandidateActionPreflight(s, slug, "candidate-derivation", reference, false); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer releaseMutation()
+
+	artifact, err := candidate.BuildCandidateArtifact(candidate.CandidateMaterializeInput{
+		Preparation: prepared.Preparation,
+		Execution:   execution,
+	})
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if execution.Root == nil {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate execution root is required")
+	}
+	if artifact.CandidateID != prepared.CandidateID {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate id mismatch while publishing")
+	}
+	if err := execution.Root.WriteArtifact(artifact); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if err := execution.Root.WritePatch([]byte(execution.Diff)); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	state := candidate.CandidateState{
+		SchemaVersion:    candidate.CandidateSchemaVersion,
+		CandidateID:      artifact.CandidateID,
+		Status:           candidate.CandidateStatusPending,
+		AcceptValidation: candidate.CandidateAcceptValidationNone,
+	}
+	if err := execution.Root.WriteState(state); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	path, err := candidate.CandidatePointerPath(slug, artifact.CandidateID)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	status.Reconcile.OperationCandidate = &store.OperationCandidateSummary{
+		CandidateID:        artifact.CandidateID,
+		Path:               path,
+		Status:             candidate.CandidateStatusPending,
+		SourceFeatureState: artifact.SourceFeatureState,
+	}
+	if err := s.SaveFeatureStatus(status); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	return artifact, nil
 }
 
 func operationCandidateCoexistenceRefusal(status store.FeatureStatus, action string) string {
@@ -438,4 +560,83 @@ func operationCandidateCoexistenceRefusal(status store.FeatureStatus, action str
 		}
 	}
 	return ""
+}
+
+func borrowOperationCandidateFeatureMutation(lock *candidatelock.Handle, repoRoot, slug string) (func(), error) {
+	if lock == nil {
+		return nil, fmt.Errorf("feature lock handle is required")
+	}
+	lockPath := filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock")
+	return lock.Borrow(lockPath)
+}
+
+func openOperationCandidateReference(repoRoot, commitHint string) (*candidate.ReferenceRoot, error) {
+	commit := strings.TrimSpace(commitHint)
+	if commit == "" {
+		head, err := repoHEADCommit(repoRoot)
+		if err != nil {
+			return nil, err
+		}
+		commit = head
+	}
+	reference, err := candidate.OpenReferenceRoot(repoRoot, commit)
+	if err != nil && commitHint == "" {
+		head, headErr := repoHEADCommit(repoRoot)
+		if headErr != nil {
+			return nil, err
+		}
+		return candidate.OpenReferenceRoot(repoRoot, head)
+	}
+	return reference, err
+}
+
+func repoHEADCommit(repoRoot string) (string, error) {
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = repoRoot
+	cmd.Env = gitutil.HardenedNoLazyGitEnv()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("resolve repository HEAD commit: %v: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	commit := strings.TrimSpace(string(out))
+	if commit == "" {
+		return "", fmt.Errorf("resolve repository HEAD commit: empty output")
+	}
+	return commit, nil
+}
+
+func operationCandidateActionPreflight(s *store.Store, slug, action string, reference *candidate.ReferenceRoot, requirePointer bool) (store.FeatureStatus, *store.OperationCandidateSummary, error) {
+	recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug)
+	if err != nil {
+		return store.FeatureStatus{}, nil, err
+	}
+	if recoveryPath != "" {
+		return store.FeatureStatus{}, nil, fmt.Errorf("recovery-required")
+	}
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return store.FeatureStatus{}, nil, err
+	}
+	if refusal := operationCandidateCoexistenceRefusal(status, action); refusal != "" {
+		return store.FeatureStatus{}, nil, fmt.Errorf("%s", refusal)
+	}
+	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
+	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
+		return store.FeatureStatus{}, nil, err
+	}
+	if requirePointer && pointer == nil {
+		return store.FeatureStatus{}, nil, fmt.Errorf("candidate-absent")
+	}
+	return status, pointer, nil
+}
+
+func operationCandidateBindings(eligibility operationCandidateEligibility) candidate.CandidateBindings {
+	return candidate.CandidateBindings{
+		CaptureEventSHA256: eligibility.captureEventSHA256,
+		CoverageSHA256:     eligibility.coverageSHA256,
+		PatchSHA256:        eligibility.patchSHA256,
+		RecipeSHA256:       eligibility.recipeSHA256,
+	}
 }

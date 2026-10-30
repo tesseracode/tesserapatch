@@ -3,12 +3,15 @@ package workflow
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/candidate"
 	"github.com/tesseracode/tesserapatch/internal/candidatelock"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
+	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
 
@@ -325,7 +328,12 @@ func TestROCS5RejectAndRejectedLogLifecycle(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(f.store.Root, filepath.FromSlash(f.pointerPath), candidate.CandidateWorktreeName)); !os.IsNotExist(err) {
 		t.Fatalf("reject failed to prune worktree: %v", err)
 	}
-	rows, err := readRejectedOperationCandidates(f.store.Root, f.slug)
+	reference, err := openOperationCandidateReference(f.store.Root, f.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = reference.Close() }()
+	rows, err := readRejectedOperationCandidates(reference, f.slug)
 	if err != nil || len(rows) != 1 || rows[0].CandidateID != f.artifact.CandidateID {
 		t.Fatalf("rejected.jsonl metadata mismatch: rows=%+v err=%v", rows, err)
 	}
@@ -337,11 +345,11 @@ func TestROCS5RejectAndRejectedLogLifecycle(t *testing.T) {
 		t.Fatalf("rejected metadata leaked mutable/body fields: %s", blob)
 	}
 	artifact2 := rocS5LifecycleArtifact(t, f.slug, "blocked", f.upstreamCommit, f.upstreamCommit, strings.Repeat("f", 64))
-	same, err := isOperationCandidateRejected(f.store.Root, f.slug, f.artifact.CandidateID)
+	same, err := isOperationCandidateRejected(reference, f.slug, f.artifact.CandidateID)
 	if err != nil || !same {
 		t.Fatalf("rejected id lookup failed for matching id: %t err=%v", same, err)
 	}
-	changed, err := isOperationCandidateRejected(f.store.Root, f.slug, artifact2.CandidateID)
+	changed, err := isOperationCandidateRejected(reference, f.slug, artifact2.CandidateID)
 	if err != nil || changed {
 		t.Fatalf("changed bindings should mint non-rejected id: %t err=%v", changed, err)
 	}
@@ -358,31 +366,97 @@ func TestROCS5RejectAndRejectedLogLifecycle(t *testing.T) {
 }
 
 func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
-	f := newROCS5LifecycleFixture(t)
-	state := candidate.CandidateState{
-		SchemaVersion:    candidate.CandidateSchemaVersion,
-		CandidateID:      f.artifact.CandidateID,
-		Status:           candidate.CandidateStatusPending,
-		AcceptValidation: candidate.CandidateAcceptValidationNone,
+	s := slice2Store(t)
+	git(t, s.Root, "init", "-q")
+	git(t, s.Root, "config", "user.email", "test@example.invalid")
+	git(t, s.Root, "config", "user.name", "test")
+	writeRepoFile(t, s, "tracked.txt", []byte("v1\n"))
+	git(t, s.Root, "add", "tracked.txt")
+	git(t, s.Root, "commit", "-qm", "base")
+	baseCommit := strings.TrimSpace(git(t, s.Root, "rev-parse", "HEAD"))
+	writeRepoFile(t, s, "tracked.txt", []byte("v1\nv2\n"))
+	git(t, s.Root, "add", "tracked.txt")
+	git(t, s.Root, "commit", "-qm", "feature")
+	featureCommit := strings.TrimSpace(git(t, s.Root, "rev-parse", "HEAD"))
+	patch := lifecycleGitOutput(t, s.Root, "diff", "--binary", baseCommit, featureCommit, "--", "tracked.txt")
+	effects := reconstructLifecycleEffects(t, s.Root, baseCommit, patch)
+	effectSHA256ByOrdinal := map[int]string{}
+	for i := range effects {
+		nibble := string(rune('a' + (i % 6)))
+		effectSHA256ByOrdinal[i+1] = strings.Repeat(nibble, 64)
 	}
-	calls := 0
-	reuse, err := operationCandidateReuseCheck(f.artifact, state, f.artifact, func() error {
-		calls++
-		return nil
-	})
-	if err != nil || !reuse.Reusable || calls != 1 {
-		t.Fatalf("reuse should require and run validation callback once: reuse=%+v calls=%d err=%v", reuse, calls, err)
+	upstream := baseCommit
+	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Reuse fixture"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	collision := f.artifact
+	feature.State = store.StateApplied
+	if err := s.SaveFeatureStatus(feature); err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := prepareOperationCandidate(s, feature.Slug, operationCandidateEligibility{
+		coverageSHA256:     strings.Repeat("2", 64),
+		captureEventSHA256: strings.Repeat("1", 64),
+		patchSHA256:        strings.Repeat("3", 64),
+		recipeSHA256:       strings.Repeat("4", 64),
+		referenceCommit:    upstream,
+		upstreamCommit:     upstream,
+	}, patch, effects, effectSHA256ByOrdinal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference, err := openOperationCandidateReference(s.Root, upstream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = reference.Close() }()
+	upstreamRoot, err := openOperationCandidateReference(s.Root, upstream)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = upstreamRoot.Close() }()
+	featureLockPath := filepath.Join(s.Root, ".tpatch", "locks", "reconcile", feature.Slug+".lock")
+	featureLock, err := candidatelock.TryAcquire(featureLockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	execution, err := candidate.Execute(reference, upstreamRoot, patch, effects, feature.Slug, prepared.CandidateID, featureLock)
+	if err := featureLock.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := publishOperationCandidate(s, feature.Slug, prepared, execution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := s.LoadFeatureStatus(feature.Slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	existingArtifact, existingState, existingRoot, err := readOperationCandidateArtifacts(reference, feature.Slug, status.Reconcile.OperationCandidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = existingRoot.Close() }()
+	reuse, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot)
+	if err != nil || !reuse.Reusable {
+		t.Fatalf("reuse should require full production validator pass: reuse=%+v err=%v", reuse, err)
+	}
+	if err := os.RemoveAll(existingRoot.WorktreePath()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot); err == nil {
+		t.Fatal("reuse unexpectedly accepted missing candidate worktree")
+	}
+	collision := artifact
 	collision.Bindings.RecipeSHA256 = strings.Repeat("f", 64)
-	reuse, err = operationCandidateReuseCheck(f.artifact, state, collision, func() error {
-		calls++
-		return nil
-	})
-	if err != nil || reuse.RefusalCode != "candidate-id-collision" || calls != 1 {
-		t.Fatalf("collision should refuse before validation callback: reuse=%+v calls=%d err=%v", reuse, calls, err)
+	reuse, err = operationCandidateReuseCheck(prepared.Preparation, artifact, existingState, collision, existingRoot)
+	if err != nil || reuse.RefusalCode != "candidate-id-collision" {
+		t.Fatalf("collision should refuse before validation: reuse=%+v err=%v", reuse, err)
 	}
-	path := filepath.Join(f.store.Root, filepath.FromSlash(f.pointerPath), candidate.CandidateMetadataName)
+	path := filepath.Join(s.Root, filepath.FromSlash(status.Reconcile.OperationCandidate.Path), candidate.CandidateMetadataName)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -399,10 +473,10 @@ func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
 	if err := os.WriteFile(path, bad, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
-		UpstreamCommit:     f.artifact.UpstreamCommit,
-		SourceFeatureState: f.artifact.SourceFeatureState,
-		Bindings:           f.artifact.Bindings,
+	if _, err := runOperationCandidatePreflight(s, feature.Slug, candidate.CandidateStalenessInput{
+		UpstreamCommit:     upstream,
+		SourceFeatureState: "applied",
+		Bindings:           artifact.Bindings,
 	}); err == nil {
 		t.Fatal("tampered candidate metadata unexpectedly granted authority")
 	}
@@ -418,4 +492,51 @@ func TestROCS5CoexistenceRefusals(t *testing.T) {
 	if code := operationCandidateCoexistenceRefusal(status, "candidate-action"); code != "shadow-pending" {
 		t.Fatalf("candidate coexistence refusal mismatch: %q", code)
 	}
+}
+
+func reconstructLifecycleEffects(t *testing.T, repoRoot, baseCommit, patch string) []gitutil.PatchEffect {
+	t.Helper()
+	rows, err := patchobs.ReconstructOffline(repoRoot, baseCommit, patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effects := make([]gitutil.PatchEffect, len(rows))
+	for i, row := range rows {
+		e := row.Effect
+		e.PreimageObserved, e.PreimagePresent, e.PreimageSHA256 = true, row.Pre.Present, row.Pre.SHA256
+		e.PostimageObserved, e.PostimagePresent, e.PostimageSHA256 = true, row.Post.Present, row.Post.SHA256
+		e.OldMode, e.NewMode = row.Pre.Mode, row.Post.Mode
+		entry := patchobs.EffectObservation{Effect: e}
+		entry.Bytes.Preimage, entry.Bytes.Postimage = row.Pre.Bytes, row.Post.Bytes
+		e.ContentKind, e.ObjectKind = patchobs.ClassifyEffectObservation(e, entry.Bytes)
+		effects[i] = e
+	}
+	return effects
+}
+
+func lifecycleGitOutput(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %s: %s: %v", strings.Join(args, " "), out, err)
+	}
+	return string(out)
+}
+
+func acquireFeatureAndGlobalLocks(t *testing.T, repoRoot, slug string) (*candidatelock.Handle, *candidatelock.Handle) {
+	t.Helper()
+	featureLockPath := filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock")
+	globalLockPath := filepath.Join(repoRoot, ".tpatch", "locks", "worktree-mutation.lock")
+	featureLock, err := candidatelock.TryAcquire(featureLockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	globalLock, err := candidatelock.TryAcquire(globalLockPath)
+	if err != nil {
+		_ = featureLock.Release()
+		t.Fatal(err)
+	}
+	return featureLock, globalLock
 }

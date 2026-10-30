@@ -6,27 +6,110 @@ import (
 )
 
 func TestBuildCandidateArtifactExpectedIDAndTreeHashSemantics(t *testing.T) {
-	artifact := testCandidateArtifact(t, "applied")
+	root, reference, upstream, patch, effects := executionFixture(t)
+	effectHashes := make(map[int]string, len(effects))
+	for i, effect := range effects {
+		_ = effect
+		nibble := string(rune('a' + (i % 6)))
+		effectHashes[i+1] = strings.Repeat(nibble, 64)
+	}
+	bindings := CandidateBindings{
+		CaptureEventSHA256: strings.Repeat("1", 64),
+		CoverageSHA256:     strings.Repeat("2", 64),
+		PatchSHA256:        strings.Repeat("3", 64),
+		RecipeSHA256:       strings.Repeat("4", 64),
+	}
+	preparation, err := PrepareCandidateArtifact(CandidatePrepareInput{
+		Feature:               "demo-feature",
+		SourceFeatureState:    "applied",
+		UpstreamCommit:        upstream.Commit(),
+		ReferenceCommit:       reference.Commit(),
+		Bindings:              bindings,
+		Reference:             reference,
+		Upstream:              upstream,
+		Patch:                 patch,
+		Effects:               effects,
+		EffectSHA256ByOrdinal: effectHashes,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidateID, err := preparation.CandidateID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	featureLock := acquireFeatureLock(t, root, "demo-feature")
+	defer releaseLock(t, featureLock)
+	validExecution, err := Execute(reference, upstream, patch, effects, "demo-feature", candidateID, featureLock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = validExecution.Root.Close() }()
+	artifact, err := BuildCandidateArtifact(CandidateMaterializeInput{
+		Preparation: preparation,
+		Execution:   validExecution,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(artifact.Result.CandidateTreeSHA256) != 64 || artifact.Result.CandidateTreeSHA256 == strings.Repeat("c", 40) {
 		t.Fatalf("candidate_tree_sha256 is not SHA-256 integrity hash: %q", artifact.Result.CandidateTreeSHA256)
 	}
-	_, err := BuildCandidateArtifact(CandidateMaterializeInput{
-		Feature:            artifact.Feature,
-		SourceFeatureState: artifact.SourceFeatureState,
-		UpstreamCommit:     artifact.UpstreamCommit,
-		ReferenceCommit:    artifact.ReferenceCommit,
-		Bindings:           artifact.Bindings,
-		Execution: ExecutionResult{
-			Plan:      Plan{operations: []operation{}, effects: []effectClassification{}},
-			EffectMap: []EffectResolution{},
-			TreeHash:  strings.Repeat("a", 40),
+	for _, execution := range []ExecutionResult{
+		{
+			Root:      validExecution.Root,
+			Plan:      validExecution.Plan,
+			EffectMap: validExecution.EffectMap,
+			TreeHash:  "",
 			Diff:      "",
 		},
-		EffectSHA256ByOrdinal: map[int]string{},
-		ExpectedCandidateID:   "rc_deadbeefcafe",
+		{
+			Root:      validExecution.Root,
+			Plan:      validExecution.Plan,
+			EffectMap: validExecution.EffectMap,
+			TreeHash:  strings.Repeat("a", 40),
+			Diff:      validExecution.Diff,
+		},
+		{
+			Root:      validExecution.Root,
+			Plan:      validExecution.Plan,
+			EffectMap: validExecution.EffectMap,
+			TreeHash:  validExecution.TreeHash,
+			Diff:      validExecution.Diff + "tampered",
+		},
+	} {
+		if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
+			Preparation: preparation,
+			Execution:   execution,
+		}); err == nil {
+			t.Fatal("BuildCandidateArtifact accepted unverified execution output")
+		}
+	}
+	tamperedPreparation, err := PrepareCandidateArtifact(CandidatePrepareInput{
+		Feature:            "demo-feature",
+		SourceFeatureState: "applied",
+		UpstreamCommit:     upstream.Commit(),
+		ReferenceCommit:    reference.Commit(),
+		Bindings: CandidateBindings{
+			CaptureEventSHA256: strings.Repeat("1", 64),
+			CoverageSHA256:     strings.Repeat("2", 64),
+			PatchSHA256:        strings.Repeat("3", 64),
+			RecipeSHA256:       strings.Repeat("f", 64),
+		},
+		Reference:             reference,
+		Upstream:              upstream,
+		Patch:                 patch,
+		Effects:               effects,
+		EffectSHA256ByOrdinal: effectHashes,
 	})
-	if err == nil {
-		t.Fatal("expected candidate id mismatch refusal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
+		Preparation: tamperedPreparation,
+		Execution:   validExecution,
+	}); err == nil {
+		t.Fatal("BuildCandidateArtifact accepted mismatched prepared bindings/candidate id")
 	}
 }
 
@@ -60,6 +143,91 @@ func TestCompareExistingCandidateDecisionMatrix(t *testing.T) {
 	if err != nil || decision.RefusalCode != "candidate-integrity-drift" {
 		t.Fatalf("result drift should report integrity drift: decision=%+v err=%v", decision, err)
 	}
+	base := testCandidateArtifactWithOrdinalPermutation(t, false)
+	swapped := testCandidateArtifactWithOrdinalPermutation(t, true)
+	baseState := state
+	baseState.CandidateID = base.CandidateID
+	decision, err = CompareExistingCandidate(base, baseState, swapped)
+	if err != nil || !decision.Reusable {
+		t.Fatalf("canonical identity tuple compare should allow ordinal permutation: decision=%+v err=%v", decision, err)
+	}
+}
+
+func testCandidateArtifactWithOrdinalPermutation(t *testing.T, swap bool) CandidateArtifact {
+	t.Helper()
+	artifact := testCandidateArtifact(t, "applied")
+	artifact.Derivation.Operations = []CandidateOperation{
+		{
+			Ordinal:         1,
+			Kind:            "create-file",
+			Path:            "new.txt",
+			EffectOrdinal:   2,
+			EffectSHA256:    strings.Repeat("b", 64),
+			RunOrdinals:     []int{},
+			InsertionSHA256: strings.Repeat("8", 64),
+			InsertionSize:   4,
+			Classification:  "applicable",
+		},
+		{
+			Ordinal:         2,
+			Kind:            "create-file",
+			Path:            "new.txt",
+			EffectOrdinal:   2,
+			EffectSHA256:    strings.Repeat("b", 64),
+			RunOrdinals:     []int{},
+			InsertionSHA256: strings.Repeat("9", 64),
+			InsertionSize:   4,
+			Classification:  "applicable",
+		},
+	}
+	artifact.Derivation.EffectMap = []CandidateEffectMapEntry{
+		{
+			EffectOrdinal:     1,
+			EffectSHA256:      strings.Repeat("a", 64),
+			Path:              "existing.txt",
+			Resolution:        "absorbed-present",
+			OperationOrdinals: []int{},
+			ReasonCodes:       []string{},
+		},
+		{
+			EffectOrdinal:     2,
+			EffectSHA256:      strings.Repeat("b", 64),
+			Path:              "new.txt",
+			Resolution:        "candidate-applicable",
+			OperationOrdinals: []int{1, 2},
+			ReasonCodes:       []string{},
+		},
+	}
+	artifact.Derivation.EffectCount = 2
+	artifact.Derivation.AbsorbedPresentCount = 1
+	artifact.Derivation.CandidateApplicableCount = 1
+	artifact.Derivation.ConflictCount = 0
+	if swap {
+		left := artifact.Derivation.Operations[0]
+		right := artifact.Derivation.Operations[1]
+		left.Ordinal = 2
+		right.Ordinal = 1
+		artifact.Derivation.Operations = []CandidateOperation{right, left}
+	}
+	id, _, _, err := ComputeCandidateID(CandidateIdentityInput{
+		SchemaVersion:      artifact.SchemaVersion,
+		Feature:            artifact.Feature,
+		SourceFeatureState: artifact.SourceFeatureState,
+		UpstreamCommit:     artifact.UpstreamCommit,
+		ReferenceCommit:    artifact.ReferenceCommit,
+		Bindings:           artifact.Bindings,
+		DerivationMode:     artifact.DerivationMode,
+		Operations:         artifact.Derivation.Operations,
+		EffectMap:          artifact.Derivation.EffectMap,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact.CandidateID = id
+	if err := artifact.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	return artifact
 }
 
 func TestCandidateNeedsStaleMark(t *testing.T) {
@@ -81,6 +249,7 @@ func TestCandidateNeedsStaleMark(t *testing.T) {
 	for _, mutate := range []CandidateStalenessInput{
 		{UpstreamCommit: strings.Repeat("f", 40), SourceFeatureState: artifact.SourceFeatureState, Bindings: artifact.Bindings},
 		{UpstreamCommit: artifact.UpstreamCommit, SourceFeatureState: "applied", Bindings: artifact.Bindings},
+		{UpstreamCommit: artifact.UpstreamCommit, SourceFeatureState: "rejected", Bindings: artifact.Bindings},
 		{UpstreamCommit: artifact.UpstreamCommit, SourceFeatureState: artifact.SourceFeatureState, Bindings: CandidateBindings{
 			CaptureEventSHA256: strings.Repeat("1", 64),
 			CoverageSHA256:     strings.Repeat("2", 64),

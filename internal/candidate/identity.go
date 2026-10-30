@@ -34,6 +34,21 @@ type CandidateBoundaryProofInput struct {
 	InsertionSHA256      string
 }
 
+type CandidateIdentityTuple struct {
+	SchemaVersion      int      `json:"schema_version"`
+	Feature            string   `json:"feature"`
+	SourceFeatureState string   `json:"source_feature_state"`
+	UpstreamCommit     string   `json:"upstream_commit"`
+	ReferenceCommit    string   `json:"reference_commit"`
+	CaptureEventSHA256 string   `json:"capture_event_sha256"`
+	CoverageSHA256     string   `json:"coverage_sha256"`
+	PatchSHA256        string   `json:"patch_sha256"`
+	RecipeSHA256       string   `json:"recipe_sha256"`
+	DerivationMode     string   `json:"derivation_mode"`
+	OperationProofs    []string `json:"operation_proof_hashes"`
+	EffectMapProofs    []string `json:"effect_map_proof_hashes"`
+}
+
 func (input CandidateIdentityInput) Validate() error {
 	artifact := CandidateArtifact{
 		SchemaVersion:      input.SchemaVersion,
@@ -65,14 +80,26 @@ func (input CandidateIdentityInput) Validate() error {
 }
 
 func ComputeCandidateID(input CandidateIdentityInput) (string, []string, []string, error) {
-	if err := input.Validate(); err != nil {
+	tuple, err := IdentityTupleFromInput(input)
+	if err != nil {
 		return "", nil, nil, err
+	}
+	sum, err := hashCanonicalJSON(tuple)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	return "rc_" + sum[:12], tuple.OperationProofs, tuple.EffectMapProofs, nil
+}
+
+func IdentityTupleFromInput(input CandidateIdentityInput) (CandidateIdentityTuple, error) {
+	if err := input.Validate(); err != nil {
+		return CandidateIdentityTuple{}, err
 	}
 	operationProofs := make([]string, 0, len(input.Operations))
 	for _, op := range input.Operations {
 		hash, err := CandidateOperationProofHash(op)
 		if err != nil {
-			return "", nil, nil, err
+			return CandidateIdentityTuple{}, err
 		}
 		operationProofs = append(operationProofs, hash)
 	}
@@ -80,26 +107,13 @@ func ComputeCandidateID(input CandidateIdentityInput) (string, []string, []strin
 	for _, row := range input.EffectMap {
 		hash, err := CandidateEffectMapProofHash(row)
 		if err != nil {
-			return "", nil, nil, err
+			return CandidateIdentityTuple{}, err
 		}
 		effectProofs = append(effectProofs, hash)
 	}
 	sort.Strings(operationProofs)
 	sort.Strings(effectProofs)
-	tuple := struct {
-		SchemaVersion      int      `json:"schema_version"`
-		Feature            string   `json:"feature"`
-		SourceFeatureState string   `json:"source_feature_state"`
-		UpstreamCommit     string   `json:"upstream_commit"`
-		ReferenceCommit    string   `json:"reference_commit"`
-		CaptureEventSHA256 string   `json:"capture_event_sha256"`
-		CoverageSHA256     string   `json:"coverage_sha256"`
-		PatchSHA256        string   `json:"patch_sha256"`
-		RecipeSHA256       string   `json:"recipe_sha256"`
-		DerivationMode     string   `json:"derivation_mode"`
-		OperationProofs    []string `json:"operation_proof_hashes"`
-		EffectMapProofs    []string `json:"effect_map_proof_hashes"`
-	}{
+	return CandidateIdentityTuple{
 		SchemaVersion:      input.SchemaVersion,
 		Feature:            input.Feature,
 		SourceFeatureState: input.SourceFeatureState,
@@ -112,12 +126,24 @@ func ComputeCandidateID(input CandidateIdentityInput) (string, []string, []strin
 		DerivationMode:     input.DerivationMode,
 		OperationProofs:    operationProofs,
 		EffectMapProofs:    effectProofs,
+	}, nil
+}
+
+func IdentityTupleFromArtifact(artifact CandidateArtifact) (CandidateIdentityTuple, error) {
+	if err := artifact.Validate(); err != nil {
+		return CandidateIdentityTuple{}, err
 	}
-	sum, err := hashCanonicalJSON(tuple)
-	if err != nil {
-		return "", nil, nil, err
-	}
-	return "rc_" + sum[:12], operationProofs, effectProofs, nil
+	return IdentityTupleFromInput(CandidateIdentityInput{
+		SchemaVersion:      artifact.SchemaVersion,
+		Feature:            artifact.Feature,
+		SourceFeatureState: artifact.SourceFeatureState,
+		UpstreamCommit:     artifact.UpstreamCommit,
+		ReferenceCommit:    artifact.ReferenceCommit,
+		Bindings:           artifact.Bindings,
+		DerivationMode:     artifact.DerivationMode,
+		Operations:         append([]CandidateOperation(nil), artifact.Derivation.Operations...),
+		EffectMap:          append([]CandidateEffectMapEntry(nil), artifact.Derivation.EffectMap...),
+	})
 }
 
 func CandidateOperationProofHash(operation CandidateOperation) (string, error) {

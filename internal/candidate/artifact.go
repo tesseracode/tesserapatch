@@ -264,6 +264,20 @@ func (derivation CandidateDerivation) Validate() error {
 		if row.Path != op.Path || row.EffectSHA256 != op.EffectSHA256 {
 			return fmt.Errorf("candidate: operation ordinal %d contradicts effect_map proof binding", op.Ordinal)
 		}
+		switch op.Classification {
+		case "applicable":
+			if row.Resolution != "candidate-applicable" {
+				return fmt.Errorf("candidate: operation ordinal %d classification/resolution mismatch", op.Ordinal)
+			}
+		case "present":
+			if row.Resolution != "absorbed-present" {
+				return fmt.Errorf("candidate: operation ordinal %d classification/resolution mismatch", op.Ordinal)
+			}
+		case "conflict":
+			return fmt.Errorf("candidate: conflict classifications are not permitted in operation candidates")
+		default:
+			return fmt.Errorf("candidate: invalid classification %q", op.Classification)
+		}
 		applicableByEffect[op.EffectOrdinal] = append(applicableByEffect[op.EffectOrdinal], op.Ordinal)
 	}
 	for _, row := range derivation.EffectMap {

@@ -71,6 +71,7 @@ func TestCandidateArtifactStrictDecodeRefusals(t *testing.T) {
 		{"null-array", nullArrayBody},
 		{"status-leak", replaceOnce("status-leak", `"result": {`, `"result": {"status":"pending",`)},
 		{"offset-leak", replaceOnce("offset-leak", `"effect_ordinal": 2,`, `"effect_ordinal": 2, "offset": 10,`)},
+		{"classification-resolution-contradiction", replaceOnce("classification-resolution-contradiction", `"classification": "applicable"`, `"classification": "conflict"`)},
 	} {
 		if _, err := DecodeCandidateArtifact(mutation.body); err == nil {
 			t.Fatalf("strict decoder accepted %s", mutation.name)
@@ -86,6 +87,7 @@ func TestCandidateArtifactValidationRefusals(t *testing.T) {
 		func(a *CandidateArtifact) { a.Derivation.Operations[0].Path = `a\bad.txt` },
 		func(a *CandidateArtifact) { a.Derivation.Operations[0].Path = "../bad.txt" },
 		func(a *CandidateArtifact) { a.Derivation.EffectMap[1].ReasonCodes = nil },
+		func(a *CandidateArtifact) { a.Derivation.Operations[0].Classification = "conflict" },
 		func(a *CandidateArtifact) { a.Result.Validated = "tests" },
 	} {
 		mutated := artifact
@@ -107,45 +109,82 @@ func TestCandidateArtifactValidationRefusals(t *testing.T) {
 
 func testCandidateArtifact(t *testing.T, sourceState string) CandidateArtifact {
 	t.Helper()
-	plan := Plan{
-		operations: []operation{
-			{
-				kind:          "create-file",
-				path:          "new.txt",
-				effectOrdinal: 2,
-				payload:       []byte("new\n"),
-			},
-		},
-		effects: []effectClassification{
-			{ordinal: 1, path: "existing.txt", state: present},
-			{ordinal: 2, path: "new.txt", state: applicable},
+	operations := []CandidateOperation{
+		{
+			Ordinal:         1,
+			Kind:            "create-file",
+			Path:            "new.txt",
+			EffectOrdinal:   2,
+			EffectSHA256:    strings.Repeat("b", 64),
+			RunOrdinals:     []int{},
+			InsertionSHA256: strings.Repeat("9", 64),
+			InsertionSize:   4,
+			Classification:  "applicable",
 		},
 	}
-	effectMap := []EffectResolution{
-		{EffectOrdinal: 1, Path: "existing.txt", State: "absorbed-present", OperationOrdinals: []int{}},
-		{EffectOrdinal: 2, Path: "new.txt", State: "candidate-applicable", OperationOrdinals: []int{1}},
+	effectMap := []CandidateEffectMapEntry{
+		{
+			EffectOrdinal:     1,
+			EffectSHA256:      strings.Repeat("a", 64),
+			Path:              "existing.txt",
+			Resolution:        "absorbed-present",
+			OperationOrdinals: []int{},
+			ReasonCodes:       []string{},
+		},
+		{
+			EffectOrdinal:     2,
+			EffectSHA256:      strings.Repeat("b", 64),
+			Path:              "new.txt",
+			Resolution:        "candidate-applicable",
+			OperationOrdinals: []int{1},
+			ReasonCodes:       []string{},
+		},
 	}
-	artifact, err := BuildCandidateArtifact(CandidateMaterializeInput{
+	bindings := CandidateBindings{
+		CaptureEventSHA256: strings.Repeat("1", 64),
+		CoverageSHA256:     strings.Repeat("2", 64),
+		PatchSHA256:        strings.Repeat("3", 64),
+		RecipeSHA256:       strings.Repeat("4", 64),
+	}
+	candidateID, _, _, err := ComputeCandidateID(CandidateIdentityInput{
+		SchemaVersion:      CandidateSchemaVersion,
 		Feature:            "demo-feature",
 		SourceFeatureState: sourceState,
 		UpstreamCommit:     strings.Repeat("a", 40),
 		ReferenceCommit:    strings.Repeat("b", 40),
-		Bindings: CandidateBindings{
-			CaptureEventSHA256: strings.Repeat("1", 64),
-			CoverageSHA256:     strings.Repeat("2", 64),
-			PatchSHA256:        strings.Repeat("3", 64),
-			RecipeSHA256:       strings.Repeat("4", 64),
-		},
-		Execution: ExecutionResult{
-			Plan:      plan,
-			EffectMap: effectMap,
-			TreeHash:  strings.Repeat("c", 40),
-			Diff:      "diff --git a/new.txt b/new.txt\n",
-		},
-		EffectSHA256ByOrdinal: map[int]string{1: strings.Repeat("a", 64), 2: strings.Repeat("b", 64)},
+		Bindings:           bindings,
+		DerivationMode:     CandidateDerivationModeSingle,
+		Operations:         operations,
+		EffectMap:          effectMap,
 	})
 	if err != nil {
-		t.Fatalf("build candidate artifact fixture: %v", err)
+		t.Fatalf("compute fixture candidate id: %v", err)
+	}
+	artifact := CandidateArtifact{
+		SchemaVersion:      CandidateSchemaVersion,
+		CandidateID:        candidateID,
+		Feature:            "demo-feature",
+		SourceFeatureState: sourceState,
+		UpstreamCommit:     strings.Repeat("a", 40),
+		ReferenceCommit:    strings.Repeat("b", 40),
+		DerivationMode:     CandidateDerivationModeSingle,
+		Bindings:           bindings,
+		Derivation: CandidateDerivation{
+			EffectCount:              2,
+			AbsorbedPresentCount:     1,
+			CandidateApplicableCount: 1,
+			ConflictCount:            0,
+			Operations:               operations,
+			EffectMap:                effectMap,
+		},
+		Result: CandidateResult{
+			CandidateDiffSHA256: strings.Repeat("d", 64),
+			CandidateTreeSHA256: strings.Repeat("e", 64),
+			Validated:           CandidateValidationStructural,
+		},
+	}
+	if err := artifact.Validate(); err != nil {
+		t.Fatalf("validate fixture candidate artifact: %v", err)
 	}
 	return artifact
 }

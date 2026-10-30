@@ -8,17 +8,44 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
-type CandidateMaterializeInput struct {
+type CandidatePrepareInput struct {
 	Feature               string
 	SourceFeatureState    string
 	UpstreamCommit        string
 	ReferenceCommit       string
 	Bindings              CandidateBindings
-	Execution             ExecutionResult
+	Reference             *ReferenceRoot
+	Upstream              *ReferenceRoot
+	Patch                 string
+	Effects               []gitutil.PatchEffect
 	EffectSHA256ByOrdinal map[int]string
-	ExpectedCandidateID   string
+}
+
+type CandidatePreparation struct {
+	authority *candidatePreparationAuthority
+}
+
+type candidatePreparationAuthority struct {
+	feature            string
+	sourceFeatureState string
+	upstreamCommit     string
+	referenceCommit    string
+	bindings           CandidateBindings
+	patch              string
+	effects            []gitutil.PatchEffect
+	plan               Plan
+	effectMap          []EffectResolution
+	derivation         CandidateDerivation
+	candidateID        string
+}
+
+type CandidateMaterializeInput struct {
+	Preparation CandidatePreparation
+	Execution   ExecutionResult
 }
 
 type CandidateExistingDecision struct {
@@ -44,52 +71,256 @@ type CandidateRejectedRecord struct {
 }
 
 func BuildCandidateArtifact(input CandidateMaterializeInput) (CandidateArtifact, error) {
-	derivation, err := buildCandidateDerivation(input.Execution.Plan, input.Execution.EffectMap, input.EffectSHA256ByOrdinal)
+	authority, err := input.Preparation.requireAuthority()
 	if err != nil {
 		return CandidateArtifact{}, err
 	}
-	treeSHA, err := CandidateTreeIntegritySHA256(input.Execution.TreeHash)
+	if input.Execution.Root == nil {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution root is required")
+	}
+	if input.Execution.Root.CandidateID() != authority.candidateID {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution root/id mismatch")
+	}
+	if input.Execution.Root.Commit() != authority.upstreamCommit {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution root upstream mismatch")
+	}
+	if !reflect.DeepEqual(input.Execution.Plan, authority.plan) {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution plan differs from prepared authority")
+	}
+	if !reflect.DeepEqual(input.Execution.EffectMap, authority.effectMap) {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution effect_map differs from prepared authority")
+	}
+	validationResult, err := validatePreparedCandidateAgainstRoot(authority, input.Execution.Root)
 	if err != nil {
 		return CandidateArtifact{}, err
 	}
-	diffSum := sha256.Sum256([]byte(input.Execution.Diff))
+	if input.Execution.TreeHash == "" || input.Execution.Diff == "" {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution tree/diff output is required")
+	}
+	if input.Execution.TreeHash != validationResult.treeHash || input.Execution.Diff != validationResult.diff {
+		return CandidateArtifact{}, fmt.Errorf("candidate execution tree/diff drifted from production validation")
+	}
+	treeSHA, err := CandidateTreeIntegritySHA256(validationResult.treeHash)
+	if err != nil {
+		return CandidateArtifact{}, err
+	}
+	diffSum := sha256.Sum256([]byte(validationResult.diff))
 	artifact := CandidateArtifact{
 		SchemaVersion:      CandidateSchemaVersion,
-		Feature:            input.Feature,
-		SourceFeatureState: input.SourceFeatureState,
-		UpstreamCommit:     input.UpstreamCommit,
-		ReferenceCommit:    input.ReferenceCommit,
+		CandidateID:        authority.candidateID,
+		Feature:            authority.feature,
+		SourceFeatureState: authority.sourceFeatureState,
+		UpstreamCommit:     authority.upstreamCommit,
+		ReferenceCommit:    authority.referenceCommit,
 		DerivationMode:     CandidateDerivationModeSingle,
-		Bindings:           input.Bindings,
-		Derivation:         derivation,
+		Bindings:           authority.bindings,
+		Derivation:         authority.derivation,
 		Result: CandidateResult{
 			CandidateDiffSHA256: hex.EncodeToString(diffSum[:]),
 			CandidateTreeSHA256: treeSHA,
 			Validated:           CandidateValidationStructural,
 		},
 	}
-	candidateID, _, _, err := ComputeCandidateID(CandidateIdentityInput{
-		SchemaVersion:      artifact.SchemaVersion,
-		Feature:            artifact.Feature,
-		SourceFeatureState: artifact.SourceFeatureState,
-		UpstreamCommit:     artifact.UpstreamCommit,
-		ReferenceCommit:    artifact.ReferenceCommit,
-		Bindings:           artifact.Bindings,
-		DerivationMode:     artifact.DerivationMode,
-		Operations:         artifact.Derivation.Operations,
-		EffectMap:          artifact.Derivation.EffectMap,
-	})
-	if err != nil {
-		return CandidateArtifact{}, err
-	}
-	artifact.CandidateID = candidateID
-	if input.ExpectedCandidateID != "" && input.ExpectedCandidateID != candidateID {
-		return CandidateArtifact{}, fmt.Errorf("candidate id mismatch: expected %s got %s", input.ExpectedCandidateID, candidateID)
-	}
 	if err := artifact.Validate(); err != nil {
 		return CandidateArtifact{}, err
 	}
 	return artifact, nil
+}
+
+func PrepareCandidateArtifact(input CandidatePrepareInput) (CandidatePreparation, error) {
+	if input.Reference == nil || input.Upstream == nil {
+		return CandidatePreparation{}, fmt.Errorf("typed reference and upstream roots are required")
+	}
+	if err := input.Reference.ensureAvailable(); err != nil {
+		return CandidatePreparation{}, err
+	}
+	if err := input.Upstream.ensureAvailable(); err != nil {
+		return CandidatePreparation{}, err
+	}
+	if input.Reference.Commit() != input.ReferenceCommit || input.Upstream.Commit() != input.UpstreamCommit {
+		return CandidatePreparation{}, fmt.Errorf("prepare authority commit mismatch")
+	}
+	plan, err := derive(input.Reference, input.Upstream, input.Patch, input.Effects)
+	if err != nil {
+		return CandidatePreparation{}, err
+	}
+	if _, _, conflicts := plan.Counts(); conflicts != 0 {
+		return CandidatePreparation{}, &refusal{code: "candidate-postcondition-failed", detail: "derivation includes conflicts"}
+	}
+	effectMap, err := buildEffectResolutionMap(plan)
+	if err != nil {
+		return CandidatePreparation{}, err
+	}
+	derivation, err := buildCandidateDerivation(plan, effectMap, input.EffectSHA256ByOrdinal)
+	if err != nil {
+		return CandidatePreparation{}, err
+	}
+	candidateID, _, _, err := ComputeCandidateID(CandidateIdentityInput{
+		SchemaVersion:      CandidateSchemaVersion,
+		Feature:            input.Feature,
+		SourceFeatureState: input.SourceFeatureState,
+		UpstreamCommit:     input.UpstreamCommit,
+		ReferenceCommit:    input.ReferenceCommit,
+		Bindings:           input.Bindings,
+		DerivationMode:     CandidateDerivationModeSingle,
+		Operations:         derivation.Operations,
+		EffectMap:          derivation.EffectMap,
+	})
+	if err != nil {
+		return CandidatePreparation{}, err
+	}
+	return CandidatePreparation{
+		authority: &candidatePreparationAuthority{
+			feature:            input.Feature,
+			sourceFeatureState: input.SourceFeatureState,
+			upstreamCommit:     input.UpstreamCommit,
+			referenceCommit:    input.ReferenceCommit,
+			bindings:           input.Bindings,
+			patch:              input.Patch,
+			effects:            append([]gitutil.PatchEffect(nil), input.Effects...),
+			plan:               clonePlan(plan),
+			effectMap:          cloneEffectResolution(effectMap),
+			derivation:         cloneCandidateDerivation(derivation),
+			candidateID:        candidateID,
+		},
+	}, nil
+}
+
+func (prep CandidatePreparation) CandidateID() (string, error) {
+	authority, err := prep.requireAuthority()
+	if err != nil {
+		return "", err
+	}
+	return authority.candidateID, nil
+}
+
+func (prep CandidatePreparation) ValidateReusableCandidate(root *CandidateRoot) (CandidateResult, error) {
+	authority, err := prep.requireAuthority()
+	if err != nil {
+		return CandidateResult{}, err
+	}
+	validationResult, err := validatePreparedCandidateAgainstRoot(authority, root)
+	if err != nil {
+		return CandidateResult{}, err
+	}
+	treeSHA, err := CandidateTreeIntegritySHA256(validationResult.treeHash)
+	if err != nil {
+		return CandidateResult{}, err
+	}
+	diffSum := sha256.Sum256([]byte(validationResult.diff))
+	return CandidateResult{
+		CandidateDiffSHA256: hex.EncodeToString(diffSum[:]),
+		CandidateTreeSHA256: treeSHA,
+		Validated:           CandidateValidationStructural,
+	}, nil
+}
+
+func (prep CandidatePreparation) DerivedArtifactIdentity() (CandidateIdentityInput, error) {
+	if prep.authority == nil {
+		return CandidateIdentityInput{}, fmt.Errorf("candidate preparation authority is required")
+	}
+	authority := prep.authority
+	return CandidateIdentityInput{
+		SchemaVersion:      CandidateSchemaVersion,
+		Feature:            authority.feature,
+		SourceFeatureState: authority.sourceFeatureState,
+		UpstreamCommit:     authority.upstreamCommit,
+		ReferenceCommit:    authority.referenceCommit,
+		Bindings:           authority.bindings,
+		DerivationMode:     CandidateDerivationModeSingle,
+		Operations:         append([]CandidateOperation(nil), authority.derivation.Operations...),
+		EffectMap:          append([]CandidateEffectMapEntry(nil), authority.derivation.EffectMap...),
+	}, nil
+}
+
+func (prep CandidatePreparation) requireAuthority() (*candidatePreparationAuthority, error) {
+	if prep.authority == nil {
+		return nil, fmt.Errorf("candidate preparation authority is required")
+	}
+	identity, err := prep.DerivedArtifactIdentity()
+	if err != nil {
+		return nil, err
+	}
+	candidateID, _, _, err := ComputeCandidateID(identity)
+	if err != nil {
+		return nil, err
+	}
+	if candidateID != prep.authority.candidateID {
+		return nil, fmt.Errorf("candidate preparation authority drifted")
+	}
+	return prep.authority, nil
+}
+
+func validatePreparedCandidateAgainstRoot(authority *candidatePreparationAuthority, root *CandidateRoot) (validationResult, error) {
+	if authority == nil {
+		return validationResult{}, fmt.Errorf("candidate preparation authority is required")
+	}
+	if root == nil {
+		return validationResult{}, fmt.Errorf("candidate root is required")
+	}
+	if root.CandidateID() != authority.candidateID {
+		return validationResult{}, fmt.Errorf("candidate root/id mismatch")
+	}
+	if root.Commit() != authority.upstreamCommit {
+		return validationResult{}, fmt.Errorf("candidate root upstream mismatch")
+	}
+	reference, err := OpenReferenceRoot(root.repoRoot, authority.referenceCommit)
+	if err != nil {
+		return validationResult{}, err
+	}
+	defer func() { _ = reference.Close() }()
+	upstream, err := OpenReferenceRoot(root.repoRoot, authority.upstreamCommit)
+	if err != nil {
+		return validationResult{}, err
+	}
+	defer func() { _ = upstream.Close() }()
+	return validateCandidate(reference, upstream, root, authority.patch, authority.effects, authority.plan)
+}
+
+func clonePlan(in Plan) Plan {
+	out := Plan{
+		operations: make([]operation, len(in.operations)),
+		effects:    make([]effectClassification, len(in.effects)),
+	}
+	copy(out.operations, in.operations)
+	copy(out.effects, in.effects)
+	for i := range out.operations {
+		out.operations[i].payload = append([]byte(nil), out.operations[i].payload...)
+		out.operations[i].runOrdinals = append([]int(nil), out.operations[i].runOrdinals...)
+	}
+	return out
+}
+
+func cloneEffectResolution(in []EffectResolution) []EffectResolution {
+	out := make([]EffectResolution, len(in))
+	copy(out, in)
+	for i := range out {
+		out[i].OperationOrdinals = append([]int(nil), out[i].OperationOrdinals...)
+	}
+	return out
+}
+
+func cloneCandidateDerivation(in CandidateDerivation) CandidateDerivation {
+	out := in
+	out.Operations = append([]CandidateOperation(nil), in.Operations...)
+	out.EffectMap = append([]CandidateEffectMapEntry(nil), in.EffectMap...)
+	for i := range out.Operations {
+		out.Operations[i].RunOrdinals = append([]int(nil), out.Operations[i].RunOrdinals...)
+		if out.Operations[i].RunOrdinals == nil {
+			out.Operations[i].RunOrdinals = []int{}
+		}
+	}
+	for i := range out.EffectMap {
+		out.EffectMap[i].OperationOrdinals = append([]int(nil), out.EffectMap[i].OperationOrdinals...)
+		out.EffectMap[i].ReasonCodes = append([]string(nil), out.EffectMap[i].ReasonCodes...)
+		if out.EffectMap[i].OperationOrdinals == nil {
+			out.EffectMap[i].OperationOrdinals = []int{}
+		}
+		if out.EffectMap[i].ReasonCodes == nil {
+			out.EffectMap[i].ReasonCodes = []string{}
+		}
+	}
+	return out
 }
 
 func CompareExistingCandidate(existingArtifact CandidateArtifact, existingState CandidateState, derived CandidateArtifact) (CandidateExistingDecision, error) {
@@ -133,11 +364,11 @@ func CandidateNeedsStaleMark(artifact CandidateArtifact, state CandidateState, c
 	if err := current.Bindings.Validate(); err != nil {
 		return false, err
 	}
-	if current.SourceFeatureState != "applied" && current.SourceFeatureState != "blocked" {
-		return false, fmt.Errorf("invalid current source_feature_state %q", current.SourceFeatureState)
-	}
 	if err := validateCommit(current.UpstreamCommit); err != nil {
 		return false, err
+	}
+	if current.SourceFeatureState == "" {
+		return false, fmt.Errorf("current source_feature_state is required")
 	}
 	return artifact.UpstreamCommit != current.UpstreamCommit ||
 		artifact.SourceFeatureState != current.SourceFeatureState ||
@@ -315,11 +546,9 @@ func buildCandidateDerivation(plan Plan, effectMap []EffectResolution, effectSHA
 }
 
 func sameIdentitySubset(left, right CandidateArtifact) bool {
-	l := left
-	r := right
-	l.Result = CandidateResult{}
-	r.Result = CandidateResult{}
-	return reflect.DeepEqual(l, r)
+	leftTuple, leftErr := IdentityTupleFromArtifact(left)
+	rightTuple, rightErr := IdentityTupleFromArtifact(right)
+	return leftErr == nil && rightErr == nil && reflect.DeepEqual(leftTuple, rightTuple)
 }
 
 func RejectableCandidateStatuses() []string {
