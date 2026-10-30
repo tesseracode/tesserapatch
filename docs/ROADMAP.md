@@ -1636,6 +1636,9 @@ cleanup. Focused negative regressions are added; validation/review remain pendin
 Focused S5/S2/root/authority regressions now pass. Complete fix-forward code
 is frozen at `69b2f05` for retained independent review and full affected/vet/build;
 no acceptance or push yet.
+Independent review closes F4/F6/composition, but retains F3 for staged
+unmodeled changes hidden by index-relative diff validation. Correct that
+structural proof before full/native publication.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

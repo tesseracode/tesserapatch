@@ -50,6 +50,11 @@ integrity rechecks that never rely on mutable labels.
    terminal stale/rejected state changes; detect and finish safe interrupted
    pointer cleanup or refuse explicitly. A failed operation is not success,
    and this generation lifecycle does not introduce an acceptance journal.
+10. **Existing-worktree baseline**: the S4 diff/path checker assumes a pristine
+    index. Prove detached HEAD/registration and index equality to the bound
+    upstream before and after structural validation. A staged change is not
+    authority to hide a path from validation, even if stored integrity hashes
+    have been updated to match it.
 
 ## Non-goals in this draft
 

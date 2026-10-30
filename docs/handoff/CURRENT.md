@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 **S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
 The canonical mid-cycle token intentionally prevents a false wave-close pass.
@@ -24,7 +24,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Fix-forward implementation frozen; independent review and broader validation pending
+- **Status**: F4/F6/composition closed; correcting F3 staged-index structural proof gap
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -80,6 +80,19 @@ Frozen `69b2f05` is ready for retained reviewer `7712b628`; parent alone
 runs admitted full affected/vet/build in `bin/roc-s5-resume-20261030/review-source`.
 F3/F4/F6 and composition remain open until independent closure, not merely
 implementation claims. No S5 publication or acceptance yet.
+Independent review closes F4, F6 and composition; all prior closures hold.
+F3 remains: an existing candidate can stage an unrelated file so S4's plain
+index-to-worktree diff omits it; forged matching stored tree integrity then
+passes reuse. Add an exact bound-upstream/index proof and regression; do not
+rely on stored hashes to reject that structurally invalid tree.
+The narrow fix checks registered detached HEAD and pristine index equality
+to the bound upstream before/after S4 validation. A real staged-unrelated-file
+fixture forges matching stored tree integrity to prove structural refusal.
+Full affected tests also exposed two dependent source inventories: use the
+existing candidate metadata writer wrapper and isolate/register the new
+read-only binding snapshot in the eligibility file, with negative controls.
+No inventories are bypassed. Current formatter/red-proof command is awaiting
+the required continuous admission window; pressure is normal, load fluctuated.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

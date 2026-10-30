@@ -1,3 +1,32 @@
+## S5 Index Proof / Inventory Corrections — 2026-10-30
+
+Implement a fresh detached-HEAD/registration and pristine-index check around
+S4 validation; staged unknown paths cannot be hidden behind updated stored
+tree integrity. Real staged-unrelated-file regression is prepared against
+old code. Broader tests also caught dynamic WriteArtifact name ambiguity and
+an unregistered coverage consumer. Use the existing candidate metadata writer,
+move the binding snapshot reader into the read-only eligibility file and
+register only that function with writer/unregistered-reader negative controls.
+
+The first new fixture formatting attempt stopped on a misplaced test declaration
+before execution; corrected placement and preserved diagnostics. At 22:58 UTC
+the fresh format/red-proof run is still in continuous resource admission,
+normal pressure with fluctuating load. Do not waive admission or claim results.
+
+## Review — S5 Fix-forward NEEDS REVISION — 2026-10-30
+
+Retained reviewer `7712b628` (`gpt-6-astra`) closes F4, F6 and missing
+continuous-lock composition at `69b2f05`; the private S2-backed architecture
+is approved in principle and all eight prior closures remain preserved.
+F3 remains HIGH: S4 changed-path/diff validation assumes a pristine index.
+Stage only an unrelated modification in a pending candidate, leave intended
+changes unstaged, and update the stored tree fingerprint: plain index-to-
+worktree diff hides the unrelated change and reuse can grant authority.
+
+Correct the index/bound-upstream proof with a real staged-unmodeled fixture,
+requiring structural refusal even if stored result hashes are updated.
+Parent owns this narrow fix; full/native gates and S5 acceptance remain blocked.
+
 ## S5 Fix-forward Review Dispatch — 2026-10-30
 
 Freeze `69b2f055cb3c6683a0f0e47916fd6fce51ec99f1`. Runtime focused
