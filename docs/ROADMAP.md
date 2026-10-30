@@ -1665,6 +1665,9 @@ negative controls. Production code remains unchanged; no S2 acceptance.
 The exact schema correction at `a5af08e` passes its sensitivity controls and
 independent narrow review. PIB-477/AP-observer execution and fresh complete
 local/native validation remain required.
+PIB-477 and its AP observer now pass after fresh admission (6.76s/134.46s),
+with normal pressure and zero new swap-outs. Prepare a new reviewed checkpoint
+and complete local/native retry; prior interrupted shards do not count.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

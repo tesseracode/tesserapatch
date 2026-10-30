@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Exact Config-schema correction independently approved; PIB-477/observer checks pending
+- **Status**: Reviewed exact-schema correction passes PIB-477 and observer; preparing full/native retry
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -142,6 +142,11 @@ PIB-477 and its AP observer in separate freshly admitted processes.
 The retained reviewer now APPROVES the narrow schema correction at `a5af08e`,
 with no significant issues. Runtime metadata reconfirms `gpt-5.3-codex`.
 Approval does not replace the active runtime checks or the full/native retry.
+Both runtime checks now pass at unchanged `a5af08e`: PIB-477 command 6.76s,
+AP observer 134.46s. Each receives fresh admission; pressure remains normal
+and no new swap-outs occur. Prepare a new published checkpoint and restart
+all 39 local test commands plus native CI from fresh evidence/caches.
+No partial result from the interrupted run is credited to the retry.
 
 ## Current State — bounded S2 scope
 
@@ -220,11 +225,11 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Validate the exact Config-schema transition, PIB-477 and the AP observer,
-   then obtain narrow independent review of the test-only correction.
-2. Publish a new reviewed checkpoint and restart complete local/native
-   validation with fresh evidence; do not resume the intentionally stopped
-   old gate or count its partial shards as a full pass. S3 remains undispatched.
+1. Publish the reviewed and runtime-validated exact-schema correction for
+   fresh complete local/native validation.
+2. Restart all 39 commands from the new checkpoint with fresh evidence;
+   preserve the interrupted attempt and do not credit its partial shards.
+   S3 remains undispatched.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 
@@ -241,9 +246,9 @@ source/caches and owned-process reconciliation. The canonical partition has
 
 ## Blockers
 
-The legacy PIB-477 schema pin blocks S2 full/native acceptance until its
-narrow correction is validated and reviewed. No validation/watch processes
-remain active after the known-failure stop.
+The PIB-477 schema-pin correction is independently approved and its direct/
+observer checks pass. No local validator remains active; complete new local/
+native results are still required before S2 acceptance.
 
 ## Context for Next Agent
 

@@ -1,3 +1,15 @@
+## Runtime Correction Verified — S2 Config schema — 2026-10-29
+
+At reviewed `a5af08e`, PIB-477 and its AP observer both pass in separate
+freshly admitted commands (6.76s/134.46s). Pressure stays normal and there
+are zero new swap-outs. Production bytes are unchanged.
+
+The exact field-transition controls and narrow review also pass. Publish a
+new validation checkpoint and restart native CI plus the complete 39-command
+local gate with fresh caches/evidence and WAVE_BASE `bd95a23`. Preserve the
+interrupted first attempt; none of its partial shards counts as a full retry.
+No S2 acceptance, release or S3 dispatch yet.
+
 ## Narrow Review — S2 Config schema correction — 2026-10-29
 
 **Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;
