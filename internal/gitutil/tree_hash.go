@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -73,13 +74,21 @@ func WorktreeTreeHash(repoRoot string) (string, error) {
 	}()
 
 	env := []string{"GIT_INDEX_FILE=" + tempPath}
-	if _, stderr, err := runTreeGit(identity, env, "read-tree", "HEAD"); err != nil {
+	if _, stderr, err := runTreeGit(identity, env, "-c", "core.sparseCheckout=false", "-c", "index.sparse=false", "read-tree", "HEAD"); err != nil {
 		return "", fmt.Errorf("git read-tree HEAD: %v: %s", err, strings.TrimSpace(stderr))
 	}
 	if err := validateWorktreeMaterialization(identity, env); err != nil {
 		return "", fmt.Errorf("unsafe worktree materialization: %w", err)
 	}
-	if _, stderr, err := runTreeGit(identity, env, "-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false", "add", "-A", "--", "."); err != nil {
+	addArgs := []string{"-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false",
+		"-c", "core.sparseCheckout=false", "-c", "index.sparse=false", "-c", "core.ignoreCase=false"}
+	// Windows has no POSIX executable bit. On POSIX, the private proof must
+	// observe real mode changes even if the user's index normally ignores them.
+	if runtime.GOOS != "windows" {
+		addArgs = append(addArgs, "-c", "core.fileMode=true", "-c", "core.symlinks=true")
+	}
+	addArgs = append(addArgs, "add", "-A", "--", ".")
+	if _, stderr, err := runTreeGit(identity, env, addArgs...); err != nil {
 		return "", fmt.Errorf("git add -A -- .: %v: %s", err, strings.TrimSpace(stderr))
 	}
 	out, stderr, err := runTreeGit(identity, env, "write-tree")

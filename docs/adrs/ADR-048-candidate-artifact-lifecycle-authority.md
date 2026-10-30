@@ -63,6 +63,13 @@ integrity rechecks that never rely on mutable labels.
     no filter runs before refusal. Disable stat/fsmonitor shortcuts for the
     materializing add. A Git object tree is not a raw-byte proof without this
     conversion boundary.
+    On POSIX, force core.fileMode=true only for this private add so executable
+    changes cannot be suppressed by repository configuration. Windows has no
+    POSIX executable bit and retains Git's logical tracked-mode handling.
+    Likewise observe actual symlinks on POSIX. Disable sparse-index/checkout
+    and case-folding shortcuts for the private materialization so hidden or
+    renamed paths cannot inherit logical baseline entries. These are command-
+    local settings, not repository configuration changes.
 
 ## Non-goals in this draft
 

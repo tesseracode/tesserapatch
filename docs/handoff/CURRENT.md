@@ -24,7 +24,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Conversion safety fix frozen; focused checks/resource admission and re-review
+- **Status**: Byte/filter fidelity closed; correcting POSIX mode-ignoring materialization
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -142,6 +142,10 @@ absent. Gitutil's existing envelope test needs the exact new private-index
 inspection commands registered: keep root lookups index-free, require only the
 owned private index for those enumerated commands, reject unknown commands,
 and poison inherited GIT_INDEX_FILE as an additional real negative control.
+Re-review closes filter/conversion safety but finds POSIX core.fileMode=false
+can hide unrelated chmod changes. Force actual mode observation in the private
+POSIX materializing add; preserve Windows logical-mode semantics. Add a real
+unrelated-file chmod/no-forged-hash regression and exact envelope update.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

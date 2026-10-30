@@ -150,8 +150,9 @@ exec %q "$@"
 		}
 		temporaryIndex := fields[6]
 		switch fields[12] {
-		case "read-tree HEAD", "write-tree",
-			"-c core.fsmonitor=false -c core.ignoreStat=false add -A -- .",
+		case "-c core.sparseCheckout=false -c index.sparse=false read-tree HEAD", "write-tree",
+			"-c core.fsmonitor=false -c core.ignoreStat=false -c core.sparseCheckout=false -c index.sparse=false -c core.ignoreCase=false add -A -- .",
+			"-c core.fsmonitor=false -c core.ignoreStat=false -c core.sparseCheckout=false -c index.sparse=false -c core.ignoreCase=false -c core.fileMode=true -c core.symlinks=true add -A -- .",
 			`-c core.fsmonitor=false -c core.ignoreStat=false config --get-regexp --null ^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`,
 			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --cached --stage -z",
 			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --others --exclude-standard -z",

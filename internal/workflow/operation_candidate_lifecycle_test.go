@@ -718,6 +718,76 @@ func TestROCS5ResumeReuseRejectsHidingCleanFilterBeforeItRuns(t *testing.T) {
 	}
 }
 
+func TestROCS5ResumeReuseRejectsUnmodeledModeWithFileModeDisabled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX executable-bit semantics")
+	}
+	f := rocS2NewFixture(t, true)
+	writeRepoFile(t, f.s, "other.txt", []byte("upstream\n"))
+	git(t, f.s.Root, "add", "other.txt")
+	git(t, f.s.Root, "commit", "-qm", "unrelated upstream")
+	f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.s.Root, "config", "core.fileMode", "false")
+	if _, err := finalizeOperationCandidate(f.s, f.slug, prepared); err != nil {
+		t.Fatalf("configuration alone changed the materialized tree: %v", err)
+	}
+	relative, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	other := filepath.Join(f.s.Root, filepath.FromSlash(relative), "other.txt")
+	if err := os.Chmod(other, 0755); err != nil {
+		t.Fatal(err)
+	}
+	_, err = finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err == nil || !strings.Contains(err.Error(), "candidate-path-set-mismatch") {
+		t.Fatalf("unmodeled mode change hidden by configuration: %v", err)
+	}
+	if value := strings.TrimSpace(git(t, f.s.Root, "config", "--get", "core.fileMode")); value != "false" {
+		t.Fatal("structural validation changed repository configuration")
+	}
+}
+
+func TestROCS5ResumeReuseRejectsSymlinkReplacementWithSymlinksDisabled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX symlink representation")
+	}
+	f := rocS2NewFixture(t, true)
+	writeRepoFile(t, f.s, "other.txt", []byte("upstream\n"))
+	if err := os.Symlink("other.txt", filepath.Join(f.s.Root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.s.Root, "add", "other.txt", "link")
+	git(t, f.s.Root, "commit", "-qm", "unrelated symlink")
+	f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.s.Root, "config", "core.symlinks", "false")
+	relative, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	link := filepath.Join(f.s.Root, filepath.FromSlash(relative), "link")
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(link, []byte("other.txt"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err == nil || !strings.Contains(err.Error(), "candidate-path-set-mismatch") {
+		t.Fatalf("physical symlink replacement was hidden by configuration: %v", err)
+	}
+}
+
 func TestROCS5ResumeModeledTreeDoesNotDependOnCandidateIndex(t *testing.T) {
 	f := rocS2NewFixture(t, true)
 	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)

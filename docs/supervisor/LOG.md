@@ -1,3 +1,16 @@
+## Review — S5 Byte Fidelity Closed, Mode Fidelity Required — 2026-10-30
+
+Reviewer `7712b628` confirms the conversion/filter bypass is closed at
+`0a378c6`; F3 remains for POSIX mode fidelity. Repository-local
+core.fileMode=false preserves upstream index modes and can hide an unrelated
+0644-to-0755 change from materialization with unchanged result hashes.
+
+Force actual executable-bit observation for POSIX private materialization,
+without changing repository configuration. Windows has no POSIX executable
+bits and retains its Git logical-mode handling. Add the actual unrelated-file
+chmod regression without forged hashes; preserve exact command-envelope tests.
+Other closures remain unchanged. No acceptance or full-gate claim yet.
+
 ## S5 Conversion Correction Frozen — 2026-10-30
 
 Freeze `0a378c6`. Existing shared attribute/config policy now checks all paths
