@@ -1,3 +1,17 @@
+## Review — S3 complexity revision — 2026-10-29
+
+Reviewer `d8ddcd54-7b2c-4568-9215-69305451f069` (runtime metadata:
+OpenAI `gpt-5.3-codex`) returns NEEDS REVISION at `16b2086`.
+ADR-045's direction is acceptable, but repeated full-grid optimal-pair scans
+cost O(K*n*m), exceeding a billion visits for an allowed 1023-by-1023,
+roughly 1023-boundary input. This is a high-priority implementation gap.
+
+Basic checks all pass (affected 138.49s, vet 8.98s, build 0.50s; normal
+pressure, zero new swap-outs), but cannot establish the missing complexity
+bound. Fix with one optimal-pair indexing pass, not a new boundary limit.
+Record ON-004 and the matrix-column reuse proof in ADR-045; retain exactly
+two full int32 matrices and add a ceiling-scale regression. S4 stays blocked.
+
 ## S3 Review Dispatch — 2026-10-29
 
 Freeze `16b2086fa2212f96d1fa0d02d8476debc5d9958f` against S3 WAVE_BASE

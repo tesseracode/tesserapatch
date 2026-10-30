@@ -43,12 +43,14 @@ type alignedBoundary struct {
 	byteOffset  int
 	records     [][]byte
 	state       classification
+	unanimous   bool
 }
 
 type alignmentTables struct {
-	width int
-	f, g  []int32
-	l     int32
+	width   int
+	f, g    []int32
+	l       int32
+	indexed bool
 }
 
 func recordCount(body []byte) int {
@@ -114,29 +116,51 @@ func newAlignmentTables(base, upstream [][]byte) (alignmentTables, error) {
 	return alignmentTables{width: width, f: f, g: g, l: f[n*width+m]}, nil
 }
 
-func (t alignmentTables) unanimousBounds(base, upstream [][]byte, boundary int) (int, int, error) {
-	left, right := -1, -1
-	for cut := 0; cut <= len(upstream); cut++ {
-		if t.f[boundary*t.width+cut]+t.g[boundary*t.width+cut] == t.l {
-			if left < 0 {
-				left = cut
+func (t *alignmentTables) mapBoundaryBounds(base, upstream [][]byte, boundaries []alignedBoundary) error {
+	if t.indexed {
+		return fmt.Errorf("alignment tables already indexed")
+	}
+	for i := range boundaries {
+		bound := &boundaries[i]
+		bound.left, bound.right = -1, -1
+		for cut := 0; cut <= len(upstream); cut++ {
+			if t.f[bound.boundary*t.width+cut]+t.g[bound.boundary*t.width+cut] == t.l {
+				if bound.left < 0 {
+					bound.left = cut
+				}
+				bound.right = cut
 			}
-			right = cut
+		}
+		if bound.left < 0 {
+			return fmt.Errorf("alignment has no optimal cut")
 		}
 	}
-	if left < 0 {
-		return 0, 0, fmt.Errorf("alignment has no optimal cut")
-	}
+	t.indexed = true
+	// All cuts are now captured. Optimal-pair tests never read F's last
+	// column or G's first column, so reuse them instead of allocating more DP.
+	m := len(upstream)
+	t.f[m] = -1
+	t.g[len(base)*t.width] = int32(m)
 	for i := range base {
+		rowMax, rowMin := int32(-1), int32(m)
 		for j := range upstream {
 			if bytes.Equal(base[i], upstream[j]) &&
-				t.f[i*t.width+j]+1+t.g[(i+1)*t.width+j+1] == t.l &&
-				((i < boundary && j >= left) || (i >= boundary && j < right)) {
-				return 0, 0, &refusal{code: "alignment-ambiguous"}
+				t.f[i*t.width+j]+1+t.g[(i+1)*t.width+j+1] == t.l {
+				rowMax, rowMin = max(rowMax, int32(j)), min(rowMin, int32(j))
 			}
 		}
+		t.f[(i+1)*t.width+m] = max(t.f[i*t.width+m], rowMax)
+		t.g[i*t.width] = rowMin
 	}
-	return left, right, nil
+	for i := len(base) - 1; i >= 0; i-- {
+		t.g[i*t.width] = min(t.g[i*t.width], t.g[(i+1)*t.width])
+	}
+	for i := range boundaries {
+		bound := &boundaries[i]
+		bound.unanimous = t.f[bound.boundary*t.width+m] < int32(bound.left) &&
+			t.g[bound.boundary*t.width] >= int32(bound.right)
+	}
+	return nil
 }
 
 func combineInsertionRuns(runs []insertionRun, baseRecords int) ([]alignedBoundary, error) {
@@ -200,12 +224,15 @@ func alignInsertionRuns(base, upstream []byte, runs []insertionRun) ([]alignedBo
 	if err != nil {
 		return nil, err
 	}
+	if err := tables.mapBoundaryBounds(b, u, boundaries); err != nil {
+		return nil, err
+	}
 	for i := range boundaries {
 		bound := &boundaries[i]
-		left, right, err := tables.unanimousBounds(b, u, bound.boundary)
-		if err != nil {
-			return nil, err
+		if !bound.unanimous {
+			return nil, &refusal{code: "alignment-ambiguous"}
 		}
+		left, right := bound.left, bound.right
 		if left == 0 && bound.boundary != 0 {
 			return nil, &refusal{code: "alignment-left-unanchored"}
 		}

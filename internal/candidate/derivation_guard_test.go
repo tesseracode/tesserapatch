@@ -54,7 +54,7 @@ func validateS3AlignmentResources(source string) error {
 	if len(want) != 0 {
 		return fmt.Errorf("alignment limit missing")
 	}
-	var build, align *ast.FuncDecl
+	var build, align, indexer *ast.FuncDecl
 	for _, decl := range file.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok {
 			if fn.Name.Name == "newAlignmentTables" {
@@ -62,6 +62,12 @@ func validateS3AlignmentResources(source string) error {
 			}
 			if fn.Name.Name == "alignInsertionRuns" {
 				align = fn
+			}
+			if fn.Name.Name == "mapBoundaryBounds" {
+				indexer = fn
+			}
+			if fn.Name.Name == "unanimousBounds" {
+				return fmt.Errorf("per-boundary grid scanner reintroduced")
 			}
 		}
 	}
@@ -87,6 +93,9 @@ func validateS3AlignmentResources(source string) error {
 		return fmt.Errorf("alignment limits no longer first")
 	}
 	hasLimits := false
+	if first.Init == nil {
+		return fmt.Errorf("alignment entry bypasses limits")
+	}
 	ast.Inspect(first.Init, func(n ast.Node) bool {
 		if call, ok := n.(*ast.CallExpr); ok {
 			if id, ok := call.Fun.(*ast.Ident); ok && id.Name == "alignmentLimits" {
@@ -97,6 +106,49 @@ func validateS3AlignmentResources(source string) error {
 	})
 	if !hasLimits {
 		return fmt.Errorf("alignment entry bypasses limits")
+	}
+	indexCalls, topLevelIndexCalls := 0, 0
+	for _, statement := range align.Body.List {
+		if check, ok := statement.(*ast.IfStmt); ok && check.Init != nil {
+			ast.Inspect(check.Init, func(n ast.Node) bool {
+				if call, ok := n.(*ast.CallExpr); ok {
+					if method, ok := call.Fun.(*ast.SelectorExpr); ok && method.Sel.Name == "mapBoundaryBounds" {
+						topLevelIndexCalls++
+					}
+				}
+				return true
+			})
+		}
+	}
+	ast.Inspect(align, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			if method, ok := call.Fun.(*ast.SelectorExpr); ok && method.Sel.Name == "mapBoundaryBounds" {
+				indexCalls++
+			}
+		}
+		return true
+	})
+	if indexer == nil || indexCalls != 1 || topLevelIndexCalls != 1 {
+		return fmt.Errorf("optimal pairs must be indexed once outside boundary loops")
+	}
+	topLevelPairLoops, pairLoops := 0, 0
+	for _, statement := range indexer.Body.List {
+		if loop, ok := statement.(*ast.RangeStmt); ok {
+			if name, ok := loop.X.(*ast.Ident); ok && name.Name == "base" {
+				topLevelPairLoops++
+			}
+		}
+	}
+	ast.Inspect(indexer, func(n ast.Node) bool {
+		if loop, ok := n.(*ast.RangeStmt); ok {
+			if name, ok := loop.X.(*ast.Ident); ok && (name.Name == "base" || name.Name == "upstream") {
+				pairLoops++
+			}
+		}
+		return true
+	})
+	if topLevelPairLoops != 1 || pairLoops != 2 {
+		return fmt.Errorf("optimal-pair grid must have one top-level pass")
 	}
 	allocations := 0
 	var refused error
@@ -228,6 +280,8 @@ func TestS3AlignmentResourceGuardSensitivity(t *testing.T) {
 		{"f := make([]int32, cells)", "_ = make([]int32, cells)\n\tf := make([]int32, cells)"},
 		{"if err := alignmentLimits(base, upstream); err != nil {", "if err := configurableLimits(base, upstream); err != nil {"},
 		{"n > alignmentMaxRecords || m > alignmentMaxRecords || n+1 > alignmentMaxCells/(m+1)", "false"},
+		{"if err := tables.mapBoundaryBounds(b, u, boundaries); err != nil {", "if err := rescanEveryBoundary(b, u, boundaries); err != nil {"},
+		{"rowMax, rowMin := int32(-1), int32(m)", "for range base {}\n\t\trowMax, rowMin := int32(-1), int32(m)"},
 	} {
 		if !strings.Contains(source, mutation[0]) {
 			t.Fatalf("missing mutation anchor %q", mutation[0])

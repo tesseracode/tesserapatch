@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
@@ -14,7 +14,7 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Focused checks pass; frozen for independent review and broader validation
+- **Status**: Basic checks pass; correcting per-boundary full-grid rescans found in review
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
@@ -46,6 +46,18 @@ Parent shell `roc-s3-review-validation` owns the serial Go checks at
 The byte-identical full-gate harness is prepared in
 `bin/roc-s3-20261030/full-gate/` but is not configured or running.
 At 06:30 UTC, roughly 11.5 hours remain in the authorized window.
+Independent review returns NEEDS REVISION: ADR-045's direction is acceptable,
+but scanning the whole optimal-pair grid for every boundary is O(K*n*m).
+An in-contract 1023-by-1023 file with roughly 1023 boundaries exceeds a
+billion pair visits. Basic formatting/affected packages/vet/build all pass
+without resource stops; that does not discharge the complexity finding.
+
+Do not introduce a fourth/tunable boundary limit. Compute all requested cut
+bounds first, then index optimal-pair prefix/suffix extrema in one grid pass.
+Reuse F's last column and G's first column only after cut extraction: those
+cells are not read by the optimal-pair predicate. This preserves the exact
+two-matrix/8 MiB bound and O(n*m) total work, since K <= n+1 after combination.
+Document the proof in ADR-045 and test the L3-ceiling/many-boundary case.
 
 ## Current State — bounded S3 scope
 

@@ -41,6 +41,28 @@ record bodies/offsets as a purported replay proof.
    bytes match. Preserve the existing conflict/refusal vocabulary; do not
    invent a permissive conversion into a create or overwrite operation.
 
+## Complexity and matrix-budget proof
+
+The initial implementation rescanned all optimal pairs per boundary, yielding
+O(K*n*m); independent review correctly rejected that capacity gap. No new
+boundary-count limit is added.
+
+After canonical combination there are at most n+1 distinct boundaries.
+Compute each boundary's minimum/maximum optimal cut first, in O(K*(m+1)),
+bounded by the matrix cell count. Then scan optimal pairs once and derive
+prefix maximum matched-upstream indices and suffix minimum indices. A4 is
+equivalently `prefixMax[b] < left[b] && suffixMin[b] >= right[b]`.
+
+No extra DP arrays are allocated: after every requested cut is captured,
+reuse F's last column for prefix maxima and G's first column for suffix
+minima. The optimal-pair predicate reads F[i][j] only for j<m and
+G[i+1][j+1] only for j+1>=1, so it never observes those overwritten cells.
+L was saved before reuse. This also covers empty sides. The matrices are
+one-use after indexing; classification/refusal still proceeds in sorted
+boundary order. Alignment work stays O((n+1)*(m+1)), with the original two
+int32 matrices and no third full matrix or hidden additional limit. Input
+parsing and canonical run sorting retain their separate input-size costs.
+
 ## Alternatives
 
 - **Re-read paths from the live worktree during classification**: rejected;

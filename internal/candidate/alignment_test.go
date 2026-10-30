@@ -113,15 +113,22 @@ func TestS3UnanimityMatchesExhaustiveOracle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			boundaries := make([]alignedBoundary, len(base)+1)
+			for i := range boundaries {
+				boundaries[i].boundary = i
+			}
+			if err := tables.mapBoundaryBounds(base, upstream, boundaries); err != nil {
+				t.Fatal(err)
+			}
 			for boundary := 0; boundary <= len(base); boundary++ {
 				left, right, unanimous := oracleBounds(base, upstream, boundary)
-				gotLeft, gotRight, err := tables.unanimousBounds(base, upstream, boundary)
+				got := boundaries[boundary]
 				if !unanimous {
-					if refusalCode(err) != "alignment-ambiguous" {
-						t.Fatalf("non-unanimous %q/%q b=%d accepted: %d,%d %v", base, upstream, boundary, gotLeft, gotRight, err)
+					if got.unanimous {
+						t.Fatalf("non-unanimous %q/%q b=%d accepted: %d,%d", base, upstream, boundary, got.left, got.right)
 					}
-				} else if err != nil || gotLeft != left || gotRight != right {
-					t.Fatalf("%q/%q b=%d got %d,%d/%v want %d,%d", base, upstream, boundary, gotLeft, gotRight, err, left, right)
+				} else if !got.unanimous || got.left != left || got.right != right {
+					t.Fatalf("%q/%q b=%d got %d,%d/%v want %d,%d", base, upstream, boundary, got.left, got.right, got.unanimous, left, right)
 				}
 			}
 		}
@@ -177,6 +184,26 @@ func TestS3StrictSeparationAndCanonicalCombination(t *testing.T) {
 	again, err := alignInsertionRuns([]byte("left\nright\n"), []byte("left\na\nb\nc\nright\n"), runs)
 	if err != nil || !reflect.DeepEqual(got, again) {
 		t.Fatal("alignment is not deterministic")
+	}
+}
+
+func TestS3ManyBoundariesAtCellCeiling(t *testing.T) {
+	var body []byte
+	for i := 0; i < 1023; i++ {
+		body = append(body, []byte(fmt.Sprintf("%04d\n", i))...)
+	}
+	runs := make([]insertionRun, 1024)
+	for i := range runs {
+		runs[i] = insertionRun{effectOrdinal: 1, runOrdinal: i + 1, boundary: i, records: [][]byte{[]byte("insert\n")}}
+	}
+	got, err := alignInsertionRuns(body, body, runs)
+	if err != nil || len(got) != len(runs) {
+		t.Fatalf("ceiling-scale boundaries: %d %v", len(got), err)
+	}
+	for i, bound := range got {
+		if !bound.unanimous || bound.left != i || bound.right != i || bound.state != applicable {
+			t.Fatalf("boundary %d: %+v", i, bound)
+		}
 	}
 }
 

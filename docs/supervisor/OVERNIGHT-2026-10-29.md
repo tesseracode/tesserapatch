@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Independent review / broader checks | `16b2086` | Focused oracle/fixtures/controls pass; affected/full/native pending |
+| GH #13 S3 | Revising complexity finding | `16b2086` | Basic checks pass; review requires one-pass optimal-pair indexing |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
@@ -50,6 +50,15 @@ then reads per-file immutable objects. Modify inputs obey L1 before body
 reads and matrix allocation. Extracted insertion runs are independently
 replayed through a streaming digest before alignment; a correct walker digest
 alone is not sufficient proof that the extracted runs are correct.
+
+### ON-004 — Fix complexity without adding a new limit
+
+Independent review found O(boundaries * base * upstream) pair rescans despite
+the bounded matrices. Do not invent a fourth boundary-count limit: L1-L3 are
+closed contract constants. Compute cut bounds first and reuse matrix boundary
+columns for prefix/suffix optimal-pair extrema in one grid pass. This keeps
+both the accepted predicate and the exact 8 MiB matrix budget. Validate with
+the exhaustive oracle and a many-boundary case at the L3 ceiling.
 
 ## Operator review notes
 
