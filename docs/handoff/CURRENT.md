@@ -68,6 +68,9 @@ The unchanged S5 runner/full-gate harness passes all nine routing controls.
 Restored-S4 closing CI `41072987684` runs under watcher
 `roc-s4-restored-close-ci`; no early push/cancellation. Deadline timer
 `overnight-deadline` is responsive and will trigger at 18:00:24 UTC.
+Restored-S4 closing CI has now completed successfully: all five required
+jobs and no failed steps. S5 remains unpublished because its review blockers
+are independent of predecessor success.
 
 ## Current State — S5 scope
 

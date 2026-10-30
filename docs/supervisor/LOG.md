@@ -1,3 +1,10 @@
+## Restored S4 Closing-tip CI Complete — 2026-10-30
+
+CI `41072987684` at restored close `f9d5501` passes all five required jobs,
+no failed steps; watcher exits successfully. S4 closure is fully green.
+This does not clear S5's authority/lifecycle review blockers; S5 stays local
+and unaccepted while bounded corrections proceed.
+
 ## S5 Bounded Revision Assigned — 2026-10-30
 
 Return all nine findings and missing callable S5 scope to the same implementer,
