@@ -1,3 +1,20 @@
+## S5 Dispatch — 2026-10-30
+
+Restored S4 close `f9d5501f45e00365789eb24c53620a76513d52d5` is archived
+byte-for-byte and pushed; fresh fetch gives clean equality, no stashes, one
+main worktree. Record this SHA as S5 WAVE_BASE before implementation.
+
+Assign accepted S5 only: exact immutable identity/proofs, strict metadata
+artifacts, optional omitempty pointer and locked lifecycle/preflight/rejection
+primitives. S6 phase/merge wiring, CLI and acceptance/recovery transactions
+remain out of scope. No bare-root boundary or global-window regression.
+
+About 3.3 hours remain; an attached deadline timer is active. Aim for a
+bounded reviewed draft, but do not rush or shorten gates. If full acceptance
+cannot complete before the window closes, leave S5 explicitly checkpointed
+and unaccepted. Parent owns tracking/infrastructure; one new implementation
+agent owns code/tests/proposed ADR-048, followed by fresh independent review.
+
 ## Restored Acceptance — S4 Conformance Repair — 2026-10-30
 
 RESTORE S4 acceptance at `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`,

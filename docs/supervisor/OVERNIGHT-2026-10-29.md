@@ -18,8 +18,9 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
-| GH #13 S4 | Acceptance RESTORED; archiving/pushing repair | validated `c4f2f1e`, reviewed `5d52d39` | Fresh review, 39/39 local tests and native five jobs + Windows CLW pass |
-| GH #13 S5+ | Eligible after restored S4 push; no implementation | Depends on durable repair close | Pending |
+| GH #13 S4 | Acceptance RESTORED and pushed | validated `c4f2f1e`, close `f9d5501` | Fresh review, 39/39 local tests and native five jobs + Windows CLW pass |
+| GH #13 S5 | Bounded implementation scoped | WAVE_BASE `f9d5501` | Review/full gates pending; unfinished work will remain unaccepted |
+| GH #13 S6+ | Not dispatched | Depends on accepted S5 | Pending |
 
 ## Decisions
 
@@ -92,6 +93,13 @@ typed-root/short-lock contract despite green tests and review. Do not proceed
 to S5 or rationalize the API; repair under a new recorded wave base, preserve
 the original acceptance audit, and repeat full review/validation. ADR-047
 will document the typed execution and lock-ownership correction.
+
+### ON-008 — Preserve the deadline without shortening validation
+
+After repaired S4 close, roughly 3.3 hours remain. Begin accepted S5 because
+it is ready, but do not equate a draft with acceptance or skip full gates
+to fit the window. An attached deadline timer will trigger checkpointing;
+any unfinished stage keeps an explicit unaccepted status and remaining work.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

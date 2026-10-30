@@ -1623,6 +1623,15 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S5 artifacts, identity and lifecycle — 2026-10-30
+
+**WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`, restored S4 close.
+Accepted S5 only: immutable pre-execution identity, strict metadata artifacts,
+omitempty status pointer and locked callable lifecycle/preflight/rejection
+primitives. No S6 phase/merge wiring, CLI or acceptance transaction.
+All independent/local/native gates remain required; any work unfinished at
+the 18:00 UTC autonomous deadline stays explicitly unaccepted.
+
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 
 **Validated repair**: `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`.
