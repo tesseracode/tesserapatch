@@ -115,18 +115,19 @@ func rocS3ValidateStageChangedPaths(paths []string) error {
 }
 
 var rocS4AllowedPaths = map[string]bool{
-	"docs/adrs/ADR-046-candidate-execution-boundary.md":       true,
-	"internal/candidate/execute.go":                           true,
-	"internal/candidate/writer.go":                            true,
-	"internal/candidate/validation.go":                        true,
-	"internal/candidate/execute_test.go":                      true,
-	"internal/candidate/execute_guard_test.go":                true,
-	"internal/candidate/source_guard_test.go":                 true,
-	"internal/candidate/derivation.go":                        true,
-	"internal/candidate/derivation_guard_test.go":             true,
-	"internal/candidate/snapshot.go":                          true,
-	"internal/gitutil/recipe_authority_s0_pi12_test.go":       true,
-	"internal/workflow/operation_candidate_s0_guards_test.go": true,
+	"docs/adrs/ADR-046-candidate-execution-boundary.md":        true,
+	"docs/adrs/ADR-047-typed-candidate-execution-ownership.md": true,
+	"internal/candidate/execute.go":                            true,
+	"internal/candidate/writer.go":                             true,
+	"internal/candidate/validation.go":                         true,
+	"internal/candidate/execute_test.go":                       true,
+	"internal/candidate/execute_guard_test.go":                 true,
+	"internal/candidate/source_guard_test.go":                  true,
+	"internal/candidate/derivation.go":                         true,
+	"internal/candidate/derivation_guard_test.go":              true,
+	"internal/candidate/snapshot.go":                           true,
+	"internal/gitutil/recipe_authority_s0_pi12_test.go":        true,
+	"internal/workflow/operation_candidate_s0_guards_test.go":  true,
 }
 
 func rocS4ValidateStageChangedPaths(paths []string) error {

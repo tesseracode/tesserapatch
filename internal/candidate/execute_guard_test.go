@@ -30,6 +30,43 @@ func TestS4WriterRegistryIsClosed(t *testing.T) {
 	}
 }
 
+func TestS4ExecuteTypedBoundaryGuardAndSensitivity(t *testing.T) {
+	body, err := os.ReadFile("execute.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(body)
+	if err := validateExecuteTypedBoundarySource(source); err != nil {
+		t.Fatal(err)
+	}
+	mutant := `func Execute(
+	reference, upstream *ReferenceRoot,
+	patch string,
+	effects []gitutil.PatchEffect,
+	repoRoot, slug, candidateID string,
+	featureLock, worktreeMutationLock *candidatelock.Handle,
+) (ExecutionResult, error) {
+	return ExecutionResult{}, nil
+}`
+	if err := validateExecuteTypedBoundarySource(mutant); err == nil {
+		t.Fatal("execute typed boundary guard accepted old bare-root/global-forwarding signature")
+	}
+}
+
+func validateExecuteTypedBoundarySource(source string) error {
+	if strings.Contains(source, "repoRoot, slug, candidateID string") ||
+		strings.Contains(source, "featureLock, worktreeMutationLock *candidatelock.Handle") {
+		return fmt.Errorf("execute signatures must not forward bare root strings or caller-provided global locks")
+	}
+	if !strings.Contains(source, "slug, candidateID string") || !strings.Contains(source, "featureLock *candidatelock.Handle") {
+		return fmt.Errorf("execute signatures no longer expose typed slug/candidate and feature lock boundary")
+	}
+	if !strings.Contains(source, "resolveExecutionRepoRoot(reference, upstream)") {
+		return fmt.Errorf("execute no longer derives repository identity from typed roots")
+	}
+	return nil
+}
+
 func validateWriterRegistryKeys(keys []string) error {
 	want := []string{"create-file", "insert-by-boundary"}
 	got := append([]string(nil), keys...)

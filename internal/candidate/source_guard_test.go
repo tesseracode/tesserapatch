@@ -14,12 +14,15 @@ import (
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/candidatelock"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
 func TestConstructorSignatures(t *testing.T) {
 	var _ func(string, string) (*ReferenceRoot, error) = OpenReferenceRoot
 	var _ func(string, string, string, string, *candidatelock.Handle, *candidatelock.Handle) (*CandidateRoot, error) = CreateCandidateRoot
 	var _ func(*CandidateRoot, *candidatelock.Handle, *candidatelock.Handle) error = (*CandidateRoot).Prune
+	var _ func(*ReferenceRoot, *ReferenceRoot, string, []gitutil.PatchEffect, string, string, *candidatelock.Handle) (ExecutionResult, error) = Execute
+	var _ func(*ReferenceRoot, *ReferenceRoot, string, []gitutil.PatchEffect, Plan, string, string, *candidatelock.Handle) (ExecutionResult, error) = executeWithPlan
 }
 
 func TestCandidateProductionSourceInventory(t *testing.T) {
@@ -101,6 +104,34 @@ func TestBareRootConstructorsBoundarySensitivity(t *testing.T) {
 		if err := checkBareRootConstructors(mutants); err == nil {
 			t.Fatalf("boundary guard accepted %s", extra)
 		}
+	}
+}
+
+func TestExecutionTypedBoundary(t *testing.T) {
+	file := mustParseCandidateSource(t, "execute.go", mustReadCandidateSource(t, "execute.go"))
+	if err := checkExecutionTypedBoundary(file); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExecutionTypedBoundarySensitivity(t *testing.T) {
+	source := `package candidate
+
+import (
+	"github.com/tesseracode/tesserapatch/internal/candidatelock"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
+)
+
+func Execute(reference, upstream *ReferenceRoot, patch string, effects []gitutil.PatchEffect, repoRoot, slug, candidateID string, featureLock, worktreeMutationLock *candidatelock.Handle) (ExecutionResult, error) {
+	return ExecutionResult{}, nil
+}
+
+func executeWithPlan(reference, upstream *ReferenceRoot, patch string, effects []gitutil.PatchEffect, plan Plan, repoRoot, slug, candidateID string, featureLock, worktreeMutationLock *candidatelock.Handle) (ExecutionResult, error) {
+	return ExecutionResult{}, nil
+}
+`
+	if err := checkExecutionTypedBoundary(mustParseCandidateSource(t, "execute.go", source)); err == nil {
+		t.Fatal("execution boundary guard accepted old bare-root forwarding signatures")
 	}
 }
 
@@ -625,6 +656,42 @@ func checkPruneSignature(files []candidateFile) error {
 		}
 	}
 	return fmt.Errorf("Prune method not found")
+}
+
+func checkExecutionTypedBoundary(file *ast.File) error {
+	checkSignature := func(fnName string, expected []string) error {
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Name.Name != fnName {
+				continue
+			}
+			if fn.Type.Params == nil {
+				return fmt.Errorf("%s parameter shape changed", fnName)
+			}
+			var names []string
+			for _, field := range fn.Type.Params.List {
+				for _, name := range field.Names {
+					names = append(names, name.Name)
+				}
+			}
+			if strings.Join(names, ",") != strings.Join(expected, ",") {
+				return fmt.Errorf("%s parameters changed: got %v want %v", fnName, names, expected)
+			}
+			for _, forbidden := range []string{"repoRoot", "worktreeMutationLock"} {
+				for _, name := range names {
+					if name == forbidden {
+						return fmt.Errorf("%s reintroduced forbidden parameter %s", fnName, forbidden)
+					}
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("%s function not found", fnName)
+	}
+	if err := checkSignature("Execute", []string{"reference", "upstream", "patch", "effects", "slug", "candidateID", "featureLock"}); err != nil {
+		return err
+	}
+	return checkSignature("executeWithPlan", []string{"reference", "upstream", "patch", "effects", "plan", "slug", "candidateID", "featureLock"})
 }
 
 func isCandidatelockHandlePointer(expr ast.Expr) bool {

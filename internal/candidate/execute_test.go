@@ -10,7 +10,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/tesseracode/tesserapatch/internal/candidatelock"
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 )
@@ -109,6 +111,36 @@ func trackedBytes(t *testing.T, root string) map[string]string {
 	return result
 }
 
+func acquireFeatureLock(t *testing.T, root, slug string) *candidatelock.Handle {
+	t.Helper()
+	lockPath := filepath.Join(root, ".tpatch", "locks", "reconcile", slug+".lock")
+	lock, err := candidatelock.TryAcquire(lockPath)
+	if err != nil {
+		t.Fatalf("acquire feature lock %s: %v", lockPath, err)
+	}
+	return lock
+}
+
+func acquireGlobalLock(t *testing.T, root string) *candidatelock.Handle {
+	t.Helper()
+	lockPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+	lock, err := candidatelock.TryAcquire(lockPath)
+	if err != nil {
+		t.Fatalf("acquire global lock %s: %v", lockPath, err)
+	}
+	return lock
+}
+
+func releaseLock(t *testing.T, lock *candidatelock.Handle) {
+	t.Helper()
+	if lock == nil {
+		return
+	}
+	if err := lock.Release(); err != nil {
+		t.Fatalf("release lock: %v", err)
+	}
+}
+
 func TestS4ExecuteCandidateAppliesMixedEffectsAndLeavesLiveTrackedStateUntouched(t *testing.T) {
 	root, reference, upstream, patch, effects := executionFixture(t)
 	beforeHead := candidateGit(t, root, "rev-parse", "HEAD")
@@ -121,15 +153,17 @@ func TestS4ExecuteCandidateAppliesMixedEffectsAndLeavesLiveTrackedStateUntouched
 	if err != nil {
 		t.Fatal(err)
 	}
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-demo")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-demo")
+	defer releaseLock(t, featureLock)
 
-	result, err := Execute(reference, upstream, patch, effects, root, "s4-demo", "rc_111111111111", featureLock, globalLock)
+	result, err := Execute(reference, upstream, patch, effects, "s4-demo", "rc_111111111111", featureLock)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 	t.Cleanup(func() {
 		if result.Root != nil && !result.Root.closed {
+			globalLock := acquireGlobalLock(t, root)
+			defer releaseLock(t, globalLock)
 			_ = result.Root.Prune(featureLock, globalLock)
 		}
 	})
@@ -201,8 +235,8 @@ func TestS4UnknownOperationKindFailsClosedAndAbandonsCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer upstream.Close()
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-unknown")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-unknown")
+	defer releaseLock(t, featureLock)
 
 	_, err = executeWithPlan(reference, upstream, "", nil, Plan{
 		operations: []operation{
@@ -210,7 +244,7 @@ func TestS4UnknownOperationKindFailsClosedAndAbandonsCandidate(t *testing.T) {
 			{kind: "mystery-op", path: "ok.txt", payload: []byte("x\n"), effectOrdinal: 1},
 		},
 		effects: []effectClassification{{ordinal: 1, path: "ok.txt", state: applicable}},
-	}, root, "s4-unknown", "rc_222222222222", featureLock, globalLock)
+	}, "s4-unknown", "rc_222222222222", featureLock)
 	if refusalCode(err) != "candidate-operation-kind-unsupported" {
 		t.Fatalf("unexpected refusal: %v", err)
 	}
@@ -232,8 +266,8 @@ func TestS4PreconditionAndWriteFailureAbandonWholeCandidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer upstream.Close()
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-failure")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-failure")
+	defer releaseLock(t, featureLock)
 
 	_, err = executeWithPlan(reference, upstream, "", nil, Plan{
 		operations: []operation{
@@ -241,7 +275,7 @@ func TestS4PreconditionAndWriteFailureAbandonWholeCandidate(t *testing.T) {
 			{kind: "create-file", path: "dup.txt", payload: []byte("second\n"), effectOrdinal: 1},
 		},
 		effects: []effectClassification{{ordinal: 1, path: "dup.txt", state: applicable}},
-	}, root, "s4-failure", "rc_333333333333", featureLock, globalLock)
+	}, "s4-failure", "rc_333333333333", featureLock)
 	if refusalCode(err) != "candidate-postcondition-failed" {
 		t.Fatalf("duplicate create did not fail as precondition refusal: %v", err)
 	}
@@ -262,13 +296,210 @@ func TestS4PreconditionAndWriteFailureAbandonWholeCandidate(t *testing.T) {
 			{kind: "insert-by-boundary", path: "seed.txt", byteOffset: len("seed\n"), payload: []byte("tail\n"), effectOrdinal: 1},
 		},
 		effects: []effectClassification{{ordinal: 1, path: "seed.txt", state: applicable}},
-	}, root, "s4-failure", "rc_444444444444", featureLock, globalLock)
+	}, "s4-failure", "rc_444444444444", featureLock)
 	if err == nil || !strings.Contains(err.Error(), "forced write failure") {
 		t.Fatalf("forced write failure did not abort candidate: %v", err)
 	}
 	worktree = filepath.Join(root, ".tpatch", "reconcile-candidates", "s4-failure", "rc_444444444444", "worktree")
 	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
 		t.Fatalf("write failure left worktree behind: %v", statErr)
+	}
+}
+
+func TestS4ExecuteHoldsFeatureBorrowAndReleasesGlobalDuringApply(t *testing.T) {
+	root, reference, upstream, patch, effects := executionFixture(t)
+	featureLock := acquireFeatureLock(t, root, "s4-lock-window")
+	defer releaseLock(t, featureLock)
+	featureCopy := *featureLock
+	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+
+	started := make(chan struct{}, 1)
+	unblock := make(chan struct{})
+	originalInsert := candidateWriterRegistry["insert-by-boundary"]
+	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-unblock
+		return originalInsert(root, op)
+	}
+	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
+
+	type result struct {
+		exec ExecutionResult
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		execResult, err := Execute(reference, upstream, patch, effects, "s4-lock-window", "rc_e55555555555", featureLock)
+		done <- result{exec: execResult, err: err}
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for execution apply phase")
+	}
+	parallelGlobal, err := candidatelock.TryAcquire(globalPath)
+	if err != nil {
+		t.Fatalf("expected global lock to be acquirable during apply, got %v", err)
+	}
+	if releaseErr := featureCopy.Release(); releaseErr == nil || !strings.Contains(releaseErr.Error(), "borrowed") {
+		t.Fatalf("feature lock copy release should fail while Execute is running, got %v", releaseErr)
+	}
+	releaseLock(t, parallelGlobal)
+	close(unblock)
+
+	out := <-done
+	if out.err != nil {
+		t.Fatalf("Execute: %v", out.err)
+	}
+	t.Cleanup(func() {
+		if out.exec.Root != nil && !out.exec.Root.closed {
+			global := acquireGlobalLock(t, root)
+			defer releaseLock(t, global)
+			_ = out.exec.Root.Prune(featureLock, global)
+		}
+	})
+}
+
+func TestS4ExecuteRefusesBeforeMutationWhenFeatureCapabilityIsInvalid(t *testing.T) {
+	root, reference, upstream, patch, effects := executionFixture(t)
+	for _, tc := range []struct {
+		name         string
+		slug         string
+		lock         *candidatelock.Handle
+		prepare      func(*testing.T) *candidatelock.Handle
+		wantContains string
+	}{
+		{
+			name:         "nil-lock",
+			slug:         "s4-invalid-nil",
+			lock:         nil,
+			wantContains: "lock handle is not initialized",
+		},
+		{
+			name: "released-lock",
+			slug: "s4-invalid-released",
+			prepare: func(t *testing.T) *candidatelock.Handle {
+				lock := acquireFeatureLock(t, root, "s4-invalid-released")
+				releaseLock(t, lock)
+				return lock
+			},
+			wantContains: "lock handle is released",
+		},
+		{
+			name: "slug-mismatch",
+			slug: "s4-invalid-expected",
+			prepare: func(t *testing.T) *candidatelock.Handle {
+				return acquireFeatureLock(t, root, "s4-invalid-other")
+			},
+			wantContains: "lock handle path mismatch",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lock := tc.lock
+			if tc.prepare != nil {
+				lock = tc.prepare(t)
+				if lock != nil && lock.Path() != "" {
+					t.Cleanup(func() {
+						_ = lock.Release()
+					})
+				}
+			}
+			_, err := Execute(reference, upstream, patch, effects, tc.slug, "rc_f66666666666", lock)
+			if err == nil || !strings.Contains(err.Error(), tc.wantContains) {
+				t.Fatalf("Execute error = %v, want contains %q", err, tc.wantContains)
+			}
+			worktree := filepath.Join(root, ".tpatch", "reconcile-candidates", tc.slug, "rc_f66666666666", "worktree")
+			if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
+				t.Fatalf("invalid feature capability created candidate worktree: %v", statErr)
+			}
+		})
+	}
+}
+
+func TestS4ExecuteCreateAndPruneRespectGlobalLockWindows(t *testing.T) {
+	root, reference, upstream, patch, effects := executionFixture(t)
+	featureLock := acquireFeatureLock(t, root, "s4-global-window")
+	defer releaseLock(t, featureLock)
+
+	globalHeld := acquireGlobalLock(t, root)
+	_, err := Execute(reference, upstream, patch, effects, "s4-global-window", "rc_011111111111", featureLock)
+	if err == nil || !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
+		t.Fatalf("expected create path to fail with global lock held, got %v", err)
+	}
+	releaseLock(t, globalHeld)
+	worktree := filepath.Join(root, ".tpatch", "reconcile-candidates", "s4-global-window", "rc_011111111111", "worktree")
+	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
+		t.Fatalf("create failure left candidate worktree: %v", statErr)
+	}
+
+	started := make(chan struct{}, 1)
+	unblock := make(chan struct{})
+	originalInsert := candidateWriterRegistry["insert-by-boundary"]
+	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-unblock
+		return fmt.Errorf("forced write failure")
+	}
+	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
+
+	errs := make(chan error, 1)
+	go func() {
+		_, runErr := Execute(reference, upstream, patch, effects, "s4-global-window", "rc_022222222222", featureLock)
+		errs <- runErr
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for writer failure window")
+	}
+	globalHeld = acquireGlobalLock(t, root)
+	close(unblock)
+	runErr := <-errs
+	releaseLock(t, globalHeld)
+	if runErr == nil || !strings.Contains(runErr.Error(), "forced write failure") ||
+		!strings.Contains(runErr.Error(), "acquire worktree mutation lock for candidate prune") {
+		t.Fatalf("expected combined write/prune lock failure, got %v", runErr)
+	}
+	worktree = filepath.Join(root, ".tpatch", "reconcile-candidates", "s4-global-window", "rc_022222222222", "worktree")
+	if _, statErr := os.Stat(worktree); statErr != nil {
+		t.Fatalf("expected candidate to remain after prune lock failure, stat=%v", statErr)
+	}
+}
+
+func TestS4ExecuteWithPlanRejectsRepositoryRootMismatch(t *testing.T) {
+	repoA, headA := initCandidateRepo(t)
+	repoB, headB := initCandidateRepo(t)
+	reference, err := OpenReferenceRoot(repoA, headA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	upstream, err := OpenReferenceRoot(repoB, headB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+	featureLock := acquireFeatureLock(t, repoA, "s4-mismatch")
+	defer releaseLock(t, featureLock)
+
+	_, err = executeWithPlan(reference, upstream, "", nil, Plan{
+		operations: []operation{{kind: "create-file", path: "x.txt", payload: []byte("x\n"), effectOrdinal: 1}},
+		effects:    []effectClassification{{ordinal: 1, path: "x.txt", state: applicable}},
+	}, "s4-mismatch", "rc_033333333333", featureLock)
+	if err == nil || !strings.Contains(err.Error(), "same repository root") {
+		t.Fatalf("expected repository root mismatch refusal, got %v", err)
+	}
+	worktree := filepath.Join(repoA, ".tpatch", "reconcile-candidates", "s4-mismatch", "rc_033333333333", "worktree")
+	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
+		t.Fatalf("root mismatch created candidate worktree: %v", statErr)
 	}
 }
 
@@ -284,8 +515,8 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer upstream.Close()
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-guards")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-guards")
+	defer releaseLock(t, featureLock)
 
 	originalCreate := candidateWriterRegistry["create-file"]
 	candidateWriterRegistry["create-file"] = func(root *CandidateRoot, op operation) error {
@@ -297,7 +528,7 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 	_, err = executeWithPlan(reference, upstream, "", nil, Plan{
 		operations: []operation{{kind: "create-file", path: "mode.txt", payload: []byte("x\n"), effectOrdinal: 1}},
 		effects:    []effectClassification{{ordinal: 1, path: "mode.txt", state: applicable}},
-	}, root, "s4-guards", "rc_555555555555", featureLock, globalLock)
+	}, "s4-guards", "rc_555555555555", featureLock)
 	candidateWriterRegistry["create-file"] = originalCreate
 	if refusalCode(err) != "candidate-mode-drift" {
 		t.Fatalf("mode drift refusal mismatch: %v", err)
@@ -313,7 +544,7 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 	_, err = executeWithPlan(reference, upstream, "", nil, Plan{
 		operations: []operation{{kind: "create-file", path: "path.txt", payload: []byte("x\n"), effectOrdinal: 1}},
 		effects:    []effectClassification{{ordinal: 1, path: "path.txt", state: applicable}},
-	}, root, "s4-guards", "rc_666666666666", featureLock, globalLock)
+	}, "s4-guards", "rc_666666666666", featureLock)
 	candidateWriterRegistry["create-file"] = originalCreate
 	if refusalCode(err) != "candidate-path-set-mismatch" {
 		t.Fatalf("path-set mismatch refusal mismatch: %v", err)
@@ -325,7 +556,7 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 			payload: []byte("<<<<<<< ours\n=======\n>>>>>>> theirs\n"), effectOrdinal: 1,
 		}},
 		effects: []effectClassification{{ordinal: 1, path: "markers.txt", state: applicable}},
-	}, root, "s4-guards", "rc_777777777777", featureLock, globalLock)
+	}, "s4-guards", "rc_777777777777", featureLock)
 	if refusalCode(err) != "candidate-conflict-marker" {
 		t.Fatalf("conflict marker refusal mismatch: %v", err)
 	}
@@ -333,8 +564,8 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 
 func TestS4ExecuteRefusesPostconditionWhenInsertedPayloadIsCorrupted(t *testing.T) {
 	root, reference, upstream, patch, effects := executionFixture(t)
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-postcondition-insert")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-postcondition-insert")
+	defer releaseLock(t, featureLock)
 
 	originalInsert := candidateWriterRegistry["insert-by-boundary"]
 	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
@@ -347,7 +578,7 @@ func TestS4ExecuteRefusesPostconditionWhenInsertedPayloadIsCorrupted(t *testing.
 	}
 	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
 
-	_, err := Execute(reference, upstream, patch, effects, root, "s4-postcondition-insert", "rc_a11111111111", featureLock, globalLock)
+	_, err := Execute(reference, upstream, patch, effects, "s4-postcondition-insert", "rc_a11111111111", featureLock)
 	if refusalCode(err) != "candidate-postcondition-failed" {
 		t.Fatalf("expected candidate-postcondition-failed, got %v", err)
 	}
@@ -390,8 +621,8 @@ func TestS4ExecuteRefusesPostconditionWhenCreatedPayloadIsCorrupted(t *testing.T
 	}
 	defer upstream.Close()
 
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-postcondition-create")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-postcondition-create")
+	defer releaseLock(t, featureLock)
 	originalCreate := candidateWriterRegistry["create-file"]
 	candidateWriterRegistry["create-file"] = func(root *CandidateRoot, op operation) error {
 		mutated := op
@@ -403,7 +634,7 @@ func TestS4ExecuteRefusesPostconditionWhenCreatedPayloadIsCorrupted(t *testing.T
 	}
 	t.Cleanup(func() { candidateWriterRegistry["create-file"] = originalCreate })
 
-	_, err = Execute(reference, upstream, patch, effects, root, "s4-postcondition-create", "rc_b22222222222", featureLock, globalLock)
+	_, err = Execute(reference, upstream, patch, effects, "s4-postcondition-create", "rc_b22222222222", featureLock)
 	if refusalCode(err) != "candidate-postcondition-failed" {
 		t.Fatalf("expected candidate-postcondition-failed, got %v", err)
 	}
@@ -422,8 +653,8 @@ func TestS4ExecuteRefusesPostconditionWhenCreatedPayloadIsCorrupted(t *testing.T
 
 func TestS4ExecuteReportsUnmodeledChangeWhenPayloadsRemainIntact(t *testing.T) {
 	root, reference, upstream, patch, effects := executionFixture(t)
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-unmodeled")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-unmodeled")
+	defer releaseLock(t, featureLock)
 
 	originalInsert := candidateWriterRegistry["insert-by-boundary"]
 	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
@@ -442,7 +673,7 @@ func TestS4ExecuteReportsUnmodeledChangeWhenPayloadsRemainIntact(t *testing.T) {
 	}
 	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
 
-	_, err := Execute(reference, upstream, patch, effects, root, "s4-unmodeled", "rc_c33333333333", featureLock, globalLock)
+	_, err := Execute(reference, upstream, patch, effects, "s4-unmodeled", "rc_c33333333333", featureLock)
 	if refusalCode(err) != "candidate-unmodeled-change" {
 		t.Fatalf("expected candidate-unmodeled-change, got %v", err)
 	}
@@ -484,14 +715,16 @@ func TestS4ExecuteDescendingInsertOffsetsPassPostconditionPositionChecks(t *test
 	}
 	defer upstream.Close()
 
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-multi-offsets")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
-	result, err := Execute(reference, upstream, patch, effects, root, "s4-multi-offsets", "rc_d44444444444", featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-multi-offsets")
+	defer releaseLock(t, featureLock)
+	result, err := Execute(reference, upstream, patch, effects, "s4-multi-offsets", "rc_d44444444444", featureLock)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 	t.Cleanup(func() {
 		if result.Root != nil && !result.Root.closed {
+			globalLock := acquireGlobalLock(t, root)
+			defer releaseLock(t, globalLock)
 			_ = result.Root.Prune(featureLock, globalLock)
 		}
 	})
@@ -540,9 +773,9 @@ func TestS4ExecuteReturnsNotIdempotentWhenSecondPassReappliesApplicableEffect(t 
 	}
 	defer upstream.Close()
 
-	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-reapply")
-	defer releaseCandidateLocks(t, featureLock, globalLock)
-	_, err = Execute(reference, upstream, patch, effects, root, "s4-reapply", "rc_888888888888", featureLock, globalLock)
+	featureLock := acquireFeatureLock(t, root, "s4-reapply")
+	defer releaseLock(t, featureLock)
+	_, err = Execute(reference, upstream, patch, effects, "s4-reapply", "rc_888888888888", featureLock)
 	if refusalCode(err) != "candidate-not-idempotent" {
 		t.Fatalf("expected candidate-not-idempotent, got %v", err)
 	}
