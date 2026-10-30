@@ -3,6 +3,7 @@
 package candidate
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -320,6 +321,126 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 	}, root, "s4-guards", "rc_777777777777", featureLock, globalLock)
 	if refusalCode(err) != "candidate-conflict-marker" {
 		t.Fatalf("conflict marker refusal mismatch: %v", err)
+	}
+}
+
+func TestS4ExecuteReturnsNotIdempotentWhenSecondPassReappliesApplicableEffect(t *testing.T) {
+	root, _ := initCandidateRepo(t)
+	targetPath := filepath.Join(root, "target.txt")
+	if err := os.WriteFile(targetPath, []byte("a\nb\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "target.txt")
+	candidateGit(t, root, "commit", "-qm", "reference")
+	baseCommit := candidateGit(t, root, "rev-parse", "HEAD")
+
+	if err := os.WriteFile(targetPath, []byte("a\nb\nb\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "target.txt")
+	candidateGit(t, root, "commit", "-qm", "feature")
+	patch := string(derivationGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "target.txt"))
+
+	rows, err := patchobs.ReconstructOffline(root, baseCommit, patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effects := make([]gitutil.PatchEffect, len(rows))
+	for i, row := range rows {
+		e := row.Effect
+		e.PreimageObserved, e.PreimagePresent, e.PreimageSHA256 = true, row.Pre.Present, row.Pre.SHA256
+		e.PostimageObserved, e.PostimagePresent, e.PostimageSHA256 = true, row.Post.Present, row.Post.SHA256
+		e.OldMode, e.NewMode = row.Pre.Mode, row.Post.Mode
+		entry := patchobs.EffectObservation{Effect: e}
+		entry.Bytes.Preimage, entry.Bytes.Postimage = row.Pre.Bytes, row.Post.Bytes
+		e.ContentKind, e.ObjectKind = patchobs.ClassifyEffectObservation(e, entry.Bytes)
+		effects[i] = e
+	}
+
+	if err := os.WriteFile(targetPath, []byte("a\nc\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "target.txt")
+	candidateGit(t, root, "commit", "-qm", "upstream")
+	upstreamCommit := candidateGit(t, root, "rev-parse", "HEAD")
+
+	reference, err := OpenReferenceRoot(root, baseCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	upstream, err := OpenReferenceRoot(root, upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-reapply")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	_, err = Execute(reference, upstream, patch, effects, root, "s4-reapply", "rc_888888888888", featureLock, globalLock)
+	if refusalCode(err) != "candidate-not-idempotent" {
+		t.Fatalf("expected candidate-not-idempotent, got %v", err)
+	}
+	var refusalErr *refusal
+	if !errors.As(err, &refusalErr) {
+		t.Fatalf("expected refusal error, got %T", err)
+	}
+	if !strings.Contains(refusalErr.detail, "target.txt") || !strings.Contains(refusalErr.detail, "state=applicable") {
+		t.Fatalf("idempotency refusal missing effect diagnostics: %q", refusalErr.detail)
+	}
+}
+
+func TestS4ModeledContentValidationSupportsMultiPathAndMultiOperationPlans(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	upstream, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-modeled")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	plan := Plan{
+		operations: []operation{
+			{kind: "create-file", path: "a.txt", payload: []byte("a1\n"), effectOrdinal: 1},
+			{kind: "insert-by-boundary", path: "a.txt", byteOffset: len("a1\n"), payload: []byte("a2\n"), effectOrdinal: 1},
+			{kind: "create-file", path: "b.txt", payload: []byte("b1\n"), effectOrdinal: 2},
+			{kind: "insert-by-boundary", path: "b.txt", byteOffset: len("b1\n"), payload: []byte("b2\n"), effectOrdinal: 2},
+		},
+		effects: []effectClassification{
+			{ordinal: 1, path: "a.txt", state: applicable},
+			{ordinal: 2, path: "b.txt", state: applicable},
+		},
+	}
+	candidateRoot, err := CreateCandidateRoot(root, "s4-modeled", "rc_999999999999", head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	t.Cleanup(func() {
+		if candidateRoot != nil && !candidateRoot.closed {
+			_ = candidateRoot.Prune(featureLock, globalLock)
+		}
+	})
+	if err := applyCandidateOperations(candidateRoot, plan.operations); err != nil {
+		t.Fatalf("applyCandidateOperations: %v", err)
+	}
+	if err := validateExpectedModeledContent(upstream, candidateRoot, plan); err != nil {
+		t.Fatalf("validateExpectedModeledContent: %v", err)
+	}
+
+	aBody, err := candidateRoot.ReadFile("a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(aBody) != "a1\na2\n" {
+		t.Fatalf("a.txt body=%q, want %q", string(aBody), "a1\na2\n")
+	}
+	bBody, err := candidateRoot.ReadFile("b.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(bBody) != "b1\nb2\n" {
+		t.Fatalf("b.txt body=%q, want %q", string(bBody), "b1\nb2\n")
 	}
 }
 

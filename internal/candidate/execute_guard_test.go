@@ -172,3 +172,34 @@ func validateSecondPassAllEffectsSource(source string) error {
 	}
 	return nil
 }
+
+func TestS4ModeledContentLifetimeGuardAndSensitivity(t *testing.T) {
+	body, err := os.ReadFile("validation.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(body)
+	if err := validateModeledContentLifetimeSource(source); err != nil {
+		t.Fatal(err)
+	}
+	retentionMutant := `func validateExpectedModeledContent(upstream *ReferenceRoot, root *CandidateRoot, plan Plan) error {
+		expected := map[string][]byte{}
+		return nil
+	}`
+	if err := validateModeledContentLifetimeSource(retentionMutant); err == nil {
+		t.Fatal("modeled-content lifetime guard accepted retained multi-path body map")
+	}
+}
+
+func validateModeledContentLifetimeSource(source string) error {
+	if strings.Contains(source, "expected := map[string][]byte{}") {
+		return fmt.Errorf("modeled-content validation must not retain full-body map across paths")
+	}
+	if !strings.Contains(source, "opsByPath := map[string][]operation{}") {
+		return fmt.Errorf("modeled-content validation no longer groups operations per path")
+	}
+	if !strings.Contains(source, "sort.Strings(paths)") {
+		return fmt.Errorf("modeled-content validation no longer processes paths in sorted deterministic order")
+	}
+	return nil
+}

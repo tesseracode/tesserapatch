@@ -59,9 +59,6 @@ func validateCandidate(
 			detail: "second-pass: " + secondPassReason(err),
 		}
 	}
-	if err := validateApplicableEffects(plan, secondPlan); err != nil {
-		return validationResult{}, err
-	}
 	if err := validateExpectedModeledContent(upstream, candidateRoot, plan); err != nil {
 		return validationResult{}, err
 	}
@@ -76,6 +73,9 @@ func validateCandidate(
 		return validationResult{}, &refusal{code: "candidate-not-idempotent", detail: "second-pass changed diff bytes"}
 	}
 	if err := validateSecondPassPlan(secondPlan, len(effects)); err != nil {
+		return validationResult{}, err
+	}
+	if err := validateApplicableEffects(plan, secondPlan); err != nil {
 		return validationResult{}, err
 	}
 	return validationResult{effectMap: effectMap, treeHash: treeAfter, diff: diffAfter}, nil
@@ -262,43 +262,47 @@ func validateApplicableEffects(first, second Plan) error {
 }
 
 func validateExpectedModeledContent(upstream *ReferenceRoot, root *CandidateRoot, plan Plan) error {
-	expected := map[string][]byte{}
+	opsByPath := map[string][]operation{}
 	for _, op := range plan.operations {
-		current, seen := expected[op.path]
-		if !seen {
-			body, err := upstream.ReadFile(op.path)
-			if err != nil {
-				if errors.Is(err, fs.ErrNotExist) {
-					body = nil
-				} else {
-					return &refusal{code: "candidate-unmodeled-change", path: op.path, detail: fmt.Sprintf("read upstream path: %v", err)}
-				}
-			}
-			current = append([]byte(nil), body...)
-		}
-		switch op.kind {
-		case "create-file":
-			current = append([]byte(nil), op.payload...)
-		case "insert-by-boundary":
-			if op.byteOffset < 0 || op.byteOffset > len(current) {
-				return &refusal{code: "candidate-unmodeled-change", path: op.path, detail: "modeled insertion offset is outside expected content"}
-			}
-			next := make([]byte, 0, len(current)+len(op.payload))
-			next = append(next, current[:op.byteOffset]...)
-			next = append(next, op.payload...)
-			next = append(next, current[op.byteOffset:]...)
-			current = next
-		default:
-			return &refusal{code: "candidate-operation-kind-unsupported", path: op.path, detail: op.kind}
-		}
-		expected[op.path] = current
+		opsByPath[op.path] = append(opsByPath[op.path], op)
 	}
-	for path, want := range expected {
+	paths := make([]string, 0, len(opsByPath))
+	for path := range opsByPath {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		body, err := upstream.ReadFile(path)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				body = nil
+			} else {
+				return &refusal{code: "candidate-unmodeled-change", path: path, detail: fmt.Sprintf("read upstream path: %v", err)}
+			}
+		}
+		current := append([]byte(nil), body...)
+		for _, op := range opsByPath[path] {
+			switch op.kind {
+			case "create-file":
+				current = append([]byte(nil), op.payload...)
+			case "insert-by-boundary":
+				if op.byteOffset < 0 || op.byteOffset > len(current) {
+					return &refusal{code: "candidate-unmodeled-change", path: op.path, detail: "modeled insertion offset is outside expected content"}
+				}
+				next := make([]byte, 0, len(current)+len(op.payload))
+				next = append(next, current[:op.byteOffset]...)
+				next = append(next, op.payload...)
+				next = append(next, current[op.byteOffset:]...)
+				current = next
+			default:
+				return &refusal{code: "candidate-operation-kind-unsupported", path: op.path, detail: op.kind}
+			}
+		}
 		got, err := root.ReadFile(path)
 		if err != nil {
 			return &refusal{code: "candidate-unmodeled-change", path: path, detail: fmt.Sprintf("read candidate path: %v", err)}
 		}
-		if !bytes.Equal(got, want) {
+		if !bytes.Equal(got, current) {
 			return &refusal{code: "candidate-unmodeled-change", path: path}
 		}
 	}
@@ -323,9 +327,9 @@ func validateSecondPassPlan(plan Plan, effectCount int) error {
 		}
 		reason := effect.reason
 		if reason == "" {
-			reason = string(effect.state)
+			reason = "unspecified"
 		}
-		detail = fmt.Sprintf("%s; first non-present effect %d (%s): %s", detail, effect.ordinal, effect.path, reason)
+		detail = fmt.Sprintf("%s; first non-present effect=%d path=%s state=%s reason=%s", detail, effect.ordinal, effect.path, effect.state, reason)
 		break
 	}
 	return &refusal{code: "candidate-not-idempotent", detail: detail}
