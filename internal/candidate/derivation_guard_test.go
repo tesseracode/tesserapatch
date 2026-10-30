@@ -132,6 +132,86 @@ func validateS3AlignmentResources(source string) error {
 	return nil
 }
 
+func validateS3DerivationBoundary(name, source string) error {
+	file, err := parser.ParseFile(token.NewFileSet(), name, source, 0)
+	if err != nil {
+		return err
+	}
+	calls := map[string]bool{}
+	for _, imp := range file.Imports {
+		path, _ := strconv.Unquote(imp.Path.Value)
+		switch path {
+		case "bytes", "crypto/sha256", "errors", "fmt", "sort",
+			"github.com/tesseracode/tesserapatch/internal/gitutil",
+			"github.com/tesseracode/tesserapatch/internal/patchobs":
+		default:
+			return fmt.Errorf("derivation acquired IO/serialization/provider input")
+		}
+	}
+	var invalid error
+	ast.Inspect(file, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		callee := ""
+		switch f := call.Fun.(type) {
+		case *ast.Ident:
+			callee = f.Name
+		case *ast.SelectorExpr:
+			callee = f.Sel.Name
+			if receiver, ok := f.X.(*ast.Ident); ok {
+				callee = receiver.Name + "." + callee
+			}
+		}
+		calls[callee] = true
+		for _, bad := range []string{"ExecuteRecipe", "evaluateRecipeOperations", "ReadFile", "WriteFile", "CreateCandidateRoot", "Prune", "Print", "Printf", "Println", "TrimSpace", "Contains"} {
+			if callee == bad || strings.HasSuffix(callee, "."+bad) {
+				invalid = fmt.Errorf("derivation acquired unsafe shortcut %s", callee)
+			}
+		}
+		return true
+	})
+	if invalid != nil {
+		return invalid
+	}
+	required := map[string][]string{
+		"derivation.go": {"gitutil.NormalizePatchEffects", "reference.snapshotPaths", "upstream.snapshotPaths", "gitutil.ExtractPatchInsertionRuns", "replayInsertionDigest", "alignInsertionRuns"},
+		"snapshot.go":   {"patchobs.SnapshotCommitPathsOffline", "patchobs.ReadCommitObjectOffline"},
+	}
+	for _, call := range required[name] {
+		if !calls[call] {
+			return fmt.Errorf("derivation boundary lost %s", call)
+		}
+	}
+	return nil
+}
+
+func TestS3DerivationBoundaryGuardSensitivity(t *testing.T) {
+	for _, row := range []struct{ name, old, replacement string }{
+		{"derivation.go", "gitutil.NormalizePatchEffects(patch)", "privateLenientParse(patch)"},
+		{"derivation.go", "upstream.snapshotPaths(paths)", "readLiveTree(paths)"},
+		{"derivation.go", "replayInsertionDigest(pre, projected)", "trustStoredPostimage(pre, projected)"},
+		{"derivation.go", "alignInsertionRuns(pre, body, projected)", "firstTraceback(pre, body, projected)"},
+		{"snapshot.go", "patchobs.ReadCommitObjectOffline", "readMutablePath"},
+	} {
+		raw, err := os.ReadFile(row.name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		source := string(raw)
+		if err := validateS3DerivationBoundary(row.name, source); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Count(source, row.old) != 1 {
+			t.Fatalf("missing mutation anchor %q", row.old)
+		}
+		if err := validateS3DerivationBoundary(row.name, strings.Replace(source, row.old, row.replacement, 1)); err == nil {
+			t.Fatalf("boundary guard accepted %q", row.replacement)
+		}
+	}
+}
+
 func TestS3AlignmentResourceGuardSensitivity(t *testing.T) {
 	raw, err := os.ReadFile("alignment.go")
 	if err != nil {
@@ -142,6 +222,7 @@ func TestS3AlignmentResourceGuardSensitivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutation := range [][2]string{
+		{"const (\n\talignmentMaxBytes", "var (\n\talignmentMaxBytes"},
 		{"1048576", "16777216"},
 		{"make([]int32, cells)", "make([]int64, cells)"},
 		{"f := make([]int32, cells)", "_ = make([]int32, cells)\n\tf := make([]int32, cells)"},

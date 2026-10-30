@@ -1,3 +1,12 @@
+## S3 Focused Validation — 2026-10-29
+
+Initial `7645e03` passes admitted formatting and focused S3/S0/S2/root/parser
+checks: candidate 1.909s, gitutil 0.454s, workflow 10.145s, without resource
+stops. Both motivating fixtures and the exhaustive small-input oracle pass.
+Before review, add explicit no-partial-domain and readonly source-boundary
+controls, check L1 before record scanning and reject duplicate run identities.
+No execution, publication or S4 dispatch.
+
 ## S3 Draft — exact alignment and immutable snapshots — 2026-10-29
 
 The draft implements two int32 F/G matrices, all-optimal unanimity and the

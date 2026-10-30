@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Draft implemented | WAVE_BASE `4702b10735681ca63145b67561f33d4612450e69` | Focused validation next |
+| GH #13 S3 | Draft / focused checks pass | `7645e03` (initial draft) | Exhaustive oracle, worked fixtures and source controls pass; broader review next |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

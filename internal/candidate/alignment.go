@@ -73,9 +73,11 @@ func lineRecords(body []byte) [][]byte {
 }
 
 func alignmentLimits(base, upstream []byte) error {
+	if len(base) > alignmentMaxBytes || len(upstream) > alignmentMaxBytes {
+		return &refusal{code: "alignment-limit"}
+	}
 	n, m := recordCount(base), recordCount(upstream)
-	if len(base) > alignmentMaxBytes || len(upstream) > alignmentMaxBytes ||
-		n > alignmentMaxRecords || m > alignmentMaxRecords ||
+	if n > alignmentMaxRecords || m > alignmentMaxRecords ||
 		n+1 > alignmentMaxCells/(m+1) {
 		return &refusal{code: "alignment-limit"}
 	}
@@ -150,13 +152,16 @@ func combineInsertionRuns(runs []insertionRun, baseRecords int) ([]alignedBounda
 		return a.runOrdinal < b.runOrdinal
 	})
 	var result []alignedBoundary
-	for i, run := range ordered {
+	seen := map[[2]int]bool{}
+	for _, run := range ordered {
 		if run.boundary < 0 || run.boundary > baseRecords || run.effectOrdinal < 1 || run.runOrdinal < 1 {
 			return nil, &refusal{code: "fragment-boundary-underivable"}
 		}
-		if i > 0 && ordered[i-1].effectOrdinal == run.effectOrdinal && ordered[i-1].runOrdinal == run.runOrdinal {
+		key := [2]int{run.effectOrdinal, run.runOrdinal}
+		if seen[key] {
 			return nil, &refusal{code: "fragment-boundary-underivable"}
 		}
+		seen[key] = true
 		if len(result) == 0 || result[len(result)-1].boundary != run.boundary {
 			result = append(result, alignedBoundary{boundary: run.boundary})
 		}

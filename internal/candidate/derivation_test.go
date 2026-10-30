@@ -210,6 +210,31 @@ func TestS3DomainPostimageAndAvailabilityRefusals(t *testing.T) {
 	}
 }
 
+func TestS3MixedDomainNeverReturnsPartialPlan(t *testing.T) {
+	patch := "diff --git a/new b/new\nnew file mode 100644\n--- /dev/null\n+++ b/new\n@@ -0,0 +1 @@\n+x\n" +
+		"diff --git a/old b/old\ndeleted file mode 100644\n--- a/old\n+++ /dev/null\n@@ -1 +0,0 @@\n-y\n"
+	effects, err := gitutil.NormalizePatchEffects(patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range effects {
+		effects[i].ContentKind = gitutil.ContentKindText
+		effects[i].ObjectKind = gitutil.ObjectKindRegular
+		effects[i].PreimageObserved, effects[i].PostimageObserved = true, true
+		effects[i].PreimagePresent, effects[i].PostimagePresent = effects[i].ExtantSides()
+		if effects[i].PreimagePresent {
+			effects[i].OldMode = gitutil.ModeRegular
+		}
+		if effects[i].PostimagePresent {
+			effects[i].NewMode = gitutil.ModeRegular
+		}
+	}
+	plan, err := Derive(nil, nil, patch, effects)
+	if refusalCode(err) != "effect-change-kind-unsupported" || len(plan.operations) != 0 || len(plan.effects) != 0 {
+		t.Fatalf("unsupported effect did not refuse the whole plan before IO: %+v %v", plan, err)
+	}
+}
+
 func TestS3SnapshotDoesNotRereadPaths(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	ref, err := OpenReferenceRoot(root, head)

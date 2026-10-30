@@ -68,10 +68,15 @@ Proposed ADR-045 and the overnight log record the implementation choices.
 
 ## Test Results
 
-- No S3 Go validation has run yet. Draft tests cover the small exhaustive
+- Draft tests cover the small exhaustive
   alignment oracle, both adjacent-argument examples, exact EOL/terminators,
   limits/budget, canonical combination, strict overlap, snapshot immutability,
   creation/mode classification, postimage proof and descending application.
+- Initial admitted formatting and focused S3/S0/S2/parser/root checks PASS
+  at `7645e03`: candidate 1.909s, gitutil 0.454s, workflow 10.145s; no resource
+  stop. Follow-up adds explicit no-partial-domain/source-boundary controls,
+  checks L1 before record scanning and rejects duplicate run identities.
+  Broader validation and independent review are next.
 - S2 accepted at `8d3b9ef`: 8/8 gate, 42/42 commands including 39/39 tests,
   native CI `41000838573` all five required jobs pass.
 - S2 closing-tip CI `41010587650` at `4702b10` remains in progress.
