@@ -1649,6 +1649,10 @@ own authority/lifecycle findings still block publication and acceptance.
 Revision `108ed61` claims the findings fixed and adds real preparation/
 publication/reuse paths; focused tests pass. Independent finding closure,
 broader checks and full local/native gates remain pending.
+Re-review still NEEDS REVISION: four findings close, but mutation capability,
+namespace alias, cross-candidate reuse/preparation authority, failed-transition
+consistency and finalization composition remain. Wrong-commit reopening and
+overbroad worktree recovery scanning add blockers. Keep S5 unpublished.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

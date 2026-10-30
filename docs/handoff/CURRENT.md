@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,7 +14,7 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: Revised draft checkpointed; claimed fixes await independent verification
+- **Status**: NEEDS REVISION — four findings closed; authority/composition blockers remain
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -69,6 +69,14 @@ Parent now owns all Go validation; implementer is idle.
 Reviewer `7712b628` is re-assessing frozen `108ed61` against each original
 finding. Parent shell `roc-s5-revision-basic` alone runs admitted
 formatting/full affected/vet/build in `reviewed-revision-source`.
+Re-review remains NEEDS REVISION. Closed F5/F7/F8/F9: action preflight
+composition, loaded state, strict classification consistency, exact identity.
+Open: mutation capability enforcement, alias-safe reopening, reuse A/B binding,
+eligibility/binding/preparation authority, coherent failed transitions and
+real continuous-lock finalization. New blockers: stale/reject reopen against
+current/live commit instead of stored upstream; recovery scan rejects untouched
+symlinks inside worktrees. Full details and concrete cases are in LOG.
+Implementer's all-resolved claim was not accepted. No publication/full gate.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
@@ -128,8 +136,9 @@ RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
 ## Next Steps
 
-1. Re-review frozen `108ed61` against every recorded finding and missing scope.
-2. Parent runs admitted affected/vet/build; obtain approval before publication/full gates.
+1. Complete a bounded subset of remaining fixes with real negative regressions.
+2. Independently re-review that subset; retain remaining authority/finalization
+   findings explicitly. Do not start a full gate or publish unapproved S5.
    declare acceptance from passing basic checks or a partial correction.
 3. At the deadline, checkpoint any unfinished code and exact remaining work.
    Deadline timer `overnight-deadline` is active.
@@ -144,7 +153,8 @@ Use clean isolated sources and preserve all raw evidence.
 
 ## Blockers
 
-S5 review findings remain open until independently verified closed.
+S5 remains unaccepted: five original findings/missing composition and two new
+blockers remain. Four findings are independently closed; no full gates run.
 The autonomous deadline remains in force; checkpoint unfinished work honestly.
 
 ## Context for Next Agent

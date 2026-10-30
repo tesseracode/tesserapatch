@@ -1,3 +1,27 @@
+## Review — S5 Revision Still NEEDS REVISION — 2026-10-30
+
+Reviewer `7712b628` (`gpt-6-astra`) rejects `108ed61` for acceptance.
+CLOSED: action recovery/coexistence composition (F5), loaded source-state
+drift (F7), classification/resolution consistency (F8), exact identity
+comparison (F9). All other original findings and missing callable composition
+remain OPEN; implementer's claim of complete resolution was not substantiated.
+
+| Priority | Remaining issue | Concrete failure |
+|---|---|---|
+| High | Public artifact/rejection mutations lack feature capability | Rooted WriteArtifact/WriteState/WritePatch/AppendRejectedRecord/ClearRejectedRecords can mutate while another process holds the lock. |
+| High | Namespace alias reopening | A slug symlink aliases another feature; SameFile registration accepts it, granting wrong-feature prune ownership. |
+| High | Reuse cross-candidate binding | Artifact/state A plus preparation/root B with equal results approves A after validating only B. |
+| High | Preparation assertion authority | Invented binding/descriptor hashes and ineligible/default eligibility still publish; root slug/repository are not bound to preparation. |
+| High | Interrupted transitions | Failed reject prune leaves pending pointer/rejected state; next preflight enables derivation. Status-save failure leaves orphan pending publication. |
+| High | Missing composed finalization | Publisher overwrites existing/audit directories, can orphan another pending ID, ignores fresh bindings/state/rejections, and self-contends on an already-held execution feature lock. |
+| High | Wrong commit for stale/reject reopening (new) | Candidate at A cannot stale-prune when current upstream is B; reject uses live HEAD rather than artifact's bound upstream. |
+| Medium | Recovery scan enters worktree content (new) | Untouched tracked symlinks cause recovery/publication/action refusal despite being allowed outside touched paths. |
+
+ADR-048's native-OID integrity fingerprint direction is acceptable; lifecycle
+authority remains unapproved/Proposed. No S5 publication or full gate.
+Use remaining time only for a bounded, independently checked subset;
+retain all other open findings explicitly at the deadline.
+
 ## S5 Re-review / Broader Checks Active — 2026-10-30
 
 Same reviewer `7712b628` now checks frozen `108ed61`, requiring explicit
