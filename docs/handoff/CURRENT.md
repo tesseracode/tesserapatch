@@ -27,7 +27,7 @@ WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
 
 The operator requested S2. Preflight confirms clean HEAD equals fetched
 origin/main at `bd95a23`, no stashes and one main worktree. S1 closing-tip
-CI `40987744660` is still running; do not cancel it with an early push.
+CI `40987744660` was still running at dispatch and has now passed.
 S1's independently reviewed code and exact-checkpoint CI/full gate at
 `24be224` are already accepted; the complete history is archived.
 
@@ -58,6 +58,14 @@ through bounded metadata plumbing, without retaining upstream bodies or adding
 another image-size limit. Also normalize inherited Git variable names before
 scrubbing, since Windows names are case-insensitive. Regressions must fail
 against the earlier draft; no new API/phase behavior is added.
+
+Independent S2 reviewer: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`,
+explicitly requested OpenAI `gpt-5.3-codex` (confirm runtime on return).
+It is read-only and runs no Go. Parent shell `roc-s2-review-validation`
+owns formatting, full affected packages, vet and build in sequence.
+Clean-checkout `gofmt -l .` now passes. No duplicate validation is allowed.
+The eventual full-gate harness is prepared in `bin/roc-s2-20261029/full-gate/`;
+its nine routing controls pass, but it is not configured or running yet.
 
 ## Current State — bounded S2 scope
 
@@ -116,7 +124,7 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.
-- S1 closing-tip CI `40987744660` at `bd95a23` is still in progress.
+- S1 closing-tip CI `40987744660` at `bd95a23` is SUCCESS.
 
 ## Next Steps
 
@@ -140,8 +148,8 @@ source/caches and owned-process reconciliation. The canonical partition has
 
 ## Blockers
 
-None identified in implementation yet. The preceding closing-tip CI must
-finish before a new push. New S2 behavior is not accepted or published.
+No prior-CI blocker remains. S2 independent review and broader validation are
+active; no acceptance or publication is authorized by focused passes alone.
 
 ## Context for Next Agent
 

@@ -7,6 +7,11 @@ Parent owns admitted affected-package tests; reviewer is read-only and must
 not start Go. Request a bounded review against the accepted fifteen-gate,
 strict-decoder, typed-root, config-default and no-S3+ contract.
 No independent approval or full/native S2 result is claimed yet.
+Reviewer dispatched as `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`, explicitly
+requested OpenAI `gpt-5.3-codex`; runtime confirmation pending. Parent shell
+`roc-s2-review-validation` owns all Go checks. Clean-checkout formatting passes,
+and the prepared full-gate wrapper's nine routing controls pass without
+starting another Go workload. S1 closing-tip CI `40987744660` now succeeds.
 
 ## Focused Pass and Offline Follow-up — GH #13 S2 — 2026-10-29
 
