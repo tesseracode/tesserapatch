@@ -154,6 +154,10 @@ types and disable sparse/case hiding; repository configuration is unchanged.
 Prior full affected/vet/build passed at `b4508e7`; final checks and review now
 cover the mode delta. At 23:54 UTC about 2h14 remain, so full gates consume
 most of this window. S6 still requires a clean accepted S5 close.
+Active retained review is on `b46129e`; active sole Go shell is
+`s5-final-fidelity-basic`, clean source
+`bin/roc-s5-resume-20261030/mode-reviewed-source`. All previous bounded
+validators have completed or were explicitly stopped with preserved evidence.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

@@ -11,6 +11,8 @@ Prior full affected/vet/build at `b4508e7` passed (179.44s/10.45s/0.94s).
 Retained reviewer checks final F3 closure; parent runs final basic validation.
 At 23:54 UTC about 2h14 remain. Full gates are not shortened, and S6 cannot
 dispatch until S5 closes with clean published main.
+Active sole Go shell: `s5-final-fidelity-basic`; frozen clean source:
+`bin/roc-s5-resume-20261030/mode-reviewed-source`.
 
 ## Review — S5 Byte Fidelity Closed, Mode Fidelity Required — 2026-10-30
 
