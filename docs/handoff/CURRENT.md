@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
 The canonical mid-cycle token intentionally prevents a false wave-close pass.
@@ -24,12 +24,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: In progress — fixing remaining authority/consistency and finalization forward
+- **Status**: Fix-forward implementation frozen; independent review and broader validation pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
+- **Frozen review checkpoint**: `69b2f055cb3c6683a0f0e47916fd6fce51ec99f1`
 - **Current window deadline**: `2026-10-31T02:08:53Z`
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -75,6 +76,10 @@ Targeted S5/S2/root/authority tests pass at `71e87bf` (candidate0.456s,
 workflow18.894s), normal pressure/no swap-outs. A final small pre-read check
 binds reuse's root namespace/ID/commit before reading its metadata. Freeze
 for independent review after formatting; broader checks follow in parallel.
+Frozen `69b2f05` is ready for retained reviewer `7712b628`; parent alone
+runs admitted full affected/vet/build in `bin/roc-s5-resume-20261030/review-source`.
+F3/F4/F6 and composition remain open until independent closure, not merely
+implementation claims. No S5 publication or acceptance yet.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

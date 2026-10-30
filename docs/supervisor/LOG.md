@@ -1,3 +1,16 @@
+## S5 Fix-forward Review Dispatch — 2026-10-30
+
+Freeze `69b2f055cb3c6683a0f0e47916fd6fce51ec99f1`. Runtime focused
+S5/S2/root regressions pass at `71e87bf` (candidate0.456s/workflow18.894s),
+normal pressure/no swap-outs; final small check binds reused root identity
+before its metadata read. Formatting passes.
+
+Parent implemented the continuous authority trace; return to retained
+independent S5 reviewer `7712b628` for explicit F3/F4/F6/composition closure
+and ADR-048 assessment. Parent alone owns broader admitted package/vet/build
+checks in the clean frozen checkout. Full local/native gates still follow
+only after approval; S5 remains unaccepted/unpushed.
+
 ## S5 Fix-forward Draft — 2026-10-30
 
 First coherent draft removes public assertion-based preparation/materialization,

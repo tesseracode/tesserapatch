@@ -1633,6 +1633,9 @@ Unrelated migrations/coverage widening stay out of scope.
 Fix-forward draft replaces caller-asserted preparation with the private S2
 mint path and a continuous-lock finalizer, plus pending inventory/retry-safe
 cleanup. Focused negative regressions are added; validation/review remain pending.
+Focused S5/S2/root/authority regressions now pass. Complete fix-forward code
+is frozen at `69b2f05` for retained independent review and full affected/vet/build;
+no acceptance or push yet.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
