@@ -16,7 +16,7 @@ requires fresh full local/native validation.
 - **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Repair typed execution boundary and short global-lock scope
-- **Status**: Repair review/basic checks pass; fresh complete local/native validation running
+- **Status**: Repair native CI passes; fresh complete local gate still running
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
 - **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
@@ -73,6 +73,10 @@ Published frozen `c4f2f1e` after it completed. Fresh full gate
 it is the only local Go workload. Native CI `41058918380` and watcher
 `roc-s4-boundary-native-ci` run concurrently. Keep progress commits local
 while exact-tip CI runs. At 12:54 UTC about five authorized hours remain.
+Repair native CI `41058918380` now passes all five jobs with no failed
+steps; actual Windows CLW-001..005 pass. At 13:54 UTC the local gate has
+passed 24/42 commands and 21/39 test shards; AR21/23/24 is running.
+About four authorized hours remain. S5 still awaits repaired acceptance.
 New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
 harness is unchanged and nine routing controls pass. Prior closing CI
 `41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
@@ -161,7 +165,7 @@ native watcher processes completed. Do not delete prior evidence.
 
 ## Next Steps
 
-1. Await fresh complete local/native gates at `c4f2f1e`, preserving all evidence.
+1. Await fresh complete local gate at `c4f2f1e`; repair native CI passed.
 2. Restore S4 acceptance only after both pass; retain the historical reopened audit.
 3. Archive/push repaired acceptance before considering S5; preserve unfinished
    work explicitly at the autonomy deadline.

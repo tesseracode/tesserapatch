@@ -1,3 +1,11 @@
+## S4 Repair Native CI Complete — 2026-10-30
+
+Fresh repair CI `41058918380` passes five required jobs, no failed steps.
+Actual Windows CLW-001..005 PASS lines are verified; watcher exits successfully.
+At 13:54 UTC the local gate has passed 24/42 commands and 21/39 test shards,
+with AR21/23/24 running. About four authorized hours remain.
+Repair acceptance still requires local completion; S5 remains blocked.
+
 ## S4 Repair Full Validation Running — 2026-10-30
 
 Prior close CI `41051527581` completes successfully: five jobs, no failed
