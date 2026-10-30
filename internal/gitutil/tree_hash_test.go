@@ -123,6 +123,7 @@ exec %q "$@"
 	t.Setenv("GIT_DIR", filepath.Join(root, ".git"))
 	t.Setenv("GIT_WORK_TREE", root)
 	t.Setenv("GIT_COMMON_DIR", filepath.Join(root, ".git"))
+	t.Setenv("GIT_INDEX_FILE", filepath.Join(root, "untrusted-index"))
 	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(root, ".gitconfig"))
 	t.Setenv("GIT_CONFIG_SYSTEM", filepath.Join(root, "system.gitconfig"))
 	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
@@ -149,15 +150,23 @@ exec %q "$@"
 		}
 		temporaryIndex := fields[6]
 		switch fields[12] {
-		case "read-tree HEAD", "add -A -- .", "write-tree":
+		case "read-tree HEAD", "write-tree",
+			"-c core.fsmonitor=false -c core.ignoreStat=false add -A -- .",
+			`-c core.fsmonitor=false -c core.ignoreStat=false config --get-regexp --null ^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`,
+			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --cached --stage -z",
+			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --others --exclude-standard -z",
+			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --cached -z -- .gitattributes :(glob)**/.gitattributes",
+			"check-attr -z --all --stdin":
 			if filepath.Dir(temporaryIndex) != filepath.Join(root, ".git") ||
 				!strings.HasPrefix(filepath.Base(temporaryIndex), ".tpatch-tree-index-") {
 				t.Fatalf("tree hash used an index outside its owned temporary namespace: %q", line)
 			}
-		default:
+		case "rev-parse --verify HEAD^{tree}", "rev-parse --git-path index":
 			if temporaryIndex != "" {
 				t.Fatalf("read-only tree lookup inherited an index: %q", line)
 			}
+		default:
+			t.Fatalf("unregistered tree-hash command: %q", line)
 		}
 		for index, value := range []struct{ name, want string }{
 			{"GIT_DIR", ""}, {"GIT_WORK_TREE", ""}, {"GIT_COMMON_DIR", ""}, {"GIT_INDEX_FILE", temporaryIndex},

@@ -137,6 +137,11 @@ Old-code hiding-filter regression reproduces unsafe success and actual filter
 execution (`conversion-hiding-red`). Fix `0a378c6` is committed and frozen;
 `s5-conversion-green` owns the sole Go workload for candidate/capture/workflow
 targeted checks. Retained reviewer checks conversion refusal before git add.
+Corrected candidate/workflow cases pass, including the filter sentinel staying
+absent. Gitutil's existing envelope test needs the exact new private-index
+inspection commands registered: keep root lookups index-free, require only the
+owned private index for those enumerated commands, reject unknown commands,
+and poison inherited GIT_INDEX_FILE as an additional real negative control.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
