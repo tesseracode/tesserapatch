@@ -1656,6 +1656,9 @@ overbroad worktree recovery scanning add blockers. Keep S5 unpublished.
 Final bounded pass targets F1/F2/F10/F11 only, checkpoint due17:15 UTC.
 Cross-candidate authority, interrupted transitions and composed finalization
 remain explicitly open for later work; no acceptance or gate waiver.
+Final bounded checkpoint `cd4192f` claims targeted fixes; focused/full
+candidate-workflow tests pass. Final subset review and clean-clone basic
+checks precede an explicit unaccepted handoff, not full-gate publication.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

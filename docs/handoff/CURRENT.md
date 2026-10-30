@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,12 +14,12 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: NEEDS REVISION — four findings closed; authority/composition blockers remain
+- **Status**: Final bounded checkpoint; targeted findings await review; authority/composition remain open
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Frozen S5 revision**: `108ed6192b2630a581793eb3a94bc4593b53a517`
+- **Frozen S5 revision**: `cd4192fdc3b61236f4dbf7c68dccbdca2919b540`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
@@ -87,6 +87,13 @@ Frozen `108ed61` basic checks have now completed: affected 139.52s, vet
 4.29s, build 0.53s and formatting all pass, normal pressure/no swap-outs.
 Parent explicitly handed sole admitted Go ownership back to implementation
 for the bounded F1/F2/F10/F11 pass. These green checks do not close review findings.
+Final bounded checkpoint `cd4192f` returned at 17:10 UTC. Implementer
+explicitly leaves F3/F4/F6 and composed finalization OPEN; it claims only
+F1/F2/F10/F11 addressed. Parent requests final independent subset review.
+Targeted and full candidate/workflow checks pass (9.52s/120.14s) but ran in
+the primary checkout; parent will perform final basic checks in a fresh clone.
+Parent owns all Go again; implementer is idle. No full gate can fit the
+remaining window, and no S5 acceptance/publication is intended.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
@@ -146,9 +153,9 @@ RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
 ## Next Steps
 
-1. Complete a bounded subset of remaining fixes with real negative regressions.
-2. Independently re-review that subset; retain remaining authority/finalization
-   findings explicitly. Do not start a full gate or publish unapproved S5.
+1. Re-review only F1/F2/F10/F11 at `cd4192f`; prior closures remain recorded.
+2. Run final clean-checkout basic checks, then record exact open findings and
+   next steps. Do not start a full gate or publish unapproved S5.
    declare acceptance from passing basic checks or a partial correction.
 3. At the deadline, checkpoint any unfinished code and exact remaining work.
    Deadline timer `overnight-deadline` is active.

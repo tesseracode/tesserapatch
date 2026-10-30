@@ -1,3 +1,15 @@
+## S5 Final Bounded Checkpoint — 2026-10-30
+
+Freeze `cd4192fdc3b61236f4dbf7c68dccbdca2919b540` at 17:10 UTC.
+Implementer claims F1/F2/F10/F11 addressed, explicitly leaves F3/F4/F6 and
+complete finalization OPEN. Targeted/candidate-workflow checks pass
+(9.52s/120.14s), normal pressure/no swap-outs, in the primary checkout.
+
+Parent takes sole Go ownership for clean-clone final basic validation and
+returns only the bounded delta to the same reviewer. About fifty minutes
+remain; do not start a full gate that cannot close in the authorized window.
+S5 stays local and unaccepted, with exact review disposition in final handoff.
+
 ## S5 Revision Basic Checks Complete — 2026-10-30
 
 Frozen `108ed61` passes formatting, full affected packages 139.52s,

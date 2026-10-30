@@ -19,7 +19,7 @@ No automatic scope expansion into unaccepted product contracts.
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
 | GH #13 S4 | Acceptance RESTORED and pushed | validated `c4f2f1e`, close `f9d5501` | Fresh review/local/native pass; closing CI `41072987684` also green |
-| GH #13 S5 | Final bounded fixes; still NEEDS REVISION | `108ed61`, WAVE_BASE `f9d5501` | F1/F2/F10/F11 targeted by17:15; authority/finalization deferred OPEN |
+| GH #13 S5 | Final bounded checkpoint, unaccepted | `cd4192f`, WAVE_BASE `f9d5501` | Subset re-review pending; F3/F4/F6/finalization explicitly OPEN |
 | GH #13 S6+ | Not dispatched | Depends on accepted S5 | Pending |
 
 ## Decisions
