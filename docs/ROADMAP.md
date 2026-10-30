@@ -1642,6 +1642,8 @@ Review NEEDS REVISION: rooted I/O/reopen ownership, genuine execution/reuse
 authority, recovery/coexistence composition, failure consistency, source-state
 and strict identity/schema checks. Locked publication/pre-execution identity
 composition is also missing. S5 remains local/unaccepted despite basic passes.
+Same implementer owns bounded corrections with a 17:00 UTC checkpoint;
+no competing local Go and no shortened review/full gates.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

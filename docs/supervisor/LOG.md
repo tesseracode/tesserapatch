@@ -1,3 +1,15 @@
+## S5 Bounded Revision Assigned — 2026-10-30
+
+Return all nine findings and missing callable S5 scope to the same implementer,
+with a coherent checkpoint due by 17:00 UTC. It owns code and sole admitted
+focused Go; parent has no competing workload. Prioritize rooted I/O/reopen
+ownership, production-bound prepare/materialize/reuse and failure consistency.
+Require actual failing-before/after production regressions, not callbacks or
+helper-name checks. ADR-048 stays Proposed; no push or acceptance.
+
+At 15:36 UTC roughly 2.4 hours remain. Fix what can be completed safely;
+remaining scope and review/full-gate work must stay explicit at deadline.
+
 ## Review — S5 NEEDS REVISION — 2026-10-30
 
 Reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f`, tool metadata confirms

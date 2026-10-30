@@ -55,6 +55,11 @@ Also fix loaded source-state drift, classification/map/count contradictions
 and exact identity comparison. Implement real locked publication and
 rejected-ID-before-creation composition with pre-execution identity projection.
 ADR-048's tree fingerprint is acceptable, lifecycle claims remain unaccepted.
+Same implementer now owns bounded corrections and the sole admitted Go
+workload, with a coherent checkpoint requested by 17:00 UTC. Parent owns
+tracking only. Prioritize real rooted I/O, reopening/validation authority
+and failure consistency; do not substitute mocked success or call missing
+S5 publication semantics future S6 work. Any remaining findings stay explicit.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
