@@ -621,11 +621,65 @@ func TestROCS5ResumeCanonicalEventFormattingDoesNotStaleCandidate(t *testing.T) 
 }
 
 func TestROCS5ResumeReuseRejectsStagedUnmodeledChangeWithForgedIntegrity(t *testing.T) {
+	for _, mode := range []string{"staged", "skip-worktree", "assume-unchanged"} {
+		t.Run(mode, func(t *testing.T) {
+			f := rocS2NewFixture(t, true)
+			writeRepoFile(t, f.s, "unrelated.txt", []byte("upstream\n"))
+			git(t, f.s.Root, "add", "unrelated.txt")
+			git(t, f.s.Root, "commit", "-qm", "unrelated upstream")
+			f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
+			prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ref, err := candidate.OpenReferenceRoot(f.s.Root, f.invocation.upstreamCommit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ref.Close()
+			root, err := candidate.OpenExistingCandidateRoot(ref, f.slug, artifact.CandidateID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer root.Close()
+			if err := os.WriteFile(filepath.Join(root.WorktreePath(), "unrelated.txt"), []byte("unexplained\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "staged" {
+				git(t, root.WorktreePath(), "add", "--", "unrelated.txt")
+			} else {
+				git(t, root.WorktreePath(), "update-index", "--"+mode, "--", "unrelated.txt")
+			}
+			tree, err := root.WorktreeTreeHash()
+			if err != nil {
+				t.Fatal(err)
+			}
+			artifact.Result.CandidateTreeSHA256, err = candidate.CandidateTreeIntegritySHA256(tree)
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw, err := candidate.EncodeCandidateArtifact(artifact)
+			if err != nil {
+				t.Fatal(err)
+			}
+			dir, _ := candidate.CandidateDirectoryRelative(f.slug, artifact.CandidateID)
+			if err := os.WriteFile(filepath.Join(f.s.Root, filepath.FromSlash(dir), candidate.CandidateMetadataName), raw, 0644); err != nil {
+				t.Fatal(err)
+			}
+			_, err = finalizeOperationCandidate(f.s, f.slug, prepared)
+			if err == nil || !strings.Contains(err.Error(), "candidate-path-set-mismatch") {
+				t.Fatalf("staged unexplained change was not structurally refused: %v", err)
+			}
+		})
+	}
+}
+
+func TestROCS5ResumeModeledTreeDoesNotDependOnCandidateIndex(t *testing.T) {
 	f := rocS2NewFixture(t, true)
-	writeRepoFile(t, f.s, "unrelated.txt", []byte("upstream\n"))
-	git(t, f.s.Root, "add", "unrelated.txt")
-	git(t, f.s.Root, "commit", "-qm", "unrelated upstream")
-	f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
 	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
 	if err != nil {
 		t.Fatal(err)
@@ -634,39 +688,12 @@ func TestROCS5ResumeReuseRejectsStagedUnmodeledChangeWithForgedIntegrity(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref, err := candidate.OpenReferenceRoot(f.s.Root, f.invocation.upstreamCommit)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ref.Close()
-	root, err := candidate.OpenExistingCandidateRoot(ref, f.slug, artifact.CandidateID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer root.Close()
-	if err := os.WriteFile(filepath.Join(root.WorktreePath(), "unrelated.txt"), []byte("unexplained\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	git(t, root.WorktreePath(), "add", "--", "unrelated.txt")
-	tree, err := root.WorktreeTreeHash()
-	if err != nil {
-		t.Fatal(err)
-	}
-	artifact.Result.CandidateTreeSHA256, err = candidate.CandidateTreeIntegritySHA256(tree)
-	if err != nil {
-		t.Fatal(err)
-	}
-	raw, err := candidate.EncodeCandidateArtifact(artifact)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir, _ := candidate.CandidateDirectoryRelative(f.slug, artifact.CandidateID)
-	if err := os.WriteFile(filepath.Join(f.s.Root, filepath.FromSlash(dir), candidate.CandidateMetadataName), raw, 0644); err != nil {
-		t.Fatal(err)
-	}
-	_, err = finalizeOperationCandidate(f.s, f.slug, prepared)
-	if err == nil || !strings.Contains(err.Error(), "candidate-unmodeled-change") {
-		t.Fatalf("staged unexplained change was not structurally refused: %v", err)
+	rel, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	tree := filepath.Join(f.s.Root, filepath.FromSlash(rel))
+	git(t, tree, "add", "--", "a.txt")
+	reused, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil || reused.Result != artifact.Result {
+		t.Fatalf("index staging changed a valid worktree proof: %+v %v", reused.Result, err)
 	}
 }
 

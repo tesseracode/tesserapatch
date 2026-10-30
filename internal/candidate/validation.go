@@ -35,10 +35,10 @@ func validateCandidate(
 	if err != nil {
 		return validationResult{}, err
 	}
-	if err := validateCandidateIndexBaseline(candidateRoot); err != nil {
+	if err := validateCandidateBaseline(candidateRoot); err != nil {
 		return validationResult{}, err
 	}
-	changes, err := changedPaths(candidateRoot)
+	changes, err := changedPaths(candidateRoot, treeBefore)
 	if err != nil {
 		return validationResult{}, err
 	}
@@ -68,7 +68,7 @@ func validateCandidate(
 			detail: "second-pass: " + secondPassReason(err),
 		}
 	}
-	if err := validateCandidateIndexBaseline(candidateRoot); err != nil {
+	if err := validateCandidateBaseline(candidateRoot); err != nil {
 		return validationResult{}, err
 	}
 	treeAfter, diffAfter, err := snapshotCandidateState(candidateRoot)
@@ -124,17 +124,12 @@ func buildEffectResolutionMap(plan Plan) ([]EffectResolution, error) {
 	return out, nil
 }
 
-func validateCandidateIndexBaseline(root *CandidateRoot) error {
+func validateCandidateBaseline(root *CandidateRoot) error {
 	if err := root.ensureAvailable(); err != nil {
 		return err
 	}
 	if err := root.validateReopenedCandidateAuthority(root.commit); err != nil {
 		return &refusal{code: "candidate-unmodeled-change", detail: err.Error()}
-	}
-	_, stderr, err := runGitWithIdentity(root.worktree, []string{"GIT_OPTIONAL_LOCKS=0"},
-		"diff", "--cached", "--quiet", "--exit-code", "--no-ext-diff", "--no-textconv", root.commit, "--")
-	if err != nil {
-		return &refusal{code: "candidate-unmodeled-change", detail: "candidate index differs from bound upstream: " + strings.TrimSpace(stderr)}
 	}
 	return nil
 }
@@ -144,15 +139,17 @@ func snapshotCandidateState(root *CandidateRoot) (treeHash, diff string, err err
 	if err != nil {
 		return "", "", err
 	}
-	diff, err = gitutil.CapturePatchScopedReadOnly(root.worktree.path, nil)
+	raw, stderr, err := runGitWithIdentity(root.worktree, []string{"GIT_OPTIONAL_LOCKS=0"},
+		"diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-renames", root.commit, treeHash, "--")
 	if err != nil {
-		return "", "", fmt.Errorf("capture candidate diff: %w", err)
+		return "", "", fmt.Errorf("capture candidate tree diff: %w: %s", err, strings.TrimSpace(stderr))
 	}
-	return treeHash, diff, nil
+	return treeHash, string(raw), nil
 }
 
-func changedPaths(root *CandidateRoot) (map[string]pathChange, error) {
-	trackedRaw, stderr, err := runGitWithIdentity(root.worktree, nil, "diff", "--raw", "--no-renames", "-z", "--")
+func changedPaths(root *CandidateRoot, treeHash string) (map[string]pathChange, error) {
+	trackedRaw, stderr, err := runGitWithIdentity(root.worktree, []string{"GIT_OPTIONAL_LOCKS=0"},
+		"diff", "--raw", "--no-ext-diff", "--no-textconv", "--no-renames", "-z", root.commit, treeHash, "--")
 	if err != nil {
 		return nil, fmt.Errorf("inspect candidate raw diff: %v: %s", err, strings.TrimSpace(stderr))
 	}
@@ -185,28 +182,6 @@ func changedPaths(root *CandidateRoot) (map[string]pathChange, error) {
 		oldMode := strings.TrimPrefix(fields[0], ":")
 		newMode := fields[1]
 		changes[normalized] = pathChange{oldMode: oldMode, newMode: newMode, oldPresent: oldMode != "000000"}
-	}
-	untrackedRaw, stderr, err := runGitWithIdentity(root.worktree, nil, "ls-files", "--others", "--exclude-standard", "-z")
-	if err != nil {
-		return nil, fmt.Errorf("inspect candidate untracked paths: %v: %s", err, strings.TrimSpace(stderr))
-	}
-	for _, entry := range bytes.Split(untrackedRaw, []byte{0}) {
-		if len(entry) == 0 {
-			continue
-		}
-		pathName := string(entry)
-		normalized, err := normalizeRelativePath(pathName)
-		if err != nil {
-			return nil, err
-		}
-		if _, seen := changes[normalized]; seen {
-			continue
-		}
-		info, err := root.worktree.root.Lstat(normalized)
-		if err != nil {
-			return nil, err
-		}
-		changes[normalized] = pathChange{oldMode: "000000", newMode: fileModeToGitMode(info.Mode()), oldPresent: false}
 	}
 	return changes, nil
 }

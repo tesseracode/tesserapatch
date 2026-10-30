@@ -98,6 +98,12 @@ inventory cases pass, but adding a second canonical-event call exposed an
 old S2 mutation anchor's file-wide uniqueness assumption. Give the snapshot
 reader's value its distinct captured name, retain the original gate mutation,
 and add a real event-formatting/no-stale regression before re-review.
+Use the stronger index-independent proof for the final correction: S4
+captures a materialized tree through its existing fresh private index and
+compares tree objects directly against bound upstream for paths/diff. This
+also rejects skip-worktree/assume-unchanged hiding while allowing staging of
+the exact modeled result. Terminal audit inventory reads only state first,
+so unpointed accepted/rejected artifact bodies do not gate unrelated preflight.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

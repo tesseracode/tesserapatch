@@ -50,11 +50,13 @@ integrity rechecks that never rely on mutable labels.
    terminal stale/rejected state changes; detect and finish safe interrupted
    pointer cleanup or refuse explicitly. A failed operation is not success,
    and this generation lifecycle does not introduce an acceptance journal.
-10. **Existing-worktree baseline**: the S4 diff/path checker assumes a pristine
-    index. Prove detached HEAD/registration and index equality to the bound
-    upstream before and after structural validation. A staged change is not
-    authority to hide a path from validation, even if stored integrity hashes
-    have been updated to match it.
+10. **Index-independent worktree proof**: verify detached HEAD/registration
+    before and after structural validation. Build a materialized worktree tree
+    through the existing fresh private index, then compare that immutable tree
+    directly with the bound upstream for both path-set and patch bytes.
+    Never compare the mutable candidate index with its worktree. This avoids
+    relying on staging/cache flags: staged unmodeled changes remain visible,
+    while merely staging the correct modeled result changes no proof.
 
 ## Non-goals in this draft
 

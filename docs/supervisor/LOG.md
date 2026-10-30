@@ -1,3 +1,19 @@
+## S5 Index-independent Proof Choice — 2026-10-30
+
+The actual staged-unrelated-file fixture returned unsafe success on old code;
+preserve that red evidence. Prefer an index-independent materialized-tree diff
+over merely asserting cached index equality: staging flags must not hide
+unknown content. Use the existing fresh private-index tree snapshot and
+compare immutable trees against bound upstream for paths and patch bytes.
+Add staged/skip-worktree/assume-unchanged cases and positive modeled staging.
+Keep fresh detached-HEAD/registration checks. ADR-048 records this choice.
+
+Also keep unpointed terminal audit bodies outside preflight inspection: list
+strict states, inspect live/incomplete metadata only, and refuse accepted IDs
+before immutable artifact parsing. This preserves the closed lifecycle contract.
+Corrected runtime/inventory tests passed at `0e82ec9`; final stronger proof
+and audit-boundary checks are now being validated before re-review.
+
 ## S5 Index Proof / Inventory Corrections — 2026-10-30
 
 Implement a fresh detached-HEAD/registration and pristine-index check around
