@@ -1645,6 +1645,8 @@ controls pass. Publish a code-approved checkpoint for full/native validation;
 the canonical APPROVED field denotes review approval, not S3 acceptance.
 Published checkpoint `083d20fb4daad0f3bada71122ac09f890feda710` is running
 the complete local gate and native CI `41016539598`; reviewed code is unchanged.
+Native CI now passes all five required jobs and Windows CLW-001..005;
+20/39 local test commands have passed at 07:56 UTC. Full-gate acceptance is pending.
 
 ### GH #13 — ✅ S2 eligibility ACCEPTED — 2026-10-29
 

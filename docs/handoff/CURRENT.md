@@ -5,7 +5,8 @@
 **Cluster state**: APPROVED
 
 This is S3 code/review approval, NOT stage acceptance. Full local/native
-validation is running at the published checkpoint; S4 remains blocked.
+validation is partially complete: native CI passes, local gate continues.
+S4 remains blocked.
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
 passes independent review, complete local/native validation and durable close.
@@ -16,7 +17,7 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Code and basic checks approved; full local/native validation running
+- **Status**: Code and native CI approved; full local gate still running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
@@ -49,10 +50,11 @@ Parent completed serial correction checks at
 `bin/roc-s3-20261030/complexity-source`; reviewer ran no Go.
 Full-gate shell `roc-s3-full-gate` is running from the clean isolated source
 in `bin/roc-s3-20261030/full-gate/`; this is the only local Go workload.
-Native watcher `roc-s3-native-ci` follows CI `41016539598`. Do not push
-tracking-only commits while that exact-tip run is active. Reviewed production/
-test bytes are identical at the published checkpoint. At 06:51 UTC, roughly
-11 hours remain in the authorized window.
+Native watcher `roc-s3-native-ci` completed successfully: CI `41016539598`
+passes all five required jobs with no failed steps. Actual Windows CLW-001
+through CLW-005 pass. Reviewed production/test bytes are identical at the
+published checkpoint. At 07:56 UTC, roughly ten hours remain; the local
+gate has passed 23 top-level commands / 20 test shards and is running AR19/20.
 Independent review returns NEEDS REVISION: ADR-045's direction is acceptable,
 but scanning the whole optimal-pair grid for every boundary is O(K*n*m).
 An in-contract 1023-by-1023 file with roughly 1023 boundaries exceeds a
@@ -123,11 +125,13 @@ Proposed ADR-045 and the overnight log record the implementation choices.
   vet (5.11s) and build (0.48s) also PASS. Every command was separately
   admitted, with normal pressure and zero new swap-outs. Re-review APPROVED.
 - Full-gate routing controls PASS, 9/9; no real Go workload in those controls.
+- Native CI `41016539598` PASS at `083d20f`: five required jobs, no failed
+  steps, actual Windows CLW-001..005 pass. Local gate still incomplete.
 - S2 closing-tip CI `41010587650` at `4702b10` PASS, five required jobs.
 
 ## Next Steps
 
-1. Await local gate and native CI at `083d20f`, preserving complete evidence.
+1. Await local gate at `083d20f`, preserving complete evidence; native CI passed.
 2. Complete 39-command/native validation with S3 WAVE_BASE; record
    decisions and failed attempts, not just successes.
 3. Close/archive/push S3 before selecting S4. Do not dispatch dependent work
