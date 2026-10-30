@@ -1669,6 +1669,8 @@ Final build passes too. Publish the reviewed S4 checkpoint for complete
 39-shard/native validation; S5 remains undispatched.
 Published `ed7efb28c0016615b09363b627a22385448b8869` now runs the full
 local gate and native CI `41039157086`, with reviewed code unchanged.
+Native CI passes all five jobs and actual Windows CLW cases; 20/39 local
+test commands have passed at 11:07 UTC. S4 acceptance remains pending.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

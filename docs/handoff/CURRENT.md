@@ -16,7 +16,7 @@ validation remains required before S5.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Final code and basic checks approved; complete local/native validation running
+- **Status**: Code and native CI approved; complete local gate still running
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
@@ -51,8 +51,10 @@ The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate now runs at the published checkpoint under shell `roc-s4-full-gate`,
 the only local Go workload, using the clean isolated full-history checkout
 `bin/roc-s4-20261030/full-gate/source`. Native watcher `roc-s4-native-ci`
-follows `41039157086`. Hold progress-only commits locally until exact-tip
-CI finishes. Reviewed production/test bytes are unchanged.
+completed successfully: `41039157086` passes all five required jobs, no
+failed steps, and actual Windows CLW-001..005 pass. Reviewed production/test
+bytes are unchanged. At 11:07 UTC the local gate has passed 23 top-level
+commands / 20 test shards and is running AR19/20; about 6.9 hours remain.
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
 runtime-confirmed OpenAI `gpt-5.3-codex`, read-only
 and no Go. Parent shell `roc-s4-parent-basic` completed admitted formatting,
@@ -155,6 +157,8 @@ These passes do not discharge the semantic review finding.
   zero swap-outs; see `s4-on006-targeted-pass-1` / `s4-on006-guards-pass-1`.
 - Final formatting/candidate package (5.399s)/vet (10.31s)/build (0.61s)
   PASS, normal pressure/no new swap-outs. Final code review APPROVED.
+- Native CI `41039157086` PASS: five required jobs, no failed steps,
+  actual Windows CLW-001..005 verified. Local gate remains incomplete.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
@@ -162,7 +166,7 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Await local gate and native CI at `ed7efb2`, preserving all evidence.
+1. Await local gate at `ed7efb2`, preserving all evidence; native CI passed.
 2. Resolve any failure without weakening guards; do not count partial runs.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
