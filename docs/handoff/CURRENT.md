@@ -104,6 +104,10 @@ compares tree objects directly against bound upstream for paths/diff. This
 also rejects skip-worktree/assume-unchanged hiding while allowing staging of
 the exact modeled result. Terminal audit inventory reads only state first,
 so unpointed accepted/rejected artifact bodies do not gate unrelated preflight.
+The first materialized-tree check stopped at compile time because the snapshot
+declaration still followed the path check. Move the initial snapshot before
+all structural checks and retain the same post-classifier comparison; any
+post-classifier baseline drift is reported as candidate-not-idempotent.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

@@ -38,6 +38,10 @@ func validateCandidate(
 	if err := validateCandidateBaseline(candidateRoot); err != nil {
 		return validationResult{}, err
 	}
+	treeBefore, diffBefore, err := snapshotCandidateState(candidateRoot)
+	if err != nil {
+		return validationResult{}, err
+	}
 	changes, err := changedPaths(candidateRoot, treeBefore)
 	if err != nil {
 		return validationResult{}, err
@@ -57,10 +61,6 @@ func validateCandidate(
 	if err := validateExpectedModeledContent(upstream, candidateRoot, plan); err != nil {
 		return validationResult{}, err
 	}
-	treeBefore, diffBefore, err := snapshotCandidateState(candidateRoot)
-	if err != nil {
-		return validationResult{}, err
-	}
 	secondPlan, err := derive(reference, candidateRoot, patch, effects)
 	if err != nil {
 		return validationResult{}, &refusal{
@@ -69,7 +69,7 @@ func validateCandidate(
 		}
 	}
 	if err := validateCandidateBaseline(candidateRoot); err != nil {
-		return validationResult{}, err
+		return validationResult{}, &refusal{code: "candidate-not-idempotent", detail: "second-pass baseline: " + secondPassReason(err)}
 	}
 	treeAfter, diffAfter, err := snapshotCandidateState(candidateRoot)
 	if err != nil {
