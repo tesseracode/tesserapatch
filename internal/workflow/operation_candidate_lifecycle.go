@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -494,6 +495,11 @@ func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *can
 	if prepared.owner == nil || prepared.eligibility.inputs == nil {
 		return candidate.CandidateArtifact{}, fmt.Errorf("candidate preparation is absent")
 	}
+	release, err := borrowOperationCandidateFeatureMutation(lock, prepared.repoPath, prepared.slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer release()
 	fresh, err := prepareOperationCandidateHeld(prepared.owner, prepared.slug, prepared.invocation, lock)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
@@ -507,6 +513,15 @@ func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *can
 	}
 	state, err := root.ReadState()
 	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if state.Status == candidate.CandidateStatusAccepted {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-already-accepted")
+	}
+	if state.Status == candidate.CandidateStatusRejected {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-rejected")
+	}
+	if err := matchOperationCandidateIdentity(fresh, existing); err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
 	reference, err := openOperationCandidateReference(prepared.repoPath, prepared.eligibility.referenceCommit)
@@ -536,6 +551,27 @@ func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *can
 		return candidate.CandidateArtifact{}, fmt.Errorf("%s", decision.RefusalCode)
 	}
 	return existing, nil
+}
+
+func matchOperationCandidateIdentity(prepared operationCandidatePrepared, artifact candidate.CandidateArtifact) error {
+	actual, err := candidate.IdentityTupleFromArtifact(artifact)
+	if err != nil {
+		return err
+	}
+	expected, err := candidate.IdentityTupleFromInput(candidate.CandidateIdentityInput{
+		SchemaVersion: candidate.CandidateSchemaVersion, Feature: prepared.slug,
+		SourceFeatureState: string(prepared.eligibility.sourceFeatureState),
+		ReferenceCommit:    prepared.eligibility.referenceCommit, UpstreamCommit: prepared.eligibility.upstreamCommit,
+		Bindings: operationCandidateBindings(prepared.eligibility), DerivationMode: candidate.CandidateDerivationModeSingle,
+		Operations: prepared.derivation.Operations, EffectMap: prepared.derivation.EffectMap,
+	})
+	if err != nil {
+		return err
+	}
+	if artifact.CandidateID != prepared.candidateID || !reflect.DeepEqual(actual, expected) {
+		return fmt.Errorf("candidate-id-collision")
+	}
+	return nil
 }
 
 // Finalization owns one continuous feature hold. Callers cannot inject an
@@ -589,6 +625,9 @@ func finalizeOperationCandidate(s *store.Store, slug string, expected operationC
 			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-already-accepted")
 		case candidate.CandidateStatusRejected:
 			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-rejected")
+		}
+		if err := matchOperationCandidateIdentity(prepared, artifact); err != nil {
+			return candidate.CandidateArtifact{}, err
 		}
 		prior = &artifact
 		present, err := upstream.CandidateWorktreePresent(slug, prepared.candidateID)

@@ -63,6 +63,11 @@ scope; retry uses a fresh admission/stage and preserves the failed log.
 Draft `808bb49` formats and candidate checks pass; workflow compilation
 stopped at the typed candidatelock.Code/string boundary. Corrected the local
 refusal-code slice/conversion; retry remains targeted and individually admitted.
+Runtime targeted cases now pass, but the old string-presence lifecycle guard
+failed its own mutation control because a second legitimate stale call masked
+the removed first call. Replace it with function-scoped AST ordering and a
+single preparation mint-site guard, retaining negative controls. Added explicit
+equal-result cross-candidate/repository and accepted-audit regressions.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

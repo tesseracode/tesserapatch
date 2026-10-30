@@ -517,6 +517,135 @@ func TestROCS5ResumePreparationUsesRealEligibility(t *testing.T) {
 	}
 }
 
+func TestROCS5ResumeReuseBindsRepositoryAndActualCandidate(t *testing.T) {
+	a, b := rocS2NewFixture(t, true), rocS2NewFixture(t, true)
+	pa, err := prepareOperationCandidate(a.s, a.slug, a.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aa, err := finalizeOperationCandidate(a.s, a.slug, pa)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pb, err := prepareOperationCandidate(b.s, b.slug, b.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ab, err := finalizeOperationCandidate(b.s, b.slug, pb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rb, err := candidate.OpenReferenceRoot(b.s.Root, b.invocation.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rb.Close()
+	rootB, err := candidate.OpenExistingCandidateRoot(rb, b.slug, ab.CandidateID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rootB.Close()
+	lock, _, err := acquireOperationCandidateFeatureLock(a.s.Root, a.slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := operationCandidateReuseCheck(pa, rootB, lock); err == nil {
+		t.Fatal("candidate in another repository granted reuse")
+	}
+	if err := lock.Release(); err != nil {
+		t.Fatal(err)
+	}
+
+	ra, err := candidate.OpenReferenceRoot(a.s.Root, a.invocation.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ra.Close()
+	oldRoot, err := candidate.OpenExistingCandidateRoot(ra, a.slug, aa.CandidateID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer oldRoot.Close()
+	a.recipe = append(a.recipe, '\n')
+	a.rebindRecipe()
+	a.save(t)
+	newPreparation, err := prepareOperationCandidate(a.s, a.slug, a.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newArtifact, err := finalizeOperationCandidate(a.s, a.slug, newPreparation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if aa.CandidateID == newArtifact.CandidateID || aa.Result != newArtifact.Result {
+		t.Fatal("fixture must have different identities but equal execution results")
+	}
+	lock, _, err = acquireOperationCandidateFeatureLock(a.s.Root, a.slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Release()
+	if _, err := operationCandidateReuseCheck(newPreparation, oldRoot, lock); err == nil {
+		t.Fatal("equal results promoted another candidate's metadata into reuse authority")
+	}
+}
+
+func TestROCS5ResumeAcceptedAuditCannotBeRecreated(t *testing.T) {
+	f := rocS2NewFixture(t, true)
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := candidate.OpenReferenceRoot(f.s.Root, f.invocation.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ref.Close()
+	root, err := candidate.OpenExistingCandidateRoot(ref, f.slug, artifact.CandidateID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	feature, global := acquireFeatureAndGlobalLocks(t, f.s.Root, f.slug)
+	state, err := root.ReadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Status, state.AcceptValidation = candidate.CandidateStatusAccepted, candidate.CandidateAcceptValidationStructural
+	if err := root.WriteState(state, feature); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Prune(feature, global); err != nil {
+		t.Fatal(err)
+	}
+	_ = global.Release()
+	_ = feature.Release()
+	status, _ := f.s.LoadFeatureStatus(f.slug)
+	status.Reconcile.OperationCandidate = nil
+	if err := f.s.SaveFeatureStatus(status); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := candidate.CandidateDirectoryRelative(f.slug, artifact.CandidateID)
+	before, err := os.ReadFile(filepath.Join(f.s.Root, filepath.FromSlash(dir), candidate.CandidateMetadataName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := finalizeOperationCandidate(f.s, f.slug, prepared); err == nil || !strings.Contains(err.Error(), "candidate-already-accepted") {
+		t.Fatalf("accepted audit did not refuse before recreation: %v", err)
+	}
+	after, err := os.ReadFile(filepath.Join(f.s.Root, filepath.FromSlash(dir), candidate.CandidateMetadataName))
+	if err != nil || string(before) != string(after) {
+		t.Fatal("immutable audit was overwritten")
+	}
+	present, err := ref.CandidateWorktreePresent(f.slug, artifact.CandidateID)
+	if err != nil || present {
+		t.Fatalf("accepted worktree was recreated: %t %v", present, err)
+	}
+}
+
 func TestROCS5ResumeFinalizationRechecksStateBindingsAndRejection(t *testing.T) {
 	for _, kind := range []string{"source-state", "recipe", "rejection", "recovery", "shadow", "other-feature"} {
 		t.Run(kind, func(t *testing.T) {

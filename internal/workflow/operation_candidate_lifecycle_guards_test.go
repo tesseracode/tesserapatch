@@ -2,33 +2,72 @@ package workflow
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"strings"
 	"testing"
 )
 
 func validateROCS5LifecycleSource(source string) error {
-	for _, needle := range []string{
-		"acquireOperationCandidateFeatureLock",
-		"findOperationCandidateRecoveryJournal",
-		"stalePendingOperationCandidate(s, slug, status, current, lock)",
-		"candidate.CandidateNeedsStaleMark",
-		"pruneOperationCandidateWorktree",
-		"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)",
-		"clearOperationCandidateRejectionsLocked",
-	} {
-		if !strings.Contains(source, needle) {
-			return fmt.Errorf("missing lifecycle authority %s", needle)
+	file, err := parser.ParseFile(token.NewFileSet(), "lifecycle.go", source, 0)
+	if err != nil {
+		return err
+	}
+	functions := map[string]*ast.FuncDecl{}
+	for _, decl := range file.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok {
+			functions[fn.Name.Name] = fn
 		}
 	}
-	lockIdx := strings.Index(source, "acquireOperationCandidateFeatureLock")
-	recoveryIdx := strings.Index(source, "findOperationCandidateRecoveryJournal")
-	staleIdx := strings.Index(source, "stalePendingOperationCandidate(s, slug, status, current, lock)")
-	if lockIdx < 0 || recoveryIdx < 0 || staleIdx < 0 || !(lockIdx < recoveryIdx && recoveryIdx < staleIdx) {
-		return fmt.Errorf("preflight order changed: lock -> recovery -> stale")
+	for name, ordered := range map[string][]string{
+		"runOperationCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "findOperationCandidateRecoveryJournal", "stalePendingOperationCandidate"},
+		"prepareOperationCandidateHeld":   {"borrowOperationCandidateFeatureMutation", "operationCandidateActionPreflight", "assessOperationCandidateEligibility", "candidate.DescribeDerivation", "candidate.ComputeCandidateID"},
+		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "execution.Root.WriteArtifact", "s.SaveFeatureStatus"},
+		"rejectPendingOperationCandidate": {"operationCandidateActionPreflight", "pruneOperationCandidateIfPresent", "appendRejectedOperationCandidate", "reference.WriteCandidateState", "s.SaveFeatureStatus"},
+	} {
+		fn := functions[name]
+		if fn == nil {
+			return fmt.Errorf("missing lifecycle function %s", name)
+		}
+		calls := map[string]token.Pos{}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			if call, ok := n.(*ast.CallExpr); ok {
+				callee := rocS2Selector(call.Fun)
+				if calls[callee] == 0 {
+					calls[callee] = call.Pos()
+				}
+			}
+			return true
+		})
+		var before token.Pos
+		for _, required := range ordered {
+			if calls[required] <= before {
+				return fmt.Errorf("%s loses ordered authority %s", name, required)
+			}
+			before = calls[required]
+		}
 	}
-	if strings.Contains(source, "OpenCandidateRoot(repoRoot") || strings.Contains(source, "CreateCandidateRoot(s.Root") {
-		return fmt.Errorf("lifecycle reintroduced bare-root candidate constructor forwarding")
+	mints := 0
+	for name, fn := range functions {
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			literal, ok := n.(*ast.CompositeLit)
+			if !ok || rocS2Selector(literal.Type) != "operationCandidatePrepared" || len(literal.Elts) == 0 {
+				return true
+			}
+			mints++
+			if name != "prepareOperationCandidateHeld" {
+				err = fmt.Errorf("preparation minted outside eligibility owner")
+			}
+			return true
+		})
+	}
+	if err != nil {
+		return err
+	}
+	if mints != 1 {
+		return fmt.Errorf("preparation must have exactly one mint site")
 	}
 	return nil
 }
@@ -43,17 +82,22 @@ func TestROCS5LifecycleSourceGuardAndSensitivity(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutation := range [][2]string{
-		{"acquireOperationCandidateFeatureLock", "skipLockAcquire"},
-		{"findOperationCandidateRecoveryJournal", "readRecoveryJournalAfterPrune"},
-		{"stalePendingOperationCandidate(s, slug, status, current, lock)", "noopStaleCandidate(s, slug, status, current, lock)"},
-		{"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)", "writeRejectedTimestamped(s.Root, slug, artifact, lock)"},
+		{"acquireOperationCandidateFeatureLock(s.Root, slug)", "skipLockAcquire(s.Root, slug)"},
+		{"findOperationCandidateRecoveryJournal(reference, slug)", "skipRecovery(reference, slug)"},
+		{"stalePendingOperationCandidate(s, slug, status, current, lock)", "skipStale(s, slug, status, current, lock)"},
+		{"assessOperationCandidateEligibility(s, slug, invocation)", "trustCallerEligibility(s, slug, invocation)"},
+		{"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)", "skipRejection(s.Root, slug, artifact, lock)"},
 	} {
-		if strings.Count(source, mutation[0]) == 0 {
-			t.Fatalf("missing mutation anchor %q", mutation[0])
-		}
 		mutant := strings.Replace(source, mutation[0], mutation[1], 1)
-		if err := validateROCS5LifecycleSource(mutant); err == nil {
-			t.Fatalf("lifecycle guard accepted mutation %q", mutation[1])
+		if mutant == source {
+			t.Fatalf("mutation anchor missing: %s", mutation[0])
 		}
+		if err := validateROCS5LifecycleSource(mutant); err == nil {
+			t.Fatalf("accepted authority mutation %s", mutation[0])
+		}
+	}
+	mutant := source + "\nfunc forgedPreparation() operationCandidatePrepared { return operationCandidatePrepared{candidateID:\"rc_000000000000\"} }\n"
+	if err := validateROCS5LifecycleSource(mutant); err == nil {
+		t.Fatal("accepted additional preparation mint")
 	}
 }
