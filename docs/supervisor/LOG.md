@@ -1,3 +1,11 @@
+## S5 Re-review / Broader Checks Active — 2026-10-30
+
+Same reviewer `7712b628` now checks frozen `108ed61`, requiring explicit
+finding-by-finding closure rather than accepting implementer assertions.
+Parent shell `roc-s5-revision-basic` is the sole local Go workload, admitted
+formatting/full affected/vet/build in a fresh clean checkout.
+No S5 publication/full-gate start or acceptance claim.
+
 ## S5 Revision Frozen — 2026-10-30
 
 Implementer returns `108ed6192b2630a581793eb3a94bc4593b53a517` at

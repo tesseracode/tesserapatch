@@ -66,6 +66,9 @@ artifact methods, reopening checks, opaque preparation and real reuse/
 publication callables. Independent reviewer must verify every finding and
 missing-scope item, especially mutation capabilities and interrupted transitions.
 Parent now owns all Go validation; implementer is idle.
+Reviewer `7712b628` is re-assessing frozen `108ed61` against each original
+finding. Parent shell `roc-s5-revision-basic` alone runs admitted
+formatting/full affected/vet/build in `reviewed-revision-source`.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
