@@ -1635,7 +1635,11 @@ snapshot/planner boundary without changing the accepted algorithm.
 S3 only: strict insertion runs, exact records/base boundaries/postimage proof,
 ordered A1-A8, literal L1-L3, all-optimal F/G unanimity, immutable-snapshot
 three-state classification and both motivating fixtures. No S4+ until this
-stage closes durably. S2 closing-tip CI `41010587650` is still running.
+stage closes durably. S2 closing-tip CI `41010587650` passes all five jobs.
+Initial review identified excessive per-boundary grid rescans; `87bb62a`
+uses one optimal-pair pass and existing matrix boundary columns, without a
+new limit. Exhaustive oracle, L3-ceiling dense-boundary fixture and negative
+controls pass; independent re-review and full/native validation remain pending.
 
 ### GH #13 — ✅ S2 eligibility ACCEPTED — 2026-10-29
 

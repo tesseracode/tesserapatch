@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
@@ -14,14 +14,14 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Basic checks pass; correcting per-boundary full-grid rescans found in review
+- **Status**: Complexity correction passes focused checks; independent re-review and basic revalidation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
   proposed implementation boundary in ADR-045
 - **Autonomy deadline**: approximately 2026-10-30 18:00 UTC / 11:00 PDT
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Frozen review checkpoint**: `16b2086fa2212f96d1fa0d02d8476debc5d9958f`
+- **Frozen review checkpoint**: `87bb62a519f6658a367571f1894112cd83407551`
 
 WAVE_BASE = 4702b10735681ca63145b67561f33d4612450e69
 
@@ -30,8 +30,8 @@ WAVE_BASE = 4702b10735681ca63145b67561f33d4612450e69
 The operator authorizes S3 and subsequent ready stages/clusters during the
 window, including implementation decisions recorded for later review.
 Fresh preflight confirms clean HEAD equals fetched origin/main at `4702b10`,
-no stashes and one main worktree. S2 closing-tip CI `41010587650` is still
-running; do not cancel it with an early push. S2's actual code/full-gate/native
+no stashes and one main worktree. S2 closing-tip CI `41010587650` has now
+completed successfully, all five required jobs. S2's actual code/full-gate/native
 acceptance at `8d3b9ef` is unchanged.
 
 Read PRD sections 6.6-6.7.1, S3 and its matrix. The strict patch grammar and
@@ -40,12 +40,12 @@ read-only reconstruction are available; persisted recipe bodies must not
 become cross-base actions.
 
 Independent reviewer: `d8ddcd54-7b2c-4568-9215-69305451f069`,
-explicitly requested OpenAI `gpt-5.3-codex` (confirm runtime on return).
-Parent shell `roc-s3-review-validation` owns the serial Go checks at
-`bin/roc-s3-20261030/bounded-source`; do not launch another workload.
+confirmed runtime OpenAI `gpt-5.3-codex`. The initial basic validator completed.
+Parent owns the serial correction checks at
+`bin/roc-s3-20261030/complexity-source`; reviewer runs no Go.
 The byte-identical full-gate harness is prepared in
 `bin/roc-s3-20261030/full-gate/` but is not configured or running.
-At 06:30 UTC, roughly 11.5 hours remain in the authorized window.
+At 06:44 UTC, roughly 11.25 hours remain in the authorized window.
 Independent review returns NEEDS REVISION: ADR-045's direction is acceptable,
 but scanning the whole optimal-pair grid for every boundary is O(K*n*m).
 An in-contract 1023-by-1023 file with roughly 1023 boundaries exceeds a
@@ -57,7 +57,9 @@ bounds first, then index optimal-pair prefix/suffix extrema in one grid pass.
 Reuse F's last column and G's first column only after cut extraction: those
 cells are not read by the optimal-pair predicate. This preserves the exact
 two-matrix/8 MiB bound and O(n*m) total work, since K <= n+1 after combination.
-Document the proof in ADR-045 and test the L3-ceiling/many-boundary case.
+Implemented at `87bb62a`: ADR-045 records the proof; the exhaustive oracle,
+1024-boundary L3-ceiling fixture and mutation-sensitive work guards pass.
+Classification still checks refusals in original boundary order.
 
 ## Current State — bounded S3 scope
 
@@ -104,12 +106,17 @@ Proposed ADR-045 and the overnight log record the implementation choices.
   formatting passes, broader validation is next.
 - S2 accepted at `8d3b9ef`: 8/8 gate, 42/42 commands including 39/39 tests,
   native CI `41000838573` all five required jobs pass.
-- S2 closing-tip CI `41010587650` at `4702b10` remains in progress.
+- Basic checks at `16b2086` PASS: affected packages 138.49s, vet 8.98s,
+  build 0.50s; normal pressure and zero new swap-outs.
+- Corrected `87bb62a` passes admitted formatting and focused candidate tests
+  (1.939s), including exhaustive equivalence, empty sides and dense boundaries.
+  Complete affected/vet/build revalidation and independent re-review follow.
+- S2 closing-tip CI `41010587650` at `4702b10` PASS, five required jobs.
 
 ## Next Steps
 
-1. Review frozen `16b2086` and ADR-045 independently while the parent alone
-   runs admitted affected packages, vet and build in a clean checkout.
+1. Re-review frozen `87bb62a` and ADR-045 independently while the parent alone
+   reruns admitted formatting, affected packages, vet and build in a clean checkout.
 2. Resolve findings, then complete 39-command/native validation; record
    decisions and failed attempts, not just successes.
 3. Close/archive/push S3 before selecting S4. Do not dispatch dependent work
@@ -127,8 +134,8 @@ clean isolated full-gate sources/caches, exact CI parity and owned cleanup.
 
 ## Blockers
 
-No implementation blocker identified. Do not push while the preceding
-exact-tip CI is running. ADR-045 and S3 remain unaccepted until review/validation.
+Complexity finding is corrected but awaits independent closure. ADR-045 and
+S3 remain unaccepted until review/validation. Predecessor CI is complete.
 
 ## Context for Next Agent
 

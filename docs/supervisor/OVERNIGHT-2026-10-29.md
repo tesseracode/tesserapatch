@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Revising complexity finding | `16b2086` | Basic checks pass; review requires one-pass optimal-pair indexing |
+| GH #13 S3 | Correction awaiting re-review | `87bb62a` | One-pass indexing, oracle/ceiling/negative controls pass; full/native pending |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
@@ -62,8 +62,8 @@ the exhaustive oracle and a many-boundary case at the L3 ceiling.
 
 ## Operator review notes
 
-S0-S2 are accepted. S2 closing-tip CI `41010587650` is still running at initial
-S3 dispatch; S2 code was already fully validated at `8d3b9ef`.
+S0-S2 are accepted. S2 closing-tip CI `41010587650` now passes all five
+required jobs; S2 code was already fully validated at `8d3b9ef`.
 Upstream Git-strategy research remains queued, not automatically selected
 ahead of already accepted implementation slices.
 

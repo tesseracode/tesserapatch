@@ -1,3 +1,17 @@
+## S3 Correction Re-review — 2026-10-30
+
+Freeze `87bb62a519f6658a367571f1894112cd83407551`. One optimal-pair
+pass reuses F's last/G's first columns after cut extraction; no new limit,
+extra integer vector or changed first-refusal order. ADR-045 contains the
+equivalence/budget proof. Admitted formatting and candidate checks pass
+(1.939s), including exhaustive oracle, empty sides, 1024-boundary cell-ceiling
+case and mutation-sensitive resource/work guards.
+
+Return to the same independent reviewer for explicit finding closure and
+ADR-045 decision. Parent alone reruns affected/vet/build checks. Predecessor
+closing CI `41010587650` is now green on all five required jobs. S3 remains
+unaccepted; no S4 dispatch.
+
 ## Review — S3 complexity revision — 2026-10-29
 
 Reviewer `d8ddcd54-7b2c-4568-9215-69305451f069` (runtime metadata:
