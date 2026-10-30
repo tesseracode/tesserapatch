@@ -1623,7 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — ✅ S4 candidate execution and validation ACCEPTED — 2026-10-30
+### GH #13 — 🚧 S4 conformance repair; S5 BLOCKED — 2026-10-30
+
+S4 acceptance is reopened after prerequisite inspection found Execute's bare
+repoRoot forwarding and an execution-spanning required global lock handle,
+contrary to PRD 6.9/6.13. Prior review/full gates passed but missed these
+invariants; preserve their archive, do not call S5 ready.
+Repair WAVE_BASE `78e501c5ef0985a79fca177a888d97eb956de4e6`.
+Restore typed execution, feature-borrow lifetime and short global holds,
+strengthen discriminating guards, then repeat independent/full/native gates.
+
+### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 
 **Accepted checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`.
 **Validated range**: `5d22acfc389d6cb264b994f87c00da31886f1171..ed7efb2`.

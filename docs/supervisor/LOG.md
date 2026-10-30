@@ -1,3 +1,23 @@
+## S4 Acceptance Reopened — Typed-root / Lock Conformance — 2026-10-30
+
+During S5 prerequisite inspection, parent found two concrete contract gaps
+in the already-reviewed/pushed S4 API: execute.go `Execute` and
+`executeWithPlan` accept a bare `repoRoot string` outside the two sanctioned
+constructors (PRD 6.9 / ROC-120); both also require the same global handle for
+create and failure-prune across execution, rather than limiting that hold
+to worktree add/remove (PRD 6.13). The source guard did not detect the
+forwarded bare-root boundary. Prior tests/review genuinely passed, but were
+insufficient to establish these invariants; do not conceal that acceptance gap.
+
+S5 is BLOCKED before any implementation. Reopen S4 for a narrow conformance
+repair from fresh fetched WAVE_BASE
+`78e501c5ef0985a79fca177a888d97eb956de4e6`. Preserve the historical acceptance
+archive and commits; no reset/rewrite. Restore a typed execution boundary,
+pin the caller feature capability across mutation, acquire global only for
+create/prune, and add runtime contention plus forwarded-root negative guards.
+Record the ownership choice in proposed ADR-047, then require independent
+review and a fresh complete local/native gate before restoring acceptance.
+
 ## Acceptance — GH #13 S4 candidate execution — 2026-10-30
 
 ACCEPTED at `ed7efb28c0016615b09363b627a22385448b8869`, range

@@ -18,8 +18,8 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
-| GH #13 S4 | ACCEPTED; archiving/pushing closure | published `ed7efb2`, reviewed `1bc18c9` | Review approved; 39/39 local tests; native five jobs + Windows CLW pass |
-| GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
+| GH #13 S4 | Prior acceptance reopened for conformance repair | repair WAVE_BASE `78e501c` | Prior green review/gates missed bare-root forwarding and global-lock scope |
+| GH #13 S5+ | BLOCKED; no implementation | Depends on repaired S4 | Pending |
 
 ## Decisions
 
@@ -83,6 +83,15 @@ payloads at derived positions before running the production second pass;
 then require every effect present with stable tree/diff. This preserves both
 ROC-140's postcondition refusal and mandatory candidate-not-idempotent
 second-pass outcomes, rather than relabeling one as the other.
+
+### ON-007 — Reopen green work when contract evidence contradicts it
+
+Prerequisite inspection exposed bare-root arguments in S4 Execute/executeWithPlan
+and a required global handle spanning execution. Both contradict the accepted
+typed-root/short-lock contract despite green tests and review. Do not proceed
+to S5 or rationalize the API; repair under a new recorded wave base, preserve
+the original acceptance audit, and repeat full review/validation. ADR-047
+will document the typed execution and lock-ownership correction.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

@@ -2,31 +2,42 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
 
-GH #13 S4 is ACCEPTED at `ed7efb28c0016615b09363b627a22385448b8869`.
-Independent review, complete local gate and native CI pass. S0-S4 are
-accepted; archive and push closure before assigning S5. The autonomous
-window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
+S4's prior acceptance is REOPENED for typed-root/lock conformance gaps found
+during S5 prerequisite inspection. S5 has no implementation and is blocked.
+Historical acceptance/validation remains archived truthfully; do not rewrite it.
+The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 
 ## Active Task
 
-- **Task ID**: `implement-operation-replay-candidate-s4`
+- **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
-- **Description**: Closed candidate execution, structural validation,
-  production-classifier idempotency and total absorption accounting
-- **Status**: Accepted — review, full local gate and native CI pass
+- **Description**: Repair typed execution boundary and short global-lock scope
+- **Status**: In progress — S4 acceptance reopened before S5
 - **Assigned**: 2026-10-30
-- **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
+- **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
 - **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Reviewed code**: `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`
-- **Validated checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
-- **Native CI**: `41039157086`
+- **Prior reviewed code**: `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`
+- **Prior validated checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
+- **Prior native CI**: `41039157086`
 
-WAVE_BASE = 5d22acfc389d6cb264b994f87c00da31886f1171
+WAVE_BASE = 78e501c5ef0985a79fca177a888d97eb956de4e6
 
 ## Session Summary
+
+Post-close parent inspection found that Execute/executeWithPlan accept
+repoRoot strings outside the two allowed constructors, and retain a required
+global handle across execution for both create and abandon/prune. These
+contradict PRD 6.9/6.13 despite prior green review/tests. The source guard
+misses forwarded-root arguments. Restore typed inputs and short global holds;
+pin feature capability across mutation. Add real contention/lifetime tests
+and a negative guard reproducing the missed old signatures. ADR-047 records
+the correction choice; do not weaken the accepted two-constructor contract.
+No S5 code or phase wiring is authorized until this repair closes.
+
+The remainder records the prior S4 work/evidence, not approval of the gaps.
 
 S4 followed accepted/pushed S3 closure `5d22acf`. Implementation agent
 `26ea48b1-7dd4-4141-a2cc-73aac199ce33` and independent reviewer
@@ -64,9 +75,9 @@ idempotency; total absorbed-present/candidate-applicable effect accounting.
 Generation runs no configured tests and does not mutate live repository
 content outside the four explicitly expected write sets.
 
-Feature-lock ownership spans execution/finalization; global worktree mutation
-lock is limited to add/remove. Existing S1 primitives borrow caller-held
-capabilities. Alignment algorithm/limits and S2 default-off gate are unchanged.
+Existing S1 primitives borrow caller-held capabilities, but S4's outer API
+does not yet prove the required feature lifetime/short global scope. That is
+the repair target. Alignment algorithm/limits and S2 default-off gate are unchanged.
 
 No S5 artifacts/identity/state/status pointers, S6 phase wiring, S7 CLI,
 acceptance transaction, release or deferred research was implemented.
@@ -109,10 +120,10 @@ native watcher processes completed. Do not delete prior evidence.
 
 ## Next Steps
 
-1. Archive this terminal handoff and push S4 closure.
-2. Fetch/record a fresh S5 wave base, then scope accepted PRD S5 only.
-3. Keep independent review, complete local/native gates and explicit deadline
-   checkpointing. Roughly six authorized hours remain at S4 gate completion.
+1. Correct only S4 typed execution/lock ownership and add discriminating tests.
+2. Independently review and fully validate the repair with its new WAVE_BASE.
+3. Archive/push repaired acceptance before considering S5; preserve unfinished
+   work explicitly at the autonomy deadline.
 
 ## Validation Policy
 
@@ -125,7 +136,7 @@ per-process timeouts, clean isolated sources/caches. Never enable goldens.
 
 ## Blockers
 
-None. S4 and ADR-046 are accepted; S5 is eligible after durable closure.
+S4 boundary/lock conformance gaps block S5. Prior green gates are not sufficient.
 
 ## Context for Next Agent
 
