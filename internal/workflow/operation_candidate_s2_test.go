@@ -29,6 +29,7 @@ func rocS2NewFixture(t *testing.T, creation bool) *rocS2Fixture {
 	git(t, s.Root, "config", "user.email", "test@example.invalid")
 	git(t, s.Root, "config", "user.name", "test")
 	git(t, s.Root, "config", "commit.gpgsign", "false")
+	git(t, s.Root, "config", "tag.gpgsign", "false")
 	if !creation {
 		writeRepoFile(t, s, "a.txt", []byte("old\n"))
 		git(t, s.Root, "add", "a.txt")
@@ -161,6 +162,7 @@ func TestROCS2EligibilityReasonsAndFirstMatch(t *testing.T) {
 			}
 		}},
 		{name: "hash-before-decode", gate: 6, reason: "binding-hash-drift", mutate: func(t *testing.T, f *rocS2Fixture) { f.recipe = []byte("invalid") }},
+		{name: "patch-hash-before-reconstruction", gate: 6, reason: "binding-hash-drift", mutate: func(t *testing.T, f *rocS2Fixture) { f.patch = append([]byte("changed\n"), f.patch...) }},
 		{name: "raw-recipe-format", gate: 6, reason: "binding-hash-drift", mutate: func(t *testing.T, f *rocS2Fixture) { f.recipe = append(f.recipe, '\n') }},
 		{name: "decode-before-owner", gate: 7, reason: "recipe-undecodable", mutate: func(t *testing.T, f *rocS2Fixture) {
 			f.recipe = []byte(`{"feature":"other","operations":null}`)
@@ -171,7 +173,29 @@ func TestROCS2EligibilityReasonsAndFirstMatch(t *testing.T) {
 		{name: "reference-missing-local", gate: 9, reason: "reference-not-reconstructable", mutate: func(t *testing.T, f *rocS2Fixture) {
 			f.event.Reference.Commit, f.coverage.Reference.Commit = strings.Repeat("f", 40), strings.Repeat("f", 40)
 		}},
+		{name: "reference-preimage-digest", gate: 9, reason: "reference-not-reconstructable", mutate: func(t *testing.T, f *rocS2Fixture) {
+			writeRepoFile(t, f.s, "a.txt", []byte("old\nextra\n"))
+			git(t, f.s.Root, "add", "a.txt")
+			git(t, f.s.Root, "commit", "-qm", "different reference tree")
+			commit := strings.TrimSpace(gitOutput(t, f.s.Root, "rev-parse", "HEAD"))
+			f.event.Reference.Commit, f.coverage.Reference.Commit = commit, commit
+		}},
 		{name: "upstream-missing-local", gate: 9, reason: "reference-not-reconstructable", mutate: func(t *testing.T, f *rocS2Fixture) { f.invocation.upstreamCommit = strings.Repeat("f", 40) }},
+		{name: "upstream-tag-object", gate: 9, reason: "reference-not-reconstructable", after: func(t *testing.T, f *rocS2Fixture) {
+			git(t, f.s.Root, "tag", "-a", "not-a-commit", "-m", "tag object")
+			f.invocation.upstreamCommit = strings.TrimSpace(gitOutput(t, f.s.Root, "rev-parse", "not-a-commit"))
+		}},
+		{name: "upstream-missing-blob", gate: 9, reason: "reference-not-reconstructable", after: func(t *testing.T, f *rocS2Fixture) {
+			git(t, f.s.Root, "config", "gc.auto", "0")
+			writeRepoFile(t, f.s, "a.txt", []byte("upstream-only object\n"))
+			git(t, f.s.Root, "add", "a.txt")
+			git(t, f.s.Root, "commit", "-qm", "upstream")
+			f.invocation.upstreamCommit = strings.TrimSpace(gitOutput(t, f.s.Root, "rev-parse", "HEAD"))
+			blob := strings.TrimSpace(gitOutput(t, f.s.Root, "rev-parse", "HEAD:a.txt"))
+			if err := os.Remove(filepath.Join(f.s.Root, ".git", "objects", blob[:2], blob[2:])); err != nil {
+				t.Fatal(err)
+			}
+		}},
 		{name: "fragment-drift", gate: 10, reason: "effect-binding-drift", mutate: func(t *testing.T, f *rocS2Fixture) {
 			f.coverage.Effects[0].PatchFragmentSHA256 = strings.Repeat("f", 64)
 			f.event.Observations[0].PatchFragmentSHA256 = strings.Repeat("f", 64)
@@ -184,6 +208,14 @@ func TestROCS2EligibilityReasonsAndFirstMatch(t *testing.T) {
 		{name: "event-facts", gate: 10, reason: "effect-binding-drift", mutate: func(t *testing.T, f *rocS2Fixture) { f.event.Event.StaleMarkerPresent = true }},
 		{name: "unsupported-witness", gate: 11, reason: "recipe-unsupported", mutate: func(t *testing.T, f *rocS2Fixture) {
 			f.changeRecipe(t, func(r *ApplyRecipe) { r.Operations[0].CreatedBy = "parent" })
+		}},
+		{name: "false-witness-content", gate: 11, reason: "recipe-unsupported", mutate: func(t *testing.T, f *rocS2Fixture) {
+			f.changeRecipe(t, func(r *ApplyRecipe) { r.Operations[0].Content = "not the patch postimage\n" })
+		}},
+		{name: "surplus-witness", gate: 11, reason: "recipe-unsupported", mutate: func(t *testing.T, f *rocS2Fixture) {
+			f.changeRecipe(t, func(r *ApplyRecipe) {
+				r.Operations = append(r.Operations, rgaS3Write("extra.txt", "", "extra\n", true))
+			})
 		}},
 		{name: "stale-before-unsupported", gate: 11, reason: "recipe-stale-marker-present", mutate: func(t *testing.T, f *rocS2Fixture) {
 			f.changeRecipe(t, func(r *ApplyRecipe) { r.Operations[0].CreatedBy = "parent" })

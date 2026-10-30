@@ -80,6 +80,24 @@ func TestTreeHashIgnoresReplaceObjects(t *testing.T) {
 	}
 }
 
+func TestHardenedGitEnvScrubsCaseInsensitiveRouting(t *testing.T) {
+	names := []string{
+		"git_dir", "git_work_tree", "git_index_file", "git_common_dir",
+		"git_config_parameters", "git_config_count", "git_config_key_0", "git_config_value_0",
+	}
+	for _, name := range names {
+		t.Setenv(name, "untrusted")
+	}
+	for _, entry := range HardenedNoLazyGitEnv() {
+		name, _, _ := strings.Cut(entry, "=")
+		for _, poisoned := range names {
+			if strings.EqualFold(name, poisoned) {
+				t.Fatalf("case-insensitive Git routing/config survived: %s", name)
+			}
+		}
+	}
+}
+
 func TestTreeHashUsesNoLazyFetchEnvelope(t *testing.T) {
 	root := treeHashRepo(t)
 	realGit, err := exec.LookPath("git")

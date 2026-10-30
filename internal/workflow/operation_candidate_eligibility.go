@@ -244,6 +244,13 @@ func (c *operationEligibilityContext) references() bool {
 	if patchobs.PreimageSetDigest(obs.Effects) != reference.PreimageSetSHA256 {
 		return c.refuse("reference-not-reconstructable", "recomputed preimage-set digest differs")
 	}
+	paths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		paths = append(paths, row.Effect.Path)
+	}
+	if err := upstream.CheckPaths(paths); err != nil {
+		return c.refuse("reference-not-reconstructable", "upstream: "+err.Error())
+	}
 	c.observation = obs
 	c.result.referenceCommit, c.result.upstreamCommit = base.Commit(), upstream.Commit()
 	return true

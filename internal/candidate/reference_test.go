@@ -41,6 +41,9 @@ exec %q "$@"
 	if err := ref.CheckTree(); err != nil {
 		t.Fatal(err)
 	}
+	if err := ref.CheckPaths([]string{"tracked.txt", "absent.txt"}); err != nil {
+		t.Fatal(err)
+	}
 	patch := "diff --git a/tracked.txt b/tracked.txt\nindex 1111111..2222222 100644\n--- a/tracked.txt\n+++ b/tracked.txt\n@@ -1 +1 @@\n-v1\n+v2\n"
 	rows, err := ref.ReconstructPatch(patch)
 	if err != nil || len(rows) != 1 || string(rows[0].Pre.Bytes) != "v1\n" || string(rows[0].Post.Bytes) != "v2\n" {

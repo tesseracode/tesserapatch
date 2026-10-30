@@ -1,3 +1,22 @@
+## Focused Pass and Offline Follow-up — GH #13 S2 — 2026-10-29
+
+Initial `d5f921e` focused validation passes workflow (8.771s), candidate
+(1.018s), store (0.502s), including S0 controls and the ordered S2 fixtures.
+No resource stop. Broader validation remains pending.
+
+Parent trace identifies two gaps before freezing review: an upstream tree
+existence check alone misses absent affected blobs and can dereference a tag
+object ID; inherited Git variable names must also be scrubbed case-insensitively
+for Windows. Add bounded object-availability checks through ReferenceRoot,
+without loading upstream bodies or imposing a new body-size limit, and extend
+the shared scrubber narrowly. Prove the new regressions fail against the
+earlier draft, then rerun full affected packages. No phase/CLI wiring.
+
+Negative controls now reproduce all three gaps against `d5f921e`: the tag and
+missing upstream blob incorrectly qualify, and lowercase Git routing survives.
+The expected failures are retained in `s2-offline-negative-20261029`.
+Formatting passes; corrected affected-package validation is next.
+
 ## Implementation Draft — GH #13 S2 eligibility — 2026-10-29
 
 The parent implements the closed fifteen-stage evaluator without calling it

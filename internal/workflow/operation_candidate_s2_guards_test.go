@@ -201,7 +201,7 @@ func rocS2EligibilitySourceGuard(src string) error {
 		"coverageUsable":     {"DecodeRecipeCoverage"},
 		"captureEvent":       {"DecodeRecipeCaptureEvent", "RecipeCaptureEventIdentity"},
 		"recipeDecodable":    {"decodeCoverageRecipe"},
-		"references":         {"candidate.OpenReferenceRoot", "base.ReconstructPatch", "upstream.CheckTree", "patchobs.PreimageSetDigest", "reconstructedObservation"},
+		"references":         {"candidate.OpenReferenceRoot", "base.ReconstructPatch", "upstream.CheckTree", "upstream.CheckPaths", "patchobs.PreimageSetDigest", "reconstructedObservation"},
 		"witnessesSupported": {"coverageParents", "coverageAssignments", "simulateCoverage"},
 	} {
 		fn := methods[method]
@@ -251,6 +251,8 @@ func TestROCS2EligibilitySourceGuardSensitivity(t *testing.T) {
 		{"DecodeRecipeCoverage(read.Bytes)", "privateLenientDecoder(read.Bytes)"},
 		{"DecodeRecipeCaptureEvent(read.Bytes)", "eventCopiedFromCoverage(c.coverage)"},
 		{"RecipeCaptureEventIdentity(event)", "rawEventHash(read.Bytes)"},
+		{"upstream.CheckPaths(paths)", "checkUpstreamFromLiveTree(paths)"},
+		{"patchobs.PreimageSetDigest(obs.Effects)", "c.event.Reference.PreimageSetSHA256"},
 		{"decodeCoverageRecipe(c.snapshot.Recipe.Bytes)", "trustRecipeDecodableFlag(c.coverage)"},
 		{"c.coverage, c.event,", "c.coverage, RecipeCaptureEvent{},"},
 		{"if !gate() {", "if false {"},

@@ -31,6 +31,7 @@ func HardenedNoLazyGitEnv(extra ...string) []string {
 }
 
 func scrubHardenedGitVariable(name string) bool {
+	name = strings.ToUpper(name)
 	switch name {
 	case "GIT_DIR",
 		"GIT_WORK_TREE",

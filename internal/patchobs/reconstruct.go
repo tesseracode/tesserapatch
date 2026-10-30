@@ -3,6 +3,7 @@ package patchobs
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
@@ -38,6 +39,41 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 // candidate reads from inherited Git routing, configuration and replacements.
 func ReconstructOffline(root, commit, patch string) ([]ReconstructedEffect, error) {
 	return reconstructWithEnv(root, commit, patch, gitutil.HardenedNoLazyGitEnv("GIT_OPTIONAL_LOCKS=0"))
+}
+
+// CheckCommitPathsOffline proves affected upstream objects exist without
+// retaining their bodies or introducing another source-image size limit.
+func CheckCommitPathsOffline(root, commit string, paths []string) error {
+	env := gitutil.HardenedNoLazyGitEnv("GIT_OPTIONAL_LOCKS=0")
+	if resolved, ok := resolveCommitWithEnv(root, commit+"^{commit}", env); !ok || resolved != commit {
+		return fmt.Errorf("named local reference is unavailable or is not a commit")
+	}
+	tree := readTreeEntriesWithEnv(root, commit, paths, env)
+	if !tree.read {
+		return fmt.Errorf("cannot read named local reference tree")
+	}
+	ids := neededBlobIDs(tree)
+	if len(ids) == 0 {
+		return nil
+	}
+	raw, err := runGitWithEnv(root, []byte(strings.Join(ids, "\n")+"\n"), env, "cat-file", "--batch-check")
+	if err != nil {
+		return fmt.Errorf("cannot inspect local tree objects: %w", err)
+	}
+	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+	if len(lines) != len(ids) {
+		return fmt.Errorf("local object inventory is incomplete")
+	}
+	for i, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) != 3 || fields[0] != ids[i] || (fields[1] != "blob" && fields[1] != "tree") {
+			return fmt.Errorf("required upstream object is unavailable")
+		}
+		if size, err := strconv.ParseInt(fields[2], 10, 64); err != nil || size < 0 {
+			return fmt.Errorf("invalid local object size")
+		}
+	}
+	return nil
 }
 
 func reconstructWithEnv(root, commit, patch string, env []string) ([]ReconstructedEffect, error) {

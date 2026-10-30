@@ -49,6 +49,14 @@ The result retains hashes/state only, not reconstructed body arrays or roots.
 Repository config emits the new key only for explicit true, preserving
 gate-off YAML bytes. The S2 scope allowlist extends the stage boundary only;
 S1 and golden-capture permissions remain unchanged.
+Draft `d5f921e` passes initial focused workflow/S0/S2, candidate-envelope and
+config tests. Before broader validation, strengthen upstream reconstruction:
+checking only the tree object misses an absent affected blob and accepts an
+annotated tag's object ID. The typed root now checks affected object availability
+through bounded metadata plumbing, without retaining upstream bodies or adding
+another image-size limit. Also normalize inherited Git variable names before
+scrubbing, since Windows names are case-insensitive. Regressions must fail
+against the earlier draft; no new API/phase behavior is added.
 
 ## Current State — bounded S2 scope
 
@@ -80,6 +88,8 @@ Production draft: `internal/workflow/operation_candidate_eligibility.go`,
 `internal/candidate/reference.go`, shared reconstruction/environment
 plumbing in `internal/patchobs/{gitread,reconstruct}.go`, and repository
 config in `internal/store/{types,store}.go`.
+Directly coupled hardening: case-insensitive routing/config scrubbing in
+`internal/gitutil/hardened_env.go`, with its existing test file extended.
 Tests: new S2 workflow runtime/source guards and candidate reference tests;
 store roundtrip regression; finite S2 stage permissions in the S0 scope guard.
 Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
@@ -91,6 +101,14 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
   eighteen gate reasons, first-match/sub-check order, all refused lifecycle
   states, canonical E identity, malformed/unreadable inputs, no live writes,
   captured parent exclusion, no-fetch/environment and config roundtrip behavior.
+- `d5f921e` focused suite PASS: workflow 8.771s, candidate 1.018s, store
+  0.502s; stage `s2-draft-focused-20261029`, fresh admission, no resource stop.
+  Upstream-object/case-variant follow-ups are not yet validated.
+- The new upstream-tag, missing-blob and case-insensitive-environment
+  regressions fail against the earlier draft at their intended assertions,
+  stage `s2-offline-negative-20261029`. This is a deliberate negative control,
+  not a current-code result. Formatting of the corrections passes; preserve
+  that failure evidence and run the corrected affected packages next.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.
