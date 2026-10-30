@@ -1668,6 +1668,9 @@ local/native validation remain required.
 PIB-477 and its AP observer now pass after fresh admission (6.76s/134.46s),
 with normal pressure and zero new swap-outs. Prepare a new reviewed checkpoint
 and complete local/native retry; prior interrupted shards do not count.
+Reviewed retry checkpoint `8d3b9ef` is published. Native CI `41000838573` and
+the fresh full local 39-shard gate are running; first five mechanical checks
+pass. S2 remains unaccepted until both complete.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

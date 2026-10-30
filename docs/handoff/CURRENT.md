@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Reviewed exact-schema correction passes PIB-477 and observer; preparing full/native retry
+- **Status**: Full 39-shard and native retry running at reviewed 8d3b9ef
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -22,7 +22,7 @@ upstream Git-strategy research is authorized.
 - **Frozen S2 review checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`
 - **Reviewed inventory correction**: `b18977042b79a7e9e2c378f49c97469d93fa03bd`
 - **Reviewed schema correction**: `a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`
-- **Published validation checkpoint**: `1b2f7064761e84d11cf5b04ca3aaa9b7c374c7c8`
+- **Published validation checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`
 
 WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
 
@@ -147,6 +147,15 @@ AP observer 134.46s. Each receives fresh admission; pressure remains normal
 and no new swap-outs occur. Prepare a new published checkpoint and restart
 all 39 local test commands plus native CI from fresh evidence/caches.
 No partial result from the interrupted run is credited to the retry.
+Retry checkpoint `8d3b9ef` is published and verified equal to origin/main;
+only tracking differs from reviewed `a5af08e`. Full gate shell
+`roc-s2-full-gate-8d3b9ef` runs from the new clean checkout/fresh caches in
+`bin/roc-s2-20261029/full-gate-retry1/`, with original S2 WAVE_BASE `bd95a23`
+and all 42 top-level/39 test commands. First five mechanical checks pass,
+including all fifteen S2 wave trailers; no complete result is claimed.
+Native retry `41000838573` is watched by `roc-s2-native-ci-8d3b9ef`,
+with log `bin/roc-s2-20261029/native-ci-8d3b9ef.log`.
+Keep progress commits local until these exact-checkpoint runs finish.
 
 ## Current State — bounded S2 scope
 
@@ -225,11 +234,10 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Publish the reviewed and runtime-validated exact-schema correction for
-   fresh complete local/native validation.
-2. Restart all 39 commands from the new checkpoint with fresh evidence;
-   preserve the interrupted attempt and do not credit its partial shards.
-   S3 remains undispatched.
+1. Await existing full gate `roc-s2-full-gate-8d3b9ef` and native CI
+   `41000838573`; do not duplicate workloads or push tracking-only commits.
+2. Verify complete results from the fresh attempt; preserve the interrupted
+   attempt and do not credit its partial shards. S3 remains undispatched.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 
@@ -247,8 +255,8 @@ source/caches and owned-process reconciliation. The canonical partition has
 ## Blockers
 
 The PIB-477 schema-pin correction is independently approved and its direct/
-observer checks pass. No local validator remains active; complete new local/
-native results are still required before S2 acceptance.
+observer checks pass. Complete new local/native results are running at
+`8d3b9ef` and remain required before S2 acceptance.
 
 ## Context for Next Agent
 

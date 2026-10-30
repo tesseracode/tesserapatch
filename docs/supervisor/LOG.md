@@ -1,3 +1,18 @@
+## Full Retry Running — GH #13 S2 — 2026-10-29
+
+Published and fetched checkpoint:
+`8d3b9ef196b597695595076e4a55f086836b8b04`.
+Only tracking differs from reviewed `a5af08e`; production remains approved
+`2c462a3`.
+
+Native CI `41000838573` and local `roc-s2-full-gate-8d3b9ef` run against
+that exact checkpoint. The local attempt uses new source/caches/evidence,
+42 top-level commands/39 tests and original WAVE_BASE `bd95a23`. Its first
+five checks pass, including fifteen trailers; no full result yet.
+Native watcher: `roc-s2-native-ci-8d3b9ef`. Do not cancel these runs with
+tracking-only pushes or credit the interrupted attempt's partial work.
+No S2 acceptance, release or S3 dispatch.
+
 ## Runtime Correction Verified — S2 Config schema — 2026-10-29
 
 At reviewed `a5af08e`, PIB-477 and its AP observer both pass in separate
