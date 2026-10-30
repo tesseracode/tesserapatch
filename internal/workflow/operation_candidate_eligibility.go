@@ -101,6 +101,21 @@ func assessOperationCandidateEligibility(s *store.Store, slug string, invocation
 	return c.result, nil
 }
 
+func snapshotOperationCandidateBindings(s *store.Store, slug string) (candidate.CandidateBindings, error) {
+	snapshot := SnapshotRecipeCoverage(s.Root, slug)
+	event, err := DecodeRecipeCaptureEvent(snapshot.Event.Bytes)
+	if err != nil {
+		return candidate.CandidateBindings{}, fmt.Errorf("capture-event-unusable: %w", err)
+	}
+	digest, err := RecipeCaptureEventIdentity(event)
+	if err != nil {
+		return candidate.CandidateBindings{}, err
+	}
+	return candidate.CandidateBindings{CaptureEventSHA256: digest,
+		CoverageSHA256: CoverageSHA256(snapshot.Coverage.Bytes), PatchSHA256: CoverageSHA256(snapshot.Patch.Bytes),
+		RecipeSHA256: CoverageSHA256(snapshot.Recipe.Bytes)}, nil
+}
+
 func (c *operationEligibilityContext) refuse(reason, detail string) bool {
 	c.result.reason, c.result.detail = reason, detail
 	return false

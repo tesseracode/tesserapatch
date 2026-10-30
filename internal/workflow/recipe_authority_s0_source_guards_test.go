@@ -701,6 +701,7 @@ func rgaS0CheckAutogenDerivation(src string) error {
 var rgaS5ReadFunctions = map[string]map[string]bool{
 	"internal/workflow/operation_candidate_eligibility.go": {
 		"assessOperationCandidateEligibility":               true,
+		"snapshotOperationCandidateBindings":                true,
 		"(*operationEligibilityContext).refuse":             true,
 		"(*operationEligibilityContext).coverageUsable":     true,
 		"(*operationEligibilityContext).coverageOwner":      true,
@@ -851,6 +852,18 @@ func TestROCS2CoverageConsumerRegistrationSensitivity(t *testing.T) {
 	}
 	if err := rgaS0CoveragePhaseSource("internal/workflow/unregistered_candidate.go", source); err == nil {
 		t.Fatal("consumer role leaked to another file")
+	}
+	signature := "func snapshotOperationCandidateBindings(s *store.Store, slug string) (candidate.CandidateBindings, error) {"
+	if strings.Count(source, signature) != 1 {
+		t.Fatal("candidate binding reader mutation anchor missing")
+	}
+	for _, mutated := range []string{
+		strings.Replace(source, signature, signature+"\n_ = s.SaveFeatureStatus(store.FeatureStatus{})", 1),
+		strings.Replace(source, "func snapshotOperationCandidateBindings(", "func unregisteredCandidateBindingReader(", 1),
+	} {
+		if err := rgaS0CoveragePhaseSource(path, mutated); err == nil {
+			t.Fatal("candidate binding reader gained writes or escaped explicit registration")
+		}
 	}
 }
 

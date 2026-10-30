@@ -405,18 +405,12 @@ func prepareOperationCandidateHeld(s *store.Store, slug string, invocation opera
 		return operationCandidatePrepared{}, err
 	}
 	if pointer != nil {
-		snapshot := SnapshotRecipeCoverage(s.Root, slug)
-		event, err := DecodeRecipeCaptureEvent(snapshot.Event.Bytes)
-		if err != nil {
-			return operationCandidatePrepared{}, fmt.Errorf("capture-event-unusable: %w", err)
-		}
-		digest, err := RecipeCaptureEventIdentity(event)
+		bindings, err := snapshotOperationCandidateBindings(s, slug)
 		if err != nil {
 			return operationCandidatePrepared{}, err
 		}
-		current := candidate.CandidateStalenessInput{UpstreamCommit: invocation.upstreamCommit, SourceFeatureState: string(status.State),
-			Bindings: candidate.CandidateBindings{CaptureEventSHA256: digest, CoverageSHA256: CoverageSHA256(snapshot.Coverage.Bytes),
-				PatchSHA256: CoverageSHA256(snapshot.Patch.Bytes), RecipeSHA256: CoverageSHA256(snapshot.Recipe.Bytes)}}
+		current := candidate.CandidateStalenessInput{UpstreamCommit: invocation.upstreamCommit,
+			SourceFeatureState: string(status.State), Bindings: bindings}
 		if _, err := stalePendingOperationCandidate(s, slug, status, current, lock); err != nil {
 			return operationCandidatePrepared{}, err
 		}
@@ -718,7 +712,7 @@ func finalizeOperationCandidate(s *store.Store, slug string, expected operationC
 		}
 		artifact = *prior
 	} else {
-		if err := execution.Root.WriteArtifact(artifact, lock); err != nil {
+		if err := candidate.WriteCandidateMetadata(execution.Root, artifact, lock); err != nil {
 			return fail(err)
 		}
 		if err := execution.Root.WritePatch([]byte(execution.Diff), lock); err != nil {

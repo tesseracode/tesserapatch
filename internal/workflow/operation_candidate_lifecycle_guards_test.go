@@ -24,7 +24,7 @@ func validateROCS5LifecycleSource(source string) error {
 	for name, ordered := range map[string][]string{
 		"runOperationCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "findOperationCandidateRecoveryJournal", "stalePendingOperationCandidate"},
 		"prepareOperationCandidateHeld":   {"borrowOperationCandidateFeatureMutation", "operationCandidateActionPreflight", "assessOperationCandidateEligibility", "candidate.DescribeDerivation", "candidate.ComputeCandidateID"},
-		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "execution.Root.WriteArtifact", "s.SaveFeatureStatus"},
+		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "candidate.WriteCandidateMetadata", "s.SaveFeatureStatus"},
 		"rejectPendingOperationCandidate": {"operationCandidateActionPreflight", "pruneOperationCandidateIfPresent", "appendRejectedOperationCandidate", "reference.WriteCandidateState", "s.SaveFeatureStatus"},
 	} {
 		fn := functions[name]

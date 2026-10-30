@@ -35,6 +35,9 @@ func validateCandidate(
 	if err != nil {
 		return validationResult{}, err
 	}
+	if err := validateCandidateIndexBaseline(candidateRoot); err != nil {
+		return validationResult{}, err
+	}
 	changes, err := changedPaths(candidateRoot)
 	if err != nil {
 		return validationResult{}, err
@@ -64,6 +67,9 @@ func validateCandidate(
 			code:   "candidate-not-idempotent",
 			detail: "second-pass: " + secondPassReason(err),
 		}
+	}
+	if err := validateCandidateIndexBaseline(candidateRoot); err != nil {
+		return validationResult{}, err
 	}
 	treeAfter, diffAfter, err := snapshotCandidateState(candidateRoot)
 	if err != nil {
@@ -116,6 +122,21 @@ func buildEffectResolutionMap(plan Plan) ([]EffectResolution, error) {
 		}
 	}
 	return out, nil
+}
+
+func validateCandidateIndexBaseline(root *CandidateRoot) error {
+	if err := root.ensureAvailable(); err != nil {
+		return err
+	}
+	if err := root.validateReopenedCandidateAuthority(root.commit); err != nil {
+		return &refusal{code: "candidate-unmodeled-change", detail: err.Error()}
+	}
+	_, stderr, err := runGitWithIdentity(root.worktree, []string{"GIT_OPTIONAL_LOCKS=0"},
+		"diff", "--cached", "--quiet", "--exit-code", "--no-ext-diff", "--no-textconv", root.commit, "--")
+	if err != nil {
+		return &refusal{code: "candidate-unmodeled-change", detail: "candidate index differs from bound upstream: " + strings.TrimSpace(stderr)}
+	}
+	return nil
 }
 
 func snapshotCandidateState(root *CandidateRoot) (treeHash, diff string, err error) {
