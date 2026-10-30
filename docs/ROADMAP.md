@@ -1646,6 +1646,9 @@ Same implementer owns bounded corrections with a 17:00 UTC checkpoint;
 no competing local Go and no shortened review/full gates.
 Restored-S4 closing-tip CI `41072987684` is green on all five jobs; S5's
 own authority/lifecycle findings still block publication and acceptance.
+Revision `108ed61` claims the findings fixed and adds real preparation/
+publication/reuse paths; focused tests pass. Independent finding closure,
+broader checks and full local/native gates remain pending.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

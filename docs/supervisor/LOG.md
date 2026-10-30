@@ -1,3 +1,17 @@
+## S5 Revision Frozen — 2026-10-30
+
+Implementer returns `108ed6192b2630a581793eb3a94bc4593b53a517` at
+16:20 UTC, claiming fixes for the recorded findings and missing callable
+scope. Focused clean-clone tests pass (51.56s), normal pressure/no swap-outs.
+Do not treat the claim as finding closure or acceptance.
+
+Return to the same independent reviewer for explicit finding-by-finding
+assessment, including rooted mutation capability enforcement, reopening,
+opaque preparation, genuine reuse/publication and interrupted lifecycle
+consistency. Parent takes sole Go ownership for broader checks. With about
+100 minutes left, a new full gate may not fit; preserve unaccepted state
+rather than shortening validation.
+
 ## Restored S4 Closing-tip CI Complete — 2026-10-30
 
 CI `41072987684` at restored close `f9d5501` passes all five required jobs,

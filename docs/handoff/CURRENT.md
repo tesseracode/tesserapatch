@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,12 +14,12 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: NEEDS REVISION — authority, rooted I/O and lifecycle consistency blockers
+- **Status**: Revised draft checkpointed; claimed fixes await independent verification
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Frozen S5 draft**: `1e1dae6028b5f2012af5f884fab0c042c841192d`
+- **Frozen S5 revision**: `108ed6192b2630a581793eb3a94bc4593b53a517`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
@@ -60,6 +60,12 @@ workload, with a coherent checkpoint requested by 17:00 UTC. Parent owns
 tracking only. Prioritize real rooted I/O, reopening/validation authority
 and failure consistency; do not substitute mocked success or call missing
 S5 publication semantics future S6 work. Any remaining findings stay explicit.
+Implementer returns revision `108ed61` at 16:20 UTC, claiming all S5 findings
+resolved. Parent has not accepted those claims. The revision adds rooted
+artifact methods, reopening checks, opaque preparation and real reuse/
+publication callables. Independent reviewer must verify every finding and
+missing-scope item, especially mutation capabilities and interrupted transitions.
+Parent now owns all Go validation; implementer is idle.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
@@ -110,14 +116,17 @@ affected run 124.51s, normal pressure/no new swap-outs. Evidence:
 Independent review, vet/build and full local/native validation are pending.
 Remaining basic formatting/vet (7.69s)/build (0.46s) also PASS, normal
 pressure/no swap-outs. Review blockers show these checks are not sufficient.
+- Revision focused clean-clone tests PASS (`s5-rev2-cleanclone-test-1`,
+  51.56s), normal pressure/no swap-outs. Full affected checks/re-review
+  and complete local/native gates have not passed for this revision.
 S4 repair: 8/8 gate, 42/42 commands, 39/39 uncached tests,
 native five jobs and actual Windows CLW pass. Runtime 5,922.25s, peak owned
 RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
 ## Next Steps
 
-1. Correct reviewed authority/rooted-I/O/lifecycle blockers with real regressions.
-2. Obtain independent re-review before any publication/full gates; do not
+1. Re-review frozen `108ed61` against every recorded finding and missing scope.
+2. Parent runs admitted affected/vet/build; obtain approval before publication/full gates.
    declare acceptance from passing basic checks or a partial correction.
 3. At the deadline, checkpoint any unfinished code and exact remaining work.
    Deadline timer `overnight-deadline` is active.
@@ -132,7 +141,7 @@ Use clean isolated sources and preserve all raw evidence.
 
 ## Blockers
 
-S5 review blockers and missing callable scope prohibit acceptance/publication.
+S5 review findings remain open until independently verified closed.
 The autonomous deadline remains in force; checkpoint unfinished work honestly.
 
 ## Context for Next Agent
