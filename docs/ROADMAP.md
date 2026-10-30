@@ -1623,9 +1623,24 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S1 typed roots, locks and Git primitives — 2026-10-29
+### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 
-**Active validation maintenance**: the operator authorizes finer serial
+**Accepted checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`.
+**Validated range**: `5120dc9395769fe8148b61836e546729b66cb4dc..24be224`.
+S1 and its test-only memory maintenance are complete: independent reviews
+approved the code, all six pilots pass, native CI `40975085201` passes all
+five required jobs, and the full local gate passes 8/8 checks with all 39
+test commands (42 top-level commands). Actual Windows CLW rows pass.
+
+The adopted partition preserves all coverage with fresh serial processes.
+The full gate completes in about 105 minutes at 6.99 GiB peak sampled owned
+RSS, versus the previous 10.37 GiB full-run peak. Pressure stays normal,
+no new swap-outs occur, and no owned processes survive cleanup. The smaller
+pilots are not a whole-suite memory ceiling. Safeguards and v0.17.0 remain
+unchanged. Full chronology is archived in `docs/handoff/HISTORY.md`.
+S2 and upstream Git-strategy research remain undispatched.
+
+**Completed validation-maintenance chronology**: the operator authorizes finer serial
 sharding and measurement from clean `56311c4` (tracking-tip CI `40927388746`
 passes). Split the broad S6/S7/AVP families without losing non-CLI tests,
 separate AR revisions 16-18, and bound flat purge-fixture memo lifetimes.
@@ -1657,6 +1672,7 @@ actual Windows CLW rows. The local gate has passed 18/39 test commands,
 including all fifteen extracted families, and remains active; S1 is not closed.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
+**Original S1 scope and completed implementation chronology**:
 The operator selected S1 after deferring the new Git-strategy investigation
 to the research backlog. Intake and decision records are pushed; S0 stays
 accepted and its golden/runtime contracts remain frozen.

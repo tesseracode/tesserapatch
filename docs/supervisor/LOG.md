@@ -1,3 +1,29 @@
+## Acceptance — GH #13 S1 and memory-bounded sharding — 2026-10-29
+
+**Decision**: ACCEPTED at validated
+`24be224e46cb0569de3488bf466467e9c252fd8b`.
+**Range**: `5120dc9395769fe8148b61836e546729b66cb4dc..24be224`.
+Independent S1 findings closed at `3054b84`; independent sharding review
+APPROVED at `31fd46e`. Native CI `40975085201` passes all five required jobs,
+with actual Windows CLW-001 through CLW-005 verified.
+
+The full local gate completes PASS: 8/8 checks, 42/42 top-level commands,
+39/39 uncached test commands, exact command parity. Runtime 6,305.16s;
+normal memory pressure throughout, zero new swap-outs, up to 13 external Go
+processes observed. Peak sampled owned RSS is 6.99 GiB, versus 10.37 GiB in
+the earlier successful full gate. The highest remaining shard is the AR core
+registration observer, not one of the six memory pilots; do not advertise a
+1.8 GiB ceiling for the entire suite.
+
+All 584 sampled owned process identities are gone. Source remains clean and
+v0.17.0 is unchanged. Diff checks confirm S0 goldens, assets, public SPEC,
+CHANGELOG, dependencies and allowlist unchanged from S1 wave base; memory
+maintenance changes no production Go or accepted ADR/PRD bytes.
+
+Adopt the 39-command partition without relaxing pressure, swap, timeout or
+serial safeguards. Archive the completed handoff, flip ROADMAP to accepted
+and publish closure tracking. No release/tag or S2/research dispatch.
+
 ## Native Validation Complete — local 39-shard gate continues — 2026-10-29
 
 CI `40975085201` at `24be224` completes SUCCESS: all five required jobs pass
