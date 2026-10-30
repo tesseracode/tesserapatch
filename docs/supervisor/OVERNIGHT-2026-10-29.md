@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Publishing full-validation checkpoint | reviewed code `87bb62a` | Review/basic/routing checks pass; full/native pending |
+| GH #13 S3 | Full local/native validation running | published `083d20f` | Reviewed `87bb62a` unchanged; native CI `41016539598` |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

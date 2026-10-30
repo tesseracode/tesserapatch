@@ -1,3 +1,15 @@
+## S3 Full Validation Running — 2026-10-30
+
+Published `083d20fb4daad0f3bada71122ac09f890feda710`; HEAD and origin/main
+agree. Production/test bytes match reviewed `87bb62a`. Full-gate shell
+`roc-s3-full-gate` is responsive, running with S3 WAVE_BASE in its clean
+full-history isolated checkout. Native CI `41016539598` and bounded watcher
+`roc-s3-native-ci` run concurrently; no second local Go workload.
+
+At 06:51 UTC roughly eleven authorized hours remain. Hold progress-only
+commits locally to avoid cancelling exact-tip CI. S3 remains unaccepted;
+S4 remains undispatched.
+
 ## S3 Full-validation Publication — 2026-10-30
 
 Corrected `87bb62a` passes formatting, full affected packages (134.70s),
