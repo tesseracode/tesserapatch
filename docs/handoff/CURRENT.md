@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,11 +14,12 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: In progress — scoped after repaired S4 durable close
+- **Status**: Draft implemented; focused and affected tests pass; independent review pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
+- **Frozen S5 draft**: `1e1dae6028b5f2012af5f884fab0c042c841192d`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
@@ -38,6 +39,12 @@ Implementation agent `bde5671e-80de-4931-a94b-74260e2837b1` is assigned,
 explicit OpenAI `gpt-5.3-codex` (runtime confirmation pending), with a coherent
 checkpoint requested by 16:00 UTC. It owns code/tests/proposed ADR-048 and
 sole admitted focused Go checks. Parent owns tracking/infrastructure only.
+Runtime is now confirmed `gpt-5.3-codex`; implementer returned `1e1dae6`
+before the checkpoint target. Parent now owns all Go checks; code is frozen.
+Draft includes strict artifact/state/identity helpers, typed reopening,
+callable lifecycle/rejection/preflight helpers and the optional status pointer.
+ADR-048 remains Proposed, including an explicit domain-separated SHA-256
+over native tree identity for the result integrity field.
 The unchanged S5 runner/full-gate harness passes all nine routing controls.
 Restored-S4 closing CI `41072987684` runs under watcher
 `roc-s4-restored-close-ci`; no early push/cancellation. Deadline timer
@@ -67,22 +74,26 @@ strict parser/schema guard. Record new implementation choices in ADR-048.
 
 ## Files Changed
 
-Tracking only at dispatch. Implementation owns candidate artifact/identity/
-lifecycle code and focused tests, optional store pointer/schema support,
-callable workflow preflight/lifecycle helpers and finite source inventories.
+Draft changes 21 files: candidate artifact/identity/lifecycle/root helpers
+and tests, ephemeral proof metadata in alignment/derivation, optional store
+pointer/validation, callable workflow lifecycle and finite scope guards,
+plus proposed ADR-048. No phase/CLI wiring.
 Supervisor alone owns CURRENT/ROADMAP/LOG/OVERNIGHT during implementation.
 
 ## Test Results
 
-No S5 code checks yet; copied routing controls pass 9/9.
+S5 focused and full affected candidate/store/workflow tests PASS at `1e1dae6`;
+affected run 124.51s, normal pressure/no new swap-outs. Evidence:
+`bin/roc-s5-20261030/s5-clone-tests-full/`. Copied routing controls pass 9/9.
+Independent review, vet/build and full local/native validation are pending.
 S4 repair: 8/8 gate, 42/42 commands, 39/39 uncached tests,
 native five jobs and actual Windows CLW pass. Runtime 5,922.25s, peak owned
 RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
 ## Next Steps
 
-1. Implement a bounded S5 draft with focused tests and proposed ADR-048.
-2. Independent review and admitted basic checks, then full local/native gates
+1. Independently review frozen `1e1dae6` and proposed ADR-048.
+2. Parent runs admitted remaining basic checks, then full local/native gates
    only if ready; never declare acceptance from focused checks alone.
 3. At the deadline, checkpoint any unfinished code and exact remaining work.
    Deadline timer `overnight-deadline` is active.
