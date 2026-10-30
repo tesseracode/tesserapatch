@@ -1,3 +1,17 @@
+## S4 Complete Conformance Repair Frozen — 2026-10-30
+
+Freeze `5d52d39c55e6cc1402420567f0f12d94ff171027`. Parent propagates typed
+reference/candidate/held-root capabilities through all private lock/abandon
+helpers and validates candidate identity before lock-file mutation.
+The helper-wide guard fails against `aa92ee1` (abandonCandidate root string),
+then focused S4/root/lock/inventory tests pass after correction (10.17s),
+normal pressure/no new swap-outs.
+
+Return complete repair plus proposed ADR-047 to the same independent reviewer,
+explicitly checking the previously missed clauses and cleanup under contention.
+Parent alone owns admitted affected/vet/build checks. S5 stays blocked;
+no repaired acceptance before fresh full-local/native gates.
+
 ## S4 Repair Draft — Residual Helper Boundary — 2026-10-30
 
 Implementer returns `aa92ee1`: public execution signatures are typed, feature

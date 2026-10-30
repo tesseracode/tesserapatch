@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 S4's prior acceptance is REOPENED for typed-root/lock conformance gaps found
 during S5 prerequisite inspection. S5 has no implementation and is blocked.
@@ -14,7 +14,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Repair typed execution boundary and short global-lock scope
-- **Status**: In progress — S4 acceptance reopened before S5
+- **Status**: Complete typed-helper repair passes focused checks; independent review pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
 - **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
@@ -22,6 +22,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Prior reviewed code**: `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`
 - **Prior validated checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
 - **Prior native CI**: `41039157086`
+- **Frozen repair checkpoint**: `5d52d39c55e6cc1402420567f0f12d94ff171027`
 
 WAVE_BASE = 78e501c5ef0985a79fca177a888d97eb956de4e6
 
@@ -46,6 +47,14 @@ Both runtimes are confirmed OpenAI `gpt-5.3-codex`.
 Draft evidence: old public signatures fail compile-time controls;
 `s4-boundary-targeted-pass-2` passes (9.23s), normal pressure/no swap-outs.
 This draft is not yet approved because the helper boundary remains incomplete.
+Parent completed typed propagation at `5d52d39`: feature helper takes a typed
+reference, global helper takes the existing held-root capability, and abandon
+uses its CandidateRoot rather than a root string. Invalid IDs refuse before
+lock-file mutation. The stronger helper-wide guard FAILS on `aa92ee1`
+(`helper-boundary-red`) and focused boundary/lock/S4 checks PASS after
+(`helper-boundary-green`, 10.17s), normal pressure/no swap-outs.
+Now freeze all code for the same independent reviewer; parent owns broader
+admitted validation. No competing Go workload.
 New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
 harness is unchanged and nine routing controls pass. Prior closing CI
 `41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
@@ -134,8 +143,8 @@ native watcher processes completed. Do not delete prior evidence.
 
 ## Next Steps
 
-1. Correct only S4 typed execution/lock ownership and add discriminating tests.
-2. Independently review and fully validate the repair with its new WAVE_BASE.
+1. Independently review `5d52d39` and proposed ADR-047.
+2. Complete admitted affected/vet/build and fresh full/native validation.
 3. Archive/push repaired acceptance before considering S5; preserve unfinished
    work explicitly at the autonomy deadline.
 
@@ -150,7 +159,8 @@ per-process timeouts, clean isolated sources/caches. Never enable goldens.
 
 ## Blockers
 
-S4 boundary/lock conformance gaps block S5. Prior green gates are not sufficient.
+Repaired boundary/lock conformance awaits independent review and fresh gates.
+S5 remains blocked; prior green gates are not sufficient.
 
 ## Context for Next Agent
 

@@ -1637,6 +1637,9 @@ S5 and prepares a fresh unchanged gate harness (nine routing controls pass).
 Draft `aa92ee1` fixes public signatures/global windows, but parent catches
 three residual bare-root helpers. Finish typed propagation and helper-wide
 negative guards before independent review.
+Complete repair `5d52d39` propagates typed capabilities through every
+execution helper; helper-wide guard is red on `aa92ee1` and green after.
+Independent review and fresh full gates remain required.
 
 ### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 
