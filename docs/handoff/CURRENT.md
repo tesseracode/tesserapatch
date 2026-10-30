@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Full 39-shard and native retry running at reviewed 8d3b9ef
+- **Status**: Native retry passed; full local 39-shard gate continues at 8d3b9ef
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -156,6 +156,14 @@ including all fifteen S2 wave trailers; no complete result is claimed.
 Native retry `41000838573` is watched by `roc-s2-native-ci-8d3b9ef`,
 with log `bin/roc-s2-20261029/native-ci-8d3b9ef.log`.
 Keep progress commits local until these exact-checkpoint runs finish.
+Native retry `41000838573` is now SUCCESS: all five required jobs pass with
+no failed steps, release skipped. The watcher exited on a final GitHub API
+connection error, not a CI failure; a fresh API query confirms completion.
+Windows job `123884602207` logs verify actual CLW-001 through CLW-005 PASS
+lines, saved in `bin/roc-s2-20261029/native-windows-8d3b9ef.log`.
+The local gate is still running with 21/39 test commands passed and AR21/23/24
+entering admission at this checkpoint. No full local result is claimed;
+do not restart the completed CI watcher or duplicate the local workload.
 
 ## Current State — bounded S2 scope
 
@@ -234,8 +242,9 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Await existing full gate `roc-s2-full-gate-8d3b9ef` and native CI
-   `41000838573`; do not duplicate workloads or push tracking-only commits.
+1. Await existing full gate `roc-s2-full-gate-8d3b9ef`; native CI
+   `41000838573` has passed. Do not duplicate workloads or push tracking-only
+   commits while this exact-checkpoint gate remains active.
 2. Verify complete results from the fresh attempt; preserve the interrupted
    attempt and do not credit its partial shards. S3 remains undispatched.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
@@ -255,8 +264,8 @@ source/caches and owned-process reconciliation. The canonical partition has
 ## Blockers
 
 The PIB-477 schema-pin correction is independently approved and its direct/
-observer checks pass. Complete new local/native results are running at
-`8d3b9ef` and remain required before S2 acceptance.
+observer checks pass. Native CI passes at `8d3b9ef`; the complete local gate
+is still running and remains required before S2 acceptance.
 
 ## Context for Next Agent
 

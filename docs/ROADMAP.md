@@ -1671,6 +1671,10 @@ and complete local/native retry; prior interrupted shards do not count.
 Reviewed retry checkpoint `8d3b9ef` is published. Native CI `41000838573` and
 the fresh full local 39-shard gate are running; first five mechanical checks
 pass. S2 remains unaccepted until both complete.
+Native retry `41000838573` now passes all five required jobs and actual
+Windows CLW rows. Its watcher encountered a transport error after the run;
+the completed success is verified independently. Local gate: 21/39 tests
+passed and still active; S2 is not closed yet.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 
