@@ -323,6 +323,88 @@ func TestOpenExistingCandidateRootRejectsSlugSymlinkAlias(t *testing.T) {
 	}
 }
 
+func TestOpenExistingCandidateRootRejectsRegisteredSuffixImpostor(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	const slug, id = "suffix-feature", "rc_333333333333"
+	relative := filepath.Join(".tpatch", "reconcile-candidates", slug, id, "worktree")
+	registered := filepath.Join(t.TempDir(), relative)
+	if err := os.MkdirAll(filepath.Dir(registered), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "worktree", "add", "--detach", "-q", registered, head)
+	gitfile, err := os.ReadFile(filepath.Join(registered, ".git"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	impostor := filepath.Join(root, relative)
+	if err := os.MkdirAll(impostor, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(impostor, ".git"), gitfile, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(impostor, "not-owned.txt")
+	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reference, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	reopened, err := OpenExistingCandidateRoot(reference, slug, id)
+	if err == nil {
+		_ = reopened.Close()
+		t.Error("matching suffix granted ownership of an unregistered directory")
+	}
+	if body, err := os.ReadFile(sentinel); err != nil || string(body) != "keep\n" {
+		t.Fatalf("unowned directory changed: %q %v", body, err)
+	}
+	if _, err := os.Stat(filepath.Join(registered, ".git")); err != nil {
+		t.Fatalf("real registration changed: %v", err)
+	}
+}
+
+func TestOpenExistingCandidateRootRejectsOriginalGitDirectoryAlias(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture requires Unix")
+	}
+	root, head := initCandidateRepo(t)
+	feature, global := acquireCandidateLocks(t, root, "git-alias")
+	defer releaseCandidateLocks(t, feature, global)
+	created, err := CreateCandidateRoot(root, "git-alias", "rc_444444444444", head, feature, global)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer created.Close()
+	gitfilePath := filepath.Join(created.WorktreePath(), ".git")
+	original, err := os.ReadFile(gitfilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitdir, err := parseWorktreeGitfile(created.WorktreePath(), string(original))
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(filepath.Dir(gitdir), "aliased-registry-entry")
+	if err := os.Symlink(gitdir, alias); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(gitfilePath, []byte("gitdir: "+alias+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reference, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	reopened, err := OpenExistingCandidateRoot(reference, "git-alias", "rc_444444444444")
+	if err == nil {
+		_ = reopened.Close()
+		t.Error("Git directory alias granted ownership")
+	}
+}
+
 func TestCreateCandidateRootRejectsInvalidLockCapabilities(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	repo2, _ := initCandidateRepo(t)

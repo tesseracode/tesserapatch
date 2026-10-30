@@ -1659,6 +1659,9 @@ remain explicitly open for later work; no acceptance or gate waiver.
 Final bounded checkpoint `cd4192f` claims targeted fixes; focused/full
 candidate-workflow tests pass. Final subset review and clean-clone basic
 checks precede an explicit unaccepted handoff, not full-gate publication.
+Final subset review closes F1/F10/F11; F2 still permits suffix-only registration
+ownership. Parent addresses only that residual; authority/finalization findings
+remain open and S5 stays unpublished.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

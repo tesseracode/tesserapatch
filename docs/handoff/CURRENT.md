@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 S5 is assigned after restored S4 acceptance was archived and pushed at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S0-S4 are accepted.
@@ -14,7 +14,7 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: Final bounded checkpoint; targeted findings await review; authority/composition remain open
+- **Status**: F1/F10/F11 closed; parent correcting residual F2 registration ownership
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -100,6 +100,11 @@ Same reviewer `7712b628` now checks only the bounded delta; parent shell
 Publication boundary verified: origin/main remains accepted S4 `f9d5501`;
 release tag, cmd/assets/SPEC/CI/scripts/dependencies/research are unchanged
 through the local S5 draft. No S6 implementation exists.
+Subset review closes F1/F10/F11. F2 remains: registration success uses only
+a matching suffix, allowing an elsewhere worktree plus copied Git indirection
+to confer ownership on an unregistered directory. Original Git ancestors are
+resolved before validation. Parent corrects only this residual F2 with actual
+ownership regressions; F3/F4/F6/finalization remain explicitly OPEN.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256

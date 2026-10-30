@@ -1,3 +1,20 @@
+## Review — S5 Final Subset Disposition — 2026-10-30
+
+Reviewer `7712b628` on `cd4192f` closes F1 (mutation capability enforcement),
+F10 (stored-upstream reopening) and F11 (metadata-only recovery scan).
+F2 remains HIGH: artifact_root.go:707-739 accepts a registered path by
+namespace suffix alone, without checking that the successful entry identifies
+the opened directory. An elsewhere-registered matching suffix plus copied
+Git indirection can grant cleanup ownership over an unregistered directory.
+The directory SameFile check is only on the later refusal path.
+Original Git-indirection ancestors are also resolved before safety checks.
+
+Parent takes only this narrow residual F2 correction: bind complete
+repository-relative registration and directory identity on the success path,
+and validate original Git ancestry before alias resolution. Keep F3/F4/F6 and
+missing composed finalization OPEN; no broad implementation or acceptance.
+The current frozen basic run remains the sole Go workload until completion.
+
 ## S5 Final Subset Review / Basic Checks Active — 2026-10-30
 
 Same reviewer `7712b628` checks only F1/F2/F10/F11 at `cd4192f`;

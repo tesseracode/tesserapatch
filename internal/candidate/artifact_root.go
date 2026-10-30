@@ -642,11 +642,28 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 	if err != nil {
 		return err
 	}
-	gitdirResolved, err := filepath.EvalSymlinks(gitdirAbs)
+	repoResolved, err := filepath.EvalSymlinks(r.repoRoot)
 	if err != nil {
 		return err
 	}
-	repoResolved, err := filepath.EvalSymlinks(r.repoRoot)
+	gitdirRelOriginal, err := filepath.Rel(repoResolved, gitdirAbs)
+	if err != nil {
+		return err
+	}
+	if _, err := normalizeRelativePath(gitdirRelOriginal); err != nil {
+		gitdirRelOriginal, err = filepath.Rel(r.repoRoot, gitdirAbs)
+		if err != nil {
+			return err
+		}
+	}
+	gitdirOriginal, err := normalizeRelativePath(gitdirRelOriginal)
+	if err != nil || !strings.HasPrefix(gitdirOriginal, ".git/worktrees/") {
+		return fmt.Errorf("candidate worktree gitdir is outside its repository registry")
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, gitdirOriginal, false); err != nil {
+		return err
+	}
+	gitdirResolved, err := filepath.EvalSymlinks(gitdirAbs)
 	if err != nil {
 		return err
 	}
@@ -704,7 +721,7 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 	if strings.TrimSpace(string(headRaw)) != expectedCommit {
 		return fmt.Errorf("candidate worktree HEAD does not match expected commit")
 	}
-	requestedSuffix := "/" + filepath.ToSlash(filepath.Clean(r.worktreeRel))
+	expectedRegistration := filepath.Join(repoResolved, filepath.FromSlash(r.worktreeRel))
 	entries, err := r.loadRegisteredWorktrees()
 	if err != nil {
 		return err
@@ -725,8 +742,10 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 		if err != nil {
 			continue
 		}
-		entryNormalized := filepath.ToSlash(filepath.Clean(entryAbs))
-		if strings.HasSuffix(entryNormalized, requestedSuffix) {
+		if filepath.Clean(entryAbs) == filepath.Clean(expectedRegistration) {
+			if !os.SameFile(entryInfo, r.worktree.identity) {
+				return fmt.Errorf("registered candidate worktree directory identity differs")
+			}
 			if entry.head != expectedCommit {
 				return fmt.Errorf("registered candidate worktree commit drifted")
 			}
