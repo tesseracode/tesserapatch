@@ -1,3 +1,20 @@
+## Autonomous Window / S3 Dispatch — 2026-10-29
+
+The operator authorizes approximately twelve hours of sequential development,
+starting S3 and continuing to ready stages/clusters after accepted closes.
+Deadline: approximately 2026-10-30 18:00 UTC / 11:00 PDT. Keep every decision
+reviewable in the overnight log and ADRs; do not weaken gates or ship partial work.
+
+Fresh S3 WAVE_BASE is `4702b10735681ca63145b67561f33d4612450e69`,
+clean and equal to origin/main, no stashes, one main worktree. S2 closing-tip
+CI `41010587650` is active, so hold early pushes.
+
+Scope exact PRD S3 only. Follow A1-A8/L1-L3 literally; use the existing strict
+patch grammar/hunk walker. ADR-045 records a proposed typed, immutable
+object-identity snapshot and ephemeral planner boundary to avoid unbounded
+upstream-body retention. Independent review must approve implementation and
+decision before S3 acceptance; only then may S4 dispatch.
+
 ## Acceptance — GH #13 S2 eligibility — 2026-10-29
 
 **Decision**: ACCEPTED at validated

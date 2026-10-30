@@ -1623,6 +1623,20 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S3 exact derivation and alignment — 2026-10-29
+
+**WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`.
+The operator authorizes autonomous sequential advancement for approximately
+twelve hours, through 2026-10-30 18:00 UTC, with the same independent review,
+39-shard/native and resource gates. Decisions are recorded in
+`docs/supervisor/OVERNIGHT-2026-10-29.md`; ADR-045 proposes the ephemeral
+snapshot/planner boundary without changing the accepted algorithm.
+
+S3 only: strict insertion runs, exact records/base boundaries/postimage proof,
+ordered A1-A8, literal L1-L3, all-optimal F/G unanimity, immutable-snapshot
+three-state classification and both motivating fixtures. No S4+ until this
+stage closes durably. S2 closing-tip CI `41010587650` is still running.
+
 ### GH #13 — ✅ S2 eligibility ACCEPTED — 2026-10-29
 
 **Accepted checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`.
