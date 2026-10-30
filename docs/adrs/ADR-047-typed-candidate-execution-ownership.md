@@ -31,6 +31,10 @@ execution/validation.
    and releases it outside those windows.
 5. If prune-time global acquisition fails, execution returns a combined failure,
    closes retained root handles, and does not report success.
+6. Private feature/global/abandon helpers also consume the existing typed
+   reference, candidate or held-root capability; they accept no bare root
+   strings. Root identity is checked before lock acquisition. Slug and ID
+   validation precedes any mutation.
 
 ## Consequences
 

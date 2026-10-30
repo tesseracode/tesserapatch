@@ -133,6 +133,17 @@ func executeWithPlan(reference, upstream *ReferenceRoot, patch string, effects [
 	if err := checkExecutionTypedBoundary(mustParseCandidateSource(t, "execute.go", source)); err == nil {
 		t.Fatal("execution boundary guard accepted old bare-root forwarding signatures")
 	}
+	current := mustReadCandidateSource(t, "execute.go")
+	for _, helper := range []string{
+		"func borrowExecutionFeatureLockOld(repoRoot, slug string) {}",
+		"func acquireExecutionGlobalLockOld(workspace string) {}",
+		"func abandonCandidateOld(root *CandidateRoot, repoRoot string) {}",
+		"func rootAliasHelper(root absoluteRootPath) {}",
+	} {
+		if err := checkExecutionTypedBoundary(mustParseCandidateSource(t, "execute.go", current+"\n"+helper)); err == nil {
+			t.Fatalf("execution boundary accepted bare-root helper: %s", helper)
+		}
+	}
 }
 
 func TestGitEnvelopeGuard(t *testing.T) {
@@ -659,6 +670,29 @@ func checkPruneSignature(files []candidateFile) error {
 }
 
 func checkExecutionTypedBoundary(file *ast.File) error {
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Type.Params == nil {
+			continue
+		}
+		for _, field := range fn.Type.Params.List {
+			kind, ok := field.Type.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if kind.Name == "absoluteRootPath" {
+				return fmt.Errorf("%s accepts a bare-root alias", fn.Name.Name)
+			}
+			if kind.Name != "string" {
+				continue
+			}
+			for _, name := range field.Names {
+				if name.Name != "patch" && name.Name != "slug" && name.Name != "candidateID" {
+					return fmt.Errorf("%s accepts non-data string parameter %s", fn.Name.Name, name.Name)
+				}
+			}
+		}
+	}
 	checkSignature := func(fnName string, expected []string) error {
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)

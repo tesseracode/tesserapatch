@@ -1,3 +1,17 @@
+## S4 Repair Draft — Residual Helper Boundary — 2026-10-30
+
+Implementer returns `aa92ee1`: public execution signatures are typed, feature
+capability is borrowed and global acquisition is windowed. Focused checks pass
+(9.23s); old public signatures fail the compile-time regression.
+
+Direct parent inspection catches incomplete propagation: abandonCandidate,
+borrowExecutionFeatureLock and acquireExecutionGlobalLock still accept bare
+repoRoot strings. The new guard checks only the two public/engine signatures,
+so it misses those helper parameters. Parent takes a surgical correction:
+pass existing typed roots/held-root capability to all three helpers and extend
+the execution guard over every helper, with old-helper negative controls.
+No competing Go workload; independent review waits for the complete frozen fix.
+
 ## S4 Conformance Repair Assigned — 2026-10-30
 
 Same implementer `26ea48b1-7dd4-4141-a2cc-73aac199ce33` owns the bounded

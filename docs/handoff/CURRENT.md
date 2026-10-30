@@ -37,9 +37,15 @@ and a negative guard reproducing the missed old signatures. ADR-047 records
 the correction choice; do not weaken the accepted two-constructor contract.
 No S5 code or phase wiring is authorized until this repair closes.
 Same implementation agent `26ea48b1-7dd4-4141-a2cc-73aac199ce33` owns the
-bounded repair and admitted focused Go checks. Parent runs no competing Go.
+bounded repair and completed admitted focused checks at `aa92ee1`.
+Parent now owns code/Go for a narrow residual correction: three helper
+signatures still take bare repoRoot strings. Pass existing typed roots through
+them and extend the guard beyond the two execution entrypoints. No competing Go.
 Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` awaits a frozen repair.
 Both runtimes are confirmed OpenAI `gpt-5.3-codex`.
+Draft evidence: old public signatures fail compile-time controls;
+`s4-boundary-targeted-pass-2` passes (9.23s), normal pressure/no swap-outs.
+This draft is not yet approved because the helper boundary remains incomplete.
 New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
 harness is unchanged and nine routing controls pass. Prior closing CI
 `41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not

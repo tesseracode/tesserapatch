@@ -474,6 +474,18 @@ func TestS4ExecuteCreateAndPruneRespectGlobalLockWindows(t *testing.T) {
 	}
 }
 
+func TestS4ExecuteInvalidIDDoesNotAcquireGlobalLock(t *testing.T) {
+	root, reference, upstream, patch, effects := derivationFixture(t, "a\nb\n", "a\nx\nb\n", "a\nb\n", false)
+	featureLock := acquireFeatureLock(t, root, "s4-invalid-id")
+	if _, err := Execute(reference, upstream, patch, effects, "s4-invalid-id", "rc_invalid", featureLock); err == nil {
+		t.Fatal("invalid candidate identity accepted")
+	}
+	globalPath := filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock")
+	if _, err := os.Lstat(globalPath); !os.IsNotExist(err) {
+		t.Fatalf("invalid identity acquired a global lock file: %v", err)
+	}
+}
+
 func TestS4ExecuteWithPlanRejectsRepositoryRootMismatch(t *testing.T) {
 	repoA, headA := initCandidateRepo(t)
 	repoB, headB := initCandidateRepo(t)

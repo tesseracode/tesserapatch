@@ -56,13 +56,16 @@ func executeWithPlan(
 	if err != nil {
 		return ExecutionResult{}, err
 	}
-	releaseFeature, err := borrowExecutionFeatureLock(repoRoot, slug, featureLock)
+	if !slugPattern.MatchString(slug) || !candidateIDPattern.MatchString(candidateID) {
+		return ExecutionResult{}, fmt.Errorf("invalid candidate slug or id")
+	}
+	releaseFeature, err := borrowExecutionFeatureLock(upstream, slug, featureLock)
 	if err != nil {
 		return ExecutionResult{}, err
 	}
 	defer releaseFeature()
 
-	createGlobal, err := acquireExecutionGlobalLock(repoRoot)
+	createGlobal, err := acquireExecutionGlobalLock(upstream.repo)
 	if err != nil {
 		return ExecutionResult{}, fmt.Errorf("acquire worktree mutation lock for candidate creation: %w", err)
 	}
@@ -75,11 +78,11 @@ func executeWithPlan(
 		return ExecutionResult{}, createErr
 	}
 	if releaseCreateGlobalErr != nil {
-		return abandonCandidate(candidateRoot, featureLock, repoRoot, fmt.Errorf("release worktree mutation lock after candidate creation: %w", releaseCreateGlobalErr))
+		return abandonCandidate(candidateRoot, featureLock, fmt.Errorf("release worktree mutation lock after candidate creation: %w", releaseCreateGlobalErr))
 	}
 
 	abandon := func(cause error) (ExecutionResult, error) {
-		return abandonCandidate(candidateRoot, featureLock, repoRoot, cause)
+		return abandonCandidate(candidateRoot, featureLock, cause)
 	}
 	if err := applyCandidateOperations(candidateRoot, plan.operations); err != nil {
 		return abandon(err)
@@ -97,14 +100,14 @@ func executeWithPlan(
 	}, nil
 }
 
-func abandonCandidate(candidateRoot *CandidateRoot, featureLock *candidatelock.Handle, repoRoot string, cause error) (ExecutionResult, error) {
+func abandonCandidate(candidateRoot *CandidateRoot, featureLock *candidatelock.Handle, cause error) (ExecutionResult, error) {
 	if candidateRoot == nil {
 		if cause == nil {
 			return ExecutionResult{}, fmt.Errorf("candidate root is nil")
 		}
 		return ExecutionResult{}, cause
 	}
-	pruneGlobal, lockErr := acquireExecutionGlobalLock(repoRoot)
+	pruneGlobal, lockErr := acquireExecutionGlobalLock(candidateRoot.repo)
 	if lockErr != nil {
 		closeErr := closeCandidateRoot(candidateRoot)
 		lockWrap := fmt.Errorf("acquire worktree mutation lock for candidate prune: %w", lockErr)
@@ -152,7 +155,11 @@ func resolveExecutionRepoRoot(reference, upstream *ReferenceRoot) (string, error
 	return reference.repo.path, nil
 }
 
-func borrowExecutionFeatureLock(repoRoot, slug string, featureLock *candidatelock.Handle) (func(), error) {
+func borrowExecutionFeatureLock(upstream *ReferenceRoot, slug string, featureLock *candidatelock.Handle) (func(), error) {
+	if err := upstream.ensureAvailable(); err != nil {
+		return nil, err
+	}
+	repoRoot := upstream.repo.path
 	featurePath := filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock")
 	if err := safety.EnsureSafeRepoPath(repoRoot, featurePath); err != nil {
 		return nil, fmt.Errorf("feature lock path escaped repository root: %w", err)
@@ -164,7 +171,11 @@ func borrowExecutionFeatureLock(repoRoot, slug string, featureLock *candidateloc
 	return release, nil
 }
 
-func acquireExecutionGlobalLock(repoRoot string) (*candidatelock.Handle, error) {
+func acquireExecutionGlobalLock(repo *heldRoot) (*candidatelock.Handle, error) {
+	if _, err := repo.validateCurrentPath(false); err != nil {
+		return nil, err
+	}
+	repoRoot := repo.path
 	globalPath := filepath.Join(repoRoot, ".tpatch", "locks", "worktree-mutation.lock")
 	if err := safety.EnsureSafeRepoPath(repoRoot, globalPath); err != nil {
 		return nil, fmt.Errorf("worktree mutation lock path escaped repository root: %w", err)

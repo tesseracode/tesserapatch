@@ -1634,6 +1634,9 @@ Restore typed execution, feature-borrow lifetime and short global holds,
 strengthen discriminating guards, then repeat independent/full/native gates.
 The same bounded implementer owns correction/focused checks; parent holds
 S5 and prepares a fresh unchanged gate harness (nine routing controls pass).
+Draft `aa92ee1` fixes public signatures/global windows, but parent catches
+three residual bare-root helpers. Finish typed propagation and helper-wide
+negative guards before independent review.
 
 ### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 
