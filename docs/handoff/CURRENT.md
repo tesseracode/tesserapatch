@@ -34,6 +34,14 @@ Read accepted PRD S5, sections 6.10/6.11/6.18 and the S5 matrix. Implement
 only callable artifact/lifecycle primitives; S6 owns actual phase wiring and
 shared status-merge integration. S5 adds the optional omitempty pointer
 shape without changing no-candidate bytes.
+Implementation agent `bde5671e-80de-4931-a94b-74260e2837b1` is assigned,
+explicit OpenAI `gpt-5.3-codex` (runtime confirmation pending), with a coherent
+checkpoint requested by 16:00 UTC. It owns code/tests/proposed ADR-048 and
+sole admitted focused Go checks. Parent owns tracking/infrastructure only.
+The unchanged S5 runner/full-gate harness passes all nine routing controls.
+Restored-S4 closing CI `41072987684` runs under watcher
+`roc-s4-restored-close-ci`; no early push/cancellation. Deadline timer
+`overnight-deadline` is responsive and will trigger at 18:00:24 UTC.
 
 ## Current State — S5 scope
 
@@ -66,7 +74,8 @@ Supervisor alone owns CURRENT/ROADMAP/LOG/OVERNIGHT during implementation.
 
 ## Test Results
 
-No S5 checks yet. S4 repair: 8/8 gate, 42/42 commands, 39/39 uncached tests,
+No S5 code checks yet; copied routing controls pass 9/9.
+S4 repair: 8/8 gate, 42/42 commands, 39/39 uncached tests,
 native five jobs and actual Windows CLW pass. Runtime 5,922.25s, peak owned
 RSS 7.26 GiB, normal pressure/no swap-outs, zero owned survivors.
 
