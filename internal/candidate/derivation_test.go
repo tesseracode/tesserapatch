@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
@@ -207,6 +208,16 @@ func TestS3DomainPostimageAndAvailabilityRefusals(t *testing.T) {
 	_, replaceRef, replaceUp, replacePatch, replaceEffects := derivationFixture(t, "a\n", "b\n", "a\n", false)
 	if plan, err := Derive(replaceRef, replaceUp, replacePatch, replaceEffects); refusalCode(err) != "effect-replacement-unsupported" || len(plan.operations) != 0 {
 		t.Fatalf("replacement was replayed: %+v %v", plan, err)
+	}
+}
+
+func TestS3DerivationRejectsOversizedSides(t *testing.T) {
+	for _, base := range []string{strings.Repeat("x", alignmentMaxBytes+1) + "\n", strings.Repeat("\n", alignmentMaxRecords+1)} {
+		_, ref, up, patch, effects := derivationFixture(t, base, base+"extra\n", base, false)
+		plan, err := Derive(ref, up, patch, effects)
+		if refusalCode(err) != "alignment-limit" || len(plan.operations) != 0 {
+			t.Fatalf("oversized side admitted: %v", err)
+		}
 	}
 }
 

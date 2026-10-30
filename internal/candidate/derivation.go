@@ -159,6 +159,9 @@ func Derive(reference, upstream *ReferenceRoot, patch string, effects []gitutil.
 		if err != nil || digestBytes(pre) != effect.PreimageSHA256 || bytes.IndexByte(pre, 0) >= 0 {
 			return Plan{}, &refusal{code: "effect-binding-drift", path: effect.Path}
 		}
+		if recordCount(pre) > alignmentMaxRecords {
+			return Plan{}, &refusal{code: "alignment-limit", path: effect.Path}
+		}
 		runs, postHash, err := gitutil.ExtractPatchInsertionRuns(patch, normalized[index], pre)
 		if err != nil {
 			code := "fragment-boundary-underivable"
