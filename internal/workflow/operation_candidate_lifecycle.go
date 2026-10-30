@@ -391,6 +391,10 @@ func prepareOperationCandidateHeld(s *store.Store, slug string, invocation opera
 		return operationCandidatePrepared{}, err
 	}
 	defer release()
+	repoIdentity, err := os.Stat(s.Root)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
 	metadata, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return operationCandidatePrepared{}, err
@@ -462,6 +466,9 @@ func prepareOperationCandidateHeld(s *store.Store, slug string, invocation opera
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
+	if !os.SameFile(repoIdentity, info) {
+		return operationCandidatePrepared{}, fmt.Errorf("candidate preparation repository changed")
+	}
 	invocation.slugs = slices.Clone(invocation.slugs)
 	return operationCandidatePrepared{owner: s, repoPath: s.Root, repoIdentity: info, slug: slug, invocation: invocation,
 		eligibility: eligibility, derivation: derivation, candidateID: id}, nil
@@ -473,6 +480,20 @@ func sameOperationCandidatePreparation(a, b operationCandidatePrepared) bool {
 		a.eligibility.sourceFeatureState == b.eligibility.sourceFeatureState &&
 		a.eligibility.referenceCommit == b.eligibility.referenceCommit && a.eligibility.upstreamCommit == b.eligibility.upstreamCommit &&
 		operationCandidateBindings(a.eligibility) == operationCandidateBindings(b.eligibility)
+}
+
+func checkOperationCandidatePreparationRoot(s *store.Store, slug string, prepared operationCandidatePrepared) error {
+	if prepared.owner != s || prepared.slug != slug || prepared.repoPath != s.Root || prepared.repoIdentity == nil {
+		return fmt.Errorf("candidate preparation repository/feature mismatch")
+	}
+	info, err := os.Stat(s.Root)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(info, prepared.repoIdentity) {
+		return fmt.Errorf("candidate preparation repository identity changed")
+	}
+	return nil
 }
 
 func operationCandidateArtifact(prepared operationCandidatePrepared, execution candidate.ExecutionResult) (candidate.CandidateArtifact, error) {
@@ -500,6 +521,9 @@ func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *can
 		return candidate.CandidateArtifact{}, err
 	}
 	defer release()
+	if err := checkOperationCandidatePreparationRoot(prepared.owner, prepared.slug, prepared); err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
 	fresh, err := prepareOperationCandidateHeld(prepared.owner, prepared.slug, prepared.invocation, lock)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
@@ -590,8 +614,8 @@ func finalizeOperationCandidate(s *store.Store, slug string, expected operationC
 		return candidate.CandidateArtifact{}, err
 	}
 	defer release()
-	if expected.owner != s || expected.slug != slug || expected.repoPath != s.Root {
-		return candidate.CandidateArtifact{}, fmt.Errorf("candidate preparation repository/feature mismatch")
+	if err := checkOperationCandidatePreparationRoot(s, slug, expected); err != nil {
+		return candidate.CandidateArtifact{}, err
 	}
 	prepared, err := prepareOperationCandidateHeld(s, slug, expected.invocation, lock)
 	if err != nil {

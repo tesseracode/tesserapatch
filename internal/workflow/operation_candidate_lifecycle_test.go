@@ -614,7 +614,7 @@ func TestROCS5ResumeAcceptedAuditCannotBeRecreated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state.Status, state.AcceptValidation = candidate.CandidateStatusAccepted, candidate.CandidateAcceptValidationStructural
+	state.Status, state.AcceptValidation = candidate.CandidateStatusAccepted, candidate.CandidateAcceptValidationStruct
 	if err := root.WriteState(state, feature); err != nil {
 		t.Fatal(err)
 	}

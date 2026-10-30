@@ -68,6 +68,9 @@ failed its own mutation control because a second legitimate stale call masked
 the removed first call. Replace it with function-scoped AST ordering and a
 single preparation mint-site guard, retaining negative controls. Added explicit
 equal-result cross-candidate/repository and accepted-audit regressions.
+The next targeted run stopped at a test's misspelled existing enum constant,
+before runtime tests. Corrected it and bound prepared repository identity
+before any fresh finalization/preflight mutation. No guard was weakened.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
