@@ -32,10 +32,26 @@ func TestCandidateProductionSourceInventory(t *testing.T) {
 		names = append(names, filepath.Base(file.path))
 	}
 	sort.Strings(names)
-	want := []string{"readflags_other.go", "readflags_unix.go", "root.go"}
-	if strings.Join(names, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("candidate production file inventory changed:\n got %v\nwant %v", names, want)
+	if err := checkCandidateProductionInventory(names); err != nil {
+		t.Fatal(err)
 	}
+	for _, mutated := range [][]string{
+		{"readflags_other.go", "readflags_unix.go", "root.go"},
+		append(append([]string(nil), names...), "third_root.go"),
+		append(append([]string(nil), names...), "reference.go"),
+	} {
+		if err := checkCandidateProductionInventory(mutated); err == nil {
+			t.Fatalf("inventory accepted missing or unregistered source: %v", mutated)
+		}
+	}
+}
+
+func checkCandidateProductionInventory(names []string) error {
+	want := []string{"readflags_other.go", "readflags_unix.go", "reference.go", "root.go"}
+	if strings.Join(names, "\n") != strings.Join(want, "\n") {
+		return fmt.Errorf("candidate production file inventory changed:\n got %v\nwant %v", names, want)
+	}
+	return nil
 }
 
 func TestBareRootConstructorsBoundary(t *testing.T) {

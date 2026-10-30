@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Code independently approved; broader and full/native validation pending
+- **Status**: Production code approved; correcting three dependent source-inventory registrations
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -69,6 +69,18 @@ its nine routing controls pass, but it is not configured or running yet.
 Independent review now APPROVES frozen `2c462a3`, with no significant issues.
 Runtime metadata confirms OpenAI `gpt-5.3-codex`. The canonical APPROVED field
 records code-review status only; S2 is not accepted until validation completes.
+Broader affected-package validation finds three legacy source inventories
+needing explicit S2 transition: the new candidate reference file, the moved
+strict-normalizer call owner, and the eligibility evaluator's readonly
+coverage-consumer role. Patchobs and store pass; candidate/gitutil/workflow
+report these inventory failures. There is no resource stop; vet/build do not
+start after the failed command.
+
+Correct only those registrations with omission/writer/unknown-reader negative
+controls. Keep the evaluator outside the pure-core allowlist, retain exactly
+eleven strict normalizer calls, and preserve the original S1/capture scope.
+Production code remains frozen; return the test-only correction for narrow
+independent review after admitted validation.
 
 ## Current State — bounded S2 scope
 
@@ -104,6 +116,9 @@ Directly coupled hardening: case-insensitive routing/config scrubbing in
 `internal/gitutil/hardened_env.go`, with its existing test file extended.
 Tests: new S2 workflow runtime/source guards and candidate reference tests;
 store roundtrip regression; finite S2 stage permissions in the S0 scope guard.
+Dependent inventory tests also register `reference.go`, the relocated strict
+normalizer call, and the evaluator's readonly consumer functions; no pure-core
+or general publication exemption is added.
 Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Test Results
@@ -124,6 +139,11 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 - Corrected source is frozen at `2c462a3`; broader positive checks and
   independent review are pending. The initial focused pass and intentional
   negative controls do not establish S2 acceptance.
+- The affected-package run has three inventory assertion failures only:
+  candidate production-file list, gitutil strict-normalizer call owner, and
+  workflow coverage-consumer registration. Patchobs/store pass; other runtime
+  assertions report no failure. Stage `s2-review-affected-packages-20261029`
+  has no resource stop. Vet/build remain unstarted after fail-fast.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.

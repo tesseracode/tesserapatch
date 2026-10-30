@@ -73,16 +73,18 @@ var rocS1AllowedPaths = map[string]bool{
 }
 
 var rocS2AllowedPaths = map[string]bool{
-	"internal/workflow/operation_candidate_eligibility.go":    true,
-	"internal/workflow/operation_candidate_s2_test.go":        true,
-	"internal/workflow/operation_candidate_s2_guards_test.go": true,
-	"internal/candidate/reference.go":                         true,
-	"internal/candidate/reference_test.go":                    true,
-	"internal/patchobs/gitread.go":                            true,
-	"internal/patchobs/reconstruct.go":                        true,
-	"internal/store/types.go":                                 true,
-	"internal/store/store.go":                                 true,
-	"internal/store/roundtrip_test.go":                        true,
+	"internal/gitutil/recipe_authority_s0_pi12_test.go":           true,
+	"internal/workflow/recipe_authority_s0_source_guards_test.go": true,
+	"internal/workflow/operation_candidate_eligibility.go":        true,
+	"internal/workflow/operation_candidate_s2_test.go":            true,
+	"internal/workflow/operation_candidate_s2_guards_test.go":     true,
+	"internal/candidate/reference.go":                             true,
+	"internal/candidate/reference_test.go":                        true,
+	"internal/patchobs/gitread.go":                                true,
+	"internal/patchobs/reconstruct.go":                            true,
+	"internal/store/types.go":                                     true,
+	"internal/store/store.go":                                     true,
+	"internal/store/roundtrip_test.go":                            true,
 }
 
 func rocS2ValidateStageChangedPaths(paths []string) error {

@@ -1,3 +1,18 @@
+## Validation Revision — S2 dependent source inventories — 2026-10-29
+
+The full affected-package command fails three source inventories at approved
+`2c462a3`: candidate file inventory lacks `reference.go`; the normalizer
+call moved from Reconstruct to reconstructWithEnv; and eligibility needs a
+registered readonly coverage-consumer role. Patchobs/store pass; there is no
+resource stop. The fail-fast command chain does not start vet/build.
+
+Make these explicit test-only registrations, not production-policy changes.
+Do not grant eligibility a pure-core exemption or increase the eleven-call
+normalizer budget. Add missing-file/unknown-file and readonly-consumer
+writer/alias/unregistered-reader negatives; extend only the finite S2 test
+path permissions. Revalidate and request narrow review of this correction.
+The prior production-code approval remains distinct from complete validation.
+
 ## Review — GH #13 S2 corrected checkpoint — 2026-10-29
 
 **Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;

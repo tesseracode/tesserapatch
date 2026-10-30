@@ -593,7 +593,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/workflow/recipe_coverage.go|coverageObservation":                   1,
 			"internal/workflow/recipe_capture_event.go|ValidateRecipeCaptureEventPair":   1,
 			"internal/workflow/recipe_coverage_reconstruct.go|reconstructRecipeCoverage": 1,
-			"internal/patchobs/reconstruct.go|Reconstruct":                               1,
+			"internal/patchobs/reconstruct.go|reconstructWithEnv":                        1,
 			"internal/gitutil/patch_reconstruct.go|ReconstructPatchPostimage":            1,
 			"internal/gitutil/gitutil.go|CapturePatchScopedReadOnly":                     1,
 		},

@@ -1645,6 +1645,10 @@ Git routing keys; all three regressions fail on the prior draft. Freeze the
 correction for broader validation and independent review, not acceptance.
 Independent review of `2c462a3` is APPROVED with no significant issues.
 Broader local checks and full 39-command/native validation still gate S2 acceptance.
+The affected-package command exposes three dependent source-inventory updates:
+the reference helper file, relocated normalizer owner and readonly consumer
+registration. Correct those exact test registrations with negative controls;
+production code stays unchanged and no pure-core exemption is granted.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

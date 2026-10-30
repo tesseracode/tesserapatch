@@ -699,6 +699,26 @@ func rgaS0CheckAutogenDerivation(src string) error {
 }
 
 var rgaS5ReadFunctions = map[string]map[string]bool{
+	"internal/workflow/operation_candidate_eligibility.go": {
+		"assessOperationCandidateEligibility":               true,
+		"(*operationEligibilityContext).refuse":             true,
+		"(*operationEligibilityContext).coverageUsable":     true,
+		"(*operationEligibilityContext).coverageOwner":      true,
+		"(*operationEligibilityContext).coverageComplete":   true,
+		"(*operationEligibilityContext).captureEvent":       true,
+		"(*operationEligibilityContext).bindingPresence":    true,
+		"(*operationEligibilityContext).bindingHashes":      true,
+		"(*operationEligibilityContext).recipeDecodable":    true,
+		"(*operationEligibilityContext).recipeOwner":        true,
+		"(*operationEligibilityContext).references":         true,
+		"(*operationEligibilityContext).effectBindings":     true,
+		"(*operationEligibilityContext).recipeWitnesses":    true,
+		"(*operationEligibilityContext).witnessesSupported": true,
+		"(*operationEligibilityContext).supersession":       true,
+		"(*operationEligibilityContext).parents":            true,
+		"(*operationEligibilityContext).invocationMode":     true,
+		"(*operationEligibilityContext).shadow":             true,
+	},
 	"internal/patchobs/reconstruct.go":      {},
 	"internal/gitutil/patch_reconstruct.go": {},
 	"internal/workflow/recipe_coverage_read.go": {
@@ -803,12 +823,35 @@ func rgaS5ReadFunction(rel string, node ast.Node, importMaps ...map[string]strin
 			"PublishCoverage", "publishRecordRecipePlan", "AutogenRecipeForRecord", "writeRecipe", "clearStaleMarker",
 			"ObserveAndEmit", "Emit", "SetRecorder", "GenerateWithRetry", "ExecuteRecipe", "Command", "CommandContext",
 			"CapturePatch", "CapturePatchScoped", "CaptureUnstagedPatch",
-			"EnsureDoctorBackup", "BackupPathForOverwrite", "Acquire", "Lock", "Flock":
+			"EnsureDoctorBackup", "BackupPathForOverwrite", "Acquire", "Lock", "Flock",
+			"CreateCandidateRoot", "Prune", "SaveConfig":
 			refusal = fmt.Errorf("%s: readonly planning/assessment acquired %s", rel, name)
 		}
 		return true
 	})
 	return refusal
+}
+
+func TestROCS2CoverageConsumerRegistrationSensitivity(t *testing.T) {
+	const path = "internal/workflow/operation_candidate_eligibility.go"
+	source := rgaS0ReadRepoFile(t, path)
+	if err := rgaS0CoveragePhaseSource(path, source); err != nil {
+		t.Fatal(err)
+	}
+	for _, extra := range []string{
+		"\nfunc unregisteredCoverageRead() RecipeCoverage { return RecipeCoverage{} }\n",
+		"\nfunc plantedCandidateWriter(s *store.Store) { _, _ = candidate.CreateCandidateRoot(s.Root, \"f\", \"rc_000000000000\", \"commit\", nil, nil) }\n",
+		"\nfunc plantedCandidatePrune(root *candidate.CandidateRoot) { _ = root.Prune(nil, nil) }\n",
+		"\nfunc plantedConfigWrite(s *store.Store) { _ = s.SaveConfig(store.Config{}) }\n",
+		"\nvar aliasedCandidateWriter = candidate.CreateCandidateRoot\n",
+	} {
+		if err := rgaS0CoveragePhaseSource(path, source+extra); err == nil {
+			t.Fatal("readonly consumer registration accepted a writer or unregistered reader")
+		}
+	}
+	if err := rgaS0CoveragePhaseSource("internal/workflow/unregistered_candidate.go", source); err == nil {
+		t.Fatal("consumer role leaked to another file")
+	}
 }
 
 func rgaS5ReadOnlyOpenFlags(expr ast.Expr, imports map[string]string, visiting map[ast.Expr]bool) bool {
