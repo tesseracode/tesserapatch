@@ -1,3 +1,16 @@
+## S5 Final Bounded Correction Assignment — 2026-10-30
+
+At 16:25 UTC assign only F1/F2/F10/F11 to the same implementer: enforce
+feature capabilities at public mutation APIs, reject namespace/Git aliases,
+reopen stale/reject against stored upstream after safe metadata read, and
+exclude ordinary worktree content from recovery-journal scanning. Checkpoint
+due 17:15 UTC. Parent retains Go ownership until frozen basic run ends;
+implementation may edit but must not start another workload.
+
+Explicitly defer OPEN F3/F4/F6 and complete finalization composition rather
+than attempting a rushed broad authority rewrite. No acceptance, publication
+or full-gate start. The next agent receives these unresolved blockers intact.
+
 ## Review — S5 Revision Still NEEDS REVISION — 2026-10-30
 
 Reviewer `7712b628` (`gpt-6-astra`) rejects `108ed61` for acceptance.

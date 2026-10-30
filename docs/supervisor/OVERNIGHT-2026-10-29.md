@@ -19,7 +19,7 @@ No automatic scope expansion into unaccepted product contracts.
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
 | GH #13 S4 | Acceptance RESTORED and pushed | validated `c4f2f1e`, close `f9d5501` | Fresh review/local/native pass; closing CI `41072987684` also green |
-| GH #13 S5 | NEEDS REVISION; four findings closed | `108ed61`, WAVE_BASE `f9d5501` | Authority/finalization/root blockers remain; unpublished, no full gates |
+| GH #13 S5 | Final bounded fixes; still NEEDS REVISION | `108ed61`, WAVE_BASE `f9d5501` | F1/F2/F10/F11 targeted by17:15; authority/finalization deferred OPEN |
 | GH #13 S6+ | Not dispatched | Depends on accepted S5 | Pending |
 
 ## Decisions
@@ -108,6 +108,14 @@ callable publication/identity composition despite green package tests. Keep
 the draft local and unaccepted. Use the remaining window for bounded fixes
 and real negative tests; do not relabel missing authority as future S6 wiring
 or substitute mocked validation success for production proof.
+
+### ON-010 — Narrow the final correction instead of rushing authority
+
+S5 re-review closes four findings but confirms unresolved authority and
+transition composition. In the remaining window, target only capability/
+alias/stored-commit/recovery-scan fixes. Cross-candidate binding, preparation
+authority and failure-safe continuous-lock finalization stay explicit next
+work. This limits churn and leaves a reviewable checkpoint, not a false ship.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

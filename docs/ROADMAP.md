@@ -1653,6 +1653,9 @@ Re-review still NEEDS REVISION: four findings close, but mutation capability,
 namespace alias, cross-candidate reuse/preparation authority, failed-transition
 consistency and finalization composition remain. Wrong-commit reopening and
 overbroad worktree recovery scanning add blockers. Keep S5 unpublished.
+Final bounded pass targets F1/F2/F10/F11 only, checkpoint due17:15 UTC.
+Cross-candidate authority, interrupted transitions and composed finalization
+remain explicitly open for later work; no acceptance or gate waiver.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 

@@ -77,6 +77,12 @@ real continuous-lock finalization. New blockers: stale/reject reopen against
 current/live commit instead of stored upstream; recovery scan rejects untouched
 symlinks inside worktrees. Full details and concrete cases are in LOG.
 Implementer's all-resolved claim was not accepted. No publication/full gate.
+Next pass is explicitly bounded to mutation capabilities, alias-safe reopening,
+stored-upstream reopening, and recovery scanning (F1/F2/F10/F11), with a
+17:15 UTC checkpoint. Cross-candidate reuse/preparation authority, interrupted
+transitions and composed finalization (F3/F4/F6/missing) remain deferred OPEN.
+Implementer may edit now; parent retains sole Go ownership until the current
+frozen basic run completes, then explicitly hands it back.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256
