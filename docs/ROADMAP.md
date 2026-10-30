@@ -1656,6 +1656,10 @@ and corrected broader/full/native checks remain required.
 Re-review APPROVES `17f76d1`, closing both findings; corrected affected
 packages pass. Parent clarifies ROC-140 first-pass postcondition refusal
 reachability before publication; full/native gates remain pending.
+Supervisor confirms a phase gap: first-pass payload postconditions need an
+independent production check before second-pass classification. Correct it
+with actual corrupted-boundary and unrelated-content regressions; no new
+alignment behavior or S5 scope.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

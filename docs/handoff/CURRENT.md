@@ -14,7 +14,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Corrections independently approved; checking first-pass postcondition refusal reachability
+- **Status**: Correcting confirmed first-pass postcondition phase gap
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
@@ -40,7 +40,8 @@ Implementation agent: `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, explicitly
 requested and runtime-confirmed OpenAI `gpt-5.3-codex`. It completed the
 bounded draft and focused checks. Parent's basic checks have completed;
 implementation completed correction formatting/focused checks. Parent now
-exclusively owns admitted broader revalidation. No competing Go workload.
+completed broader revalidation; implementation again owns narrow correction
+and admitted focused checks. No competing Go workload.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate is not configured or running.
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
@@ -68,6 +69,11 @@ The same reviewer APPROVES `17f76d1` and closes both findings; ADR-046 stays
 Proposed until full acceptance. Parent checks one narrow follow-up: ROC-140's
 first-pass postcondition failure must remain independently reachable through
 production validation, not only a direct helper fixture.
+Parent confirmed the gap: the postcondition helper follows an all-present
+second-pass gate, so real corrupted inserted bytes route through unmodeled/
+idempotency failures instead of ROC-140's independent postcondition refusal.
+Separate exact first-pass payload postconditions from later full-effect
+idempotency, with failing-before production-path regressions. See ON-006.
 S3 closing-tip CI `41028948776` completed successfully, all five required
 jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
 At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
@@ -122,7 +128,8 @@ These passes do not discharge the semantic review finding.
 - Correction evidence: `s4-revfix-failing-before-1` proves the real Execute
   regression failed on the old route. `s4-revfix-targeted-pass-2` and
   `s4-revfix-guards-pass-1` PASS (1.75s/7.55s), normal pressure/no swap-outs.
-  Corrected formatting/affected packages PASS (137.03s); vet/build continue.
+  Corrected formatting/affected packages PASS (137.03s), vet 5.00s and
+  build 0.48s also PASS, normal pressure/no swap-outs.
   Independent review closes both original findings.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
@@ -131,8 +138,8 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Re-review corrected `17f76d1` and ADR-046 with the same independent reviewer.
-2. Parent alone reruns admitted formatting/affected/vet/build in a fresh checkout.
+1. Correct first-pass postcondition ordering and preserve all second-pass checks.
+2. Obtain focused red/green evidence, re-review and admitted broader checks.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
@@ -148,8 +155,8 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-Both original review findings are closed. First-pass postcondition refusal
-reachability needs clarification before publication.
+Both original review findings are closed. A confirmed first-pass postcondition
+phase gap requires correction before publication.
 Predecessor closing-tip CI has passed. ADR-046 remains Proposed.
 
 ## Context for Next Agent

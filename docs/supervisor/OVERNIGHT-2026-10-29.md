@@ -18,7 +18,7 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
-| GH #13 S4 | Corrections approved; contract clarification | `17f76d1`, WAVE_BASE `5d22acf` | Both findings closed; ROC-140 path checked before full/native gates |
+| GH #13 S4 | Correcting first-pass postcondition phase | `17f76d1`, WAVE_BASE `5d22acf` | Prior two findings closed; supervisor ROC-140 gap blocks publication |
 | GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
@@ -73,6 +73,16 @@ premature Accepted ADR label was restored to Proposed before review.
 Independent bounded review accepts the rooted candidate snapshot binding,
 but requires one-path expected-content validation to preserve ADR-045's
 body-lifetime discipline. No additional snapshot architecture is introduced.
+
+### ON-006 — Keep postconditions distinct from idempotency
+
+The routing correction exposed a separate contract gap: an all-present
+second-pass gate makes the later applicable-effect postcondition check
+ineffective for real boundary corruption. Validate exact inserted/created
+payloads at derived positions before running the production second pass;
+then require every effect present with stable tree/diff. This preserves both
+ROC-140's postcondition refusal and mandatory candidate-not-idempotent
+second-pass outcomes, rather than relabeling one as the other.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

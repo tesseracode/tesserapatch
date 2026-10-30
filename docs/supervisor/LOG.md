@@ -1,3 +1,25 @@
+## S4 Supervisor Adjudication — Postcondition Phase Gap — 2026-10-30
+
+The two reviewed fixes remain closed, but parent inspection confirms a tightly
+coupled ROC-140 gap at `17f76d1`: validateApplicableEffects is the only
+post-application candidate-postcondition-failed branch, yet it runs after
+the second plan has already been required to be all-present. The existing
+test for that code exercises duplicate-create preconditions, not a corrupted
+inserted boundary. Exact modeled-byte differences instead return
+candidate-unmodeled-change after the second classifier has already run.
+
+Separate the phases explicitly: first validate exact created/inserted bytes
+at their expected derived positions (ROC-140), plus remaining modeled bytes;
+only then run the production classifier over all effects and uniformly gate
+second-pass outcomes as candidate-not-idempotent. Preserve the real
+reapplication regression. Add wrong-boundary-payload and unrelated-content
+fixtures through production validateCandidate, with red-before evidence.
+This is contract conformance, not a new algorithm or authority source.
+
+Corrected basic checks all pass (affected 137.03s, vet 5.00s, build 0.48s);
+no parent workload remains. Return narrow correction/focused ownership to
+the implementer and retain the same independent reviewer.
+
 ## Review — S4 Corrections APPROVED — 2026-10-30
 
 Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, runtime OpenAI
