@@ -54,6 +54,11 @@ candidate-postcondition-failed before validateSecondPassPlan runs. Every
 such second-pass outcome must instead be candidate-not-idempotent with
 diagnostic detail. Correct narrowly and add a full-path regression; do not
 lose separate postcondition validation. ADR-046 remains Proposed.
+Bounded follow-up review confirms a second correction: the expected-body map
+retains all touched file contents simultaneously. Replace it with one-path
+replay/compare/discard, preserving semantics and adding a negative guard.
+The reviewer accepts the candidate-rooted read/size/mode plus before/after
+tree/diff model; no additional immutable-tree subsystem is needed.
 S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
 while that exact-tip run is active. At 09:29 UTC about 8.5 hours remain.
 
@@ -111,7 +116,7 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Correct second-pass refusal routing and add a mutation-sensitive regression.
+1. Correct second-pass refusal routing and per-file body lifetime with regressions.
 2. Parent alone finishes/reruns appropriate checks; return to the same reviewer.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
@@ -128,7 +133,8 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-One high review finding remains open: second-pass refusal routing. S3
+Two review findings remain open: second-pass refusal routing and aggregate
+expected-body retention. S3
 closing-tip CI may still run; do not cancel it with tracking-only pushes.
 
 ## Context for Next Agent

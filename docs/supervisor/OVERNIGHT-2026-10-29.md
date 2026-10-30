@@ -18,7 +18,7 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review approved; 39/39 local tests; CI five jobs + Windows CLW pass |
-| GH #13 S4 | Revising second-pass refusal routing | `a9e3182`, WAVE_BASE `5d22acf` | Basic checks pass; review finding open; full/native pending |
+| GH #13 S4 | Revising refusal routing and body lifetime | `a9e3182`, WAVE_BASE `5d22acf` | Basic checks pass; two findings open; full/native pending |
 | GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
@@ -70,6 +70,9 @@ worktree snapshots for the second pass, preserving commit-only public
 reference APIs (ADR-046). This is not yet accepted: review must establish
 the snapshot/unchanged-tree proof and lock/cleanup contract. The draft's
 premature Accepted ADR label was restored to Proposed before review.
+Independent bounded review accepts the rooted candidate snapshot binding,
+but requires one-path expected-content validation to preserve ADR-045's
+body-lifetime discipline. No additional snapshot architecture is introduced.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

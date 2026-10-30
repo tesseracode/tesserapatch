@@ -1645,6 +1645,9 @@ must route to candidate-not-idempotent with detail, not the earlier
 postcondition-failed branch. Narrow correction and re-review required.
 Initial full affected/vet/build checks pass but do not close the semantic
 finding. The same implementer owns correction plus admitted focused checks.
+Bounded follow-up review also requires one-file-at-a-time expected-content
+validation rather than retaining all modeled bodies. Candidate snapshot
+binding is acceptable; ADR-046 remains Proposed until both fixes pass.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

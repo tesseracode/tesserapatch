@@ -1,3 +1,18 @@
+## S4 Bounded Follow-up Review — 2026-10-30
+
+The same independent reviewer confirms a second concrete correction at
+validation.go:264: `validateExpectedModeledContent` retains modeled bodies
+for every path in `map[string][]byte`, contrary to ADR-045's per-file lifetime.
+Validate one sorted path at a time, compare immediately and discard its body;
+preserve refusal semantics and add a negative retention guard.
+
+The reviewer finds the candidate-rooted metadata/read model acceptable under
+S4: rooted regular-file identity checks, size/mode checks and before/after
+tree/diff invariants bind the mutable candidate sufficiently. It is not
+immutable commit authority, and reference snapshot semantics stay unchanged.
+No new immutable-object subsystem is required. ADR-046 remains Proposed until
+both production corrections pass re-review and complete validation.
+
 ## S4 Correction Assignment / Basic Checks Complete — 2026-10-30
 
 Basic checks at `a9e3182` all pass: formatting, affected packages 140.89s,
