@@ -1,3 +1,21 @@
+## Acceptance — GH #13 S4 candidate execution — 2026-10-30
+
+ACCEPTED at `ed7efb28c0016615b09363b627a22385448b8869`, range
+`5d22acfc389d6cb264b994f87c00da31886f1171..ed7efb2`. Final independent
+review approves `1bc18c9`, including both original findings and ON-006.
+Accept ADR-046 after complete validation, not merely implementation.
+
+Full gate passes 8/8 checks, 42/42 commands and 39/39 uncached tests with
+exact parity. Runtime 5,980.91s; peak sampled owned RSS 7.38 GiB, normal
+pressure, no new swap-outs. All 479 owned identities reconcile with no
+survivors or cleanup signals. Source clean and release tag unchanged.
+Native CI `41039157086` passes five required jobs, no failed steps; actual
+Windows CLW-001..005 pass.
+
+Archive the terminal handoff, flip ROADMAP and push closure before S5.
+Retain failed-before and successful evidence. No S5+ or release in S4.
+At 11:53 UTC approximately six authorized hours remain.
+
 ## S4 Native CI Complete — 2026-10-30
 
 Native CI `41039157086` at `ed7efb2` passes all five required jobs, no

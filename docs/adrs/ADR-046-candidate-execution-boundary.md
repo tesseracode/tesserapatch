@@ -1,6 +1,6 @@
 # ADR-046 — Candidate execution snapshot boundary
 
-**Status**: Proposed — pending independent S4 review and complete validation
+**Status**: Accepted — independent S4 review and complete local/native validation
 **Date**: 2026-10-30  
 **Issue**: GH #13 S4  
 **Related**: ADR-037 D14-D17, ADR-044, ADR-045
@@ -34,6 +34,14 @@ commit-authoritative.
 - Commit-only patch observation APIs remain commit-only.
 - Candidate execution can validate mutable worktree state without introducing a
   third bare-root constructor or live-root string API.
+- First-pass exact payload/model checks precede full-effect second-pass
+  classification; postcondition failures and non-idempotency remain distinct.
+- Modeled bodies are replayed and compared one path at a time, preserving
+  ADR-045's lifetime discipline.
+
+Independent review approves `1bc18c9`; full validation at `ed7efb2` passes
+39 local test commands and all five required native CI jobs. Peak sampled
+owned RSS is 7.38 GiB for the full suite, normal pressure and no new swap-outs.
 
 ## Alternatives rejected
 

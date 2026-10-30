@@ -1623,7 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S4 candidate execution and validation — 2026-10-30
+### GH #13 — ✅ S4 candidate execution and validation ACCEPTED — 2026-10-30
+
+**Accepted checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`.
+**Validated range**: `5d22acfc389d6cb264b994f87c00da31886f1171..ed7efb2`.
+Independent review approves `1bc18c9` and all three corrections; ADR-046 is
+accepted. Gate: 8/8 checks, 42/42 commands, 39/39 tests, exact parity.
+Native CI `41039157086`: five jobs and actual Windows CLW pass.
+Runtime 5,980.91s; peak owned RSS 7.38 GiB, normal pressure/no new swap-outs,
+zero owned survivors. No S5 artifacts, phase wiring, acceptance or release.
+
+**Completed S4 chronology**:
 
 **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`, S3 durable close.
 Accepted PRD S4 only: two-kind writer, all-or-nothing worktree execution,
