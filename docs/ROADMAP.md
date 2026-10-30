@@ -1660,6 +1660,9 @@ Supervisor confirms a phase gap: first-pass payload postconditions need an
 independent production check before second-pass classification. Correct it
 with actual corrupted-boundary and unrelated-content regressions; no new
 alignment behavior or S5 scope.
+ON-006 correction `1bc18c9` now passes real red-before/green-after payload,
+unrelated-byte and shifted-offset fixtures. Final re-review/basic checks
+precede full local/native validation.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

@@ -1,3 +1,17 @@
+## S4 ON-006 Correction Frozen — 2026-10-30
+
+Freeze `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`: first-pass exact
+created/inserted payload checks (including shifted final offsets) precede
+second derivation; remaining modeled drift and full-effect idempotency retain
+their distinct codes. Remove the redundant late postcondition helper.
+
+Actual corrupted-payload regression FAILS before (unmodeled-change) and
+PASSES after (postcondition-failed); unrelated-byte and descending-insertion
+fixtures plus prior reapplication case pass. Targeted/guard runs 2.94s/8.30s,
+normal pressure and zero new swap-outs. Parent resumes sole Go ownership,
+reruns final candidate-package/vet/build and returns to the same reviewer.
+Prior full affected checks already passed; full local/native gates remain.
+
 ## S4 Supervisor Adjudication — Postcondition Phase Gap — 2026-10-30
 
 The two reviewed fixes remain closed, but parent inspection confirms a tightly
