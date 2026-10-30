@@ -1,6 +1,6 @@
 # ADR-046 — Candidate execution snapshot boundary
 
-**Status**: Accepted (S4 implementation decision)  
+**Status**: Proposed — pending independent S4 review and complete validation
 **Date**: 2026-10-30  
 **Issue**: GH #13 S4  
 **Related**: ADR-037 D14-D17, ADR-044, ADR-045

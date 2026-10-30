@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S4 is assigned after S3's accepted closure was archived and pushed at
 `5d22acfc389d6cb264b994f87c00da31886f1171`. S0-S3 remain accepted.
@@ -14,11 +14,12 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: In progress — implementation scoped
+- **Status**: Draft implemented; focused checks pass; independent review and broader validation next
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
+- **Frozen implementation checkpoint**: `a9e318271e238c63ddb3aa99ee6d2ab3016b55f8`
 
 WAVE_BASE = 5d22acfc389d6cb264b994f87c00da31886f1171
 
@@ -36,13 +37,21 @@ persisted recipe program. Any execution precondition/write failure abandons
 the whole candidate and removes its detached worktree.
 
 Implementation agent: `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, explicitly
-requested OpenAI `gpt-5.3-codex` (confirm runtime on return). It exclusively
-owns production/tests/ADR-046 and admitted focused Go checks. Parent owns
-tracking and prepares infrastructure, with no competing local Go workload.
+requested and runtime-confirmed OpenAI `gpt-5.3-codex`. It completed the
+bounded draft and focused checks; parent now owns ALL local Go validation.
+Do not launch another workload. Production/test files are frozen at `a9e3182`.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate is not configured or running.
 S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
-while that exact-tip run is active. At 08:51 UTC about nine hours remain.
+while that exact-tip run is active. At 09:29 UTC about 8.5 hours remain.
+
+Draft adds closed execution/writer/validation helpers, shared derivation core,
+typed candidate-worktree snapshots, total absorption and guard fixtures.
+ADR-046 was incorrectly marked Accepted by the implementer before review;
+it is now Proposed. Independent review must assess mutable candidate snapshot
+authority, exact production reclassification, lock/cleanup ownership and scope.
+The additional alignment.go edit was not announced in advance; request its
+justification and verify it does not change the accepted algorithm or limits.
 
 ## Current State — bounded S4 scope
 
@@ -68,16 +77,18 @@ to borrow caller-held capabilities, never reacquire/release them internally.
 
 ## Files Changed
 
-Tracking only at dispatch. Expected implementation surfaces are candidate
-execution/writer/validation/snapshot helpers and tests, narrow shared
-immutable-tree support if required, finite source/strict-parser inventories
-and an ADR for any new implementation architecture choice.
+Draft: candidate execute.go/writer.go/validation.go and tests, derivation.go,
+snapshot.go, alignment.go, source guard; strict-normalizer owner inventory,
+finite S4 scope and proposed ADR-046. No patchobs/Git tree helper changes.
 Implementation owns those files; supervisor owns CURRENT/ROADMAP/LOG/overnight
 tracking to avoid concurrent edits to shared files.
 
 ## Test Results
 
-No S4 code validation yet; copied gate routing controls pass 9/9.
+S4 admitted formatting and targeted S4/S3/S0/source checks PASS at `a9e3182`,
+9.98s, normal pressure and zero new swap-outs. Evidence:
+`bin/roc-s4-20261030/s4-repo-targeted-pass1/`.
+Copied gate routing controls pass 9/9. Full affected/vet/build/review pending.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
@@ -85,9 +96,9 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Implement only S4, recording any architectural choice in ADR-046.
-2. Run admitted focused checks and obtain fresh independent S4 review.
-3. Complete admitted affected/vet/build, 39-shard full gate and native CI.
+1. Independently review `a9e3182` and proposed ADR-046.
+2. Parent alone runs admitted formatting/affected/vet/build.
+3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
 ## Validation Policy

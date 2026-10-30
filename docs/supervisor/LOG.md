@@ -1,3 +1,17 @@
+## S4 Draft / Review Transition — 2026-10-30
+
+Implementer `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, runtime confirmed
+OpenAI `gpt-5.3-codex`, reports S4 draft `a9e3182`. Admitted formatting
+and targeted checks pass (9.98s), normal pressure/no new swap-outs.
+Parent takes exclusive local Go ownership for broader checks.
+
+ADR-046 prematurely said Accepted; restore Proposed pending independent
+review/full validation. The draft uses candidate-rooted worktree snapshots
+and a shared production derivation core; reviewer must assess the snapshot
+authority and cleanup/lock composition rather than assume the proposal correct.
+An unannounced alignment.go edit also needs explanation; no change to approved
+alignment/limits is authorized. Predecessor closing CI is still active.
+
 ## S4 Implementation Assignment — 2026-10-30
 
 Bounded implementation agent `26ea48b1-7dd4-4141-a2cc-73aac199ce33`,
