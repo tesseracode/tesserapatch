@@ -72,6 +72,55 @@ var rocS1AllowedPaths = map[string]bool{
 	"scripts/profile-validation-test.py":                                  true,
 }
 
+var rocS2AllowedPaths = map[string]bool{
+	"internal/workflow/operation_candidate_eligibility.go":    true,
+	"internal/workflow/operation_candidate_s2_test.go":        true,
+	"internal/workflow/operation_candidate_s2_guards_test.go": true,
+	"internal/candidate/reference.go":                         true,
+	"internal/candidate/reference_test.go":                    true,
+	"internal/patchobs/gitread.go":                            true,
+	"internal/patchobs/reconstruct.go":                        true,
+	"internal/store/types.go":                                 true,
+	"internal/store/store.go":                                 true,
+	"internal/store/roundtrip_test.go":                        true,
+}
+
+func rocS2ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS2AllowedPaths[path] {
+			continue
+		}
+		if err := rocS1ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS2ScopeTransition(t *testing.T) {
+	for path := range rocS2AllowedPaths {
+		if err := rocS2ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if err := rocS1ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S1 unexpectedly allowed S2 path %s", path)
+		}
+		if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S0 capture allowed S2 path %s", path)
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/reconcile.go", "internal/cli/cobra.go",
+		"internal/workflow/operation_candidate_execute.go", "internal/workflow/operation_candidate_alignment.go",
+		"internal/candidate/third_root.go", "internal/patchobs/unregistered.go",
+		"internal/store/./types.go", "SPEC.md", "go.mod", "assets/SKILL.md",
+	} {
+		if err := rocS2ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S2 accepted unregistered or later-slice surface %s", path)
+		}
+	}
+}
+
 func rocS0ValidateCaptureChangedPaths(paths []string) error {
 	for _, path := range paths {
 		if path != "" && filepath.ToSlash(filepath.Clean(path)) != path {
@@ -137,7 +186,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS1ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS2ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

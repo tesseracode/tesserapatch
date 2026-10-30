@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Scoping accepted contracts and existing decoder/reconstruction APIs
+- **Status**: Implementation draft complete; preparing focused admitted validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -35,6 +35,20 @@ strict decoders, capture-event pair validation and coverage reconstruction
 live in `internal/workflow/`; use them rather than weakening or duplicating
 decoders. A whole pair validator checks later conditions too, so it cannot
 be invoked early if doing so shadows prescribed first-match E1-E15 reasons.
+The draft adds an unexported ordered eligibility evaluator with a fifteen-bit
+in-process result, but no all-present confirmation proof or serialized schema.
+It reads repository opt-in/state before bound artifacts, reuses strict decoders
+and canonical E identity, reconstructs bounded images through S1 typed roots,
+and reuses pure coverage assignment/simulation helpers only at their proper
+gate. The evaluator is not called by the reconcile pipeline yet.
+
+Read-only ReferenceRoot methods reuse patchobs's reconstruction core with a
+candidate-specific hardened environment. Existing producer readers retain
+their original capture environment; no global Git environment policy changes.
+The result retains hashes/state only, not reconstructed body arrays or roots.
+Repository config emits the new key only for explicit true, preserving
+gate-off YAML bytes. The S2 scope allowlist extends the stage boundary only;
+S1 and golden-capture permissions remain unchanged.
 
 ## Current State — bounded S2 scope
 
@@ -62,12 +76,21 @@ docs/assets changes remain out of scope.
 
 ## Files Changed
 
-Dispatch tracking only so far: CURRENT, ROADMAP and supervisor LOG.
-Implementation paths will be recorded once existing API ownership is traced.
+Production draft: `internal/workflow/operation_candidate_eligibility.go`,
+`internal/candidate/reference.go`, shared reconstruction/environment
+plumbing in `internal/patchobs/{gitread,reconstruct}.go`, and repository
+config in `internal/store/{types,store}.go`.
+Tests: new S2 workflow runtime/source guards and candidate reference tests;
+store roundtrip regression; finite S2 stage permissions in the S0 scope guard.
+Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Test Results
 
-- No S2 Go validation has run.
+- Initial admitted formatting passes (`s2-draft-format-20261029`).
+  The initial focused suite will cover all
+  eighteen gate reasons, first-match/sub-check order, all refused lifecycle
+  states, canonical E identity, malformed/unreadable inputs, no live writes,
+  captured parent exclusion, no-fetch/environment and config roundtrip behavior.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.

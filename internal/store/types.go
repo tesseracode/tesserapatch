@@ -470,6 +470,9 @@ type Config struct {
 	// YAML key `patch_id_detector_enabled: true|false`.
 	PatchIDDetectorEnabled bool `json:"patch_id_detector_enabled,omitempty"`
 
+	// OperationCandidateEnabled is a repository opt-in; omitted means disabled.
+	OperationCandidateEnabled bool `json:"operation_candidate_enabled,omitempty"`
+
 	// PatchIDScanLimit caps the number of upstream commits walked by the
 	// phase-1.5 detector (PRD §5.2). When the rev-list count exceeds the
 	// cap, phase 1.5 is skipped silently and a hint is logged. Zero or

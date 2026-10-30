@@ -1,3 +1,21 @@
+## Implementation Draft — GH #13 S2 eligibility — 2026-10-29
+
+The parent implements the closed fifteen-stage evaluator without calling it
+from reconcile. The default-off repository flag and lifecycle precondition
+precede artifact reads; paired decode, raw/canonical hashes, reconstruction,
+projection, witnesses and metadata gates retain prescribed first-match order.
+The ephemeral result is not a confirmation proof and retains no source bodies.
+
+Typed ReferenceRoot methods delegate to the existing bounded reconstruction
+core with a candidate-specific hardened envelope. Invocation-local environment
+plumbing leaves producer defaults unchanged. Pure coverage helpers are reused
+without prematurely invoking the combined pair validator or treating advisory
+producer labels as authority.
+
+Focused tests/negative source guards and the finite S2 scope transition are
+drafted. Initial admitted formatting passes; focused checks are next.
+Preserve the S1 closing-tip CI while validating the isolated S2 checkpoint.
+
 ## Dispatch — GH #13 S2 eligibility — 2026-10-29
 
 The operator explicitly assigns S2. Fresh fetched HEAD/origin/main is

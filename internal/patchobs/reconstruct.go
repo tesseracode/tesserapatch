@@ -31,11 +31,21 @@ type ReconstructedEffect struct {
 // memory. Images share the same per-observation budget as producer capture.
 // No worktree, index, object write, or optional cached body supplies evidence.
 func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
+	return reconstructWithEnv(root, commit, patch, gitutil.CaptureReadOnlyEnv())
+}
+
+// ReconstructOffline retains the same image budget and grammar while isolating
+// candidate reads from inherited Git routing, configuration and replacements.
+func ReconstructOffline(root, commit, patch string) ([]ReconstructedEffect, error) {
+	return reconstructWithEnv(root, commit, patch, gitutil.HardenedNoLazyGitEnv("GIT_OPTIONAL_LOCKS=0"))
+}
+
+func reconstructWithEnv(root, commit, patch string, env []string) ([]ReconstructedEffect, error) {
 	effects, err := gitutil.NormalizePatchEffects(patch)
 	if err != nil {
 		return nil, fmt.Errorf("canonical patch is not reconstructable")
 	}
-	resolved, ok := resolveCommit(root, commit+"^{commit}")
+	resolved, ok := resolveCommitWithEnv(root, commit+"^{commit}", env)
 	if !ok || resolved != commit {
 		return nil, fmt.Errorf("named local reference is unavailable or is not a commit")
 	}
@@ -47,12 +57,12 @@ func Reconstruct(root, commit, patch string) ([]ReconstructedEffect, error) {
 		}
 		paths = append(paths, path)
 	}
-	tree := readTreeEntries(root, commit, paths)
+	tree := readTreeEntriesWithEnv(root, commit, paths, env)
 	if !tree.read {
 		return nil, fmt.Errorf("cannot read named local reference tree")
 	}
 	budget := &imageBudget{limit: imageRetentionLimit}
-	blobs := readBlobs(root, neededBlobIDs(tree), budget)
+	blobs := readBlobsWithEnv(root, neededBlobIDs(tree), budget, env)
 	result := make([]ReconstructedEffect, 0, len(effects))
 	for _, effect := range effects {
 		path := effect.Path

@@ -671,6 +671,9 @@ prefix_move_min_files: %d
 	if cfg.PatchIDScanLimit > 0 {
 		content += fmt.Sprintf("patch_id_scan_limit: %d\n", cfg.PatchIDScanLimit)
 	}
+	if cfg.OperationCandidateEnabled {
+		content += "operation_candidate_enabled: true\n"
+	}
 	return writeFile(s.configPath(), content)
 }
 
@@ -982,6 +985,7 @@ func parseYAMLConfig(content string) Config {
 			cfg.PatchIDScanLimit = n
 		}
 	}
+	cfg.OperationCandidateEnabled = extractYAMLValue(content, "operation_candidate_enabled") == "true"
 	if v := extractYAMLValue(content, "prefix_split_min_files"); v != "" {
 		var n int
 		if _, err := fmt.Sscanf(v, "%d", &n); err == nil && n > 0 {

@@ -117,6 +117,40 @@ func TestRoundtrip_DependsOnPreserved(t *testing.T) {
 	}
 }
 
+func TestConfigOperationCandidateOptInRoundtrip(t *testing.T) {
+	s, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := s.LoadConfig()
+	if err != nil || cfg.OperationCandidateEnabled {
+		t.Fatalf("candidate gate default: %+v %v", cfg, err)
+	}
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(s.configPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.OperationCandidateEnabled = true
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err = s.LoadConfig()
+	if err != nil || !cfg.OperationCandidateEnabled {
+		t.Fatalf("opt-in lost: %+v %v", cfg, err)
+	}
+	cfg.OperationCandidateEnabled = false
+	if err := s.SaveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(s.configPath())
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("gate-off changed legacy config bytes: %v", err)
+	}
+}
+
 func TestConfig_FeaturesDependenciesRoundtrip(t *testing.T) {
 	tmp := t.TempDir()
 	s, err := Init(tmp)

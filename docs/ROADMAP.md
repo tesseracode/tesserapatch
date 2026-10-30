@@ -1635,6 +1635,10 @@ recomputation, existing strict decoders, offline tree reconstruction and
 `operation_candidate_enabled` default false. Preserve S0/S1 behavior and
 the accepted 39-shard resource protocol. No S3+, candidate execution,
 phase wiring, release or deferred research dispatch.
+The S2 draft uses existing strict decoders and pure coverage helpers in a
+closed ordered evaluator, adds typed-root offline reconstruction, and preserves
+existing producer environments and gate-off config bytes. Focused admitted
+validation is next; no S2 result or approval is claimed.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

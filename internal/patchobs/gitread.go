@@ -74,10 +74,14 @@ func countGitProcess() {
 // runGit runs one local Git plumbing command and returns its stdout.
 // Nothing here writes to the repository and nothing fetches.
 func runGit(repoRoot string, stdin []byte, args ...string) ([]byte, error) {
+	return runGitWithEnv(repoRoot, stdin, gitutil.CaptureReadOnlyEnv(), args...)
+}
+
+func runGitWithEnv(repoRoot string, stdin []byte, env []string, args ...string) ([]byte, error) {
 	countGitProcess()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoRoot
-	cmd.Env = gitutil.CaptureReadOnlyEnv()
+	cmd.Env = env
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -122,11 +126,15 @@ func emptyTreeSnapshot() treeSnapshot {
 // counted process. A ref that could look like an option is refused rather
 // than passed to Git.
 func resolveCommit(repoRoot, ref string) (string, bool) {
+	return resolveCommitWithEnv(repoRoot, ref, gitutil.CaptureReadOnlyEnv())
+}
+
+func resolveCommitWithEnv(repoRoot, ref string, env []string) (string, bool) {
 	ref = strings.TrimSpace(ref)
 	if ref == "" || strings.HasPrefix(ref, "-") {
 		return "", false
 	}
-	out, err := runGit(repoRoot, nil, "rev-parse", "--verify", ref)
+	out, err := runGitWithEnv(repoRoot, nil, env, "rev-parse", "--verify", ref)
 	if err != nil {
 		return "", false
 	}
@@ -140,6 +148,10 @@ func resolveCommit(repoRoot, ref string) (string, bool) {
 // readTreeEntries reads every requested path's tree entry at one commit
 // in as few processes as the platform argument limit allows.
 func readTreeEntries(repoRoot, commit string, paths []string) treeSnapshot {
+	return readTreeEntriesWithEnv(repoRoot, commit, paths, gitutil.CaptureReadOnlyEnv())
+}
+
+func readTreeEntriesWithEnv(repoRoot, commit string, paths []string, env []string) treeSnapshot {
 	unique := sortedUnique(paths)
 	if commit == "" || len(unique) == 0 {
 		return emptyTreeSnapshot()
@@ -147,7 +159,7 @@ func readTreeEntries(repoRoot, commit string, paths []string) treeSnapshot {
 	snapshot := treeSnapshot{entries: make(map[string]treeEntryRecord, len(unique)), read: true}
 	for _, chunk := range chunkPathspecs(unique) {
 		args := append([]string{"--literal-pathspecs", "ls-tree", "-z", "--full-name", commit, "--"}, chunk...)
-		out, err := runGit(repoRoot, nil, args...)
+		out, err := runGitWithEnv(repoRoot, nil, env, args...)
 		if err != nil {
 			return treeSnapshot{}
 		}
@@ -194,6 +206,10 @@ type blobObservation struct {
 // A missing object yields no map entry. An over-budget body yields an
 // explicit refusal. Both leave the side unobserved, never truncated.
 func readBlobs(repoRoot string, objectIDs []string, budget *imageBudget) map[string]blobObservation {
+	return readBlobsWithEnv(repoRoot, objectIDs, budget, gitutil.CaptureReadOnlyEnv())
+}
+
+func readBlobsWithEnv(repoRoot string, objectIDs []string, budget *imageBudget, env []string) map[string]blobObservation {
 	unique := sortedUnique(objectIDs)
 	out := make(map[string]blobObservation, len(unique))
 	if len(unique) == 0 {
@@ -201,7 +217,7 @@ func readBlobs(repoRoot string, objectIDs []string, budget *imageBudget) map[str
 	}
 	cmd := exec.Command("git", "cat-file", "--batch")
 	cmd.Dir = repoRoot
-	cmd.Env = gitutil.CaptureReadOnlyEnv()
+	cmd.Env = env
 	cmd.Stdin = strings.NewReader(strings.Join(unique, "\n") + "\n")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
