@@ -2,253 +2,101 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IDLE
 
-GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
-remain accepted. No S3+, candidate execution, phase wiring or deferred
-upstream Git-strategy research is authorized.
+GH #13 S2 eligibility is ACCEPTED. S0/S1 and memory-bounded validation remain
+accepted. No local validation/watch process remains active. S3 and deferred
+upstream Git-strategy research are not assigned. No release/tag was created.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s2`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
-- **Description**: S2 eligibility, paired evidence recomputation, offline
-  reconstruction and default-off configuration
-- **Status**: Native retry passed; full local 39-shard gate continues at 8d3b9ef
+- **Description**: Ordered eligibility over paired capture evidence, offline
+  reconstruction and a default-off repository config gate
+- **Status**: Complete — idle pending explicit next assignment
 - **Assigned**: 2026-10-29
+- **Accepted validation checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
-- **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
-- **Prior accepted S1 validation checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`
-- **Frozen S2 review checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`
-- **Reviewed inventory correction**: `b18977042b79a7e9e2c378f49c97469d93fa03bd`
-- **Reviewed schema correction**: `a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`
-- **Published validation checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`
-
-WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
+- **Contract**: ADR-037/PRD rev-7, ADR-043 and ADR-044
 
 ## Session Summary
 
-The operator requested S2. Preflight confirms clean HEAD equals fetched
-origin/main at `bd95a23`, no stashes and one main worktree. S1 closing-tip
-CI `40987744660` was still running at dispatch and has now passed.
-S1's independently reviewed code and exact-checkpoint CI/full gate at
-`24be224` are already accepted; the complete history is archived.
+S2 adds the default-off `operation_candidate_enabled` repository setting and
+an unexported eligibility evaluator. Applied/blocked state is required before
+the fifteen ordered gates. Existing strict decoders and canonical E identity
+are reused; presence, raw hashes, offline reference facts, projections,
+witnesses, captured parent exclusions and metadata conditions are recomputed
+with deterministic first-failure reasons.
 
-Read PRD S2 and the latest paired C/E eligibility block B. Existing production
-strict decoders, capture-event pair validation and coverage reconstruction
-live in `internal/workflow/`; use them rather than weakening or duplicating
-decoders. A whole pair validator checks later conditions too, so it cannot
-be invoked early if doing so shadows prescribed first-match E1-E15 reasons.
-The draft adds an unexported ordered eligibility evaluator with a fifteen-bit
-in-process result, but no all-present confirmation proof or serialized schema.
-It reads repository opt-in/state before bound artifacts, reuses strict decoders
-and canonical E identity, reconstructs bounded images through S1 typed roots,
-and reuses pure coverage assignment/simulation helpers only at their proper
-gate. The evaluator is not called by the reconcile pipeline yet.
+S1 ReferenceRoot gains read-only checks/reconstruction over local commits.
+Affected upstream object availability is verified without retaining upstream
+bodies or imposing a new body-size limit. Existing producer read environments
+remain unchanged; candidate reads use the hardened envelope, including
+case-insensitive routing/config scrubbing.
 
-Read-only ReferenceRoot methods reuse patchobs's reconstruction core with a
-candidate-specific hardened environment. Existing producer readers retain
-their original capture environment; no global Git environment policy changes.
-The result retains hashes/state only, not reconstructed body arrays or roots.
-Repository config emits the new key only for explicit true, preserving
-gate-off YAML bytes. The S2 scope allowlist extends the stage boundary only;
-S1 and golden-capture permissions remain unchanged.
-Draft `d5f921e` passes initial focused workflow/S0/S2, candidate-envelope and
-config tests. Before broader validation, strengthen upstream reconstruction:
-checking only the tree object misses an absent affected blob and accepts an
-annotated tag's object ID. The typed root now checks affected object availability
-through bounded metadata plumbing, without retaining upstream bodies or adding
-another image-size limit. Also normalize inherited Git variable names before
-scrubbing, since Windows names are case-insensitive. Regressions must fail
-against the earlier draft; no new API/phase behavior is added.
+The evaluator is not wired into reconcile and is not an all-present
+confirmation proof. It retains no reconstructed bodies or root handles in its
+result. No alignment, candidate execution, lifecycle/schema publication,
+public CLI behavior or release work was added.
 
-Independent S2 reviewer: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`,
-explicitly requested OpenAI `gpt-5.3-codex` (confirm runtime on return).
-It is read-only and runs no Go. Parent shell `roc-s2-review-validation`
-owns formatting, full affected packages, vet and build in sequence.
-Clean-checkout `gofmt -l .` now passes. No duplicate validation is allowed.
-The eventual full-gate harness is prepared in `bin/roc-s2-20261029/full-gate/`;
-its nine routing controls pass, but it is not configured or running yet.
-Independent review now APPROVES frozen `2c462a3`, with no significant issues.
-Runtime metadata confirms OpenAI `gpt-5.3-codex`. The canonical APPROVED field
-records code-review status only; S2 is not accepted until validation completes.
-Broader affected-package validation finds three legacy source inventories
-needing explicit S2 transition: the new candidate reference file, the moved
-strict-normalizer call owner, and the eligibility evaluator's readonly
-coverage-consumer role. Patchobs and store pass; candidate/gitutil/workflow
-report these inventory failures. There is no resource stop; vet/build do not
-start after the failed command.
+The full chronology is archived in `docs/handoff/HISTORY.md` under the
+2026-10-29 S2 acceptance entry.
 
-Correct only those registrations with omission/writer/unknown-reader negative
-controls. Keep the evaluator outside the pure-core allowlist, retain exactly
-eleven strict normalizer calls, and preserve the original S1/capture scope.
-Production code remains frozen; return the test-only correction for narrow
-independent review after admitted validation.
-Test-only correction is saved at `b189770`; production bytes still match
-approved `2c462a3`. Admitted formatting passes. Parent shell
-`roc-s2-inventory-controls` runs the focused source inventories/sensitivity
-and S0/S2 checks from `bin/roc-s2-20261029/inventory-source`.
-The retained reviewer is checking only this correction, without Go execution.
-Do not duplicate the active validation or treat prior approval as full closure.
-The retained reviewer now APPROVES the test-only `2c462a3..b189770` correction,
-with no significant issues; runtime metadata reconfirms `gpt-5.3-codex`.
-Production approval remains intact. Actual validation, not review alone,
-still gates publication and S2 acceptance.
-The corrected focused command now passes candidate (0.887s), gitutil (0.839s)
-and workflow (9.688s), including all three inventories and their negative
-controls. Admission waited 320.78s for a qualifying minute; execution had no
-resource stop. Resume the full affected-package command, vet and build at
-unchanged `b189770`, in parent shell `roc-s2-corrected-validation`.
-That corrected sequence now passes all five affected packages, vet and CLI
-build at unchanged reviewed code. Command times are 174.67s, 12.82s and 0.54s;
-all executions retain normal pressure and zero new swap-outs. No local
-validator remains active. Prepare a published exact-checkpoint native run
-and the full 39-command admitted gate with S2 WAVE_BASE `bd95a23`.
-Published `1b2f706` is verified equal to origin/main. Only tracking differs
-from the independently reviewed inventory checkpoint. Full gate shell
-`roc-s2-full-gate-1b2f706` runs 42 top-level commands including all 39 test
-shards, from a clean clone/fresh caches in `bin/roc-s2-20261029/full-gate/`.
-Its first five mechanical checks pass, including the ten S2 wave trailers;
-no full-gate result is claimed yet.
-Native CI `40997153846` runs at that exact checkpoint, watched by shell
-`roc-s2-native-ci-1b2f706` with log `bin/roc-s2-20261029/native-ci-1b2f706.log`.
-Keep progress commits local while exact-checkpoint validation is in flight.
-Native CI `40997153846` fails on Linux/macOS at PIB-477: its frozen controlled
-schema inventory still describes Config before the approved S2 opt-in field.
-The AP observer fails on that same missing PASS. Windows succeeds.
-This is an actual integration-test failure, not watcher connectivity.
+## Current State
 
-Stop the local gate at its current checkpoint rather than spending the rest
-of the suite on known-failing code. It had completed three test commands and
-was running S6 G-L; it is intentionally interrupted, not a local pass or a
-resource stop. All 259 sampled owned identities are gone. Preserve raw logs;
-the original runner summary may still say running because interruption
-precedes its normal summary finalizer.
-
-Correct only the test pin for the one approved Config field, with an explicit
-proof that removing that exact bool/omitempty field restores the old schema
-digest. Wrong type/key/omitempty, missing field, extra field and old-key
-mutations must fail. Do not blanket-exempt Config or alter production code.
-The test-only correction updates the current digest and additionally requires
-the exact bool/omitempty field; its removal must reproduce the unchanged
-pre-S2 digest. The same checker has negative controls for missing, mistyped,
-retagged, extra and changed-prior fields. Only the AP guard's finite S2 path
-permission is added. Reproduce PIB-477 and its observer locally before review.
-Correction `a5af08e` passes admitted formatting and the exact-schema/scope
-negative controls (CLI 0.562s, workflow 0.588s), with no resource stop.
-Production bytes remain unchanged. The retained reviewer will review only
-the two-test-file delta while parent shell `roc-s2-schema-runtime` runs
-PIB-477 and its AP observer in separate freshly admitted processes.
-The retained reviewer now APPROVES the narrow schema correction at `a5af08e`,
-with no significant issues. Runtime metadata reconfirms `gpt-5.3-codex`.
-Approval does not replace the active runtime checks or the full/native retry.
-Both runtime checks now pass at unchanged `a5af08e`: PIB-477 command 6.76s,
-AP observer 134.46s. Each receives fresh admission; pressure remains normal
-and no new swap-outs occur. Prepare a new published checkpoint and restart
-all 39 local test commands plus native CI from fresh evidence/caches.
-No partial result from the interrupted run is credited to the retry.
-Retry checkpoint `8d3b9ef` is published and verified equal to origin/main;
-only tracking differs from reviewed `a5af08e`. Full gate shell
-`roc-s2-full-gate-8d3b9ef` runs from the new clean checkout/fresh caches in
-`bin/roc-s2-20261029/full-gate-retry1/`, with original S2 WAVE_BASE `bd95a23`
-and all 42 top-level/39 test commands. First five mechanical checks pass,
-including all fifteen S2 wave trailers; no complete result is claimed.
-Native retry `41000838573` is watched by `roc-s2-native-ci-8d3b9ef`,
-with log `bin/roc-s2-20261029/native-ci-8d3b9ef.log`.
-Keep progress commits local until these exact-checkpoint runs finish.
-Native retry `41000838573` is now SUCCESS: all five required jobs pass with
-no failed steps, release skipped. The watcher exited on a final GitHub API
-connection error, not a CI failure; a fresh API query confirms completion.
-Windows job `123884602207` logs verify actual CLW-001 through CLW-005 PASS
-lines, saved in `bin/roc-s2-20261029/native-windows-8d3b9ef.log`.
-The local gate is still running with 21/39 test commands passed and AR21/23/24
-entering admission at this checkpoint. No full local result is claimed;
-do not restart the completed CI watcher or duplicate the local workload.
-
-## Current State — bounded S2 scope
-
-1. Gate-off remains inert. Add `operation_candidate_enabled`, default false,
-   without wiring candidate behavior into the reconcile pipeline.
-2. Feature state must be exactly applied or blocked before E1.
-3. Implement the fifteen gates in PRD section 6.5's fixed order, with E4 and
-   E11's specified sub-order and deterministic first-failure reasons.
-   The accepted paired-evidence block B controls the current numbering.
-4. Reuse ADR-036's own strict coverage/recipe decoders and ADR-041's capture
-   event decoder/canonical encoder. E binds the exact raw C hash; canonical
-   E encoding supplies its identity digest, never a fabricated historical proof.
-5. Recompute readable presence, raw patch/recipe hashes, reference/preimage
-   facts, patch/effect observations, event facts and parent exclusions.
-   Do not trust generations, labels or current parent state as capture evidence.
-6. Reconstruct required trees offline with explicit no-fetch checks, using
-   the accepted S1 boundaries; no candidate writes or live recipe execution.
-7. Preserve supersession, hard-blocked-parent, invocation-shape and pending
-   shadow refusals. Keep S0 golden/capture and S1 source/lifetime guards intact
-   while making the finite S2 scope transition explicit.
-
-S3 alignment/classification, S4 execution, candidate identity/artifact schemas,
-publication/lifecycle transactions, S6 phase/evidence wiring and public
-docs/assets changes remain out of scope.
+- Production `2c462a3`, exact inventory correction `b189770` and exact
+  Config-schema extension `a5af08e` are independently APPROVED.
+- The default-off flag is omitted when false; opt-in is repository-local.
+  Gate-off config bytes and the legacy reconcile pipeline remain unchanged.
+- The result's `[15]bool` records eligibility only. Do not treat it as the
+  later all-present proof or execute persisted recipe bodies cross-base.
+- S1 still permits only two bare-root constructors. Candidate create/prune
+  borrow caller-held feature/global capabilities; no lock reacquisition,
+  release, transfer or third constructor was introduced.
+- Readonly coverage-consumer registration is separate from the pure core.
+  The strict normalizer's relocated owner is registered with its unchanged
+  eleven-call total. S0 capture and S1 scope permissions remain strict.
+- PIB-477 admits exactly the new bool/omitempty Config field. Removing it
+  reproduces the prior schema digest; other schema changes are not exempt.
 
 ## Files Changed
 
-Production draft: `internal/workflow/operation_candidate_eligibility.go`,
-`internal/candidate/reference.go`, shared reconstruction/environment
-plumbing in `internal/patchobs/{gitread,reconstruct}.go`, and repository
-config in `internal/store/{types,store}.go`.
-Directly coupled hardening: case-insensitive routing/config scrubbing in
-`internal/gitutil/hardened_env.go`, with its existing test file extended.
-Tests: new S2 workflow runtime/source guards and candidate reference tests;
-store roundtrip regression; finite S2 stage permissions in the S0 scope guard.
-Dependent inventory tests also register `reference.go`, the relocated strict
-normalizer call, and the evaluator's readonly consumer functions; no pure-core
-or general publication exemption is added.
-Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
+S2 evaluator/runtime/source guards in `internal/workflow/`; read-only reference
+methods/tests in `internal/candidate/`; shared bounded reconstruction plumbing
+in `internal/patchobs/`; case-insensitive hardened Git filtering in
+`internal/gitutil/`; repository config and roundtrip tests in `internal/store/`.
+Dependent candidate/parser/coverage/schema inventories were transitioned
+explicitly with negative controls. Closure changes only tracking.
 
 ## Test Results
 
-- Initial admitted formatting passes (`s2-draft-format-20261029`).
-  The initial focused suite will cover all
-  eighteen gate reasons, first-match/sub-check order, all refused lifecycle
-  states, canonical E identity, malformed/unreadable inputs, no live writes,
-  captured parent exclusion, no-fetch/environment and config roundtrip behavior.
-- `d5f921e` focused suite PASS: workflow 8.771s, candidate 1.018s, store
-  0.502s; stage `s2-draft-focused-20261029`, fresh admission, no resource stop.
-  Upstream-object/case-variant follow-ups are not yet validated.
-- The new upstream-tag, missing-blob and case-insensitive-environment
-  regressions fail against the earlier draft at their intended assertions,
-  stage `s2-offline-negative-20261029`. This is a deliberate negative control,
-  not a current-code result. Formatting of the corrections passes; preserve
-  that failure evidence and run the corrected affected packages next.
-- Corrected source is frozen at `2c462a3`; broader positive checks and
-  independent review are pending. The initial focused pass and intentional
-  negative controls do not establish S2 acceptance.
-- The affected-package run has three inventory assertion failures only:
-  candidate production-file list, gitutil strict-normalizer call owner, and
-  workflow coverage-consumer registration. Patchobs/store pass; other runtime
-  assertions report no failure. Stage `s2-review-affected-packages-20261029`
-  has no resource stop. Vet/build remain unstarted after fail-fast.
-- Corrected `b189770` inventory/S0/S2 controls PASS in
-  `s2-inventory-controls-20261029`. Narrow review also APPROVED.
-  Full affected-package rerun, vet/build and full/native validation remain.
-- Corrected full affected packages (candidate, patchobs, gitutil, store,
-  workflow), vet and CLI build now PASS in
-  `s2-corrected-{packages,vet,build}-20261029`. No runtime resource stop or new
-  swap-outs. This completes the interrupted basic sequence; full/native gates
-  still remain.
-- Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
-  Native CI `40975085201` passed all five required jobs and actual Windows
-  CLW-001 through CLW-005 at `24be224`.
-- S1 closing-tip CI `40987744660` at `bd95a23` is SUCCESS.
+- **Exact checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`.
+- **Local gate**: PASS, 8/8 checks, 42/42 top-level commands, all 39 uncached
+  test commands and exact parity. Formatting, vet and build pass.
+- **Native CI**: [41000838573](https://github.com/tesseracode/tesserapatch/actions/runs/41000838573)
+  SUCCESS, all five required jobs with no failed steps; release skipped.
+  Actual Windows CLW-001 through CLW-005 PASS lines verified.
+- **Focused coverage**: eighteen eligibility refusal codes, fixed gate and
+  sub-check ordering, all disallowed lifecycle states, strict malformed/
+  unreadable inputs, canonical E identity, no-capture, parent exclusions,
+  no live writes, offline/missing-object and environment regressions.
+- **Full run**: 6,086.41s (about 101 minutes), 6.89 GiB peak sampled owned RSS,
+  normal pressure and zero new swap-outs. Historical swap occupancy remains.
+- **Cleanup**: 578 sampled identities reconciled; one owned git-daemon needed
+  identity-verified SIGTERM; final owned survivors zero. Tested source clean.
+- **Evidence**: `bin/roc-s2-20261029/full-gate-retry1/evidence/summary.json`,
+  adjacent logs, native Windows log and focused/negative stages.
+  Preserve the failed initial CI and interrupted first gate; its interruption
+  sidecar explains why its original summary did not reach normal finalization.
 
 ## Next Steps
 
-1. Await existing full gate `roc-s2-full-gate-8d3b9ef`; native CI
-   `41000838573` has passed. Do not duplicate workloads or push tracking-only
-   commits while this exact-checkpoint gate remains active.
-2. Verify complete results from the fresh attempt; preserve the interrupted
-   attempt and do not credit its partial shards. S3 remains undispatched.
-3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
-   Do not start S3 automatically.
+1. Remain idle pending an explicit next assignment. S3 is not dispatched.
+2. Before another slice, read the accepted contracts, scope CURRENT, fetch
+   and record a new wave base, and deliberately transition finite inventories.
+3. Keep the 39-command partition and resource safeguards. Do not weaken
+   source/schema guards merely to accommodate new files or fields.
 
 ## Validation Policy — GH #13
 
@@ -258,28 +106,22 @@ vetoed; own work is serial (`GOMAXPROCS=1`, `-p=1`). Percentage is diagnostic;
 historical occupied swap alone is not a veto. Stop on warning/critical
 pressure, new swap-outs, unreliable telemetry or gaps over 5s. Retain 600s
 admission budgets, `-count=1`, 40-minute test-process timeouts, clean isolated
-source/caches and owned-process reconciliation. The canonical partition has
-39 test commands; do not revert to historical 22-command recipes.
+full-gate source/caches, exact CI parity and owned-process reconciliation.
 
 ## Blockers
 
-The PIB-477 schema-pin correction is independently approved and its direct/
-observer checks pass. Native CI passes at `8d3b9ef`; the complete local gate
-is still running and remains required before S2 acceptance.
+None for completed S2. No subsequent slice is assigned.
 
 ## Context for Next Agent
 
-S1 create/prune borrow caller-held feature/global lock capabilities; caller
-acquires feature then global and releases global then feature. Handle copies
-share borrow state. Do not reintroduce internal acquisition/release or another
-bare-root constructor.
+S0 goldens, assets, public SPEC, CHANGELOG, dependencies, allowlist, accepted
+ADR/PRD bytes and reconcile/CLI wiring are unchanged from S2 wave base.
+Do not add an Unreleased heading or casually edit the frozen ADR index.
 
-Preserve S0 goldens, the original strict capture boundary and the nineteen
-explicit AR memo-scope insertions. Do not add an Unreleased heading, alter
-the frozen ADR index, create a release/tag or reopen accepted architecture.
 v0.17.0 remains tag object `e7c748ada40988fe72f47b638cb37d07e24f0ac3`,
 targeting `d1d6c3fff6cdbab4b5bb9f6f7054b2ce9b8667e8`.
+All earlier raw experiments remain preserved under ignored `bin/`.
 
-All prior raw measurements remain under ignored `bin/` evidence directories;
-do not delete them. Current full-gate measured peak was 6.99 GiB, not the
-smaller six-pilot peak. Research `research-upstream-git-strategies` stays deferred.
+Research `research-upstream-git-strategies` remains deferred. No branching
+policy, full research deliverable, Git replacement or central patch-store
+backend was adopted.

@@ -1623,7 +1623,24 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S2 eligibility — 2026-10-29
+### GH #13 — ✅ S2 eligibility ACCEPTED — 2026-10-29
+
+**Accepted checkpoint**: `8d3b9ef196b597695595076e4a55f086836b8b04`.
+**Validated range**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f..8d3b9ef`.
+Production and narrow inventory/schema corrections are independently approved.
+Native CI `41000838573` passes all five required jobs and actual Windows CLW
+rows. The full local gate passes 8/8 checks, 42/42 top-level commands and
+39/39 uncached tests, with exact parity.
+
+S2 provides default-off repository eligibility, the applied/blocked preflight,
+ordered paired C/E E1-E15 recomputation, strict decoder reuse, canonical E
+identity, bounded offline reference reconstruction and upstream-object checks.
+No reconcile/CLI wiring, candidate execution or later schema/lifecycle work.
+Full run: about 101 minutes, 6.89 GiB peak owned RSS, normal pressure and zero
+new swap-outs. Owned cleanup is complete; v0.17.0 remains unchanged.
+Complete chronology is archived in `docs/handoff/HISTORY.md`. S3 is not assigned.
+
+**Completed S2 chronology**:
 
 **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`.
 The operator assigns accepted PRD section 8 S2 after S1 closure. Clean HEAD

@@ -1,3 +1,28 @@
+## Acceptance — GH #13 S2 eligibility — 2026-10-29
+
+**Decision**: ACCEPTED at validated
+`8d3b9ef196b597695595076e4a55f086836b8b04`.
+**Range**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f..8d3b9ef`.
+Independent production/inventory/schema reviews approve `2c462a3`,
+`b189770` and `a5af08e`.
+
+Native CI `41000838573` passes all five required jobs with no failed steps;
+actual Windows CLW-001 through CLW-005 are verified. The fresh local gate
+passes 8/8 checks, 42/42 top-level commands and all 39 uncached test commands,
+with exact command parity. Runtime 6,086.41s; peak sampled owned RSS 6.89 GiB,
+normal pressure and zero new swap-outs.
+
+All 578 owned identities are reconciled. One owned git-daemon requires
+identity-verified SIGTERM, leaving zero survivors. Tested source is clean;
+v0.17.0 and public/later-slice surfaces remain unchanged. Production bytes
+have not changed since their approval; later corrections are test-only.
+
+Close S2, archive the complete handoff, flip ROADMAP and publish tracking.
+Default-off eligibility remains unconnected to reconcile; no all-present
+confirmation proof, candidate execution, release/tag, S3 or research dispatch.
+Preserve the negative controls, initial inventory failures and interrupted
+first full attempt alongside the successful retry evidence.
+
 ## Native Retry Complete — GH #13 S2 — 2026-10-29
 
 CI `41000838573` at `8d3b9ef` completes SUCCESS: all five required jobs
