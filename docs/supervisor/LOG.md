@@ -1,3 +1,29 @@
+## S4 Repair Ready for Full Validation — 2026-10-30
+
+Repair `5d52d39` passes all basic checks: formatting, affected packages
+119.46s, vet 8.73s, build 0.48s; normal pressure/no new swap-outs.
+Independent conformance review is approved. No local Go workload remains.
+
+At 12:33 UTC prior exact closing CI `41051527581` still has macOS/Linux
+test jobs running. Keep the reviewed repair local to avoid cancelling that
+run; publish and start fresh full-local/native validation when it finishes.
+S5 remains blocked; no acceptance restored prematurely.
+
+## Review — S4 Conformance Repair APPROVED — 2026-10-30
+
+Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` APPROVES
+`5d52d39` against repair WAVE_BASE `78e501c`. Explicitly verifies both
+previously missed clauses: typed public/helper boundaries and short global
+create/prune windows. Feature borrowing blocks copied-handle release during
+apply; runtime probe can acquire global then. Contended cleanup fails closed,
+returns no successful result and preserves diagnostics/closed handles.
+Earlier S4 phase/lifetime/idempotency corrections remain intact.
+
+ADR-047 direction is approved, Status remains Proposed until full acceptance.
+Formatting/affected packages pass (119.46s); parent finishes basic vet/build.
+Hold publication until prior exact closing CI completes, then run fresh
+full-local/native gates. S5 remains blocked.
+
 ## S4 Complete Conformance Repair Frozen — 2026-10-30
 
 Freeze `5d52d39c55e6cc1402420567f0f12d94ff171027`. Parent propagates typed

@@ -2,19 +2,21 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 S4's prior acceptance is REOPENED for typed-root/lock conformance gaps found
 during S5 prerequisite inspection. S5 has no implementation and is blocked.
 Historical acceptance/validation remains archived truthfully; do not rewrite it.
 The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
+APPROVED now means repair code approval only; repaired S4 acceptance still
+requires fresh full local/native validation.
 
 ## Active Task
 
 - **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Repair typed execution boundary and short global-lock scope
-- **Status**: Complete typed-helper repair passes focused checks; independent review pending
+- **Status**: Repair review/basic checks pass; publication waits for prior exact-tip CI
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
 - **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
@@ -55,6 +57,14 @@ lock-file mutation. The stronger helper-wide guard FAILS on `aa92ee1`
 (`helper-boundary-green`, 10.17s), normal pressure/no swap-outs.
 Now freeze all code for the same independent reviewer; parent owns broader
 admitted validation. No competing Go workload.
+Independent review APPROVES `5d52d39`, explicitly verifying both previously
+missed clauses, helper guard sensitivity, feature borrow/global runtime probes
+and failed-cleanup diagnostics. ADR-047 direction is approved, Proposed until
+full acceptance. Formatting/affected checks pass (119.46s); vet/build finish.
+Vet (8.73s) and build (0.48s) also pass; normal pressure/no new swap-outs.
+No local Go workload remains. At 12:33 UTC prior closing CI `41051527581`
+still runs macOS/Linux test jobs; hold publication rather than cancel it.
+The reviewed repair is queued for a fresh full gate immediately after that run.
 New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
 harness is unchanged and nine routing controls pass. Prior closing CI
 `41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
@@ -143,8 +153,8 @@ native watcher processes completed. Do not delete prior evidence.
 
 ## Next Steps
 
-1. Independently review `5d52d39` and proposed ADR-047.
-2. Complete admitted affected/vet/build and fresh full/native validation.
+1. Finish basic checks and await prior closing-tip CI before publishing repair.
+2. Run fresh full local/native gates with repair WAVE_BASE `78e501c`.
 3. Archive/push repaired acceptance before considering S5; preserve unfinished
    work explicitly at the autonomy deadline.
 
@@ -159,7 +169,7 @@ per-process timeouts, clean isolated sources/caches. Never enable goldens.
 
 ## Blockers
 
-Repaired boundary/lock conformance awaits independent review and fresh gates.
+Repaired boundary/lock conformance is independently approved; fresh gates remain.
 S5 remains blocked; prior green gates are not sufficient.
 
 ## Context for Next Agent

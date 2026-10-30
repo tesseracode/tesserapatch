@@ -1640,6 +1640,11 @@ negative guards before independent review.
 Complete repair `5d52d39` propagates typed capabilities through every
 execution helper; helper-wide guard is red on `aa92ee1` and green after.
 Independent review and fresh full gates remain required.
+Independent review now APPROVES `5d52d39` and ADR-047's direction, explicitly
+checking typed helpers, feature borrowing, global windows and contention.
+Formatting/affected checks pass; fresh full-local/native acceptance still gates S5.
+Vet/build also pass; at 12:33 UTC publication waits for prior exact closing
+CI `41051527581` rather than cancelling it. Fresh full gates are queued.
 
 ### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 
