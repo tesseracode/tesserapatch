@@ -1,3 +1,15 @@
+## S4 Implementation Assignment — 2026-10-30
+
+Bounded implementation agent `26ea48b1-7dd4-4141-a2cc-73aac199ce33`,
+explicit OpenAI `gpt-5.3-codex`, owns production/tests/ADR-046 and admitted
+focused checks. Parent alone owns CURRENT/ROADMAP/LOG/overnight tracking,
+with no competing local Go validation. Runtime model confirmation is pending.
+
+Prepared S4 runner/full-gate harness is byte-identical to S3; nine routing
+controls pass. Predecessor closing CI `41028948776` is watched by
+`roc-s3-close-ci`; keep S4 commits local until it finishes. Current time
+08:51 UTC, roughly nine hours remain. No independent S4 review or acceptance yet.
+
 ## S4 Dispatch — 2026-10-30
 
 S3 closure `5d22acfc389d6cb264b994f87c00da31886f1171` is archived and

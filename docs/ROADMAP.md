@@ -1632,6 +1632,9 @@ with stable tree/diff and total absorption accounting. Preserve the four-set
 generation-scope guard and lock composition. No S5+ or release yet.
 Independent review, admitted local 39-shard gate and native CI remain required
 within the operator's 2026-10-30 18:00 UTC autonomy deadline.
+Implementation is assigned to one bounded agent; parent owns tracking and
+validation infrastructure only. Copied full-gate routing controls pass 9/9;
+no S4 code validation or acceptance yet.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

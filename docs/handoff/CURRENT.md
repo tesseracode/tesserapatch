@@ -35,6 +35,15 @@ the exact S3 derivation/classifier, not a bespoke idempotency checker or
 persisted recipe program. Any execution precondition/write failure abandons
 the whole candidate and removes its detached worktree.
 
+Implementation agent: `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, explicitly
+requested OpenAI `gpt-5.3-codex` (confirm runtime on return). It exclusively
+owns production/tests/ADR-046 and admitted focused Go checks. Parent owns
+tracking and prepares infrastructure, with no competing local Go workload.
+The copied S4 runner/full-gate harness is byte-identical to accepted S3;
+all nine routing controls pass. Full gate is not configured or running.
+S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
+while that exact-tip run is active. At 08:51 UTC about nine hours remain.
+
 ## Current State — bounded S4 scope
 
 1. Closed two-kind writer: create-file and insert-by-boundary; unknown refuses.
@@ -68,7 +77,8 @@ tracking to avoid concurrent edits to shared files.
 
 ## Test Results
 
-No S4 validation yet. S3: 8/8 checks, 42/42 commands, 39/39 uncached test
+No S4 code validation yet; copied gate routing controls pass 9/9.
+S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
 new swap-outs. All 536 owned identities reconciled, zero remaining.
