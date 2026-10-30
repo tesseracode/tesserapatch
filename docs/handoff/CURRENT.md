@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,11 +14,12 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Implementation draft complete; preparing focused admitted validation
+- **Status**: Corrected S2 checkpoint frozen for affected-package validation and independent review
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
 - **Prior accepted S1 validation checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`
+- **Frozen S2 review checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`
 
 WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
 
@@ -109,6 +110,9 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
   stage `s2-offline-negative-20261029`. This is a deliberate negative control,
   not a current-code result. Formatting of the corrections passes; preserve
   that failure evidence and run the corrected affected packages next.
+- Corrected source is frozen at `2c462a3`; broader positive checks and
+  independent review are pending. The initial focused pass and intentional
+  negative controls do not establish S2 acceptance.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.
@@ -116,10 +120,10 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Finish the contract/API trace, then implement S2 with focused per-gate,
-   first-match, strict-decoder, offline and mutation-sensitive guard cases.
-2. Validate under the current resource policy, obtain independent review,
-   and complete the full 39-command/native checks before acceptance.
+1. Review frozen `2c462a3` independently while the parent alone runs admitted
+   affected-package checks in `bin/roc-s2-20261029/review-source`.
+2. Resolve any findings and complete formatting/vet/build, full 39-command
+   and native validation before acceptance.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 

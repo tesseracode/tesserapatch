@@ -1,3 +1,13 @@
+## Review Dispatch — GH #13 S2 corrected checkpoint — 2026-10-29
+
+Freeze `2c462a3086f9dbb89f322a19494f6d474960944b` against S2 base
+`bd95a237cbf5b5894f21c19c27bb1d628808db8f`. Initial focused checks pass;
+the three added offline/environment regressions fail on the prior draft.
+Parent owns admitted affected-package tests; reviewer is read-only and must
+not start Go. Request a bounded review against the accepted fifteen-gate,
+strict-decoder, typed-root, config-default and no-S3+ contract.
+No independent approval or full/native S2 result is claimed yet.
+
 ## Focused Pass and Offline Follow-up — GH #13 S2 — 2026-10-29
 
 Initial `d5f921e` focused validation passes workflow (8.771s), candidate

@@ -1639,6 +1639,10 @@ The S2 draft uses existing strict decoders and pure coverage helpers in a
 closed ordered evaluator, adds typed-root offline reconstruction, and preserves
 existing producer environments and gate-off config bytes. Focused admitted
 validation is next; no S2 result or approval is claimed.
+Initial `d5f921e` focused controls pass. Follow-up `2c462a3` additionally
+refuses missing affected upstream objects/tag IDs and scrubs case-insensitive
+Git routing keys; all three regressions fail on the prior draft. Freeze the
+correction for broader validation and independent review, not acceptance.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 
