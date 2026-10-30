@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S4 is assigned after S3's accepted closure was archived and pushed at
 `5d22acfc389d6cb264b994f87c00da31886f1171`. S0-S3 remain accepted.
@@ -14,7 +14,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Draft implemented; focused checks pass; independent review and broader validation next
+- **Status**: Review NEEDS REVISION — second-pass refusal routing correction
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
@@ -47,6 +47,12 @@ explicit OpenAI `gpt-5.3-codex` (runtime confirmation pending), read-only
 and no Go. Parent shell `roc-s4-parent-basic` runs admitted formatting,
 full affected packages, vet and build serially in clean
 `bin/roc-s4-20261030/source-s4-a9e3182`. Stop at first failure.
+Review returned NEEDS REVISION, runtime confirmed `gpt-5.3-codex`: a
+non-all-present second pass can exit validateApplicableEffects with
+candidate-postcondition-failed before validateSecondPassPlan runs. Every
+such second-pass outcome must instead be candidate-not-idempotent with
+diagnostic detail. Correct narrowly and add a full-path regression; do not
+lose separate postcondition validation. ADR-046 remains Proposed.
 S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
 while that exact-tip run is active. At 09:29 UTC about 8.5 hours remain.
 
@@ -101,8 +107,8 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Independently review `a9e3182` and proposed ADR-046.
-2. Parent alone runs admitted formatting/affected/vet/build.
+1. Correct second-pass refusal routing and add a mutation-sensitive regression.
+2. Parent alone finishes/reruns appropriate checks; return to the same reviewer.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
@@ -118,8 +124,8 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-None at dispatch. S3 closing-tip CI may still run: do not cancel it with
-tracking-only pushes. No S4 acceptance is implied by predecessor success.
+One high review finding remains open: second-pass refusal routing. S3
+closing-tip CI may still run; do not cancel it with tracking-only pushes.
 
 ## Context for Next Agent
 

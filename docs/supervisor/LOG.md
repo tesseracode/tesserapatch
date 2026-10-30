@@ -1,3 +1,18 @@
+## Review — S4 NEEDS REVISION — 2026-10-30
+
+Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, runtime
+OpenAI `gpt-5.3-codex`, finds one high-priority refusal-order defect at
+`a9e3182`. `validateCandidate` calls `validateApplicableEffects` before
+`validateSecondPassPlan`, so a second-pass non-present applicable effect can
+return candidate-postcondition-failed instead of mandatory
+candidate-not-idempotent with diagnostic detail (validation.go:62,247-258,78).
+
+Return to implementation for a narrow correction plus a regression through
+the production validation path. Preserve independent first-pass postcondition
+checks; do not silently relabel all postcondition failures as idempotency.
+ADR-046 remains Proposed. Parent's frozen basic checks may finish, but no
+new Go workload or full/native publication begins until correction/re-review.
+
 ## S4 Independent Review Dispatched — 2026-10-30
 
 Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, explicit OpenAI

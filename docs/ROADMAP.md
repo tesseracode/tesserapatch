@@ -1640,6 +1640,9 @@ checks. Independent review of code/proposed ADR-046 and full validation remain
 pending; the draft does not constitute stage acceptance.
 Fresh independent reviewer `c7fa235b` and parent-only serial basic validation
 are active against the frozen draft; no second local Go workload.
+Independent review returns NEEDS REVISION: second-pass non-present effects
+must route to candidate-not-idempotent with detail, not the earlier
+postcondition-failed branch. Narrow correction and re-review required.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 
