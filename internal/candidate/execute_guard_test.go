@@ -167,8 +167,20 @@ func validateSecondPassAllEffectsSource(source string) error {
 	if !strings.Contains(source, "secondPlan, err := derive(reference, candidateRoot, patch, effects)") {
 		return fmt.Errorf("second pass no longer reuses production derivation over all effects")
 	}
+	if strings.Contains(source, "validateApplicableEffects(") {
+		return fmt.Errorf("second pass still routes first-pass postconditions through second-pass state helper")
+	}
 	if !strings.Contains(source, "validateSecondPassPlan(secondPlan, len(effects))") {
 		return fmt.Errorf("second pass no longer validates the full original effect set")
+	}
+	firstPassPayloadIdx := strings.Index(source, "validateOperationPayloadPostconditions(upstream, candidateRoot, plan)")
+	firstPassModelIdx := strings.Index(source, "validateExpectedModeledContent(upstream, candidateRoot, plan)")
+	secondPassIdx := strings.Index(source, "secondPlan, err := derive(reference, candidateRoot, patch, effects)")
+	if firstPassPayloadIdx < 0 || firstPassModelIdx < 0 || secondPassIdx < 0 {
+		return fmt.Errorf("validation phase boundaries are missing")
+	}
+	if !(firstPassPayloadIdx < secondPassIdx && firstPassModelIdx < secondPassIdx) {
+		return fmt.Errorf("first-pass postcondition checks must run before second-pass derivation")
 	}
 	return nil
 }

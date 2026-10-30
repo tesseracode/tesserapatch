@@ -43,21 +43,7 @@ func executionFixture(t *testing.T) (root string, reference, upstream *Reference
 	candidateGit(t, root, "add", "one.go", "two.go")
 	candidateGit(t, root, "commit", "-qm", "feature")
 	patch = string(derivationGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "one.go", "two.go"))
-	rows, err := patchobs.ReconstructOffline(root, baseCommit, patch)
-	if err != nil {
-		t.Fatal(err)
-	}
-	effects = make([]gitutil.PatchEffect, len(rows))
-	for i, row := range rows {
-		e := row.Effect
-		e.PreimageObserved, e.PreimagePresent, e.PreimageSHA256 = true, row.Pre.Present, row.Pre.SHA256
-		e.PostimageObserved, e.PostimagePresent, e.PostimageSHA256 = true, row.Post.Present, row.Post.SHA256
-		e.OldMode, e.NewMode = row.Pre.Mode, row.Post.Mode
-		entry := patchobs.EffectObservation{Effect: e}
-		entry.Bytes.Preimage, entry.Bytes.Postimage = row.Pre.Bytes, row.Post.Bytes
-		e.ContentKind, e.ObjectKind = patchobs.ClassifyEffectObservation(e, entry.Bytes)
-		effects[i] = e
-	}
+	effects = reconstructEffects(t, root, baseCommit, patch)
 
 	if err := os.WriteFile(onePath, []byte(baseOne), 0o644); err != nil {
 		t.Fatal(err)
@@ -69,6 +55,7 @@ func executionFixture(t *testing.T) (root string, reference, upstream *Reference
 	candidateGit(t, root, "commit", "-qm", "upstream")
 	upstreamCommit := candidateGit(t, root, "rev-parse", "HEAD")
 
+	var err error
 	reference, err = OpenReferenceRoot(root, baseCommit)
 	if err != nil {
 		t.Fatal(err)
@@ -82,6 +69,26 @@ func executionFixture(t *testing.T) (root string, reference, upstream *Reference
 		_ = upstream.Close()
 	})
 	return root, reference, upstream, patch, effects
+}
+
+func reconstructEffects(t *testing.T, repoRoot, baseCommit, patch string) []gitutil.PatchEffect {
+	t.Helper()
+	rows, err := patchobs.ReconstructOffline(repoRoot, baseCommit, patch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effects := make([]gitutil.PatchEffect, len(rows))
+	for i, row := range rows {
+		e := row.Effect
+		e.PreimageObserved, e.PreimagePresent, e.PreimageSHA256 = true, row.Pre.Present, row.Pre.SHA256
+		e.PostimageObserved, e.PostimagePresent, e.PostimageSHA256 = true, row.Post.Present, row.Post.SHA256
+		e.OldMode, e.NewMode = row.Pre.Mode, row.Post.Mode
+		entry := patchobs.EffectObservation{Effect: e}
+		entry.Bytes.Preimage, entry.Bytes.Postimage = row.Pre.Bytes, row.Post.Bytes
+		e.ContentKind, e.ObjectKind = patchobs.ClassifyEffectObservation(e, entry.Bytes)
+		effects[i] = e
+	}
+	return effects
 }
 
 func trackedBytes(t *testing.T, root string) map[string]string {
@@ -324,6 +331,179 @@ func TestS4ValidationRefusesPathSetModeAndConflictMarkers(t *testing.T) {
 	}
 }
 
+func TestS4ExecuteRefusesPostconditionWhenInsertedPayloadIsCorrupted(t *testing.T) {
+	root, reference, upstream, patch, effects := executionFixture(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-postcondition-insert")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	originalInsert := candidateWriterRegistry["insert-by-boundary"]
+	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
+		mutated := op
+		mutated.payload = append([]byte(nil), op.payload...)
+		if len(mutated.payload) > 0 {
+			mutated.payload[0] = mutated.payload[0] ^ 0x1
+		}
+		return originalInsert(root, mutated)
+	}
+	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
+
+	_, err := Execute(reference, upstream, patch, effects, root, "s4-postcondition-insert", "rc_a11111111111", featureLock, globalLock)
+	if refusalCode(err) != "candidate-postcondition-failed" {
+		t.Fatalf("expected candidate-postcondition-failed, got %v", err)
+	}
+	var refusalErr *refusal
+	if !errors.As(err, &refusalErr) {
+		t.Fatalf("expected refusal error, got %T", err)
+	}
+	if !strings.Contains(refusalErr.detail, "inserted payload mismatch") {
+		t.Fatalf("expected inserted payload mismatch detail, got %q", refusalErr.detail)
+	}
+	worktree := filepath.Join(root, ".tpatch", "reconcile-candidates", "s4-postcondition-insert", "rc_a11111111111", "worktree")
+	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
+		t.Fatalf("postcondition failure left candidate worktree behind: %v", statErr)
+	}
+}
+
+func TestS4ExecuteRefusesPostconditionWhenCreatedPayloadIsCorrupted(t *testing.T) {
+	root, baseCommit := initCandidateRepo(t)
+	createdPath := filepath.Join(root, "created.txt")
+	if err := os.WriteFile(createdPath, []byte("created payload\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "created.txt")
+	candidateGit(t, root, "commit", "-qm", "feature")
+	patch := string(derivationGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "created.txt"))
+	effects := reconstructEffects(t, root, baseCommit, patch)
+
+	candidateGit(t, root, "rm", "-q", "created.txt")
+	candidateGit(t, root, "commit", "-qm", "upstream")
+	upstreamCommit := candidateGit(t, root, "rev-parse", "HEAD")
+
+	reference, err := OpenReferenceRoot(root, baseCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	upstream, err := OpenReferenceRoot(root, upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-postcondition-create")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	originalCreate := candidateWriterRegistry["create-file"]
+	candidateWriterRegistry["create-file"] = func(root *CandidateRoot, op operation) error {
+		mutated := op
+		mutated.payload = append([]byte(nil), op.payload...)
+		if len(mutated.payload) > 0 {
+			mutated.payload[0] = mutated.payload[0] ^ 0x1
+		}
+		return originalCreate(root, mutated)
+	}
+	t.Cleanup(func() { candidateWriterRegistry["create-file"] = originalCreate })
+
+	_, err = Execute(reference, upstream, patch, effects, root, "s4-postcondition-create", "rc_b22222222222", featureLock, globalLock)
+	if refusalCode(err) != "candidate-postcondition-failed" {
+		t.Fatalf("expected candidate-postcondition-failed, got %v", err)
+	}
+	var refusalErr *refusal
+	if !errors.As(err, &refusalErr) {
+		t.Fatalf("expected refusal error, got %T", err)
+	}
+	if !strings.Contains(refusalErr.detail, "created payload mismatch") {
+		t.Fatalf("expected created payload mismatch detail, got %q", refusalErr.detail)
+	}
+	worktree := filepath.Join(root, ".tpatch", "reconcile-candidates", "s4-postcondition-create", "rc_b22222222222", "worktree")
+	if _, statErr := os.Stat(worktree); !os.IsNotExist(statErr) {
+		t.Fatalf("postcondition failure left candidate worktree behind: %v", statErr)
+	}
+}
+
+func TestS4ExecuteReportsUnmodeledChangeWhenPayloadsRemainIntact(t *testing.T) {
+	root, reference, upstream, patch, effects := executionFixture(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-unmodeled")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	originalInsert := candidateWriterRegistry["insert-by-boundary"]
+	candidateWriterRegistry["insert-by-boundary"] = func(root *CandidateRoot, op operation) error {
+		if err := originalInsert(root, op); err != nil {
+			return err
+		}
+		body, err := root.ReadFile(op.path)
+		if err != nil {
+			return err
+		}
+		if len(body) == 0 {
+			return nil
+		}
+		body[0] = body[0] ^ 0x1
+		return writeRootedFile(root.worktree.root, op.path, body)
+	}
+	t.Cleanup(func() { candidateWriterRegistry["insert-by-boundary"] = originalInsert })
+
+	_, err := Execute(reference, upstream, patch, effects, root, "s4-unmodeled", "rc_c33333333333", featureLock, globalLock)
+	if refusalCode(err) != "candidate-unmodeled-change" {
+		t.Fatalf("expected candidate-unmodeled-change, got %v", err)
+	}
+}
+
+func TestS4ExecuteDescendingInsertOffsetsPassPostconditionPositionChecks(t *testing.T) {
+	root, _ := initCandidateRepo(t)
+	targetPath := filepath.Join(root, "multi.txt")
+	if err := os.WriteFile(targetPath, []byte("a\nb\nc\nd\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "multi.txt")
+	candidateGit(t, root, "commit", "-qm", "reference")
+	baseCommit := candidateGit(t, root, "rev-parse", "HEAD")
+
+	if err := os.WriteFile(targetPath, []byte("a\nx\nb\nc\ny\nd\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "multi.txt")
+	candidateGit(t, root, "commit", "-qm", "feature")
+	patch := string(derivationGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "multi.txt"))
+	effects := reconstructEffects(t, root, baseCommit, patch)
+
+	if err := os.WriteFile(targetPath, []byte("a\nb\nc\nd\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	candidateGit(t, root, "add", "multi.txt")
+	candidateGit(t, root, "commit", "-qm", "upstream")
+	upstreamCommit := candidateGit(t, root, "rev-parse", "HEAD")
+
+	reference, err := OpenReferenceRoot(root, baseCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reference.Close()
+	upstream, err := OpenReferenceRoot(root, upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+
+	featureLock, globalLock := acquireCandidateLocks(t, root, "s4-multi-offsets")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+	result, err := Execute(reference, upstream, patch, effects, root, "s4-multi-offsets", "rc_d44444444444", featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	t.Cleanup(func() {
+		if result.Root != nil && !result.Root.closed {
+			_ = result.Root.Prune(featureLock, globalLock)
+		}
+	})
+	body, err := result.Root.ReadFile("multi.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "a\nx\nb\nc\ny\nd\n" {
+		t.Fatalf("multi.txt body=%q", string(body))
+	}
+}
+
 func TestS4ExecuteReturnsNotIdempotentWhenSecondPassReappliesApplicableEffect(t *testing.T) {
 	root, _ := initCandidateRepo(t)
 	targetPath := filepath.Join(root, "target.txt")
@@ -340,22 +520,7 @@ func TestS4ExecuteReturnsNotIdempotentWhenSecondPassReappliesApplicableEffect(t 
 	candidateGit(t, root, "add", "target.txt")
 	candidateGit(t, root, "commit", "-qm", "feature")
 	patch := string(derivationGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "target.txt"))
-
-	rows, err := patchobs.ReconstructOffline(root, baseCommit, patch)
-	if err != nil {
-		t.Fatal(err)
-	}
-	effects := make([]gitutil.PatchEffect, len(rows))
-	for i, row := range rows {
-		e := row.Effect
-		e.PreimageObserved, e.PreimagePresent, e.PreimageSHA256 = true, row.Pre.Present, row.Pre.SHA256
-		e.PostimageObserved, e.PostimagePresent, e.PostimageSHA256 = true, row.Post.Present, row.Post.SHA256
-		e.OldMode, e.NewMode = row.Pre.Mode, row.Post.Mode
-		entry := patchobs.EffectObservation{Effect: e}
-		entry.Bytes.Preimage, entry.Bytes.Postimage = row.Pre.Bytes, row.Post.Bytes
-		e.ContentKind, e.ObjectKind = patchobs.ClassifyEffectObservation(e, entry.Bytes)
-		effects[i] = e
-	}
+	effects := reconstructEffects(t, root, baseCommit, patch)
 
 	if err := os.WriteFile(targetPath, []byte("a\nc\n"), 0o644); err != nil {
 		t.Fatal(err)

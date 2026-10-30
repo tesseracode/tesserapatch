@@ -35,10 +35,6 @@ func validateCandidate(
 	if err != nil {
 		return validationResult{}, err
 	}
-	treeBefore, diffBefore, err := snapshotCandidateState(candidateRoot)
-	if err != nil {
-		return validationResult{}, err
-	}
 	changes, err := changedPaths(candidateRoot)
 	if err != nil {
 		return validationResult{}, err
@@ -52,15 +48,22 @@ func validateCandidate(
 	if err := validateNoConflictMarkers(candidateRoot, plan); err != nil {
 		return validationResult{}, err
 	}
+	if err := validateOperationPayloadPostconditions(upstream, candidateRoot, plan); err != nil {
+		return validationResult{}, err
+	}
+	if err := validateExpectedModeledContent(upstream, candidateRoot, plan); err != nil {
+		return validationResult{}, err
+	}
+	treeBefore, diffBefore, err := snapshotCandidateState(candidateRoot)
+	if err != nil {
+		return validationResult{}, err
+	}
 	secondPlan, err := derive(reference, candidateRoot, patch, effects)
 	if err != nil {
 		return validationResult{}, &refusal{
 			code:   "candidate-not-idempotent",
 			detail: "second-pass: " + secondPassReason(err),
 		}
-	}
-	if err := validateExpectedModeledContent(upstream, candidateRoot, plan); err != nil {
-		return validationResult{}, err
 	}
 	treeAfter, diffAfter, err := snapshotCandidateState(candidateRoot)
 	if err != nil {
@@ -73,9 +76,6 @@ func validateCandidate(
 		return validationResult{}, &refusal{code: "candidate-not-idempotent", detail: "second-pass changed diff bytes"}
 	}
 	if err := validateSecondPassPlan(secondPlan, len(effects)); err != nil {
-		return validationResult{}, err
-	}
-	if err := validateApplicableEffects(plan, secondPlan); err != nil {
 		return validationResult{}, err
 	}
 	return validationResult{effectMap: effectMap, treeHash: treeAfter, diff: diffAfter}, nil
@@ -244,18 +244,77 @@ func validateNoConflictMarkers(root *CandidateRoot, plan Plan) error {
 	return nil
 }
 
-func validateApplicableEffects(first, second Plan) error {
-	secondByOrdinal := map[int]effectClassification{}
-	for _, effect := range second.effects {
-		secondByOrdinal[effect.ordinal] = effect
+func validateOperationPayloadPostconditions(upstream *ReferenceRoot, root *CandidateRoot, plan Plan) error {
+	opsByPath := map[string][]operation{}
+	for _, op := range plan.operations {
+		opsByPath[op.path] = append(opsByPath[op.path], op)
 	}
-	for _, effect := range first.effects {
-		if effect.state != applicable {
-			continue
+	paths := make([]string, 0, len(opsByPath))
+	for path := range opsByPath {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		upstreamBody, err := upstream.ReadFile(path)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				upstreamBody = nil
+			} else {
+				return &refusal{code: "candidate-postcondition-failed", path: path, detail: fmt.Sprintf("read upstream path: %v", err)}
+			}
 		}
-		next, ok := secondByOrdinal[effect.ordinal]
-		if !ok || next.state != present {
-			return &refusal{code: "candidate-postcondition-failed", path: effect.path}
+		got, err := root.ReadFile(path)
+		if err != nil {
+			return &refusal{code: "candidate-postcondition-failed", path: path, detail: fmt.Sprintf("read candidate path: %v", err)}
+		}
+		pathOps := opsByPath[path]
+		baseLen := len(upstreamBody)
+		createSeen := false
+		insertions := make([]operation, 0, len(pathOps))
+		for _, op := range pathOps {
+			switch op.kind {
+			case "create-file":
+				if createSeen {
+					return &refusal{code: "candidate-postcondition-failed", path: path, detail: "multiple create-file operations for one path"}
+				}
+				createSeen = true
+				baseLen = len(op.payload)
+				if len(pathOps) == 1 && !bytes.Equal(got, op.payload) {
+					return &refusal{code: "candidate-postcondition-failed", path: path, detail: "created payload mismatch"}
+				}
+			case "insert-by-boundary":
+				insertions = append(insertions, op)
+			default:
+				return &refusal{code: "candidate-operation-kind-unsupported", path: op.path, detail: op.kind}
+			}
+		}
+		for i, op := range insertions {
+			if op.byteOffset < 0 || op.byteOffset > baseLen {
+				return &refusal{code: "candidate-postcondition-failed", path: op.path, detail: "insertion offset is outside upstream content"}
+			}
+			shift := 0
+			for j := i + 1; j < len(insertions); j++ {
+				other := insertions[j]
+				if other.byteOffset < op.byteOffset || other.byteOffset == op.byteOffset {
+					shift += len(other.payload)
+				}
+			}
+			finalOffset := op.byteOffset + shift
+			finalEnd := finalOffset + len(op.payload)
+			if finalOffset < 0 || finalEnd > len(got) {
+				return &refusal{
+					code:   "candidate-postcondition-failed",
+					path:   op.path,
+					detail: fmt.Sprintf("inserted payload missing at final offset=%d len=%d", finalOffset, len(op.payload)),
+				}
+			}
+			if !bytes.Equal(got[finalOffset:finalEnd], op.payload) {
+				return &refusal{
+					code:   "candidate-postcondition-failed",
+					path:   op.path,
+					detail: fmt.Sprintf("inserted payload mismatch at final offset=%d len=%d", finalOffset, len(op.payload)),
+				}
+			}
 		}
 	}
 	return nil
