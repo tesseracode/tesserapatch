@@ -531,6 +531,18 @@ func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *can
 	if !sameOperationCandidatePreparation(prepared, fresh) {
 		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-integrity-drift")
 	}
+	relative, err := candidate.CandidateWorktreeRelative(fresh.slug, fresh.candidateID)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	expectedPath, err := filepath.Abs(filepath.Join(fresh.repoPath, filepath.FromSlash(relative)))
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if root == nil || root.CandidateID() != fresh.candidateID || root.Commit() != fresh.eligibility.upstreamCommit ||
+		filepath.Clean(root.WorktreePath()) != filepath.Clean(expectedPath) {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate root identity mismatch")
+	}
 	existing, err := root.ReadArtifact()
 	if err != nil {
 		return candidate.CandidateArtifact{}, err

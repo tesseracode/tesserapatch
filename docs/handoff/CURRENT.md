@@ -71,6 +71,10 @@ equal-result cross-candidate/repository and accepted-audit regressions.
 The next targeted run stopped at a test's misspelled existing enum constant,
 before runtime tests. Corrected it and bound prepared repository identity
 before any fresh finalization/preflight mutation. No guard was weakened.
+Targeted S5/S2/root/authority tests pass at `71e87bf` (candidate0.456s,
+workflow18.894s), normal pressure/no swap-outs. A final small pre-read check
+binds reuse's root namespace/ID/commit before reading its metadata. Freeze
+for independent review after formatting; broader checks follow in parallel.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
