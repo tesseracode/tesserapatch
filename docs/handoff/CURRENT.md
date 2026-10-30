@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Correcting the legacy controlled-schema pin for S2's approved config opt-in
+- **Status**: Exact Config-schema correction passes focused controls; PIB-477/observer and narrow review next
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -133,6 +133,11 @@ the exact bool/omitempty field; its removal must reproduce the unchanged
 pre-S2 digest. The same checker has negative controls for missing, mistyped,
 retagged, extra and changed-prior fields. Only the AP guard's finite S2 path
 permission is added. Reproduce PIB-477 and its observer locally before review.
+Correction `a5af08e` passes admitted formatting and the exact-schema/scope
+negative controls (CLI 0.562s, workflow 0.588s), with no resource stop.
+Production bytes remain unchanged. The retained reviewer will review only
+the two-test-file delta while parent shell `roc-s2-schema-runtime` runs
+PIB-477 and its AP observer in separate freshly admitted processes.
 
 ## Current State — bounded S2 scope
 

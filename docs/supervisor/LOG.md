@@ -1,3 +1,12 @@
+## Narrow Review and Runtime Dispatch — S2 Config schema correction — 2026-10-29
+
+Freeze test-only correction `a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`.
+Formatting and exact-schema/scope sensitivity checks pass (CLI 0.562s,
+workflow 0.588s), without a resource stop. Production bytes are unchanged.
+Request retained-reviewer approval of the two-test-file delta; parent shell
+`roc-s2-schema-runtime` alone runs PIB-477 and its AP observer in separate
+freshly admitted processes. No full/native retry until those results pass.
+
 ## CI Revision — S2 controlled Config schema pin — 2026-10-29
 
 Native CI `40997153846` has a real shared failure: Linux/macOS Test and AP
