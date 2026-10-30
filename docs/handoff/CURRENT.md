@@ -24,13 +24,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Index bypass fixed; restoring conversion safety before materialization
+- **Status**: Conversion safety fix frozen; focused checks/resource admission and re-review
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
-- **Frozen review checkpoint**: `7aac2207f26f214f20a781a7347128172bfdae4e`
+- **Frozen review checkpoint**: `0a378c6` (conversion safety)
 - **Current window deadline**: `2026-10-31T02:08:53Z`
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -133,6 +133,10 @@ Stopped the obsolete `7aac220` broad run during test admission, before Go tests
 started, because review required this new conversion fix. Formatting had passed
 after a 449s admission wait. Preserve its interruption sidecar; no partial pass
 is claimed. No competing Go workload remains. Resource rules stay unchanged.
+Old-code hiding-filter regression reproduces unsafe success and actual filter
+execution (`conversion-hiding-red`). Fix `0a378c6` is committed and frozen;
+`s5-conversion-green` owns the sole Go workload for candidate/capture/workflow
+targeted checks. Retained reviewer checks conversion refusal before git add.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

@@ -1,3 +1,14 @@
+## S5 Conversion Correction Frozen — 2026-10-30
+
+Freeze `0a378c6`. Existing shared attribute/config policy now checks all paths
+against the same seeded private index before materializing add; hardened reads,
+applicable-filter refusal, tracked byte-conversion refusal and disabled
+fsmonitor/stat shortcuts preserve byte-faithful proof.
+The actual old-code fixture both returned unsafe success and executed the
+hiding filter; preserve `conversion-hiding-red`. The corrected targeted run
+`s5-conversion-green` is active, sole Go workload; reviewer can inspect frozen
+source independently. No code approval/full/native acceptance claimed.
+
 ## S5 Obsolete Validation Stopped During Admission — 2026-10-30
 
 After conversion-safety review, stop the now-obsolete `7aac220` broad run while

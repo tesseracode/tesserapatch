@@ -1646,6 +1646,9 @@ precede complete local/native gates.
 F3 re-review confirms index independence but requires restoring applicable
 conversion/filter refusal before materialization; ordinary Git clean filters
 must not hide actual worktree changes. Other findings remain closed.
+Conversion correction `0a378c6` reuses shared policy against the same seeded
+private index before git add. Real old-code filter hiding/execution reproduced;
+targeted checks and retained re-review are in progress. No gate waiver.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
