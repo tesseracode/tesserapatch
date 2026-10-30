@@ -1639,7 +1639,8 @@ stage closes durably. S2 closing-tip CI `41010587650` passes all five jobs.
 Initial review identified excessive per-boundary grid rescans; `87bb62a`
 uses one optimal-pair pass and existing matrix boundary columns, without a
 new limit. Exhaustive oracle, L3-ceiling dense-boundary fixture and negative
-controls pass; independent re-review and full/native validation remain pending.
+controls pass; independent re-review APPROVES code and ADR-045, closing the
+scaling finding. Corrected affected packages pass; full/native validation is pending.
 
 ### GH #13 — ✅ S2 eligibility ACCEPTED — 2026-10-29
 

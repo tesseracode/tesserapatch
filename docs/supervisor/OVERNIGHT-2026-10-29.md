@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Correction awaiting re-review | `87bb62a` | One-pass indexing, oracle/ceiling/negative controls pass; full/native pending |
+| GH #13 S3 | Code and ADR independently approved | `87bb62a` | Scaling finding closed; affected checks pass; full/native pending |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

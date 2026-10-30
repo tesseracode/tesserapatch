@@ -1,3 +1,15 @@
+## Review — S3 correction APPROVED — 2026-10-30
+
+Independent reviewer `d8ddcd54-7b2c-4568-9215-69305451f069`
+(OpenAI `gpt-5.3-codex`) APPROVES `87bb62a`; previous high scaling finding
+CLOSED. Scratch-column reuse preserves all predicate reads, including empty
+sides. First-refusal order is unchanged. ADR-045 is explicitly APPROVED
+as an implementation decision; stage acceptance still requires full gates.
+
+Corrected formatting and affected packages pass (134.70s); parent continues
+serial vet/build. Prepare a published full-validation checkpoint only after
+those finish. No S3 acceptance or S4 dispatch yet.
+
 ## S3 Correction Re-review — 2026-10-30
 
 Freeze `87bb62a519f6658a367571f1894112cd83407551`. One optimal-pair

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
@@ -14,7 +14,7 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Complexity correction passes focused checks; independent re-review and basic revalidation
+- **Status**: Code and ADR-045 independently approved; completing basic checks before full validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
@@ -60,6 +60,8 @@ two-matrix/8 MiB bound and O(n*m) total work, since K <= n+1 after combination.
 Implemented at `87bb62a`: ADR-045 records the proof; the exhaustive oracle,
 1024-boundary L3-ceiling fixture and mutation-sensitive work guards pass.
 Classification still checks refusals in original boundary order.
+The same reviewer APPROVES `87bb62a` and ADR-045, explicitly closing the
+high scaling finding and verifying scratch reuse/empty sides/refusal order.
 
 ## Current State — bounded S3 scope
 
@@ -110,14 +112,14 @@ Proposed ADR-045 and the overnight log record the implementation choices.
   build 0.50s; normal pressure and zero new swap-outs.
 - Corrected `87bb62a` passes admitted formatting and focused candidate tests
   (1.939s), including exhaustive equivalence, empty sides and dense boundaries.
-  Complete affected/vet/build revalidation and independent re-review follow.
+  Corrected formatting and full affected packages also PASS (134.70s);
+  serial vet/build continue. Independent re-review APPROVED.
 - S2 closing-tip CI `41010587650` at `4702b10` PASS, five required jobs.
 
 ## Next Steps
 
-1. Re-review frozen `87bb62a` and ADR-045 independently while the parent alone
-   reruns admitted formatting, affected packages, vet and build in a clean checkout.
-2. Resolve findings, then complete 39-command/native validation; record
+1. Finish admitted vet/build, then publish the independently approved checkpoint.
+2. Complete 39-command/native validation; record
    decisions and failed attempts, not just successes.
 3. Close/archive/push S3 before selecting S4. Do not dispatch dependent work
    against unaccepted or unpushed code. Preserve a clear handoff at the deadline.
@@ -134,8 +136,8 @@ clean isolated full-gate sources/caches, exact CI parity and owned cleanup.
 
 ## Blockers
 
-Complexity finding is corrected but awaits independent closure. ADR-045 and
-S3 remain unaccepted until review/validation. Predecessor CI is complete.
+No open review findings. S3 remains unaccepted until full/native validation.
+Predecessor CI is complete; ADR-045's decision is independently approved.
 
 ## Context for Next Agent
 
