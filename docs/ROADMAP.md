@@ -1649,6 +1649,8 @@ The affected-package command exposes three dependent source-inventory updates:
 the reference helper file, relocated normalizer owner and readonly consumer
 registration. Correct those exact test registrations with negative controls;
 production code stays unchanged and no pure-core exemption is granted.
+Independent narrow review approves the test-only correction at `b189770`.
+The original production approval stands; full local/native validation remains.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

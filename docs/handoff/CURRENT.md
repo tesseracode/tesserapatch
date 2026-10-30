@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Production code approved; test-only inventory correction under validation and narrow review
+- **Status**: Production and inventory correction independently approved; validation pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -87,6 +87,15 @@ approved `2c462a3`. Admitted formatting passes. Parent shell
 and S0/S2 checks from `bin/roc-s2-20261029/inventory-source`.
 The retained reviewer is checking only this correction, without Go execution.
 Do not duplicate the active validation or treat prior approval as full closure.
+The retained reviewer now APPROVES the test-only `2c462a3..b189770` correction,
+with no significant issues; runtime metadata reconfirms `gpt-5.3-codex`.
+Production approval remains intact. Actual validation, not review alone,
+still gates publication and S2 acceptance.
+The corrected focused command now passes candidate (0.887s), gitutil (0.839s)
+and workflow (9.688s), including all three inventories and their negative
+controls. Admission waited 320.78s for a qualifying minute; execution had no
+resource stop. Resume the full affected-package command, vet and build at
+unchanged `b189770`, in parent shell `roc-s2-corrected-validation`.
 
 ## Current State — bounded S2 scope
 
@@ -150,6 +159,9 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
   workflow coverage-consumer registration. Patchobs/store pass; other runtime
   assertions report no failure. Stage `s2-review-affected-packages-20261029`
   has no resource stop. Vet/build remain unstarted after fail-fast.
+- Corrected `b189770` inventory/S0/S2 controls PASS in
+  `s2-inventory-controls-20261029`. Narrow review also APPROVED.
+  Full affected-package rerun, vet/build and full/native validation remain.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.

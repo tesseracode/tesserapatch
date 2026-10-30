@@ -1,3 +1,19 @@
+## Narrow Review — S2 inventory correction — 2026-10-29
+
+**Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;
+runtime metadata reconfirms OpenAI `gpt-5.3-codex`.
+**Delta**: `2c462a3..b189770` (test-only plus tracking).
+**Verdict**: APPROVED; no significant issues found.
+
+Production approval at `2c462a3` stands. Exact inventory transitions and
+readonly/capture restrictions are independently approved, but actual positive
+checks, vet/build and full/native validation remain required. Do not equate
+this narrow review with S2 acceptance.
+The corrected admitted inventory/S0/S2 command now passes all three selected
+packages (candidate 0.887s, gitutil 0.839s, workflow 9.688s), without a resource
+stop. Resume full affected packages, vet and build at unchanged `b189770`;
+parent shell `roc-s2-corrected-validation` owns the serial workload.
+
 ## Narrow Review Dispatch — S2 inventory correction — 2026-10-29
 
 Test-only correction `b18977042b79a7e9e2c378f49c97469d93fa03bd` preserves
