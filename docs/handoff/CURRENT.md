@@ -2,11 +2,13 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S4 is assigned after S3's accepted closure was archived and pushed at
 `5d22acfc389d6cb264b994f87c00da31886f1171`. S0-S3 remain accepted.
 The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
+APPROVED denotes code review only, not S4 acceptance; full local/native
+validation remains required before S5.
 
 ## Active Task
 
@@ -14,7 +16,7 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Postcondition phase corrected; red/green checks pass; final re-review pending
+- **Status**: Final code and basic checks approved; publishing full-validation checkpoint
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
@@ -80,6 +82,9 @@ second derivation, including shifted final offsets. Unrelated content drift
 remains unmodeled-change; genuine second-pass failure remains not-idempotent.
 Corrupted-payload regression FAILED before with unmodeled-change and PASSES
 after with postcondition-failed. The redundant late helper is removed.
+Independent final re-review APPROVES `1bc18c9`, including phase ordering,
+shifted final offsets and negative guards; both earlier findings remain closed.
+ADR-046's direction is acceptable, Proposed until full acceptance.
 S3 closing-tip CI `41028948776` completed successfully, all five required
 jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
 At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
@@ -140,6 +145,8 @@ These passes do not discharge the semantic review finding.
 - ON-006 red-before evidence: `s4-on006-failing-before-2`.
   Corrected runtime/guard checks PASS (2.94s/8.30s), normal pressure and
   zero swap-outs; see `s4-on006-targeted-pass-1` / `s4-on006-guards-pass-1`.
+- Final formatting/candidate package (5.399s)/vet (10.31s)/build (0.61s)
+  PASS, normal pressure/no new swap-outs. Final code review APPROVED.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
@@ -147,8 +154,8 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Re-review frozen `1bc18c9`; prior two findings remain closed.
-2. Parent runs admitted final formatting/candidate/vet/build, then full/native gates.
+1. Publish the code-approved validation checkpoint and freeze its exact SHA.
+2. Run all 39 local shards / 42 gate commands and native CI at that exact SHA.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
@@ -164,8 +171,7 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-Both original review findings are closed. First-pass postcondition phase
-correction awaits final independent approval before publication.
+No open code-review findings. Full local/native validation still gates acceptance.
 Predecessor closing-tip CI has passed. ADR-046 remains Proposed.
 
 ## Context for Next Agent

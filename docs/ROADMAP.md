@@ -1663,6 +1663,10 @@ alignment behavior or S5 scope.
 ON-006 correction `1bc18c9` now passes real red-before/green-after payload,
 unrelated-byte and shifted-offset fixtures. Final re-review/basic checks
 precede full local/native validation.
+Final re-review APPROVES `1bc18c9`, including ON-006; no open findings.
+Final candidate/format/vet checks pass; full local/native gates remain required.
+Final build passes too. Publish the reviewed S4 checkpoint for complete
+39-shard/native validation; S5 remains undispatched.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

@@ -1,3 +1,26 @@
+## S4 Full-validation Publication — 2026-10-30
+
+Final build also PASS (0.61s); all basic commands passed under individual
+resource admission, normal pressure/no new swap-outs. Publish reviewed code
+`1bc18c9` with tracking only, then freeze the published SHA for full local
+39-test/42-command gate and native CI. Use WAVE_BASE
+`5d22acfc389d6cb264b994f87c00da31886f1171`, clean full-history source,
+fresh private caches and the already verified nine-control wrapper.
+APPROVED is code review status, not S4 acceptance; S5 remains blocked.
+
+## Review — S4 Final Code APPROVED — 2026-10-30
+
+Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`
+(OpenAI `gpt-5.3-codex`) APPROVES `1bc18c9`. ON-006 first-pass phase
+ordering and final-offset calculations are correct; both earlier findings
+remain closed. Mutation/negative controls cover phase ordering, retired late
+helper and modeled-body lifetime. No open code-review finding remains.
+
+ADR-046's direction is acceptable and remains Proposed until full acceptance.
+Final formatting, candidate package (5.399s) and vet (10.31s) pass; build
+is the remaining basic command. Publish the reviewed checkpoint only after
+it passes, then run the complete local/native gates. S4 is not accepted yet.
+
 ## S4 ON-006 Correction Frozen — 2026-10-30
 
 Freeze `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`: first-pass exact
