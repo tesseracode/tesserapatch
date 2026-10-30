@@ -1652,6 +1652,9 @@ reviewed proposal. Extracted families still need full execution; S1 is not accep
 Validation checkpoint `24be224` is published; native CI `40975085201` and
 the full 39-shard admitted local gate are running. The gate's first five
 mechanical checks pass. No full result or S1 acceptance is claimed yet.
+Native CI `40975085201` at `24be224` passes all five required jobs and the
+actual Windows CLW rows. The local gate has passed 18/39 test commands,
+including all fifteen extracted families, and remains active; S1 is not closed.
 
 **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`.
 The operator selected S1 after deferring the new Git-strategy investigation

@@ -18,7 +18,7 @@ warning OS memory pressure. This is not a shipped slice.
 - **Task ID**: `implement-operation-replay-candidate-s1`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S1 closure — test-only memory-bounded validation maintenance
-- **Status**: Static review and all six pilots passed; full 39-shard/native validation running
+- **Status**: Native CI passed; full local 39-shard gate still running
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `5120dc9395769fe8148b61836e546729b66cb4dc`
 - **Contract**: ADR-037/PRD rev-7 as narrowly amended by accepted ADR-044; PRD §8 S1, §6.9, §6.13
@@ -160,6 +160,15 @@ Native CI `40975085201` runs at the same checkpoint, watched by shell
 `roc-sharding-native-ci-24be224`; log is
 `bin/roc-sharding-20261029/native-ci-24be224.log`.
 Keep running-state tracking local until exact-checkpoint CI completes.
+Native CI `40975085201` now completes SUCCESS at `24be224`: all five required
+jobs pass with no failed steps; release is skipped. Windows job `123801035584`
+passes its required lock step, and the saved
+`bin/roc-sharding-20261029/native-windows-24be224.log` verifies actual PASS
+lines for CLW-001 through CLW-005.
+The local gate remains active: 18/39 test commands (21/42 top-level commands)
+have passed, including the catch-all and all fifteen extracted family shards.
+It is entering AR17 admission at this checkpoint. No complete local pass is
+claimed; keep progress tracking local until the same full-gate attempt ends.
 
 ## Session Summary
 
@@ -427,9 +436,9 @@ and the required Copilot co-author trailer remain mandatory.
 
 ## Next Steps
 
-1. Await existing full-gate shell `roc-sharding-full-gate-24be224` and native
-   CI `40975085201`; do not duplicate workloads or push tracking-only commits
-   while exact-checkpoint CI is in flight.
+1. Await existing full-gate shell `roc-sharding-full-gate-24be224`; native CI
+   `40975085201` has passed. Do not duplicate workloads or push tracking-only
+   commits while this exact-checkpoint gate is still running.
 2. Complete all 39 shards, formatting, vet/build and native validation before
    S1 acceptance. The fifteen extracted family shards still need execution
    in the complete partition; six successful pilots are not the full gate.
@@ -452,7 +461,8 @@ Use isolated full-gate source/caches, reconcile owned processes and retain logs.
 No open S1 production-code finding; its required native CI passes.
 The newer test-only proposal `31fd46e` has static approval and all six memory
 pilots pass without runtime pressure or new swap-outs. Its full 39-command/
-native validation is running at `24be224`, so S1 is not accepted yet.
+native validation runs at `24be224`: native CI passes, while the full local
+gate remains active. S1 is not accepted yet.
 Do not dispatch a later slice or claim acceptance until they complete.
 
 ## Context for Next Agent
