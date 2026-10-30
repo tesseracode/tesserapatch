@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Production code approved; correcting three dependent source-inventory registrations
+- **Status**: Production code approved; test-only inventory correction under validation and narrow review
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -81,6 +81,12 @@ controls. Keep the evaluator outside the pure-core allowlist, retain exactly
 eleven strict normalizer calls, and preserve the original S1/capture scope.
 Production code remains frozen; return the test-only correction for narrow
 independent review after admitted validation.
+Test-only correction is saved at `b189770`; production bytes still match
+approved `2c462a3`. Admitted formatting passes. Parent shell
+`roc-s2-inventory-controls` runs the focused source inventories/sensitivity
+and S0/S2 checks from `bin/roc-s2-20261029/inventory-source`.
+The retained reviewer is checking only this correction, without Go execution.
+Do not duplicate the active validation or treat prior approval as full closure.
 
 ## Current State — bounded S2 scope
 

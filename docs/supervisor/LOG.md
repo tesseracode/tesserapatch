@@ -1,3 +1,12 @@
+## Narrow Review Dispatch — S2 inventory correction — 2026-10-29
+
+Test-only correction `b18977042b79a7e9e2c378f49c97469d93fa03bd` preserves
+production bytes from approved `2c462a3`. Formatting passes; parent shell
+`roc-s2-inventory-controls` runs corrected inventories/negative controls and
+S0/S2 checks. Retained reviewer `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`
+reviews only the four-test-file delta and remains read-only with no Go.
+No full/native S2 result or acceptance is claimed.
+
 ## Validation Revision — S2 dependent source inventories — 2026-10-29
 
 The full affected-package command fails three source inventories at approved
