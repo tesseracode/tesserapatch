@@ -19,7 +19,7 @@ No automatic scope expansion into unaccepted product contracts.
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
 | GH #13 S4 | Acceptance RESTORED and pushed | validated `c4f2f1e`, close `f9d5501` | Fresh review/local/native pass; closing CI `41072987684` also green |
-| GH #13 S5 | Final F2 correction awaiting review, unaccepted | `a0a747a`, WAVE_BASE `f9d5501` | Real ownership red/green; F3/F4/F6/finalization remain OPEN |
+| GH #13 S5 | PAUSED / NEEDS REVISION; local only | `a0a747a`, WAVE_BASE `f9d5501` | Eight findings closed; F3/F4/F6/finalization OPEN; no full/native gates |
 | GH #13 S6+ | Not dispatched | Depends on accepted S5 | Pending |
 
 ## Decisions
@@ -116,6 +116,14 @@ transition composition. In the remaining window, target only capability/
 alias/stored-commit/recovery-scan fixes. Cross-candidate binding, preparation
 authority and failure-safe continuous-lock finalization stay explicit next
 work. This limits churn and leaves a reviewable checkpoint, not a false ship.
+
+### ON-011 — Stop at a verified unaccepted checkpoint
+
+Final bounded review closes F2 after a real red-before/green-after ownership
+regression. All final basic checks pass, but F3/F4/F6 and finalization remain
+open. End the work before the deadline with a clean committed local checkpoint,
+no active validation/agents, no S5 push and no acceptance claim. CURRENT
+contains concrete remaining cases and the resumption protocol.
 
 S3 closed durably at 08:51 UTC, leaving roughly nine hours. S4 is scoped to
 the accepted execution/structural-validation contract only. Parent supervises

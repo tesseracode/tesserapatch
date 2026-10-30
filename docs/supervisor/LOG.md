@@ -1,3 +1,36 @@
+## Overnight Handoff — S3/S4 Accepted, S5 Paused — 2026-10-30
+
+Finish before the authorized deadline at a verified checkpoint, without
+starting a broad remaining authority rewrite. Published main is restored S4
+`f9d5501`; S3/S4 reviews, full local gates and native/closing CI all passed.
+S5 code ends at local `a0a747a`, with eight findings independently closed.
+F3/F4/F6 and complete continuous-lock finalization remain OPEN; ADR-048
+Proposed. No S5 full gate/native run, publication or acceptance; no S6.
+
+Final clean-clone checks pass after F2: candidate7.794s, workflow112.793s,
+vet5.11s, build0.50s, normal pressure/no swap-outs. Earlier full affected/store
+checks passed at `cd4192f`. Preserve all red/green evidence and review history.
+All owned validation commands are complete; agents are idle and deadline
+timer stopped. CURRENT is rewritten as an explicit paused, unaccepted
+resumption contract; ROADMAP/overnight scoreboard match it.
+
+Keep S5 commits local rather than pushing known authority/lifecycle blockers
+onto accepted main. Only tracking follows the final code checkpoint.
+
+## Review — S5 F2 CLOSED; S5 Still NEEDS REVISION — 2026-10-30
+
+Reviewer `7712b628` closes F2 at `a0a747a`: original Git ancestors are
+checked before resolution and successful registration requires complete
+repository-bound path plus opened-directory identity. No residual F2 gap
+found in the bounded review. Prior closures remain intact.
+
+Final open set is F3 (cross-candidate reuse binding), F4 (preparation/
+eligibility/repository/feature authority), F6 (failure-safe lifecycle
+consistency), and missing continuous-lock finalization composition.
+ADR-048 remains Proposed. S5 overall is NEEDS REVISION, local/unpublished;
+no full/native gates or acceptance. Parent finishes the active basic run,
+then records the paused checkpoint without starting another implementation.
+
 ## S5 Residual F2 Correction Frozen — 2026-10-30
 
 Freeze `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`. Require exact full

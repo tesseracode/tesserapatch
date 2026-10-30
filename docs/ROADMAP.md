@@ -1623,7 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S5 artifacts, identity and lifecycle — 2026-10-30
+### GH #13 — 🚧 S5 PAUSED / NEEDS REVISION — local draft, not accepted — 2026-10-30
+
+**Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
+**Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
+Eight findings independently closed; OPEN F3 cross-candidate reuse binding,
+F4 preparation/eligibility/repository/feature authority, F6 failure consistency
+and complete continuous-lock finalization. Basic tests/vet/build pass; no S5
+full 39-shard/native gate or acceptance. ADR-048 Proposed. S6 not dispatched.
+Exact open cases and resumption instructions are in CURRENT/LOG.
+
+**S5 overnight chronology**:
 
 **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`, restored S4 close.
 Accepted S5 only: immutable pre-execution identity, strict metadata artifacts,
