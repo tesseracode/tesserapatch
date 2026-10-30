@@ -1,3 +1,10 @@
+## S3 Closing-tip CI Complete — 2026-10-30
+
+CI `41028948776` at durable S3 close `5d22acf` passes all five required
+jobs, no failed steps; watcher `roc-s3-close-ci` exits successfully.
+At 09:44 UTC roughly 8.25 authorized hours remain. This clears the
+predecessor-publication wait, not S4's two open review findings.
+
 ## S4 Bounded Follow-up Review — 2026-10-30
 
 The same independent reviewer confirms a second concrete correction at

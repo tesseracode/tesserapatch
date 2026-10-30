@@ -59,8 +59,9 @@ retains all touched file contents simultaneously. Replace it with one-path
 replay/compare/discard, preserving semantics and adding a negative guard.
 The reviewer accepts the candidate-rooted read/size/mode plus before/after
 tree/diff model; no additional immutable-tree subsystem is needed.
-S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
-while that exact-tip run is active. At 09:29 UTC about 8.5 hours remain.
+S3 closing-tip CI `41028948776` completed successfully, all five required
+jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
+At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
 
 Draft adds closed execution/writer/validation helpers, shared derivation core,
 typed candidate-worktree snapshots, total absorption and guard fixtures.
@@ -134,8 +135,7 @@ Use clean isolated source checkouts and preserve all raw evidence.
 ## Blockers
 
 Two review findings remain open: second-pass refusal routing and aggregate
-expected-body retention. S3
-closing-tip CI may still run; do not cancel it with tracking-only pushes.
+expected-body retention. Predecessor closing-tip CI has passed.
 
 ## Context for Next Agent
 

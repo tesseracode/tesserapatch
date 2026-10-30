@@ -1648,6 +1648,8 @@ finding. The same implementer owns correction plus admitted focused checks.
 Bounded follow-up review also requires one-file-at-a-time expected-content
 validation rather than retaining all modeled bodies. Candidate snapshot
 binding is acceptable; ADR-046 remains Proposed until both fixes pass.
+Predecessor closing-tip CI `41028948776` is now green on all five required
+jobs. S4 remains local and unaccepted pending correction/re-review.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 
