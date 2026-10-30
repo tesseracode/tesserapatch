@@ -1,3 +1,17 @@
+## S4 Corrections Frozen for Re-review — 2026-10-30
+
+Freeze `17f76d19f0b41dcf2ab097d4939a403dc01e458f`. Second-pass validation
+now precedes the applicable-effect check, preserving candidate-not-idempotent
+and effect/path/state detail. Modeled-content validation processes one sorted
+path at a time without the aggregate body cache.
+
+The actual Execute regression FAILS before (candidate-postcondition-failed)
+and PASSES after; complete S4/source guards and multi-path/multiple-operation
+fixtures pass (targeted 1.75s, guards 7.55s), normal pressure/no swap-outs.
+Preserve failing-before evidence. Return to the same independent reviewer for
+explicit closure of both findings and ADR-046 decision. Parent takes sole Go
+ownership for fresh admitted broader checks; no full/native acceptance yet.
+
 ## S3 Closing-tip CI Complete — 2026-10-30
 
 CI `41028948776` at durable S3 close `5d22acf` passes all five required

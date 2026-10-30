@@ -1650,6 +1650,9 @@ validation rather than retaining all modeled bodies. Candidate snapshot
 binding is acceptable; ADR-046 remains Proposed until both fixes pass.
 Predecessor closing-tip CI `41028948776` is now green on all five required
 jobs. S4 remains local and unaccepted pending correction/re-review.
+Corrections are frozen at `17f76d1`; actual Execute regression is red-before/
+green-after, one-path lifetime and guard fixtures pass. Independent re-review
+and corrected broader/full/native checks remain required.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 

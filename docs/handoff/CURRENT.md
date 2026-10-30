@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S4 is assigned after S3's accepted closure was archived and pushed at
 `5d22acfc389d6cb264b994f87c00da31886f1171`. S0-S3 remain accepted.
@@ -14,12 +14,12 @@ The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Review NEEDS REVISION — second-pass refusal routing correction
+- **Status**: Both review corrections implemented; focused checks pass; re-review pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Frozen implementation checkpoint**: `a9e318271e238c63ddb3aa99ee6d2ab3016b55f8`
+- **Frozen implementation checkpoint**: `17f76d19f0b41dcf2ab097d4939a403dc01e458f`
 
 WAVE_BASE = 5d22acfc389d6cb264b994f87c00da31886f1171
 
@@ -39,8 +39,8 @@ the whole candidate and removes its detached worktree.
 Implementation agent: `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, explicitly
 requested and runtime-confirmed OpenAI `gpt-5.3-codex`. It completed the
 bounded draft and focused checks. Parent's basic checks have completed;
-implementation now exclusively owns admitted correction formatting/focused
-checks. Do not launch another workload.
+implementation completed correction formatting/focused checks. Parent now
+exclusively owns admitted broader revalidation. No competing Go workload.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate is not configured or running.
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
@@ -59,6 +59,11 @@ retains all touched file contents simultaneously. Replace it with one-path
 replay/compare/discard, preserving semantics and adding a negative guard.
 The reviewer accepts the candidate-rooted read/size/mode plus before/after
 tree/diff model; no additional immutable-tree subsystem is needed.
+Both corrections are committed at `17f76d1`: second-pass validation now
+precedes the applicable-effect check, with effect/path/state diagnostics;
+modeled content is replayed/compared one sorted path at a time.
+The actual Execute regression FAILED before with candidate-postcondition-failed
+and PASSES after with candidate-not-idempotent. Guard/multi-path tests pass.
 S3 closing-tip CI `41028948776` completed successfully, all five required
 jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
 At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
@@ -110,6 +115,10 @@ Copied gate routing controls pass 9/9. Correction review and full gates remain p
 Parent basic checks at `a9e3182` also PASS: formatting, affected packages
 140.89s, vet 9.54s, build 0.51s; normal pressure and zero new swap-outs.
 These passes do not discharge the semantic review finding.
+- Correction evidence: `s4-revfix-failing-before-1` proves the real Execute
+  regression failed on the old route. `s4-revfix-targeted-pass-2` and
+  `s4-revfix-guards-pass-1` PASS (1.75s/7.55s), normal pressure/no swap-outs.
+  Corrected broader checks and independent finding closure remain pending.
 S3: 8/8 checks, 42/42 commands, 39/39 uncached test
 commands; native five required jobs and actual Windows CLW-001..005 pass.
 Runtime 6,957.40s, peak sampled owned RSS 7.16 GiB, normal pressure and zero
@@ -117,8 +126,8 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Correct second-pass refusal routing and per-file body lifetime with regressions.
-2. Parent alone finishes/reruns appropriate checks; return to the same reviewer.
+1. Re-review corrected `17f76d1` and ADR-046 with the same independent reviewer.
+2. Parent alone reruns admitted formatting/affected/vet/build in a fresh checkout.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
@@ -134,8 +143,8 @@ Use clean isolated source checkouts and preserve all raw evidence.
 
 ## Blockers
 
-Two review findings remain open: second-pass refusal routing and aggregate
-expected-body retention. Predecessor closing-tip CI has passed.
+Both review findings are corrected but await independent closure.
+Predecessor closing-tip CI has passed. ADR-046 remains Proposed.
 
 ## Context for Next Agent
 
