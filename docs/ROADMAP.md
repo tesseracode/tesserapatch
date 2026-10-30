@@ -1623,6 +1623,19 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S2 eligibility — 2026-10-29
+
+**WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`.
+The operator assigns accepted PRD section 8 S2 after S1 closure. Clean HEAD
+equals origin/main, no stashes, one main worktree. S1 closing-tip CI
+`40987744660` is still running; defer new pushes until it finishes.
+
+Scope: permitted-state preflight, paired C/E E1-E15 fixed first-match
+recomputation, existing strict decoders, offline tree reconstruction and
+`operation_candidate_enabled` default false. Preserve S0/S1 behavior and
+the accepted 39-shard resource protocol. No S3+, candidate execution,
+phase wiring, release or deferred research dispatch.
+
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 
 **Accepted checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`.

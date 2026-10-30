@@ -1,3 +1,19 @@
+## Dispatch — GH #13 S2 eligibility — 2026-10-29
+
+The operator explicitly assigns S2. Fresh fetched HEAD/origin/main is
+`bd95a237cbf5b5894f21c19c27bb1d628808db8f`, recorded as WAVE_BASE;
+worktree clean, no stashes, one main worktree. S1 is accepted at tested
+`24be224`; its docs-only closing-tip CI `40987744660` is still running.
+Do not cancel that run with an early push.
+
+Retarget CURRENT before code. Scope only the feature-state preflight,
+ordered paired-evidence E1-E15 gates, existing strict decoder/reconstruction
+reuse, offline no-fetch behavior and default-off configuration. The latest
+accepted parity block B defines numbering and first-match reasons; do not
+invoke a combined validator early enough to shadow later-gate diagnoses.
+Preserve S0/S1 and the 39-command validation policy. No S3 execution/alignment,
+phase integration, artifact publication, release or research work.
+
 ## Acceptance — GH #13 S1 and memory-bounded sharding — 2026-10-29
 
 **Decision**: ACCEPTED at validated
