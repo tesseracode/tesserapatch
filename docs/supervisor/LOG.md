@@ -1,3 +1,20 @@
+## Restored Acceptance — S4 Conformance Repair — 2026-10-30
+
+RESTORE S4 acceptance at `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`,
+repair range `78e501c5ef0985a79fca177a888d97eb956de4e6..c4f2f1e`.
+Independent review explicitly approves `5d52d39` against both previously
+missed clauses and failure/lock probes. Accept ADR-047.
+
+Fresh gate passes 8/8 checks, 42/42 commands, 39/39 uncached tests, exact
+parity. Runtime 5,922.25s; peak owned RSS 7.26 GiB; normal pressure, no new
+swap-outs. All 490 owned identities reconcile with zero survivors/signals.
+Source clean; release tag unchanged. Native CI `41058918380` passes five
+jobs, no failed steps, actual Windows CLW cases verified.
+
+Preserve original acceptance and reopening audit. Archive/push this repair
+before S5. At 14:33 UTC roughly 3.4 authorized hours remain; any unfinished
+next stage must remain explicitly unaccepted rather than skipping gates.
+
 ## S4 Repair Native CI Complete — 2026-10-30
 
 Fresh repair CI `41058918380` passes five required jobs, no failed steps.

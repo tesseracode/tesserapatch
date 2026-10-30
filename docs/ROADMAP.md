@@ -1623,7 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S4 conformance repair; S5 BLOCKED — 2026-10-30
+### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
+
+**Validated repair**: `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`.
+**Range**: `78e501c5ef0985a79fca177a888d97eb956de4e6..c4f2f1e`.
+Independent review explicitly approves typed helper boundaries and short
+global windows at `5d52d39`; ADR-047 accepted. Fresh 8/8 gate, 42/42 commands,
+39/39 tests and native CI `41058918380` all pass, including Windows CLW.
+Runtime 5,922.25s; peak owned RSS 7.26 GiB, normal pressure/no swap-outs,
+zero owned survivors. S5 eligible after restored closure is pushed.
+
+**Repair chronology (prior acceptance/reopening preserved)**:
 
 S4 acceptance is reopened after prerequisite inspection found Execute's bare
 repoRoot forwarding and an execution-spanning required global lock handle,

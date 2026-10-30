@@ -2,193 +2,117 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-S4's prior acceptance is REOPENED for typed-root/lock conformance gaps found
-during S5 prerequisite inspection. S5 has no implementation and is blocked.
-Historical acceptance/validation remains archived truthfully; do not rewrite it.
-The autonomous window ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
-APPROVED now means repair code approval only; repaired S4 acceptance still
-requires fresh full local/native validation.
+S4 acceptance is RESTORED after the conformance repair at
+`c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`: independent review, fresh
+complete local gate and native CI pass. Preserve the earlier acceptance and
+reopening audit. Archive/push this repair before S5. The autonomous window
+ends approximately 2026-10-30 18:00 UTC / 11:00 PDT.
 
 ## Active Task
 
 - **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
-- **Description**: Repair typed execution boundary and short global-lock scope
-- **Status**: Repair native CI passes; fresh complete local gate still running
+- **Description**: Typed execution/helper boundaries and short global-lock scope
+- **Status**: Accepted — repair review and fresh full local/native gates pass
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
-- **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
+- **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-047
+- **Reviewed repair**: `5d52d39c55e6cc1402420567f0f12d94ff171027`
+- **Validated checkpoint**: `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`
+- **Native CI**: `41058918380`
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Prior reviewed code**: `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`
-- **Prior validated checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
-- **Prior native CI**: `41039157086`
-- **Frozen repair checkpoint**: `5d52d39c55e6cc1402420567f0f12d94ff171027`
-- **Published repair validation checkpoint**: `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`
-- **Repair native CI**: `41058918380`
 
 WAVE_BASE = 78e501c5ef0985a79fca177a888d97eb956de4e6
 
 ## Session Summary
 
-Post-close parent inspection found that Execute/executeWithPlan accept
-repoRoot strings outside the two allowed constructors, and retain a required
-global handle across execution for both create and abandon/prune. These
-contradict PRD 6.9/6.13 despite prior green review/tests. The source guard
-misses forwarded-root arguments. Restore typed inputs and short global holds;
-pin feature capability across mutation. Add real contention/lifetime tests
-and a negative guard reproducing the missed old signatures. ADR-047 records
-the correction choice; do not weaken the accepted two-constructor contract.
-No S5 code or phase wiring is authorized until this repair closes.
-Same implementation agent `26ea48b1-7dd4-4141-a2cc-73aac199ce33` owns the
-bounded repair and completed admitted focused checks at `aa92ee1`.
-Parent now owns code/Go for a narrow residual correction: three helper
-signatures still take bare repoRoot strings. Pass existing typed roots through
-them and extend the guard beyond the two execution entrypoints. No competing Go.
-Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` awaits a frozen repair.
-Both runtimes are confirmed OpenAI `gpt-5.3-codex`.
-Draft evidence: old public signatures fail compile-time controls;
-`s4-boundary-targeted-pass-2` passes (9.23s), normal pressure/no swap-outs.
-This draft is not yet approved because the helper boundary remains incomplete.
-Parent completed typed propagation at `5d52d39`: feature helper takes a typed
-reference, global helper takes the existing held-root capability, and abandon
-uses its CandidateRoot rather than a root string. Invalid IDs refuse before
-lock-file mutation. The stronger helper-wide guard FAILS on `aa92ee1`
-(`helper-boundary-red`) and focused boundary/lock/S4 checks PASS after
-(`helper-boundary-green`, 10.17s), normal pressure/no swap-outs.
-Now freeze all code for the same independent reviewer; parent owns broader
-admitted validation. No competing Go workload.
-Independent review APPROVES `5d52d39`, explicitly verifying both previously
-missed clauses, helper guard sensitivity, feature borrow/global runtime probes
-and failed-cleanup diagnostics. ADR-047 direction is approved, Proposed until
-full acceptance. Formatting/affected checks pass (119.46s); vet/build finish.
-Vet (8.73s) and build (0.48s) also pass; normal pressure/no new swap-outs.
-No local Go workload remains. At 12:33 UTC prior closing CI `41051527581`
-still runs macOS/Linux test jobs; hold publication rather than cancel it.
-The reviewed repair is queued for a fresh full gate immediately after that run.
-Prior closing CI `41051527581` now passes all five jobs, no failed steps.
-Published frozen `c4f2f1e` after it completed. Fresh full gate
-`roc-s4-boundary-full-gate` is responsive from the clean isolated source;
-it is the only local Go workload. Native CI `41058918380` and watcher
-`roc-s4-boundary-native-ci` run concurrently. Keep progress commits local
-while exact-tip CI runs. At 12:54 UTC about five authorized hours remain.
-Repair native CI `41058918380` now passes all five jobs with no failed
-steps; actual Windows CLW-001..005 pass. At 13:54 UTC the local gate has
-passed 24/42 commands and 21/39 test shards; AR21/23/24 is running.
-About four authorized hours remain. S5 still awaits repaired acceptance.
-New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
-harness is unchanged and nine routing controls pass. Prior closing CI
-`41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
-cancel it with a push. At 12:00 UTC roughly six authorized hours remain.
+S4 originally passed review and full validation at `ed7efb2`, closing at
+`78e501c`. Parent S5 prerequisite inspection then found two missed contract
+clauses: Execute/executeWithPlan accepted bare root strings beyond the two
+sanctioned constructors, and required a global lock handle across execution.
+Acceptance was explicitly reopened; S5 received no implementation. Historical
+successes were not erased or misrepresented.
 
-The remainder records the prior S4 work/evidence, not approval of the gaps.
+Same implementer `26ea48b1-7dd4-4141-a2cc-73aac199ce33` repaired the public
+boundary/global windows at `aa92ee1`. Parent caught three residual bare-root
+helper parameters and completed typed propagation at `5d52d39`. Old public
+signatures fail compile-time controls; the strengthened helper-wide guard
+fails on `aa92ee1` and passes after the parent correction.
 
-S4 followed accepted/pushed S3 closure `5d22acf`. Implementation agent
-`26ea48b1-7dd4-4141-a2cc-73aac199ce33` and independent reviewer
-`c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` both ran OpenAI `gpt-5.3-codex`.
-Parent owned tracking and broader/full validation; no concurrent local Go
-workloads or shared-file implementer overlap.
-
-Draft `a9e3182` passed focused and basic checks. Independent review required
-two corrections: second-pass non-present outcomes incorrectly reached
-postcondition-failed, and modeled validation retained all file bodies.
-`17f76d1` fixed routing and one-path replay/compare/discard; the actual
-reapplication regression was red before and green after. Both findings closed.
-
-Parent then identified ON-006: first-pass postconditions must remain distinct
-from second-pass idempotency. `1bc18c9` checks exact created/inserted payloads
-at derived final positions before second derivation, including shifts from
-lower-offset insertions. Unrelated content changes remain unmodeled-change;
-genuine second-pass failures remain not-idempotent. The corrupted-payload
-regression was red before and green after. Final independent review approved
-this code, preserving both earlier fixes.
-
-ADR-046's initial premature Accepted label was restored to Proposed before
-review. Its candidate-rooted snapshot direction was independently accepted:
-rooted regular-file identity/size/mode checks plus unchanged tree/diff bind
-the mutable candidate; commit-reference snapshots remain immutable. It is
-now Accepted after full validation. No temporary commit/ref or new bare-root
-constructor was introduced.
+Same independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` explicitly
+verified public/helper typing, same-repository identity, full feature borrow,
+short nonblocking global windows, copied-handle release exclusion and
+contended-cleanup diagnostics. Both agents ran OpenAI `gpt-5.3-codex`.
+ADR-047 direction was approved and is now Accepted after fresh full validation.
 
 ## Current State
 
-Closed create-file/insert-by-boundary writer; typed path safety; complete-set
-execution and prune-on-failure; exact payload/path/mode/marker/model checks;
-same production classifier over every original effect; stable tree/diff
-idempotency; total absorbed-present/candidate-applicable effect accounting.
-Generation runs no configured tests and does not mutate live repository
-content outside the four explicitly expected write sets.
+Execute consumes typed reference/upstream roots plus patch/effects, slug/ID
+and caller-held feature capability; no bare repository root or global handle.
+Private helpers consume existing typed reference/candidate/held-root capability.
+Feature borrowing spans mutation, validation and cleanup; global is acquired
+only for creation and separately for prune. Existing S1 primitives still
+borrow caller-owned handles. Invalid identity refuses before lock-file mutation.
 
-Existing S1 primitives borrow caller-held capabilities, but S4's outer API
-does not yet prove the required feature lifetime/short global scope. That is
-the repair target. Alignment algorithm/limits and S2 default-off gate are unchanged.
+If prune-time global acquisition fails, no successful result is returned:
+rooted handles close and combined primary/cleanup diagnostics are retained.
+The implementation does not claim failed cleanup removed a worktree.
+Earlier S4 exact payload/model checks, full-effect production idempotency,
+one-path body lifetime and generation-scope guards remain intact.
 
-No S5 artifacts/identity/state/status pointers, S6 phase wiring, S7 CLI,
-acceptance transaction, release or deferred research was implemented.
+No S5 artifact/identity/lifecycle implementation, S6 phase wiring or release.
 
 ## Files Changed
 
-- `internal/candidate/execute.go`, `writer.go`, `validation.go`
-- `internal/candidate/execute_test.go`, `execute_guard_test.go`
-- `internal/candidate/derivation.go`, `snapshot.go`, `alignment.go`,
-  `source_guard_test.go`
-- `internal/gitutil/recipe_authority_s0_pi12_test.go`
+- `internal/candidate/execute.go`, `execute_test.go`, `execute_guard_test.go`
+- `internal/candidate/source_guard_test.go`
 - `internal/workflow/operation_candidate_s0_guards_test.go`
-- `docs/adrs/ADR-046-candidate-execution-boundary.md` and tracking
-
-The alignment.go edit adds diagnostic plumbing, not algorithm/limit changes;
-its initially unannounced scope addition was recorded and reviewed.
+- `docs/adrs/ADR-047-typed-candidate-execution-ownership.md` and tracking
 
 ## Test Results
 
-- Initial draft basic checks pass: affected packages 140.89s, vet 9.54s,
-  build 0.51s.
-- Routing regression red-before: `s4-revfix-failing-before-1`; corrected
-  runtime/guards pass (1.75s/7.55s). Corrected affected/vet/build pass
-  (137.03s/5.00s/0.48s).
-- ON-006 red-before: `s4-on006-failing-before-2`; corrected runtime/guards
-  pass (2.94s/8.30s), covering inserted/created corruption, unrelated bytes,
-  shifted offsets and retained genuine non-idempotency.
-- Final formatting/candidate package (5.399s)/vet (10.31s)/build (0.61s)
-  pass. All nine gate routing controls pass.
-- Full gate at `ed7efb2`: 8/8 checks, 42/42 commands, 39/39 uncached test
-  commands, exact CI parity. Runtime 5,980.91s; peak sampled owned RSS
-  7.38 GiB; normal pressure and zero new swap-outs. All 479 owned identities
-  reconciled, zero remaining, no cleanup signals needed. Source clean after;
-  v0.17.0 unchanged.
-- Native CI `41039157086`: all five required jobs, no failed steps; actual
-  Windows CLW-001..005 PASS lines verified. Release skipped.
+- Old API compile-time red: `s4-boundary-failing-before-1`.
+- Residual-helper guard red: `helper-boundary-red`; corrected focused
+  boundary/lock/S4 checks pass in `helper-boundary-green` (10.17s).
+- Basic formatting/affected packages (119.46s)/vet (8.73s)/build (0.48s)
+  pass with individual admission; normal pressure/no new swap-outs.
+- Fresh full gate at `c4f2f1e`: 8/8 checks, 42/42 commands, 39/39 uncached
+  test commands and exact CI parity. Runtime 5,922.25s; peak sampled owned
+  RSS 7.26 GiB; normal pressure, zero new swap-outs. All 490 owned process
+  identities reconciled, zero remaining, no cleanup signals needed.
+  Source clean after; v0.17.0 unchanged.
+- Native CI `41058918380`: five required jobs pass, no failed steps; actual
+  Windows CLW-001..005 verified. Prior closing CI `41051527581` also passed.
 
-All raw evidence remains under `bin/roc-s4-20261030/`. Both full-gate and
-native watcher processes completed. Do not delete prior evidence.
+Evidence: `bin/roc-s4-boundary-20261030/`. Full gate and native watcher have
+completed. Preserve all prior evidence, including original acceptance/reopening.
 
 ## Next Steps
 
-1. Await fresh complete local gate at `c4f2f1e`; repair native CI passed.
-2. Restore S4 acceptance only after both pass; retain the historical reopened audit.
-3. Archive/push repaired acceptance before considering S5; preserve unfinished
-   work explicitly at the autonomy deadline.
+1. Archive this repair handoff and push restored S4 acceptance.
+2. Fetch/record a fresh S5 wave base and implement accepted S5 only.
+3. About 3.4 authorized hours remain at gate completion. Do not weaken
+   review/gates to fit the window; checkpoint any unfinished S5 unaccepted.
 
 ## Validation Policy
 
 Require 60 continuous seconds normal pressure, no new swap-outs and load1
-<=5 before each Go/gofmt command. External Go is observed, not vetoed; own
-work stays serial, GOMAXPROCS=1 and -p=1. Historical swap/free percentage is
-diagnostic. Stop on warning/critical pressure, new swap-outs, unreliable
-telemetry or gaps over 5s. Admission budget 600s; uncached tests, 40-minute
-per-process timeouts, clean isolated sources/caches. Never enable goldens.
+<=5 before every Go/gofmt command. Observe external Go; own work serial,
+GOMAXPROCS=1 and -p=1. Stop on pressure/swap/telemetry failure or >5s gaps.
+Admission budget 600s; uncached 40-minute test processes; clean isolated
+sources/private caches. Never enable goldens or count partial gates as complete.
 
 ## Blockers
 
-Repaired boundary/lock conformance is independently approved; fresh gates remain.
-S5 remains blocked; prior green gates are not sufficient.
+None after repair validation. S5 is eligible after durable restored closure.
 
 ## Context for Next Agent
 
-Preserve S0 goldens, nineteen approved AR memo-lifetime insertions, S1 borrowed
-locks/two constructors, S2 default-off eligibility/schema, S3 all-optimal
-alignment/limits and S4 phase/lifetime guards. Stage-specific source inventory
-transitions must remain finite and mutation-sensitive.
+Preserve S0 goldens, nineteen approved AR memo-lifetime insertions, S1
+two-constructor/borrowed-lock contract, S2 default-off eligibility/schema,
+S3 fixed all-optimal algorithm and S4 phase/body-lifetime/typed-helper guards.
+Only explicit file staging, required Copilot trailer, no amend/reset/clean.
 No Unreleased heading, frozen ADR-index churn or release/tag without a
 justified cluster close. Upstream Git-strategy research remains deferred.

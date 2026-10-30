@@ -1,6 +1,6 @@
 # ADR-047: Typed Candidate Execution Ownership
 
-- Status: Proposed
+- Status: Accepted — independent review and fresh full local/native gates
 - Date: 2026-10-30
 - Deciders: Candidate execution maintainers
 - Related: ADR-044, ADR-046, PRD §6.9, PRD §6.13
@@ -43,3 +43,7 @@ execution/validation.
   execution phase; global capability is windowed around add/remove only.
 - Failure reporting preserves both primary mutation/validation cause and cleanup
   failure cause for reviewer diagnostics.
+
+Independent review approves `5d52d39`; fresh complete validation at `c4f2f1e`
+passes 39 local test commands and all five required native CI jobs. The earlier
+acceptance/reopening record remains archived; this decision does not erase it.
