@@ -1,3 +1,21 @@
+## Acceptance — GH #13 S3 exact derivation — 2026-10-30
+
+ACCEPTED at `083d20fb4daad0f3bada71122ac09f890feda710`, range
+`4702b10735681ca63145b67561f33d4612450e69..083d20f`.
+Independent review approves corrected code `87bb62a` and ADR-045; the high
+per-boundary CPU-scaling finding is closed without a new limit or matrix.
+
+The local gate passes 8/8 checks, 42/42 commands and 39/39 uncached test
+commands with exact CI parity. Runtime 6,957.40s, sampled owned RSS peak
+7.16 GiB, normal pressure, zero new swap-outs. All 536 owned process
+identities reconcile with zero remaining and no cleanup signals needed.
+Native CI `41016539598` passes all five required jobs, no failed steps;
+actual Windows CLW-001..005 pass. Source is clean; v0.17.0 is unchanged.
+
+Accept ADR-045, archive the complete S3 handoff, flip ROADMAP and push closure.
+No execution, persisted candidate schema, phase wiring or release ships in
+S3. Then scope S4 from a newly fetched wave base while authorized time remains.
+
 ## S3 Native CI Complete — 2026-10-30
 
 CI `41016539598` at `083d20f` completes SUCCESS: all five required jobs,

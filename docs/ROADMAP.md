@@ -1623,7 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S3 exact derivation and alignment — 2026-10-29
+### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
+
+**Accepted checkpoint**: `083d20fb4daad0f3bada71122ac09f890feda710`.
+**Validated range**: `4702b10735681ca63145b67561f33d4612450e69..083d20f`.
+Independent review approves `87bb62a` and ADR-045; the per-boundary scaling
+finding is closed. Full local gate: 8/8 checks, 42/42 commands, 39/39 tests,
+exact parity. Native CI `41016539598`: all five jobs and Windows CLW pass.
+Runtime 6,957.40s; peak owned RSS 7.16 GiB, normal pressure, no new swap-outs,
+zero owned survivors. No candidate executor, persisted schema or phase wiring.
+
+**Completed S3 chronology**:
 
 **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`.
 The operator authorizes autonomous sequential advancement for approximately

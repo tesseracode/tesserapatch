@@ -1,6 +1,6 @@
 # ADR-045 — Ephemeral operation derivation snapshots
 
-**Status**: Proposed — implementation choice pending independent S3 review
+**Status**: Accepted — independent S3 review and full/native validation, 2026-10-30
 **Date**: 2026-10-29
 **Issue**: GH #13
 **Related**: ADR-037 sections D8-D12, ADR-043, ADR-044 and the companion
@@ -79,5 +79,7 @@ parsing and canonical run sorting retain their separate input-size costs.
 This decision implements, rather than replaces, A1-A8 and L1-L3. It changes no
 config defaults, lock contract, confirmation proof, candidate wire format,
 acceptance transaction, CLI phase ordering or release target.
-The exact helpers and tests must be reviewed with S3. Resource measurements
-and full/native validation remain required before this ADR is accepted.
+Independent S3 review approves `87bb62a`; complete validation at `083d20f`
+passes 39 local test commands and all five required native CI jobs.
+Peak sampled owned RSS was 7.16 GiB for the full suite, normal pressure and
+zero new swap-outs. This measurement is not a new algorithmic limit.

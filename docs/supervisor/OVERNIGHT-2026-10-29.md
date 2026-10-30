@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Native passed; local gate running | published `083d20f` | CI `41016539598`: five jobs + Windows CLW pass; 20/39 local tests passed |
+| GH #13 S3 | ACCEPTED; archiving/pushing closure | `083d20f` | Review approved; 39/39 local tests; CI five jobs + Windows CLW pass |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
