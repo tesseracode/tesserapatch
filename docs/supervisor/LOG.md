@@ -1,3 +1,25 @@
+## S5 Obsolete Validation Stopped During Admission — 2026-10-30
+
+After conversion-safety review, stop the now-obsolete `7aac220` broad run while
+its test command is still in admission (no Go test process started). Formatting
+passed after a 449s quiet-window wait. Preserve
+`bin/roc-s5-resume-20261030/materialized-review-interruption.json` and raw logs.
+No partial validation is accepted, and no resource rule is weakened.
+Resume only the corrected conversion proof's focused/red-green checks.
+
+## Review — S5 Conversion Safety Required — 2026-10-30
+
+Reviewer `7712b628` confirms the staging/index bypass is fixed at `7aac220`,
+but F3 remains HIGH: ordinary Git materialization applies repository clean
+filters. An unrelated tracked file can change while its clean filter maps
+back to upstream bytes, hiding the unmodeled content. Removing the previous
+capture helper also removed its applicable-filter refusal.
+
+Retain index-independent comparisons and restore the existing conversion
+safety policy BEFORE materialization; add an actual hiding-filter regression
+that refuses structurally, without relying on altered result hashes.
+F4/F6/composition and all prior closures remain closed. No gate/publication yet.
+
 ## S5 Final Structural-proof Re-review — 2026-10-30
 
 Freeze `7aac2207f26f214f20a781a7347128172bfdae4e`. Targeted suite passes:

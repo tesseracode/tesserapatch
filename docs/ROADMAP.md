@@ -1643,6 +1643,9 @@ Final fix `7aac220` compares immutable materialized tree objects to bound
 upstream, independent of candidate index staging/flags. Real tampering and
 positive staging regressions pass; final independent review and broader checks
 precede complete local/native gates.
+F3 re-review confirms index independence but requires restoring applicable
+conversion/filter refusal before materialization; ordinary Git clean filters
+must not hide actual worktree changes. Other findings remain closed.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

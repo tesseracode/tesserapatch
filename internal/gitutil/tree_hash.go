@@ -76,7 +76,10 @@ func WorktreeTreeHash(repoRoot string) (string, error) {
 	if _, stderr, err := runTreeGit(identity, env, "read-tree", "HEAD"); err != nil {
 		return "", fmt.Errorf("git read-tree HEAD: %v: %s", err, strings.TrimSpace(stderr))
 	}
-	if _, stderr, err := runTreeGit(identity, env, "add", "-A", "--", "."); err != nil {
+	if err := validateWorktreeMaterialization(identity, env); err != nil {
+		return "", fmt.Errorf("unsafe worktree materialization: %w", err)
+	}
+	if _, stderr, err := runTreeGit(identity, env, "-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false", "add", "-A", "--", "."); err != nil {
 		return "", fmt.Errorf("git add -A -- .: %v: %s", err, strings.TrimSpace(stderr))
 	}
 	out, stderr, err := runTreeGit(identity, env, "write-tree")

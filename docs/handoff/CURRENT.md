@@ -24,7 +24,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: F3 materialized-tree fix passes targeted tests; final re-review/broader checks
+- **Status**: Index bypass fixed; restoring conversion safety before materialization
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -120,6 +120,19 @@ Active re-review: retained `7712b628` on `7aac220`. Active sole Go shell:
 All earlier validation commands completed/stopped; only this run and the
 authorization timer remain active. Fresh full-gate harness routing controls
 pass 9/9 and runner bytes are unchanged.
+Re-review finds F3's conversion-safety gap: Git clean filters can hide
+unmodeled bytes during private-index materialization. The previous capture
+path rejected applicable filters; restore that policy before tree building
+and add a real hiding-filter regression. Other findings remain closed.
+Conversion checking now reuses the established attribute/config policy against
+the same freshly seeded private index, before git add can invoke filters.
+Tracked byte-changing attributes are refused too; fsmonitor/stat shortcuts
+are disabled for the materializing add. Extend only the exact S5 shared
+capture_attributes.go scope, leaving prior-stage guards unchanged.
+Stopped the obsolete `7aac220` broad run during test admission, before Go tests
+started, because review required this new conversion fix. Formatting had passed
+after a 449s admission wait. Preserve its interruption sidecar; no partial pass
+is claimed. No competing Go workload remains. Resource rules stay unchanged.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

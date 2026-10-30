@@ -95,6 +95,10 @@ func captureRegularIndexPaths(raw string) (string, error) {
 }
 
 func validateCaptureAttributeFallback(root string, untracked []string) error {
+	return validateCaptureAttributeFallbackWithReader(root, untracked, runCaptureGitReadOnly)
+}
+
+func validateCaptureAttributeFallbackWithReader(root string, untracked []string, readGit func(string, ...string) (string, error)) error {
 	if len(untracked) == 0 {
 		return nil
 	}
@@ -110,7 +114,7 @@ func validateCaptureAttributeFallback(root string, untracked []string) error {
 			}
 		}
 	}
-	raw, err := runCaptureGitReadOnly(root, "ls-files", "--cached", "-z", "--", ".gitattributes", ":(glob)**/.gitattributes")
+	raw, err := readGit(root, "ls-files", "--cached", "-z", "--", ".gitattributes", ":(glob)**/.gitattributes")
 	if err != nil {
 		return fmt.Errorf("readonly capture cannot inspect indexed attribute sources: %w", err)
 	}
@@ -190,12 +194,16 @@ type captureAttribute struct {
 }
 
 func readCaptureAttributes(root string, paths []string) ([]captureAttribute, error) {
+	return readCaptureAttributesWithEnv(root, paths, CaptureReadOnlyEnv())
+}
+
+func readCaptureAttributesWithEnv(root string, paths []string, env []string) ([]captureAttribute, error) {
 	if len(paths) == 0 {
 		return nil, nil
 	}
 	cmd := exec.Command("git", "check-attr", "-z", "--all", "--stdin")
 	cmd.Dir = root
-	cmd.Env = CaptureReadOnlyEnv()
+	cmd.Env = env
 	cmd.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
 	raw, err := cmd.Output()
 	if err != nil {
@@ -252,4 +260,70 @@ func validateCaptureAttributes(attributes []captureAttribute, config captureConv
 		}
 	}
 	return nil
+}
+
+// The private index is already seeded from the bound HEAD, but no file has
+// been added yet. Inspect attributes against that same index before filters
+// or byte conversions can run or conceal worktree content.
+func validateWorktreeMaterialization(identity rootedIdentity, extra []string) error {
+	env := append(append([]string(nil), extra...), "GIT_OPTIONAL_LOCKS=0")
+	readGit := func(root string, args ...string) (string, error) {
+		if root != identity.path {
+			return "", fmt.Errorf("materialization root mismatch")
+		}
+		args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false"}, args...)
+		out, _, err := runTreeGit(identity, env, args...)
+		return out, err
+	}
+	rawConfig, err := readGit(identity.path, "config", "--get-regexp", "--null",
+		`^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`)
+	if err != nil {
+		exit, ok := err.(*exec.ExitError)
+		if !ok || exit.ExitCode() != 1 {
+			return fmt.Errorf("cannot establish materialization conversion configuration: %w", err)
+		}
+	}
+	config, err := parseCaptureConversionConfig(rawConfig)
+	if err != nil {
+		return err
+	}
+	rawTracked, err := readGit(identity.path, "ls-files", "--cached", "--stage", "-z")
+	if err != nil {
+		return err
+	}
+	tracked, err := captureRegularIndexPaths(rawTracked)
+	if err != nil {
+		return err
+	}
+	rawUntracked, err := readGit(identity.path, "ls-files", "--others", "--exclude-standard", "-z")
+	if err != nil {
+		return err
+	}
+	untracked, err := captureNULFields(rawUntracked)
+	if err != nil {
+		return err
+	}
+	paths, err := captureAttributeCandidates(tracked, untracked)
+	if err != nil {
+		return err
+	}
+	if err := validateCaptureAttributeFallbackWithReader(identity.path, paths, readGit); err != nil {
+		return err
+	}
+	attributes, err := readCaptureAttributesWithEnv(identity.path, paths, HardenedNoLazyGitEnv(env...))
+	if err != nil {
+		return err
+	}
+	if err := validateCaptureAttributes(attributes, config, untracked); err != nil {
+		return err
+	}
+	for _, attribute := range attributes {
+		switch attribute.name {
+		case "text", "eol", "crlf", "ident", "working-tree-encoding":
+			if attribute.value != "unset" && attribute.value != "unspecified" {
+				return fmt.Errorf("materialization cannot establish byte-exact content with %s on %q", attribute.name, attribute.path)
+			}
+		}
+	}
+	return identity.validate()
 }

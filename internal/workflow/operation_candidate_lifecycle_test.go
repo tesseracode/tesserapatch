@@ -678,6 +678,46 @@ func TestROCS5ResumeReuseRejectsStagedUnmodeledChangeWithForgedIntegrity(t *test
 	}
 }
 
+func TestROCS5ResumeReuseRejectsHidingCleanFilterBeforeItRuns(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix clean-filter sentinel fixture")
+	}
+	f := rocS2NewFixture(t, true)
+	writeRepoFile(t, f.s, "other.txt", []byte("upstream\n"))
+	git(t, f.s.Root, "add", "other.txt")
+	git(t, f.s.Root, "commit", "-qm", "unrelated upstream")
+	f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scriptDir := t.TempDir()
+	marker := filepath.Join(scriptDir, "filter-ran")
+	script := filepath.Join(scriptDir, "hide.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\ncat >/dev/null\nprintf 'upstream\\n'\nprintf ran > \""+marker+"\"\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	git(t, f.s.Root, "config", "filter.hide.clean", script)
+	if err := os.WriteFile(filepath.Join(f.s.Root, ".git", "info", "attributes"), []byte("other.txt filter=hide\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	relative, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	if err := os.WriteFile(filepath.Join(f.s.Root, filepath.FromSlash(relative), "other.txt"), []byte("unexplained\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err == nil || !strings.Contains(err.Error(), "filter") {
+		t.Errorf("applicable hiding filter was not structurally refused: %v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("conversion ran before the refusal: %v", err)
+	}
+}
+
 func TestROCS5ResumeModeledTreeDoesNotDependOnCandidateIndex(t *testing.T) {
 	f := rocS2NewFixture(t, true)
 	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)

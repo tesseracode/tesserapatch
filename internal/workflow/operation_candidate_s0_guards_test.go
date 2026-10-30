@@ -144,6 +144,7 @@ func rocS4ValidateStageChangedPaths(paths []string) error {
 
 var rocS5AllowedPaths = map[string]bool{
 	"docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md":    true,
+	"internal/gitutil/capture_attributes.go":                         true,
 	"internal/candidate/alignment.go":                                true,
 	"internal/candidate/artifact.go":                                 true,
 	"internal/candidate/artifact_guard_test.go":                      true,

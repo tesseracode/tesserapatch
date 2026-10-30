@@ -57,6 +57,12 @@ integrity rechecks that never rely on mutable labels.
     Never compare the mutable candidate index with its worktree. This avoids
     relying on staging/cache flags: staged unmodeled changes remain visible,
     while merely staging the correct modeled result changes no proof.
+    Before adding files to that private index, reuse the existing conversion
+    policy against the same seeded index with a hardened read environment.
+    Refuse applicable filters and byte-changing attributes/configuration;
+    no filter runs before refusal. Disable stat/fsmonitor shortcuts for the
+    materializing add. A Git object tree is not a raw-byte proof without this
+    conversion boundary.
 
 ## Non-goals in this draft
 
