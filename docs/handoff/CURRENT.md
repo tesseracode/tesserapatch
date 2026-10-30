@@ -14,12 +14,12 @@ Incomplete S5 must remain explicitly unaccepted; no shortened gates.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic candidate identity, strict artifacts and locked lifecycle primitives
-- **Status**: F1/F10/F11 closed; parent correcting residual F2 registration ownership
+- **Status**: F2 correction checkpointed; final narrow review pending; S5 remains unaccepted
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
-- **Frozen S5 revision**: `cd4192fdc3b61236f4dbf7c68dccbdca2919b540`
+- **Frozen S5 revision**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
@@ -105,6 +105,12 @@ a matching suffix, allowing an elsewhere worktree plus copied Git indirection
 to confer ownership on an unregistered directory. Original Git ancestors are
 resolved before validation. Parent corrects only this residual F2 with actual
 ownership regressions; F3/F4/F6/finalization remain explicitly OPEN.
+Parent correction `a0a747a` requires the full repository-bound registration
+path AND matching directory identity on the successful branch, and checks
+original Git-indirection ancestors before resolution. Real suffix-impostor
+fixture FAILS on old code and all candidate tests PASS after (7.794s);
+Git-directory alias refusal also has regression coverage. Request final
+narrow F2 review; no other authority work is attempted.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256

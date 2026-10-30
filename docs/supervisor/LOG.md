@@ -1,3 +1,18 @@
+## S5 Residual F2 Correction Frozen — 2026-10-30
+
+Freeze `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`. Require exact full
+repository-bound registered path plus opened-directory SameFile identity on
+success; validate original Git-indirection ancestors before resolving aliases.
+Real elsewhere-registered suffix/impostor fixture FAILS on `cd4192f`;
+all candidate tests PASS after (7.794s), normal pressure/no swap-outs.
+Git-directory alias refusal is also covered (that case already refused in
+the old production path; do not claim both fixtures were red).
+
+Return only F2 delta to the same reviewer. Previous final clean-clone basic
+checks passed at `cd4192f` (affected132.84s, vet4.27s, build0.73s); run
+remaining affected workflow/vet/build after the narrow correction. S5 still
+has F3/F4/F6/missing finalization OPEN and will not be published or accepted.
+
 ## Review — S5 Final Subset Disposition — 2026-10-30
 
 Reviewer `7712b628` on `cd4192f` closes F1 (mutation capability enforcement),

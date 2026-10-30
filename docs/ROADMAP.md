@@ -1662,6 +1662,8 @@ checks precede an explicit unaccepted handoff, not full-gate publication.
 Final subset review closes F1/F10/F11; F2 still permits suffix-only registration
 ownership. Parent addresses only that residual; authority/finalization findings
 remain open and S5 stays unpublished.
+Residual F2 correction `a0a747a` has real suffix-impostor red-before and
+all-candidate green-after evidence. Final narrow review remains; no S5 approval.
 
 ### GH #13 — ✅ S4 conformance repair ACCEPTED; S4 acceptance restored — 2026-10-30
 
