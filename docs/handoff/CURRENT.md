@@ -14,7 +14,7 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Scoping / implementation
+- **Status**: Draft implemented; preparing focused admitted validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
@@ -60,12 +60,18 @@ the current stage is fully accepted and while time remains.
 
 ## Files Changed
 
-Dispatch tracking and operator decision log; proposed ADR-045 records the
-ephemeral snapshot boundary. Production/test paths are being finalized.
+Draft: candidate alignment/derivation/snapshot helpers and tests; strict
+insertion projection sharing gitutil's existing reconstruction walker;
+immutable path/object metadata and bounded object reads in patchobs.
+Finite S3 scope and exact candidate/parser inventories are updated.
+Proposed ADR-045 and the overnight log record the implementation choices.
 
 ## Test Results
 
-- No S3 Go validation has run.
+- No S3 Go validation has run yet. Draft tests cover the small exhaustive
+  alignment oracle, both adjacent-argument examples, exact EOL/terminators,
+  limits/budget, canonical combination, strict overlap, snapshot immutability,
+  creation/mode classification, postimage proof and descending application.
 - S2 accepted at `8d3b9ef`: 8/8 gate, 42/42 commands including 39/39 tests,
   native CI `41000838573` all five required jobs pass.
 - S2 closing-tip CI `41010587650` at `4702b10` remains in progress.

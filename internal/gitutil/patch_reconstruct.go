@@ -305,6 +305,10 @@ func reconstructTextEffect(patch string, effect PatchEffect, pre []byte, limit i
 }
 
 func reconstructTextRecord(fragment string, pre []byte, limit int64) ([]byte, error) {
+	return reconstructTextRecordWithVisitor(fragment, pre, limit, nil)
+}
+
+func reconstructTextRecordWithVisitor(fragment string, pre []byte, limit int64, visit func(byte, int, string)) ([]byte, error) {
 	lines := splitPatchLines(fragment)
 	old := bytes.SplitAfter(pre, []byte{'\n'})
 	if len(old[len(old)-1]) == 0 {
@@ -373,6 +377,9 @@ func reconstructTextRecord(fragment string, pre []byte, limit int64) ([]byte, er
 		if outputLines != expectedNew {
 			return nil, fmt.Errorf("hunk postimage position differs")
 		}
+		if visit != nil {
+			visit('@', cursor, "")
+		}
 		removed, added := 0, 0
 		for removed < count || added < newCount {
 			i++
@@ -394,6 +401,9 @@ func reconstructTextRecord(fragment string, pre []byte, limit int64) ([]byte, er
 				}
 				body = strings.TrimSuffix(body, "\n")
 				i++
+			}
+			if visit != nil {
+				visit(prefix, cursor, body)
 			}
 			if prefix != '+' {
 				if removed >= count || cursor >= len(old) || !bytes.Equal(old[cursor], []byte(body)) {

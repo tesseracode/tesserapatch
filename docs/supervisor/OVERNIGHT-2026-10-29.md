@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Scoping / implementation | WAVE_BASE `4702b10735681ca63145b67561f33d4612450e69` | Pending |
+| GH #13 S3 | Draft implemented | WAVE_BASE `4702b10735681ca63145b67561f33d4612450e69` | Focused validation next |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions
@@ -45,6 +45,11 @@ identities before classification, read bounded immutable blobs per file, and
 keep plans/payloads ephemeral. Do not retain an unbounded whole-repository
 body snapshot or execute persisted recipe contents. Independent S3 review
 must validate this choice before acceptance.
+The draft captures both trees' path/object metadata before classification,
+then reads per-file immutable objects. Modify inputs obey L1 before body
+reads and matrix allocation. Extracted insertion runs are independently
+replayed through a streaming digest before alignment; a correct walker digest
+alone is not sufficient proof that the extracted runs are correct.
 
 ## Operator review notes
 

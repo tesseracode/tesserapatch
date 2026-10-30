@@ -1,3 +1,16 @@
+## S3 Draft — exact alignment and immutable snapshots — 2026-10-29
+
+The draft implements two int32 F/G matrices, all-optimal unanimity and the
+prescribed rule order. New insertion extraction delegates to the existing
+strict parser/walker; independent replay of extracted runs checks the bound
+postimage digest. Rooted snapshots capture immutable path/object identities
+before classification and avoid retaining all upstream bodies.
+
+Tests include the exhaustive small-input alignment oracle, both motivating
+fixtures, resource/source negative controls and readonly/snapshot behavior.
+No Go validation has run yet; proposed ADR-045 remains pending independent
+review. S4 is not dispatched. See the overnight log for decisions and deadline.
+
 ## Autonomous Window / S3 Dispatch — 2026-10-29
 
 The operator authorizes approximately twelve hours of sequential development,

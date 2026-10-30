@@ -88,6 +88,51 @@ var rocS2AllowedPaths = map[string]bool{
 	"internal/store/roundtrip_test.go":                            true,
 }
 
+var rocS3AllowedPaths = map[string]bool{
+	"docs/supervisor/OVERNIGHT-2026-10-29.md":                       true,
+	"docs/adrs/ADR-045-ephemeral-operation-derivation-snapshots.md": true,
+	"internal/candidate/alignment.go":                               true,
+	"internal/candidate/alignment_test.go":                          true,
+	"internal/candidate/derivation.go":                              true,
+	"internal/candidate/derivation_test.go":                         true,
+	"internal/candidate/derivation_guard_test.go":                   true,
+	"internal/candidate/snapshot.go":                                true,
+	"internal/gitutil/patch_insertions.go":                          true,
+	"internal/gitutil/patch_insertions_test.go":                     true,
+	"internal/gitutil/patch_reconstruct.go":                         true,
+}
+
+func rocS3ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS3AllowedPaths[path] {
+			continue
+		}
+		if err := rocS2ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS3ScopeTransition(t *testing.T) {
+	for path := range rocS3AllowedPaths {
+		if err := rocS3ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if err := rocS2ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S2 accepted S3 path %s", path)
+		}
+		if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
+			t.Fatalf("capture accepted S3 path %s", path)
+		}
+	}
+	for _, path := range []string{"internal/candidate/execute.go", "internal/workflow/reconcile.go", "internal/store/candidate.go", "internal/cli/cobra.go", "internal/candidate/./alignment.go"} {
+		if err := rocS3ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S3 accepted later/unregistered surface %s", path)
+		}
+	}
+}
+
 func rocS2ValidateStageChangedPaths(paths []string) error {
 	for _, path := range paths {
 		if rocS2AllowedPaths[path] {
@@ -189,7 +234,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS2ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS3ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {
