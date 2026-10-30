@@ -1651,6 +1651,9 @@ registration. Correct those exact test registrations with negative controls;
 production code stays unchanged and no pure-core exemption is granted.
 Independent narrow review approves the test-only correction at `b189770`.
 The original production approval stands; full local/native validation remains.
+Corrected full affected-package tests, vet and build now pass without resource
+stops or new swap-outs. Prepare exact-checkpoint native CI and the complete
+39-command local gate; S2 is not accepted yet.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Production and inventory correction independently approved; validation pending
+- **Status**: Reviewed code and corrected affected packages/vet/build pass; preparing full/native validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -96,6 +96,11 @@ and workflow (9.688s), including all three inventories and their negative
 controls. Admission waited 320.78s for a qualifying minute; execution had no
 resource stop. Resume the full affected-package command, vet and build at
 unchanged `b189770`, in parent shell `roc-s2-corrected-validation`.
+That corrected sequence now passes all five affected packages, vet and CLI
+build at unchanged reviewed code. Command times are 174.67s, 12.82s and 0.54s;
+all executions retain normal pressure and zero new swap-outs. No local
+validator remains active. Prepare a published exact-checkpoint native run
+and the full 39-command admitted gate with S2 WAVE_BASE `bd95a23`.
 
 ## Current State — bounded S2 scope
 
@@ -162,6 +167,11 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 - Corrected `b189770` inventory/S0/S2 controls PASS in
   `s2-inventory-controls-20261029`. Narrow review also APPROVED.
   Full affected-package rerun, vet/build and full/native validation remain.
+- Corrected full affected packages (candidate, patchobs, gitutil, store,
+  workflow), vet and CLI build now PASS in
+  `s2-corrected-{packages,vet,build}-20261029`. No runtime resource stop or new
+  swap-outs. This completes the interrupted basic sequence; full/native gates
+  still remain.
 - Prior S1 gate: 8/8 checks, 42/42 top-level commands including 39/39 tests.
   Native CI `40975085201` passed all five required jobs and actual Windows
   CLW-001 through CLW-005 at `24be224`.
@@ -169,10 +179,9 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Await the existing parent-owned `roc-s2-review-validation` checks at
-   independently approved `2c462a3`; do not launch duplicate Go work.
-2. Resolve any findings and complete formatting/vet/build, full 39-command
-   and native validation before acceptance.
+1. Publish independently approved code plus its reviewed inventory correction
+   for exact-checkpoint native CI and the full admitted 39-command gate.
+2. Verify those complete before acceptance; no basic validator remains active.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 

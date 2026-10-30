@@ -1,3 +1,16 @@
+## Basic Validation Complete — GH #13 S2 — 2026-10-29
+
+The corrected serial sequence at reviewed `b189770` passes all five affected
+packages (candidate, patchobs, gitutil, store, workflow), vet and CLI build.
+Command times: 174.67s, 12.82s, 0.54s. Every command has fresh qualifying
+admission; runtime pressure remains normal with zero new swap-outs.
+
+Production `2c462a3` and the test-only correction through `b189770` are
+independently APPROVED. Only tracking changed afterwards. Prepare a published
+checkpoint for required native CI and the full 39-command admitted local gate
+with WAVE_BASE `bd95a23`. Default-off behavior and S3+ exclusions remain.
+No S2 acceptance is claimed until full/native results are verified.
+
 ## Narrow Review — S2 inventory correction — 2026-10-29
 
 **Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;
