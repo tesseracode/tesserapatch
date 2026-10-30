@@ -73,6 +73,7 @@ var rocS1AllowedPaths = map[string]bool{
 }
 
 var rocS2AllowedPaths = map[string]bool{
+	"internal/cli/prepare_s7_ap_guards_test.go":                   true,
 	"internal/gitutil/recipe_authority_s0_pi12_test.go":           true,
 	"internal/workflow/recipe_authority_s0_source_guards_test.go": true,
 	"internal/workflow/operation_candidate_eligibility.go":        true,

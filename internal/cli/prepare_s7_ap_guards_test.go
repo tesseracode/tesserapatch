@@ -598,7 +598,7 @@ func validateS7APProducedBySources(sources map[string]string) error {
 		"internal/intentpub/types.go":            "708ccc07128f862210408d7c8fd5f8ecf4c7254b927b94e53a5a25f5a9c5ab14",
 		"internal/store/intent_archive.go":       "b03b5c4621e551ad99bbf6bded308b11f3807f52d3170f651342042d8a6c6ede",
 		"internal/store/status.go":               "6854d2310513867187c124a08343604af931a10c52d15171afc175cbcd136d1b",
-		"internal/store/types.go":                "00d6e584ee67c28aaa5364725f5b1e7e8f1c14d406da5570448eaa5c49cbf025",
+		"internal/store/types.go":                "fa2e9f26773eb9b30d10244a68ad2d5f88c8a7e31aaa970448f4e379e82e9b9b",
 		"internal/workflow/generate_analysis.go": "4ca21afd6ec0267af39a5e78b4f6d55fc7a38fc05ea94ea56ebe03b347e32d9b",
 	}
 	expectedProducers := map[string][]string{
@@ -636,6 +636,11 @@ func validateS7APProducedBySources(sources map[string]string) error {
 	}
 	var schemaDigestDrifts []string
 	for rel, expected := range expectedSchemas {
+		if rel == "internal/store/types.go" {
+			if err := validateS7APOperationCandidateConfig(sources[rel]); err != nil {
+				return err
+			}
+		}
 		typed := typedPackages[s7APSourcePackage(rel)]
 		if typed == nil || typed.relFiles[rel] == nil {
 			return fmt.Errorf("typed controlled schema source %s is missing", rel)
@@ -837,6 +842,83 @@ func s7APJSONSchemaDeclarations(file *ast.File) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// S2 adds exactly one opt-in field; all prior schema keys remain pinned.
+func validateS7APOperationCandidateConfig(source string) error {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "types.go", source, 0)
+	if err != nil {
+		return err
+	}
+	var selected *ast.Field
+	for _, decl := range file.Decls {
+		group, ok := decl.(*ast.GenDecl)
+		if !ok || group.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range group.Specs {
+			named, ok := spec.(*ast.TypeSpec)
+			if !ok || named.Name.Name != "Config" {
+				continue
+			}
+			structure, ok := named.Type.(*ast.StructType)
+			if !ok {
+				return errors.New("S2 config is not a struct")
+			}
+			for _, field := range structure.Fields.List {
+				for _, name := range field.Names {
+					if name.Name == "OperationCandidateEnabled" {
+						if selected != nil || len(field.Names) != 1 {
+							return errors.New("S2 config opt-in field is not unique")
+						}
+						selected = field
+					}
+				}
+			}
+		}
+	}
+	if selected == nil || selected.Tag == nil {
+		return errors.New("S2 config opt-in field is missing")
+	}
+	kind, ok := selected.Type.(*ast.Ident)
+	tag, err := strconv.Unquote(selected.Tag.Value)
+	if !ok || kind.Name != "bool" || err != nil || tag != `json:"operation_candidate_enabled,omitempty"` {
+		return errors.New("S2 config opt-in type or omitempty wire key changed")
+	}
+	start, end := fset.Position(selected.Pos()).Offset, fset.Position(selected.End()).Offset
+	legacy, err := parser.ParseFile(token.NewFileSet(), "types.go", source[:start]+source[end:], 0)
+	if err != nil {
+		return err
+	}
+	if s7APJSONSchemaDigest(legacy) != "00d6e584ee67c28aaa5364725f5b1e7e8f1c14d406da5570448eaa5c49cbf025" {
+		return errors.New("S2 config extension changed the prior controlled schema")
+	}
+	return nil
+}
+
+func TestROCS2ControlledConfigSchemaTransition(t *testing.T) {
+	source := s6RepoFile(t, "internal/store/types.go")
+	if err := validateS7APOperationCandidateConfig(source); err != nil {
+		t.Fatal(err)
+	}
+	const field = "OperationCandidateEnabled bool `json:\"operation_candidate_enabled,omitempty\"`"
+	for _, mutation := range [][2]string{
+		{field, ""},
+		{field, strings.Replace(field, " bool ", " *bool ", 1)},
+		{field, strings.Replace(field, ",omitempty", "", 1)},
+		{field, strings.Replace(field, "operation_candidate_enabled", "other_candidate_key", 1)},
+		{field, field + "\n ExtraCandidateState string `json:\"candidate_state,omitempty\"`"},
+		{`json:"patch_id_detector_enabled,omitempty"`, `json:"changed_prior_key,omitempty"`},
+	} {
+		if strings.Count(source, mutation[0]) != 1 {
+			t.Fatalf("config schema mutation anchor is not unique: %s", mutation[0])
+		}
+		mutant := strings.Replace(source, mutation[0], mutation[1], 1)
+		if err := validateS7APOperationCandidateConfig(mutant); err == nil {
+			t.Fatalf("controlled schema accepted %s", mutation[1])
+		}
+	}
 }
 
 func s7APJSONSchemaDigest(file *ast.File) string {

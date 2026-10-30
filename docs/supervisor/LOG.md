@@ -1,3 +1,23 @@
+## CI Revision — S2 controlled Config schema pin — 2026-10-29
+
+Native CI `40997153846` has a real shared failure: Linux/macOS Test and AP
+observer jobs fail on `TestS7APProvenanceGuard/PIB-477`, whose controlled
+schema digest still pins the pre-S2 Config. Windows passes. The only
+production types.go delta is the independently approved default-off
+`OperationCandidateEnabled bool` field with its omitempty key.
+
+Stop local `roc-s2-full-gate-1b2f706` after three completed test commands,
+while S6 G-L is active. This is an intentional stop on known CI failure,
+not a completed gate or resource stop. Reconciliation confirms all 259
+sampled owned identities are gone; preserve raw logs and record interruption
+separately because the runner's normal finalizer did not run.
+
+Update the exact schema pin and prove removal of precisely the new field
+restores the original digest; validate its type/key/omitempty and reject
+missing/extra/changed fields. Extend only the finite S2 test path permission.
+No production changes or broad Config exemption; revalidate PIB-477 and its
+observer, then request narrow independent review before another full attempt.
+
 ## Full Validation Running — GH #13 S2 — 2026-10-29
 
 Published and fetched HEAD/origin/main:

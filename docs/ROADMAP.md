@@ -1658,6 +1658,10 @@ Reviewed validation checkpoint `1b2f706` is published. Native CI `40997153846`
 and the full admitted local gate are running at that exact SHA, with S2
 WAVE_BASE `bd95a23`. Only the first five mechanical checks are confirmed;
 no S2 acceptance or S3 dispatch.
+The full CI attempt fails on PIB-477's pre-S2 Config schema pin; AP observers
+fail on the same target. Stop the local attempt, preserve its partial evidence,
+and register only the approved default-off boolean field with exact-delta
+negative controls. Production code remains unchanged; no S2 acceptance.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

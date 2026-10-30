@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Reviewed S2 checkpoint published; full 39-shard and native validation running
+- **Status**: Correcting the legacy controlled-schema pin for S2's approved config opt-in
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -112,6 +112,27 @@ no full-gate result is claimed yet.
 Native CI `40997153846` runs at that exact checkpoint, watched by shell
 `roc-s2-native-ci-1b2f706` with log `bin/roc-s2-20261029/native-ci-1b2f706.log`.
 Keep progress commits local while exact-checkpoint validation is in flight.
+Native CI `40997153846` fails on Linux/macOS at PIB-477: its frozen controlled
+schema inventory still describes Config before the approved S2 opt-in field.
+The AP observer fails on that same missing PASS. Windows succeeds.
+This is an actual integration-test failure, not watcher connectivity.
+
+Stop the local gate at its current checkpoint rather than spending the rest
+of the suite on known-failing code. It had completed three test commands and
+was running S6 G-L; it is intentionally interrupted, not a local pass or a
+resource stop. All 259 sampled owned identities are gone. Preserve raw logs;
+the original runner summary may still say running because interruption
+precedes its normal summary finalizer.
+
+Correct only the test pin for the one approved Config field, with an explicit
+proof that removing that exact bool/omitempty field restores the old schema
+digest. Wrong type/key/omitempty, missing field, extra field and old-key
+mutations must fail. Do not blanket-exempt Config or alter production code.
+The test-only correction updates the current digest and additionally requires
+the exact bool/omitempty field; its removal must reproduce the unchanged
+pre-S2 digest. The same checker has negative controls for missing, mistyped,
+retagged, extra and changed-prior fields. Only the AP guard's finite S2 path
+permission is added. Reproduce PIB-477 and its observer locally before review.
 
 ## Current State — bounded S2 scope
 
@@ -190,11 +211,11 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Await existing full-gate shell `roc-s2-full-gate-1b2f706` and native CI
-   `40997153846`; do not duplicate Go workloads or cancel CI with tracking-only
-   pushes.
-2. Verify both complete before acceptance; preserve raw logs and reconcile
-   owned processes. S3 remains undispatched.
+1. Validate the exact Config-schema transition, PIB-477 and the AP observer,
+   then obtain narrow independent review of the test-only correction.
+2. Publish a new reviewed checkpoint and restart complete local/native
+   validation with fresh evidence; do not resume the intentionally stopped
+   old gate or count its partial shards as a full pass. S3 remains undispatched.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.
    Do not start S3 automatically.
 
@@ -211,9 +232,9 @@ source/caches and owned-process reconciliation. The canonical partition has
 
 ## Blockers
 
-No prior-CI or code-review blocker remains. S2 full 39-command and native
-validation are running at `1b2f706`; publication is for validation, not release
-or acceptance.
+The legacy PIB-477 schema pin blocks S2 full/native acceptance until its
+narrow correction is validated and reviewed. No validation/watch processes
+remain active after the known-failure stop.
 
 ## Context for Next Agent
 
