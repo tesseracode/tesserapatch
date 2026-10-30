@@ -44,6 +44,22 @@ markers. Keep S5 WAVE_BASE unchanged so its eventual gate covers the complete
 unpublished slice. Parent implements the remaining continuous authority/
 finalization path directly, with retained independent S5 reviewer `7712b628`.
 No competing Go workload. Timer `gh13-followup-deadline` enforces this window.
+Implementation decision recorded in proposed ADR-048: remove public
+caller-asserted preparation authority. Workflow mints private preparation
+from fresh S2 eligibility and finalizes under one feature hold; candidate
+provides metadata derivation and actual typed structural revalidation.
+Inventory incomplete/orphan pending metadata and fail closed on interrupted
+publication; prune precedes terminal state/pointer cleanup.
+The first fix-forward draft now implements private fresh-eligibility
+preparation, actual typed candidate revalidation, continuous-lock finalization,
+pending-directory inventory and retryable terminal cleanup. Public draft
+preparation/materialization assertion APIs were removed. Focused regressions
+cover real eligibility failures, late state/binding/rejection changes, prune
+contention, status-write failures and orphan detection. Validation is next;
+none of the open findings is claimed closed yet.
+First formatting attempt stopped on a misplaced helper declaration in
+execute.go before any tests or commit. The declaration is moved to package
+scope; retry uses a fresh admission/stage and preserves the failed log.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

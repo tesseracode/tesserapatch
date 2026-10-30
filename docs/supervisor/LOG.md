@@ -1,3 +1,23 @@
+## S5 Fix-forward Draft — 2026-10-30
+
+First coherent draft removes public assertion-based preparation/materialization,
+adds a private mint from actual S2 validated inputs and typed structural
+revalidation, and composes creation/reuse/publication under one feature hold.
+Pending inventory exposes orphans; prune-first terminal transitions support
+safe status-write retries. Focused real-input/failure regressions are added.
+Run admitted formatting/targeted checks next; no finding closure yet.
+
+## S5 Authority Design — Fix-forward Follow-up — 2026-10-30
+
+Choose a private workflow preparation mint adjacent to the existing strict
+E1-E15 evaluator, rather than copying decoders into candidate or introducing
+an eligibility package cycle. Candidate exports metadata derivation and typed
+structural revalidation only; no public binding assertions become authority.
+One feature hold spans fresh checks, existing/rejected decisions, execution
+and publication. Pending inventory catches orphan/incomplete writes; pruning
+precedes terminal state cleanup and interrupted outcomes stay fail-closed.
+Proposed ADR-048 records this choice; independent review must approve it.
+
 ## New Authorization — Resume #13 for Four Hours — 2026-10-30
 
 Operator authorizes fixing S5 forward, closing it properly with clean main,

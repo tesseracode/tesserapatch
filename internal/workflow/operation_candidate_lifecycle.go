@@ -2,10 +2,13 @@ package workflow
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/candidate"
@@ -21,152 +24,165 @@ type operationCandidatePreflightResult struct {
 	StaleCandidateID  string
 }
 
-type operationCandidateReuseResult struct {
-	Reusable    bool
-	RefusalCode string
+// Only prepareOperationCandidateHeld mints this in-process value. Finalization
+// recomputes it under the same hold used for execution and publication.
+type operationCandidatePrepared struct {
+	owner        *store.Store
+	repoPath     string
+	repoIdentity os.FileInfo
+	slug         string
+	invocation   operationCandidateInvocation
+	eligibility  operationCandidateEligibility
+	derivation   candidate.CandidateDerivation
+	candidateID  string
 }
 
-type operationCandidatePrepared struct {
-	Preparation        candidate.CandidatePreparation
-	CandidateID        string
-	SourceFeatureState string
-	ReferenceCommit    string
-	UpstreamCommit     string
+func (operationCandidatePrepared) MarshalJSON() ([]byte, error) {
+	return nil, fmt.Errorf("candidate preparation is ephemeral")
 }
 
 var operationCandidateLifecycleInspectHook = func() {}
 
-func runOperationCandidatePreflight(
-	s *store.Store,
-	slug string,
-	current candidate.CandidateStalenessInput,
-) (operationCandidatePreflightResult, error) {
-	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
-	if err != nil {
-		return operationCandidatePreflightResult{}, err
+func runOperationCandidatePreflight(s *store.Store, slug string, current candidate.CandidateStalenessInput) (operationCandidatePreflightResult, error) {
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil || refusal.Reason != "" {
+		return refusal, err
 	}
-	if lockResult.Reason != "" {
-		return lockResult, nil
-	}
-	defer func() { _ = lock.Release() }()
+	defer lock.Release()
 	operationCandidateLifecycleInspectHook()
-
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return operationCandidatePreflightResult{}, err
 	}
-	defer func() { _ = reference.Close() }()
-
-	recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug)
+	defer reference.Close()
+	recovery, err := findOperationCandidateRecoveryJournal(reference, slug)
 	if err != nil {
 		return operationCandidatePreflightResult{}, err
 	}
-	if recoveryPath != "" {
-		return operationCandidatePreflightResult{
-			Reason:       "recovery-required",
-			RecoveryPath: recoveryPath,
-		}, nil
+	if recovery != "" {
+		return operationCandidatePreflightResult{Reason: "recovery-required", RecoveryPath: recovery}, nil
 	}
-
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return operationCandidatePreflightResult{}, err
 	}
-	if status.Reconcile.OperationCandidate != nil {
-		staleID, err := stalePendingOperationCandidate(s, slug, status, current, lock)
-		if err != nil {
-			return operationCandidatePreflightResult{}, err
-		}
-		if staleID != "" {
-			status, err = s.LoadFeatureStatus(slug)
-			if err != nil {
-				return operationCandidatePreflightResult{}, err
-			}
-		}
-		if status.State != store.StateApplied && status.State != store.StateBlocked {
-			return operationCandidatePreflightResult{
-				Reason:           "candidate-feature-state-unsupported",
-				StaleCandidateID: staleID,
-			}, nil
-		}
-		return operationCandidatePreflightResult{
-			DerivationEnabled: true,
-			StaleCandidateID:  staleID,
-		}, nil
+	if err := inspectOperationCandidateInventory(reference, slug, status.Reconcile.OperationCandidate); err != nil {
+		return operationCandidatePreflightResult{}, err
+	}
+	staleID, err := stalePendingOperationCandidate(s, slug, status, current, lock)
+	if err != nil {
+		return operationCandidatePreflightResult{}, err
+	}
+	status, err = s.LoadFeatureStatus(slug)
+	if err != nil {
+		return operationCandidatePreflightResult{}, err
 	}
 	if status.State != store.StateApplied && status.State != store.StateBlocked {
-		return operationCandidatePreflightResult{Reason: "candidate-feature-state-unsupported"}, nil
+		return operationCandidatePreflightResult{Reason: "candidate-feature-state-unsupported", StaleCandidateID: staleID}, nil
 	}
-	return operationCandidatePreflightResult{DerivationEnabled: true}, nil
+	return operationCandidatePreflightResult{DerivationEnabled: true, StaleCandidateID: staleID}, nil
 }
 
-func stalePendingOperationCandidate(
-	s *store.Store,
-	slug string,
-	status store.FeatureStatus,
-	current candidate.CandidateStalenessInput,
-	featureLock *candidatelock.Handle,
-) (string, error) {
-	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
+func inspectOperationCandidateInventory(reference *candidate.ReferenceRoot, slug string, pointer *store.OperationCandidateSummary) error {
 	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
+		return err
+	}
+	if pointer != nil && pointer.Status != candidate.CandidateStatusPending {
+		return fmt.Errorf("candidate-integrity-drift: live pointer is not pending")
+	}
+	rows, err := reference.ListCandidateMetadata(slug)
+	if err != nil {
+		return fmt.Errorf("candidate-integrity-drift: %w", err)
+	}
+	found := false
+	for _, row := range rows {
+		owned := pointer != nil && pointer.CandidateID == row.Artifact.CandidateID
+		if owned {
+			expectedPath, _ := candidate.CandidatePointerPath(slug, row.Artifact.CandidateID)
+			if pointer.Path != expectedPath || pointer.SourceFeatureState != row.Artifact.SourceFeatureState ||
+				row.State.Status == candidate.CandidateStatusAccepted {
+				return fmt.Errorf("candidate-integrity-drift: pointer/metadata mismatch")
+			}
+			found = true
+		}
+		if row.State.Status == candidate.CandidateStatusPending && !owned {
+			return fmt.Errorf("candidate-integrity-drift: orphan pending candidate %s", row.Artifact.CandidateID)
+		}
+		if row.State.Status == candidate.CandidateStatusStale && !owned {
+			present, err := reference.CandidateWorktreePresent(slug, row.Artifact.CandidateID)
+			if err != nil {
+				return err
+			}
+			if present {
+				return fmt.Errorf("candidate-integrity-drift: unfinished stale candidate %s", row.Artifact.CandidateID)
+			}
+		}
+	}
+	if pointer != nil && !found {
+		return fmt.Errorf("candidate-integrity-drift: pointer has no metadata")
+	}
+	return nil
+}
+
+func stalePendingOperationCandidate(s *store.Store, slug string, status store.FeatureStatus, current candidate.CandidateStalenessInput, featureLock *candidatelock.Handle) (string, error) {
+	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
+	if pointer == nil {
+		return "", nil
+	}
+	release, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
+	if err != nil {
 		return "", err
 	}
-	if pointer == nil || pointer.Status == candidate.CandidateStatusAccepted || pointer.Status == candidate.CandidateStatusRejected {
-		return "", nil
-	}
-	if pointer.Status != candidate.CandidateStatusPending {
-		return "", nil
-	}
-	if status.Reconcile.ShadowPath != "" {
-		return "", fmt.Errorf("shadow-pending")
-	}
+	defer release()
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = reference.Close() }()
-	artifact, state, root, upstreamReference, err := readOperationCandidateArtifacts(s.Root, reference, slug, pointer)
+	defer reference.Close()
+	artifact, state, err := reference.ReadCandidateMetadata(slug, pointer.CandidateID)
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = root.Close() }()
-	defer func() { _ = upstreamReference.Close() }()
-	if state.Status == candidate.CandidateStatusStale {
-		releaseMutation, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
+	if state.Status == candidate.CandidateStatusAccepted {
+		return "", fmt.Errorf("candidate-integrity-drift")
+	}
+	if state.Status == candidate.CandidateStatusRejected {
+		records, err := reference.ReadRejectedRecords(slug)
 		if err != nil {
 			return "", err
 		}
-		defer releaseMutation()
-		if err := pruneOperationCandidateWorktree(s.Root, root, featureLock); err != nil {
+		if !slices.Contains(records, candidate.RejectedRecordFromArtifact(artifact)) {
+			return "", fmt.Errorf("candidate-integrity-drift: incomplete rejection without its record")
+		}
+		if err := pruneOperationCandidateIfPresent(s, reference, artifact, featureLock); err != nil {
 			return "", err
 		}
 		status.Reconcile.OperationCandidate = nil
-		if err := s.SaveFeatureStatus(status); err != nil {
-			return "", err
-		}
-		return artifact.CandidateID, nil
-	}
-	if state.Status != candidate.CandidateStatusPending {
-		return "", nil
+		return artifact.CandidateID, s.SaveFeatureStatus(status)
 	}
 	current.SourceFeatureState = string(status.State)
-	needsStale, err := candidate.CandidateNeedsStaleMark(artifact, state, current)
-	if err != nil {
-		return "", err
+	stale := state.Status == candidate.CandidateStatusStale
+	if !stale {
+		stale, err = candidate.CandidateNeedsStaleMark(artifact, state, current)
+		if err != nil {
+			return "", err
+		}
 	}
-	if !needsStale {
+	if !stale {
+		present, err := reference.CandidateWorktreePresent(slug, artifact.CandidateID)
+		if err != nil {
+			return "", err
+		}
+		if !present {
+			return "", fmt.Errorf("candidate-integrity-drift: pending worktree is absent")
+		}
 		return "", nil
 	}
-	releaseMutation, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
-	if err != nil {
+	if err := pruneOperationCandidateIfPresent(s, reference, artifact, featureLock); err != nil {
 		return "", err
 	}
-	defer releaseMutation()
 	state.Status = candidate.CandidateStatusStale
-	if err := root.WriteState(state, featureLock); err != nil {
-		return "", err
-	}
-	if err := pruneOperationCandidateWorktree(s.Root, root, featureLock); err != nil {
+	if err := reference.WriteCandidateState(slug, artifact.CandidateID, state, featureLock); err != nil {
 		return "", err
 	}
 	status.Reconcile.OperationCandidate = nil
@@ -177,126 +193,92 @@ func stalePendingOperationCandidate(
 }
 
 func acquireOperationCandidateFeatureLock(repoRoot, slug string) (*candidatelock.Handle, operationCandidatePreflightResult, error) {
-	lockPath := filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock")
-	lock, err := candidatelock.TryAcquire(lockPath)
+	if _, err := candidate.CandidateSlugRelative(slug); err != nil {
+		return nil, operationCandidatePreflightResult{}, err
+	}
+	lock, err := candidatelock.TryAcquire(filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock"))
 	if err == nil {
 		return lock, operationCandidatePreflightResult{}, nil
 	}
-	switch {
-	case candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld):
-		return nil, operationCandidatePreflightResult{Reason: "candidate-lock-held"}, nil
-	case candidatelock.IsCode(err, candidatelock.CodeLockUnsupported):
-		return nil, operationCandidatePreflightResult{Reason: "lock-unsupported"}, nil
-	case candidatelock.IsCode(err, candidatelock.CodeLockFilesystemUnsupported):
-		return nil, operationCandidatePreflightResult{Reason: "lock-filesystem-unsupported"}, nil
-	default:
-		return nil, operationCandidatePreflightResult{}, err
+	for _, code := range []string{candidatelock.CodeCandidateLockHeld, candidatelock.CodeLockUnsupported, candidatelock.CodeLockFilesystemUnsupported} {
+		if candidatelock.IsCode(err, code) {
+			return nil, operationCandidatePreflightResult{Reason: code}, nil
+		}
 	}
+	return nil, operationCandidatePreflightResult{}, err
 }
 
 func findOperationCandidateRecoveryJournal(reference *candidate.ReferenceRoot, slug string) (string, error) {
 	return reference.FindCandidateRecoveryJournal(slug)
 }
 
-func readOperationCandidateArtifacts(
-	repoRoot string,
-	reference *candidate.ReferenceRoot,
-	slug string,
-	pointer *store.OperationCandidateSummary,
-) (candidate.CandidateArtifact, candidate.CandidateState, *candidate.CandidateRoot, *candidate.ReferenceRoot, error) {
+func readOperationCandidateArtifacts(repoRoot string, reference *candidate.ReferenceRoot, slug string, pointer *store.OperationCandidateSummary) (candidate.CandidateArtifact, candidate.CandidateState, *candidate.CandidateRoot, *candidate.ReferenceRoot, error) {
 	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
 		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
 	}
-	expectedPath, err := candidate.CandidatePointerPath(slug, pointer.CandidateID)
-	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+	if pointer == nil {
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate-absent")
 	}
-	if pointer.Path != expectedPath {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer path mismatch: have %s want %s", pointer.Path, expectedPath)
+	expected, err := candidate.CandidatePointerPath(slug, pointer.CandidateID)
+	if err != nil || pointer.Path != expected {
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer path mismatch")
 	}
 	artifact, state, err := reference.ReadCandidateMetadata(slug, pointer.CandidateID)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+		return artifact, state, nil, nil, err
 	}
-	if artifact.CandidateID != pointer.CandidateID || state.CandidateID != pointer.CandidateID {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer/id mismatch")
+	if pointer.SourceFeatureState != artifact.SourceFeatureState || pointer.Status != state.Status {
+		return artifact, state, nil, nil, fmt.Errorf("candidate pointer state drift")
 	}
-	if pointer.SourceFeatureState != artifact.SourceFeatureState {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer state drift")
-	}
-	if pointer.Status != state.Status &&
-		!(pointer.Status == candidate.CandidateStatusPending && (state.Status == candidate.CandidateStatusStale || state.Status == candidate.CandidateStatusRejected)) {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer state drift")
-	}
-	upstreamReference, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
+	upstream, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+		return artifact, state, nil, nil, err
 	}
-	root, err := candidate.OpenExistingCandidateRoot(upstreamReference, slug, pointer.CandidateID)
+	root, err := candidate.OpenExistingCandidateRoot(upstream, slug, pointer.CandidateID)
 	if err != nil {
-		_ = upstreamReference.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+		_ = upstream.Close()
+		return artifact, state, nil, nil, err
 	}
-	return artifact, state, root, upstreamReference, nil
+	return artifact, state, root, upstream, nil
 }
 
 func pruneOperationCandidateWorktree(repoRoot string, root *candidate.CandidateRoot, featureLock *candidatelock.Handle) error {
 	if root == nil {
 		return fmt.Errorf("candidate root is required")
 	}
-	globalPath := filepath.Join(repoRoot, ".tpatch", "locks", "worktree-mutation.lock")
-	global, err := candidatelock.TryAcquire(globalPath)
+	global, err := candidatelock.TryAcquire(filepath.Join(repoRoot, ".tpatch", "locks", "worktree-mutation.lock"))
 	if err != nil {
 		return err
 	}
 	pruneErr := root.Prune(featureLock, global)
-	releaseErr := global.Release()
-	if pruneErr != nil {
-		return pruneErr
-	}
-	return releaseErr
+	return errors.Join(pruneErr, global.Release())
 }
 
-func operationCandidateReuseCheck(
-	preparation candidate.CandidatePreparation,
-	existingArtifact candidate.CandidateArtifact,
-	existingState candidate.CandidateState,
-	derived candidate.CandidateArtifact,
-	root *candidate.CandidateRoot,
-	featureLock *candidatelock.Handle,
-) (operationCandidateReuseResult, error) {
-	decision, err := candidate.CompareExistingCandidate(existingArtifact, existingState, derived)
+func pruneOperationCandidateIfPresent(s *store.Store, reference *candidate.ReferenceRoot, artifact candidate.CandidateArtifact, lock *candidatelock.Handle) error {
+	present, err := reference.CandidateWorktreePresent(artifact.Feature, artifact.CandidateID)
+	if err != nil || !present {
+		return err
+	}
+	upstream, err := openOperationCandidateReference(s.Root, artifact.UpstreamCommit)
 	if err != nil {
-		return operationCandidateReuseResult{}, err
+		return err
 	}
-	if !decision.Reusable {
-		return operationCandidateReuseResult{RefusalCode: decision.RefusalCode}, nil
-	}
-	if root == nil {
-		return operationCandidateReuseResult{}, fmt.Errorf("reusable candidate root is required")
-	}
-	result, err := preparation.ValidateReusableCandidate(root, featureLock)
+	defer upstream.Close()
+	root, err := candidate.OpenExistingCandidateRoot(upstream, artifact.Feature, artifact.CandidateID)
 	if err != nil {
-		return operationCandidateReuseResult{}, err
+		return err
 	}
-	if !reflect.DeepEqual(result, existingArtifact.Result) {
-		return operationCandidateReuseResult{RefusalCode: "candidate-integrity-drift"}, nil
-	}
-	return operationCandidateReuseResult{Reusable: true}, nil
+	defer root.Close()
+	return pruneOperationCandidateWorktree(s.Root, root, lock)
 }
 
-func appendRejectedOperationCandidateWithReference(reference *candidate.ReferenceRoot, slug string, artifact candidate.CandidateArtifact, featureLock *candidatelock.Handle) error {
-	record := candidate.RejectedRecordFromArtifact(artifact)
-	return reference.AppendRejectedRecord(slug, record, featureLock)
-}
-
-func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact, featureLock *candidatelock.Handle) error {
+func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact, lock *candidatelock.Handle) error {
 	reference, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = reference.Close() }()
-	return appendRejectedOperationCandidateWithReference(reference, slug, artifact, featureLock)
+	defer reference.Close()
+	return reference.AppendRejectedRecord(slug, candidate.RejectedRecordFromArtifact(artifact), lock)
 }
 
 func readRejectedOperationCandidates(reference *candidate.ReferenceRoot, slug string) ([]candidate.CandidateRejectedRecord, error) {
@@ -304,69 +286,63 @@ func readRejectedOperationCandidates(reference *candidate.ReferenceRoot, slug st
 }
 
 func isOperationCandidateRejected(reference *candidate.ReferenceRoot, slug, candidateID string) (bool, error) {
-	rows, err := readRejectedOperationCandidates(reference, slug)
+	rows, err := reference.ReadRejectedRecords(slug)
 	if err != nil {
 		return false, err
 	}
 	return candidate.RejectedContainsCandidateID(rows, candidateID), nil
 }
 
-func clearOperationCandidateRejections(reference *candidate.ReferenceRoot, slug string, featureLock *candidatelock.Handle) error {
-	return reference.ClearRejectedRecords(slug, featureLock)
+func clearOperationCandidateRejections(reference *candidate.ReferenceRoot, slug string, lock *candidatelock.Handle) error {
+	return reference.ClearRejectedRecords(slug, lock)
 }
 
 func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error) {
-	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
 	if err != nil {
 		return "", err
 	}
-	if lockResult.Reason != "" {
-		return "", fmt.Errorf("%s", lockResult.Reason)
+	if refusal.Reason != "" {
+		return "", fmt.Errorf("%s", refusal.Reason)
 	}
-	defer func() { _ = lock.Release() }()
+	defer lock.Release()
+	release, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return "", err
+	}
+	defer release()
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = reference.Close() }()
+	defer reference.Close()
 	status, pointer, err := operationCandidateActionPreflight(s, slug, "candidate-action", reference, true)
 	if err != nil {
 		return "", err
 	}
-	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	artifact, state, err := reference.ReadCandidateMetadata(slug, pointer.CandidateID)
 	if err != nil {
 		return "", err
 	}
-	defer releaseMutation()
-	artifact, state, root, upstreamReference, err := readOperationCandidateArtifacts(s.Root, reference, slug, pointer)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = root.Close() }()
-	defer func() { _ = upstreamReference.Close() }()
-
 	if state.Status == candidate.CandidateStatusAccepted {
 		return "", fmt.Errorf("candidate-not-pending")
 	}
-	if state.Status != candidate.CandidateStatusPending && state.Status != candidate.CandidateStatusStale && state.Status != candidate.CandidateStatusRejected {
-		return "", fmt.Errorf("candidate-not-pending")
+	// Acquire/prune before changing terminal metadata: global contention must
+	// leave the original pending pair and its worktree untouched.
+	if err := pruneOperationCandidateIfPresent(s, reference, artifact, lock); err != nil {
+		return "", err
 	}
-	if state.Status != candidate.CandidateStatusRejected {
-		rejected, err := isOperationCandidateRejected(reference, slug, artifact.CandidateID)
-		if err != nil {
-			return "", err
-		}
-		if !rejected {
-			if err := appendRejectedOperationCandidate(s.Root, slug, artifact, lock); err != nil {
-				return "", err
-			}
-		}
-		state.Status = candidate.CandidateStatusRejected
-		if err := root.WriteState(state, lock); err != nil {
+	rejected, err := isOperationCandidateRejected(reference, slug, artifact.CandidateID)
+	if err != nil {
+		return "", err
+	}
+	if !rejected {
+		if err := appendRejectedOperationCandidate(s.Root, slug, artifact, lock); err != nil {
 			return "", err
 		}
 	}
-	if err := pruneOperationCandidateWorktree(s.Root, root, lock); err != nil {
+	state.Status = candidate.CandidateStatusRejected
+	if err := reference.WriteCandidateState(slug, artifact.CandidateID, state, lock); err != nil {
 		return "", err
 	}
 	status.Reconcile.OperationCandidate = nil
@@ -377,196 +353,326 @@ func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error
 }
 
 func clearOperationCandidateRejectionsLocked(s *store.Store, slug string) error {
-	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
 	if err != nil {
 		return err
 	}
-	if lockResult.Reason != "" {
-		return fmt.Errorf("%s", lockResult.Reason)
+	if refusal.Reason != "" {
+		return fmt.Errorf("%s", refusal.Reason)
 	}
-	defer func() { _ = lock.Release() }()
+	defer lock.Release()
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = reference.Close() }()
+	defer reference.Close()
 	if _, _, err := operationCandidateActionPreflight(s, slug, "candidate-action", reference, false); err != nil {
 		return err
 	}
-	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
-	if err != nil {
-		return err
-	}
-	defer releaseMutation()
 	return clearOperationCandidateRejections(reference, slug, lock)
 }
 
-func prepareOperationCandidate(
-	s *store.Store,
-	slug string,
-	eligibility operationCandidateEligibility,
-	patch string,
-	effects []gitutil.PatchEffect,
-	effectSHA256ByOrdinal map[int]string,
-) (operationCandidatePrepared, error) {
-	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+func prepareOperationCandidate(s *store.Store, slug string, invocation operationCandidateInvocation) (operationCandidatePrepared, error) {
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
-	if lockResult.Reason != "" {
-		return operationCandidatePrepared{}, fmt.Errorf("%s", lockResult.Reason)
+	if refusal.Reason != "" {
+		return operationCandidatePrepared{}, fmt.Errorf("%s", refusal.Reason)
 	}
-	defer func() { _ = lock.Release() }()
+	defer lock.Release()
+	return prepareOperationCandidateHeld(s, slug, invocation, lock)
+}
 
+func prepareOperationCandidateHeld(s *store.Store, slug string, invocation operationCandidateInvocation, lock *candidatelock.Handle) (operationCandidatePrepared, error) {
+	release, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	defer release()
+	metadata, err := openOperationCandidateReference(s.Root, "")
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	defer metadata.Close()
+	status, pointer, err := operationCandidateActionPreflight(s, slug, "candidate-derivation", metadata, false)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	if pointer != nil {
+		snapshot := SnapshotRecipeCoverage(s.Root, slug)
+		event, err := DecodeRecipeCaptureEvent(snapshot.Event.Bytes)
+		if err != nil {
+			return operationCandidatePrepared{}, fmt.Errorf("capture-event-unusable: %w", err)
+		}
+		digest, err := RecipeCaptureEventIdentity(event)
+		if err != nil {
+			return operationCandidatePrepared{}, err
+		}
+		current := candidate.CandidateStalenessInput{UpstreamCommit: invocation.upstreamCommit, SourceFeatureState: string(status.State),
+			Bindings: candidate.CandidateBindings{CaptureEventSHA256: digest, CoverageSHA256: CoverageSHA256(snapshot.Coverage.Bytes),
+				PatchSHA256: CoverageSHA256(snapshot.Patch.Bytes), RecipeSHA256: CoverageSHA256(snapshot.Recipe.Bytes)}}
+		if _, err := stalePendingOperationCandidate(s, slug, status, current, lock); err != nil {
+			return operationCandidatePrepared{}, err
+		}
+	}
+	eligibility, err := assessOperationCandidateEligibility(s, slug, invocation)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	if !eligibility.enabled || !eligibility.eligible || eligibility.inputs == nil {
+		if eligibility.reason != "" {
+			return operationCandidatePrepared{}, fmt.Errorf("%s: %s", eligibility.reason, eligibility.detail)
+		}
+		return operationCandidatePrepared{}, fmt.Errorf("operation candidate derivation is disabled")
+	}
 	reference, err := openOperationCandidateReference(s.Root, eligibility.referenceCommit)
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
-	defer func() { _ = reference.Close() }()
-	if recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug); err != nil {
-		return operationCandidatePrepared{}, err
-	} else if recoveryPath != "" {
-		return operationCandidatePrepared{}, fmt.Errorf("recovery-required")
-	}
-	status, err := s.LoadFeatureStatus(slug)
-	if err != nil {
-		return operationCandidatePrepared{}, err
-	}
-	if refusal := operationCandidateCoexistenceRefusal(status, "candidate-derivation"); refusal != "" {
-		return operationCandidatePrepared{}, fmt.Errorf("%s", refusal)
-	}
-	if status.State != store.StateApplied && status.State != store.StateBlocked {
-		return operationCandidatePrepared{}, fmt.Errorf("candidate-feature-state-unsupported")
-	}
+	defer reference.Close()
 	upstream, err := openOperationCandidateReference(s.Root, eligibility.upstreamCommit)
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
-	defer func() { _ = upstream.Close() }()
-	preparation, err := candidate.PrepareCandidateArtifact(candidate.CandidatePrepareInput{
-		Feature:               slug,
-		SourceFeatureState:    string(status.State),
-		UpstreamCommit:        eligibility.upstreamCommit,
-		ReferenceCommit:       eligibility.referenceCommit,
-		Bindings:              operationCandidateBindings(eligibility),
-		Reference:             reference,
-		Upstream:              upstream,
-		Patch:                 patch,
-		Effects:               effects,
-		EffectSHA256ByOrdinal: effectSHA256ByOrdinal,
+	defer upstream.Close()
+	inputs := eligibility.inputs
+	derivation, err := candidate.DescribeDerivation(reference, upstream, inputs.patch, inputs.effects, inputs.effectHashes)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	id, _, _, err := candidate.ComputeCandidateID(candidate.CandidateIdentityInput{
+		SchemaVersion: candidate.CandidateSchemaVersion, Feature: slug, SourceFeatureState: string(eligibility.sourceFeatureState),
+		UpstreamCommit: eligibility.upstreamCommit, ReferenceCommit: eligibility.referenceCommit,
+		Bindings: operationCandidateBindings(eligibility), DerivationMode: candidate.CandidateDerivationModeSingle,
+		Operations: derivation.Operations, EffectMap: derivation.EffectMap,
 	})
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
-	candidateID, err := preparation.CandidateID()
-	if err != nil {
-		return operationCandidatePrepared{}, err
-	}
-	rejected, err := isOperationCandidateRejected(reference, slug, candidateID)
+	rejected, err := isOperationCandidateRejected(reference, slug, id)
 	if err != nil {
 		return operationCandidatePrepared{}, err
 	}
 	if rejected {
 		return operationCandidatePrepared{}, fmt.Errorf("candidate-rejected")
 	}
-	return operationCandidatePrepared{
-		Preparation:        preparation,
-		CandidateID:        candidateID,
-		SourceFeatureState: string(status.State),
-		ReferenceCommit:    eligibility.referenceCommit,
-		UpstreamCommit:     eligibility.upstreamCommit,
-	}, nil
+	info, err := os.Stat(s.Root)
+	if err != nil {
+		return operationCandidatePrepared{}, err
+	}
+	invocation.slugs = slices.Clone(invocation.slugs)
+	return operationCandidatePrepared{owner: s, repoPath: s.Root, repoIdentity: info, slug: slug, invocation: invocation,
+		eligibility: eligibility, derivation: derivation, candidateID: id}, nil
 }
 
-func publishOperationCandidate(
-	s *store.Store,
-	slug string,
-	prepared operationCandidatePrepared,
-	execution candidate.ExecutionResult,
-) (candidate.CandidateArtifact, error) {
-	lock, lockResult, err := acquireOperationCandidateFeatureLock(s.Root, slug)
-	if err != nil {
-		return candidate.CandidateArtifact{}, err
-	}
-	if lockResult.Reason != "" {
-		return candidate.CandidateArtifact{}, fmt.Errorf("%s", lockResult.Reason)
-	}
-	defer func() { _ = lock.Release() }()
+func sameOperationCandidatePreparation(a, b operationCandidatePrepared) bool {
+	return a.owner == b.owner && a.repoPath == b.repoPath && a.repoIdentity != nil && b.repoIdentity != nil &&
+		os.SameFile(a.repoIdentity, b.repoIdentity) && a.slug == b.slug && a.candidateID == b.candidateID &&
+		a.eligibility.sourceFeatureState == b.eligibility.sourceFeatureState &&
+		a.eligibility.referenceCommit == b.eligibility.referenceCommit && a.eligibility.upstreamCommit == b.eligibility.upstreamCommit &&
+		operationCandidateBindings(a.eligibility) == operationCandidateBindings(b.eligibility)
+}
 
-	reference, err := openOperationCandidateReference(s.Root, prepared.ReferenceCommit)
+func operationCandidateArtifact(prepared operationCandidatePrepared, execution candidate.ExecutionResult) (candidate.CandidateArtifact, error) {
+	treeHash, err := candidate.CandidateTreeIntegritySHA256(execution.TreeHash)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	defer func() { _ = reference.Close() }()
-	if _, _, err := operationCandidateActionPreflight(s, slug, "candidate-derivation", reference, false); err != nil {
-		return candidate.CandidateArtifact{}, err
+	artifact := candidate.CandidateArtifact{
+		SchemaVersion: candidate.CandidateSchemaVersion, CandidateID: prepared.candidateID, Feature: prepared.slug,
+		SourceFeatureState: string(prepared.eligibility.sourceFeatureState), UpstreamCommit: prepared.eligibility.upstreamCommit,
+		ReferenceCommit: prepared.eligibility.referenceCommit, DerivationMode: candidate.CandidateDerivationModeSingle,
+		Bindings: operationCandidateBindings(prepared.eligibility), Derivation: prepared.derivation,
+		Result: candidate.CandidateResult{CandidateDiffSHA256: CoverageSHA256([]byte(execution.Diff)),
+			CandidateTreeSHA256: treeHash, Validated: candidate.CandidateValidationStructural},
 	}
-	releaseMutation, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
-	if err != nil {
-		return candidate.CandidateArtifact{}, err
-	}
-	defer releaseMutation()
+	return artifact, artifact.Validate()
+}
 
-	artifact, err := candidate.BuildCandidateArtifact(candidate.CandidateMaterializeInput{
-		Preparation: prepared.Preparation,
-		Execution:   execution,
-		FeatureLock: lock,
-	})
+func operationCandidateReuseCheck(prepared operationCandidatePrepared, root *candidate.CandidateRoot, lock *candidatelock.Handle) (candidate.CandidateArtifact, error) {
+	if prepared.owner == nil || prepared.eligibility.inputs == nil {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate preparation is absent")
+	}
+	fresh, err := prepareOperationCandidateHeld(prepared.owner, prepared.slug, prepared.invocation, lock)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	if execution.Root == nil {
-		return candidate.CandidateArtifact{}, fmt.Errorf("candidate execution root is required")
+	if !sameOperationCandidatePreparation(prepared, fresh) {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-integrity-drift")
 	}
-	if artifact.CandidateID != prepared.CandidateID {
-		return candidate.CandidateArtifact{}, fmt.Errorf("candidate id mismatch while publishing")
-	}
-	if err := candidate.WriteCandidateMetadata(execution.Root, artifact, lock); err != nil {
+	existing, err := root.ReadArtifact()
+	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	if err := execution.Root.WritePatch([]byte(execution.Diff), lock); err != nil {
+	state, err := root.ReadState()
+	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	state := candidate.CandidateState{
-		SchemaVersion:    candidate.CandidateSchemaVersion,
-		CandidateID:      artifact.CandidateID,
-		Status:           candidate.CandidateStatusPending,
-		AcceptValidation: candidate.CandidateAcceptValidationNone,
-	}
-	if err := execution.Root.WriteState(state, lock); err != nil {
+	reference, err := openOperationCandidateReference(prepared.repoPath, prepared.eligibility.referenceCommit)
+	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
+	defer reference.Close()
+	upstream, err := openOperationCandidateReference(prepared.repoPath, prepared.eligibility.upstreamCommit)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer upstream.Close()
+	in := fresh.eligibility.inputs
+	execution, err := candidate.ValidateExistingCandidate(reference, upstream, root, in.patch, in.effects, fresh.slug, fresh.candidateID, lock)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	derived, err := operationCandidateArtifact(fresh, execution)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	decision, err := candidate.CompareExistingCandidate(existing, state, derived)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if !decision.Reusable {
+		return candidate.CandidateArtifact{}, fmt.Errorf("%s", decision.RefusalCode)
+	}
+	return existing, nil
+}
+
+// Finalization owns one continuous feature hold. Callers cannot inject an
+// execution result, an eligibility assertion, or a successful validation callback.
+func finalizeOperationCandidate(s *store.Store, slug string, expected operationCandidatePrepared) (candidate.CandidateArtifact, error) {
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if refusal.Reason != "" {
+		return candidate.CandidateArtifact{}, fmt.Errorf("%s", refusal.Reason)
+	}
+	defer lock.Release()
+	release, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer release()
+	if expected.owner != s || expected.slug != slug || expected.repoPath != s.Root {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate preparation repository/feature mismatch")
+	}
+	prepared, err := prepareOperationCandidateHeld(s, slug, expected.invocation, lock)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	if !sameOperationCandidatePreparation(expected, prepared) {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-integrity-drift: preparation changed")
+	}
+	reference, err := openOperationCandidateReference(s.Root, prepared.eligibility.referenceCommit)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer reference.Close()
+	upstream, err := openOperationCandidateReference(s.Root, prepared.eligibility.upstreamCommit)
+	if err != nil {
+		return candidate.CandidateArtifact{}, err
+	}
+	defer upstream.Close()
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	path, err := candidate.CandidatePointerPath(slug, artifact.CandidateID)
+	if status.Reconcile.OperationCandidate != nil && status.Reconcile.OperationCandidate.CandidateID != prepared.candidateID {
+		return candidate.CandidateArtifact{}, fmt.Errorf("candidate-pending")
+	}
+	var prior *candidate.CandidateArtifact
+	artifact, state, metadataErr := upstream.ReadCandidateMetadata(slug, prepared.candidateID)
+	if metadataErr == nil {
+		switch state.Status {
+		case candidate.CandidateStatusAccepted:
+			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-already-accepted")
+		case candidate.CandidateStatusRejected:
+			return candidate.CandidateArtifact{}, fmt.Errorf("candidate-rejected")
+		}
+		prior = &artifact
+		present, err := upstream.CandidateWorktreePresent(slug, prepared.candidateID)
+		if err != nil {
+			return candidate.CandidateArtifact{}, err
+		}
+		if present {
+			root, err := candidate.OpenExistingCandidateRoot(upstream, slug, prepared.candidateID)
+			if err != nil {
+				return candidate.CandidateArtifact{}, err
+			}
+			defer root.Close()
+			return operationCandidateReuseCheck(prepared, root, lock)
+		}
+	} else if !errors.Is(metadataErr, fs.ErrNotExist) {
+		return candidate.CandidateArtifact{}, metadataErr
+	}
+	in := prepared.eligibility.inputs
+	execution, err := candidate.Execute(reference, upstream, in.patch, in.effects, slug, prepared.candidateID, lock)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	status.Reconcile.OperationCandidate = &store.OperationCandidateSummary{
-		CandidateID:        artifact.CandidateID,
-		Path:               path,
-		Status:             candidate.CandidateStatusPending,
-		SourceFeatureState: artifact.SourceFeatureState,
+	defer execution.Root.Close()
+	fail := func(cause error) (candidate.CandidateArtifact, error) {
+		stale := candidate.CandidateState{SchemaVersion: candidate.CandidateSchemaVersion, CandidateID: prepared.candidateID,
+			Status: candidate.CandidateStatusStale, AcceptValidation: candidate.CandidateAcceptValidationNone}
+		markErr := execution.Root.WriteState(stale, lock)
+		pruneErr := pruneOperationCandidateWorktree(s.Root, execution.Root, lock)
+		return candidate.CandidateArtifact{}, errors.Join(cause, markErr, pruneErr)
 	}
+	// Recheck source bindings after execution too: non-cooperating artifact
+	// editors must not turn a once-valid preparation into fresh authority.
+	latest, err := assessOperationCandidateEligibility(s, slug, prepared.invocation)
+	if err != nil {
+		return fail(err)
+	}
+	if !latest.eligible || operationCandidateBindings(latest) != operationCandidateBindings(prepared.eligibility) ||
+		latest.sourceFeatureState != prepared.eligibility.sourceFeatureState {
+		return fail(fmt.Errorf("candidate-integrity-drift: inputs changed during execution"))
+	}
+	artifact, err = operationCandidateArtifact(prepared, execution)
+	if err != nil {
+		return fail(err)
+	}
+	if prior != nil {
+		decision, err := candidate.CompareExistingCandidate(*prior, state, artifact)
+		if err != nil {
+			return fail(err)
+		}
+		if !decision.Reusable {
+			return fail(fmt.Errorf("%s", decision.RefusalCode))
+		}
+		artifact = *prior
+	} else {
+		if err := execution.Root.WriteArtifact(artifact, lock); err != nil {
+			return fail(err)
+		}
+		if err := execution.Root.WritePatch([]byte(execution.Diff), lock); err != nil {
+			return fail(err)
+		}
+	}
+	pending := candidate.CandidateState{SchemaVersion: candidate.CandidateSchemaVersion, CandidateID: artifact.CandidateID,
+		Status: candidate.CandidateStatusPending, AcceptValidation: candidate.CandidateAcceptValidationNone}
+	if err := execution.Root.WriteState(pending, lock); err != nil {
+		return fail(err)
+	}
+	path, _ := candidate.CandidatePointerPath(slug, artifact.CandidateID)
+	status.Reconcile.OperationCandidate = &store.OperationCandidateSummary{CandidateID: artifact.CandidateID, Path: path,
+		Status: candidate.CandidateStatusPending, SourceFeatureState: artifact.SourceFeatureState}
 	if err := s.SaveFeatureStatus(status); err != nil {
-		return candidate.CandidateArtifact{}, err
+		return fail(err)
 	}
 	return artifact, nil
 }
 
 func operationCandidateCoexistenceRefusal(status store.FeatureStatus, action string) string {
-	hasCandidate := status.Reconcile.OperationCandidate != nil &&
-		status.Reconcile.OperationCandidate.Status == candidate.CandidateStatusPending
-	hasShadow := status.Reconcile.ShadowPath != ""
+	hasCandidate := status.Reconcile.OperationCandidate != nil && status.Reconcile.OperationCandidate.Status == candidate.CandidateStatusPending
 	switch action {
 	case "resolver-action":
 		if hasCandidate {
 			return "candidate-pending"
 		}
 	case "candidate-action", "candidate-derivation":
-		if hasShadow {
+		if status.Reconcile.ShadowPath != "" {
 			return "shadow-pending"
 		}
 	}
@@ -577,28 +683,19 @@ func borrowOperationCandidateFeatureMutation(lock *candidatelock.Handle, repoRoo
 	if lock == nil {
 		return nil, fmt.Errorf("feature lock handle is required")
 	}
-	lockPath := filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock")
-	return lock.Borrow(lockPath)
+	return lock.Borrow(filepath.Join(repoRoot, ".tpatch", "locks", "reconcile", slug+".lock"))
 }
 
 func openOperationCandidateReference(repoRoot, commitHint string) (*candidate.ReferenceRoot, error) {
 	commit := strings.TrimSpace(commitHint)
 	if commit == "" {
-		head, err := repoHEADCommit(repoRoot)
+		var err error
+		commit, err = repoHEADCommit(repoRoot)
 		if err != nil {
 			return nil, err
 		}
-		commit = head
 	}
-	reference, err := candidate.OpenReferenceRoot(repoRoot, commit)
-	if err != nil && commitHint == "" {
-		head, headErr := repoHEADCommit(repoRoot)
-		if headErr != nil {
-			return nil, err
-		}
-		return candidate.OpenReferenceRoot(repoRoot, head)
-	}
-	return reference, err
+	return candidate.OpenReferenceRoot(repoRoot, commit)
 }
 
 func repoHEADCommit(repoRoot string) (string, error) {
@@ -619,11 +716,11 @@ func repoHEADCommit(repoRoot string) (string, error) {
 }
 
 func operationCandidateActionPreflight(s *store.Store, slug, action string, reference *candidate.ReferenceRoot, requirePointer bool) (store.FeatureStatus, *store.OperationCandidateSummary, error) {
-	recoveryPath, err := findOperationCandidateRecoveryJournal(reference, slug)
+	recovery, err := reference.FindCandidateRecoveryJournal(slug)
 	if err != nil {
 		return store.FeatureStatus{}, nil, err
 	}
-	if recoveryPath != "" {
+	if recovery != "" {
 		return store.FeatureStatus{}, nil, fmt.Errorf("recovery-required")
 	}
 	status, err := s.LoadFeatureStatus(slug)
@@ -633,10 +730,10 @@ func operationCandidateActionPreflight(s *store.Store, slug, action string, refe
 	if refusal := operationCandidateCoexistenceRefusal(status, action); refusal != "" {
 		return store.FeatureStatus{}, nil, fmt.Errorf("%s", refusal)
 	}
-	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
-	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
+	if err := inspectOperationCandidateInventory(reference, slug, status.Reconcile.OperationCandidate); err != nil {
 		return store.FeatureStatus{}, nil, err
 	}
+	pointer := store.CloneOperationCandidateSummary(status.Reconcile.OperationCandidate)
 	if requirePointer && pointer == nil {
 		return store.FeatureStatus{}, nil, fmt.Errorf("candidate-absent")
 	}
@@ -644,10 +741,6 @@ func operationCandidateActionPreflight(s *store.Store, slug, action string, refe
 }
 
 func operationCandidateBindings(eligibility operationCandidateEligibility) candidate.CandidateBindings {
-	return candidate.CandidateBindings{
-		CaptureEventSHA256: eligibility.captureEventSHA256,
-		CoverageSHA256:     eligibility.coverageSHA256,
-		PatchSHA256:        eligibility.patchSHA256,
-		RecipeSHA256:       eligibility.recipeSHA256,
-	}
+	return candidate.CandidateBindings{CaptureEventSHA256: eligibility.captureEventSHA256, CoverageSHA256: eligibility.coverageSHA256,
+		PatchSHA256: eligibility.patchSHA256, RecipeSHA256: eligibility.recipeSHA256}
 }

@@ -100,6 +100,35 @@ func executeWithPlan(
 	}, nil
 }
 
+// ValidateExistingCandidate runs the production derivation and full S4
+// validator against the exact repository/feature/ID named by the caller.
+func ValidateExistingCandidate(reference, upstream *ReferenceRoot, root *CandidateRoot, patch string, effects []gitutil.PatchEffect, slug, candidateID string, featureLock *candidatelock.Handle) (ExecutionResult, error) {
+	if _, err := resolveExecutionRepoRoot(reference, upstream); err != nil {
+		return ExecutionResult{}, err
+	}
+	if err := root.ensureAvailable(); err != nil {
+		return ExecutionResult{}, err
+	}
+	if root.slug != slug || root.candidateID != candidateID || root.commit != upstream.commit ||
+		root.repo.path != upstream.repo.path || !os.SameFile(root.repo.identity, upstream.repo.identity) {
+		return ExecutionResult{}, fmt.Errorf("candidate root repository/feature/identity mismatch")
+	}
+	release, err := root.borrowFeatureLock(featureLock)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+	defer release()
+	plan, err := derive(reference, upstream, patch, effects)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+	result, err := validateCandidate(reference, upstream, root, patch, effects, plan)
+	if err != nil {
+		return ExecutionResult{}, err
+	}
+	return ExecutionResult{Root: root, Plan: plan, EffectMap: result.effectMap, TreeHash: result.treeHash, Diff: result.diff}, nil
+}
+
 func abandonCandidate(candidateRoot *CandidateRoot, featureLock *candidatelock.Handle, cause error) (ExecutionResult, error) {
 	if candidateRoot == nil {
 		if cause == nil {

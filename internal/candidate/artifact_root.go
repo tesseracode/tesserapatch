@@ -481,7 +481,127 @@ func (r *ReferenceRoot) ReadCandidateMetadata(slug, candidateID string) (Candida
 	if err != nil {
 		return CandidateArtifact{}, CandidateState{}, err
 	}
+	if artifact.Feature != slug || artifact.CandidateID != candidateID || state.CandidateID != candidateID {
+		return CandidateArtifact{}, CandidateState{}, fmt.Errorf("candidate metadata namespace/identity mismatch")
+	}
 	return artifact, state, nil
+}
+
+type CandidateMetadata struct {
+	Artifact CandidateArtifact
+	State    CandidateState
+}
+
+// ListCandidateMetadata includes incomplete directories as errors, so a failed
+// publication cannot hide from preflight merely because no pointer was saved.
+func (r *ReferenceRoot) ListCandidateMetadata(slug string) ([]CandidateMetadata, error) {
+	root, err := r.openCandidateSlugRoot(slug, false)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer root.close()
+	dir, err := root.root.Open(".")
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	entries, err := dir.ReadDir(-1)
+	if err != nil {
+		return nil, err
+	}
+	var result []CandidateMetadata
+	for _, entry := range entries {
+		if !candidateIDPattern.MatchString(entry.Name()) {
+			continue
+		}
+		if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() {
+			return nil, fmt.Errorf("candidate metadata directory is not a regular directory")
+		}
+		artifact, state, err := r.ReadCandidateMetadata(slug, entry.Name())
+		if err != nil {
+			return nil, fmt.Errorf("candidate %s metadata is incomplete: %w", entry.Name(), err)
+		}
+		result = append(result, CandidateMetadata{Artifact: artifact, State: state})
+	}
+	return result, nil
+}
+
+func (r *ReferenceRoot) CandidateWorktreePresent(slug, candidateID string) (bool, error) {
+	if err := r.ensureAvailable(); err != nil {
+		return false, err
+	}
+	rel, err := CandidateWorktreeRelative(slug, candidateID)
+	if err != nil {
+		return false, err
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, path.Dir(rel), false); err != nil {
+		return false, err
+	}
+	info, err := r.repo.root.Lstat(rel)
+	if err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return false, fmt.Errorf("candidate worktree is not a regular directory")
+		}
+		return true, nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return false, err
+	}
+	entries, err := registeredWorktrees(r.repo)
+	if err != nil {
+		return false, err
+	}
+	canonical, err := filepath.EvalSymlinks(r.repo.path)
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range entries {
+		if filepath.Clean(entry.path) == filepath.Join(canonical, filepath.FromSlash(rel)) ||
+			filepath.Clean(entry.path) == filepath.Join(r.repo.path, filepath.FromSlash(rel)) {
+			return false, fmt.Errorf("candidate worktree is missing but remains registered")
+		}
+	}
+	return false, nil
+}
+
+// WriteCandidateState can finish a terminal transition after the worktree
+// has been pruned; it never reopens an accepted/rejected audit for mutation.
+func (r *ReferenceRoot) WriteCandidateState(slug, candidateID string, state CandidateState, featureLock *candidatelock.Handle) error {
+	release, err := r.borrowFeatureLock(slug, featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
+	_, current, err := r.ReadCandidateMetadata(slug, candidateID)
+	if err != nil {
+		return err
+	}
+	if state.CandidateID != candidateID {
+		return fmt.Errorf("candidate state/id mismatch")
+	}
+	if current == state {
+		return nil
+	}
+	if current.Status == CandidateStatusAccepted || current.Status == CandidateStatusRejected {
+		return fmt.Errorf("candidate-not-pending")
+	}
+	if state.Status != CandidateStatusStale && state.Status != CandidateStatusRejected {
+		return fmt.Errorf("metadata-only state writes must be terminal")
+	}
+	body, err := EncodeCandidateState(state)
+	if err != nil {
+		return err
+	}
+	rel, _ := CandidateDirectoryRelative(slug, candidateID)
+	root, err := r.repo.openNestedRoot(rel)
+	if err != nil {
+		return err
+	}
+	defer root.close()
+	return rewriteRootedRegularFile(root.root, CandidateStateName, body)
 }
 
 func rewriteRootedRegularFile(root *os.Root, name string, body []byte) error {
@@ -762,7 +882,11 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 }
 
 func (r *CandidateRoot) loadRegisteredWorktrees() ([]worktreeListEntry, error) {
-	raw, stderr, err := runGitWithIdentity(r.repo, nil, "worktree", "list", "--porcelain")
+	return registeredWorktrees(r.repo)
+}
+
+func registeredWorktrees(repo *heldRoot) ([]worktreeListEntry, error) {
+	raw, stderr, err := runGitWithIdentity(repo, nil, "worktree", "list", "--porcelain")
 	if err != nil {
 		return nil, fmt.Errorf("read worktree registry: %v: %s", err, strings.TrimSpace(stderr))
 	}

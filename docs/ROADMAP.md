@@ -1630,6 +1630,9 @@ New four-hour authorization: 2026-10-30 22:08:53 UTC through
 archive/push and clean main before S6. Continue within #13 only while
 authorized; stop after #13 or at the deadline, and never start #9 in this run.
 Unrelated migrations/coverage widening stay out of scope.
+Fix-forward draft replaces caller-asserted preparation with the private S2
+mint path and a continuous-lock finalizer, plus pending inventory/retry-safe
+cleanup. Focused negative regressions are added; validation/review remain pending.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

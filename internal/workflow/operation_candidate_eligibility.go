@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/tesseracode/tesserapatch/internal/candidate"
+	"github.com/tesseracode/tesserapatch/internal/gitutil"
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
@@ -26,6 +27,13 @@ type operationCandidateEligibility struct {
 	patchSHA256, recipeSHA256          string
 	referenceCommit, upstreamCommit    string
 	sourceFeatureState                 store.FeatureState
+	inputs                             *operationCandidateValidatedInputs
+}
+
+type operationCandidateValidatedInputs struct {
+	patch        string
+	effects      []gitutil.PatchEffect
+	effectHashes map[int]string
 }
 
 type operationEligibilityContext struct {
@@ -80,6 +88,16 @@ func assessOperationCandidateEligibility(s *store.Store, slug string, invocation
 	}
 	c.result.gate = 0
 	c.result.eligible = true
+	inputs := &operationCandidateValidatedInputs{
+		patch:        string(c.snapshot.Patch.Bytes),
+		effects:      make([]gitutil.PatchEffect, len(c.observation.Effects)),
+		effectHashes: make(map[int]string, len(c.coverage.Effects)),
+	}
+	for i, effect := range c.observation.Effects {
+		inputs.effects[i] = effect.Effect
+		inputs.effectHashes[effect.Effect.Ordinal] = c.coverage.Effects[i].EffectSHA256
+	}
+	c.result.inputs = inputs
 	return c.result, nil
 }
 

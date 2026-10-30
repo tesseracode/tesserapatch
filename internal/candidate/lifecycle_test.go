@@ -5,133 +5,23 @@ import (
 	"testing"
 )
 
-func TestBuildCandidateArtifactExpectedIDAndTreeHashSemantics(t *testing.T) {
-	root, reference, upstream, patch, effects := executionFixture(t)
+func TestDescribeDerivationContainsMetadataOnly(t *testing.T) {
+	_, reference, upstream, patch, effects := executionFixture(t)
 	effectHashes := make(map[int]string, len(effects))
 	for i, effect := range effects {
 		_ = effect
 		nibble := string(rune('a' + (i % 6)))
 		effectHashes[i+1] = strings.Repeat(nibble, 64)
 	}
-	bindings := CandidateBindings{
-		CaptureEventSHA256: strings.Repeat("1", 64),
-		CoverageSHA256:     strings.Repeat("2", 64),
-		PatchSHA256:        strings.Repeat("3", 64),
-		RecipeSHA256:       strings.Repeat("4", 64),
-	}
-	preparation, err := PrepareCandidateArtifact(CandidatePrepareInput{
-		Feature:               "demo-feature",
-		SourceFeatureState:    "applied",
-		UpstreamCommit:        upstream.Commit(),
-		ReferenceCommit:       reference.Commit(),
-		Bindings:              bindings,
-		Reference:             reference,
-		Upstream:              upstream,
-		Patch:                 patch,
-		Effects:               effects,
-		EffectSHA256ByOrdinal: effectHashes,
-	})
+	metadata, err := DescribeDerivation(reference, upstream, patch, effects, effectHashes)
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidateID, err := preparation.CandidateID()
-	if err != nil {
-		t.Fatal(err)
+	if metadata.EffectCount != len(effects) || metadata.CandidateApplicableCount == 0 || metadata.ConflictCount != 0 {
+		t.Fatalf("unexpected derivation metadata: %+v", metadata)
 	}
-	featureLock := acquireFeatureLock(t, root, "demo-feature")
-	defer releaseLock(t, featureLock)
-	validExecution, err := Execute(reference, upstream, patch, effects, "demo-feature", candidateID, featureLock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = validExecution.Root.Close() }()
-	artifact, err := BuildCandidateArtifact(CandidateMaterializeInput{
-		Preparation: preparation,
-		Execution:   validExecution,
-		FeatureLock: featureLock,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(artifact.Result.CandidateTreeSHA256) != 64 || artifact.Result.CandidateTreeSHA256 == strings.Repeat("c", 40) {
-		t.Fatalf("candidate_tree_sha256 is not SHA-256 integrity hash: %q", artifact.Result.CandidateTreeSHA256)
-	}
-	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
-		Preparation: preparation,
-		Execution:   validExecution,
-		FeatureLock: nil,
-	}); err == nil {
-		t.Fatal("BuildCandidateArtifact accepted missing feature lock capability")
-	}
-	wrongFeatureLock := acquireFeatureLock(t, root, "other-feature")
-	defer releaseLock(t, wrongFeatureLock)
-	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
-		Preparation: preparation,
-		Execution:   validExecution,
-		FeatureLock: wrongFeatureLock,
-	}); err == nil {
-		t.Fatal("BuildCandidateArtifact accepted wrong feature lock capability")
-	}
-	if _, err := preparation.ValidateReusableCandidate(validExecution.Root, nil); err == nil {
-		t.Fatal("ValidateReusableCandidate accepted missing feature lock capability")
-	}
-	for _, execution := range []ExecutionResult{
-		{
-			Root:      validExecution.Root,
-			Plan:      validExecution.Plan,
-			EffectMap: validExecution.EffectMap,
-			TreeHash:  "",
-			Diff:      "",
-		},
-		{
-			Root:      validExecution.Root,
-			Plan:      validExecution.Plan,
-			EffectMap: validExecution.EffectMap,
-			TreeHash:  strings.Repeat("a", 40),
-			Diff:      validExecution.Diff,
-		},
-		{
-			Root:      validExecution.Root,
-			Plan:      validExecution.Plan,
-			EffectMap: validExecution.EffectMap,
-			TreeHash:  validExecution.TreeHash,
-			Diff:      validExecution.Diff + "tampered",
-		},
-	} {
-		if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
-			Preparation: preparation,
-			Execution:   execution,
-			FeatureLock: featureLock,
-		}); err == nil {
-			t.Fatal("BuildCandidateArtifact accepted unverified execution output")
-		}
-	}
-	tamperedPreparation, err := PrepareCandidateArtifact(CandidatePrepareInput{
-		Feature:            "demo-feature",
-		SourceFeatureState: "applied",
-		UpstreamCommit:     upstream.Commit(),
-		ReferenceCommit:    reference.Commit(),
-		Bindings: CandidateBindings{
-			CaptureEventSHA256: strings.Repeat("1", 64),
-			CoverageSHA256:     strings.Repeat("2", 64),
-			PatchSHA256:        strings.Repeat("3", 64),
-			RecipeSHA256:       strings.Repeat("f", 64),
-		},
-		Reference:             reference,
-		Upstream:              upstream,
-		Patch:                 patch,
-		Effects:               effects,
-		EffectSHA256ByOrdinal: effectHashes,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
-		Preparation: tamperedPreparation,
-		Execution:   validExecution,
-		FeatureLock: featureLock,
-	}); err == nil {
-		t.Fatal("BuildCandidateArtifact accepted mismatched prepared bindings/candidate id")
+	if _, err := DescribeDerivation(reference, upstream, patch, effects, nil); err == nil {
+		t.Fatal("missing descriptor map accepted")
 	}
 }
 

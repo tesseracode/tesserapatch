@@ -32,6 +32,24 @@ integrity rechecks that never rely on mutable labels.
 6. **Rejected log authority**: `rejected.jsonl` lines contain metadata only
    (`candidate_id`, source state, commits, four binding hashes), no timestamp
    and no source/diff bodies.
+7. **Preparation mint site**: keep preparation private to workflow, where the
+   existing strict E1-E15 evaluator lives. Recompute eligibility and retain its
+   exact patch/effect/descriptor snapshot; accept no caller-provided eligibility,
+   binding digest map or execution-success callback. Candidate helpers expose
+   derivation metadata and typed structural revalidation, not a second
+   eligibility authority. This avoids copying decoders or creating a package
+   cycle merely to preserve the draft's unsafe public preparation constructor.
+8. **Continuous finalization hold**: under one borrowed feature capability,
+   revalidate recovery/coexistence, current eligibility/state/bindings, rejected
+   IDs and the existing candidate before creation. Keep global holds limited
+   to worktree add/remove. Bind reuse to the actual rooted candidate's metadata
+   and the same preparation; re-run production structural validation.
+9. **Failure consistency**: inventory pending candidate metadata under the
+   feature hold, not just the status pointer. Orphan/incomplete publication must
+   disable derivation, never become an invisible pending candidate. Prune before
+   terminal stale/rejected state changes; detect and finish safe interrupted
+   pointer cleanup or refuse explicitly. A failed operation is not success,
+   and this generation lifecycle does not introduce an acceptance journal.
 
 ## Non-goals in this draft
 

@@ -411,97 +411,40 @@ func TestROCS5RejectAndRejectedLogLifecycle(t *testing.T) {
 }
 
 func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
-	s := slice2Store(t)
-	git(t, s.Root, "init", "-q")
-	git(t, s.Root, "config", "user.email", "test@example.invalid")
-	git(t, s.Root, "config", "user.name", "test")
-	writeRepoFile(t, s, "tracked.txt", []byte("v1\n"))
-	git(t, s.Root, "add", "tracked.txt")
-	git(t, s.Root, "commit", "-qm", "base")
-	baseCommit := strings.TrimSpace(git(t, s.Root, "rev-parse", "HEAD"))
-	writeRepoFile(t, s, "tracked.txt", []byte("v1\nv2\n"))
-	git(t, s.Root, "add", "tracked.txt")
-	git(t, s.Root, "commit", "-qm", "feature")
-	featureCommit := strings.TrimSpace(git(t, s.Root, "rev-parse", "HEAD"))
-	patch := lifecycleGitOutput(t, s.Root, "diff", "--binary", baseCommit, featureCommit, "--", "tracked.txt")
-	effects := reconstructLifecycleEffects(t, s.Root, baseCommit, patch)
-	effectSHA256ByOrdinal := map[int]string{}
-	for i := range effects {
-		nibble := string(rune('a' + (i % 6)))
-		effectSHA256ByOrdinal[i+1] = strings.Repeat(nibble, 64)
-	}
-	upstream := baseCommit
-	feature, err := s.AddFeature(store.AddFeatureInput{Title: "Reuse fixture"})
+	f := rocS2NewFixture(t, true)
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
 	if err != nil {
 		t.Fatal(err)
 	}
-	feature.State = store.StateApplied
-	if err := s.SaveFeatureStatus(feature); err != nil {
-		t.Fatal(err)
-	}
-	prepared, err := prepareOperationCandidate(s, feature.Slug, operationCandidateEligibility{
-		coverageSHA256:     strings.Repeat("2", 64),
-		captureEventSHA256: strings.Repeat("1", 64),
-		patchSHA256:        strings.Repeat("3", 64),
-		recipeSHA256:       strings.Repeat("4", 64),
-		referenceCommit:    upstream,
-		upstreamCommit:     upstream,
-	}, patch, effects, effectSHA256ByOrdinal)
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reference, err := openOperationCandidateReference(s.Root, upstream)
+	reused, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil || reused.CandidateID != artifact.CandidateID {
+		t.Fatalf("real validated reuse failed: %+v %v", reused, err)
+	}
+	status, err := f.s.LoadFeatureStatus(f.slug)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = reference.Close() }()
-	upstreamRoot, err := openOperationCandidateReference(s.Root, upstream)
+	reference, err := openOperationCandidateReference(f.s.Root, f.invocation.upstreamCommit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = upstreamRoot.Close() }()
-	featureLockPath := filepath.Join(s.Root, ".tpatch", "locks", "reconcile", feature.Slug+".lock")
-	featureLock, err := candidatelock.TryAcquire(featureLockPath)
+	defer reference.Close()
+	_, _, existingRoot, existingReference, err := readOperationCandidateArtifacts(f.s.Root, reference, f.slug, status.Reconcile.OperationCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
-	execution, err := candidate.Execute(reference, upstreamRoot, patch, effects, feature.Slug, prepared.CandidateID, featureLock)
-	if err := featureLock.Release(); err != nil {
-		t.Fatal(err)
-	}
+	defer existingRoot.Close()
+	defer existingReference.Close()
+	reuseLock, err := candidatelock.TryAcquire(filepath.Join(f.s.Root, ".tpatch", "locks", "reconcile", f.slug+".lock"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	artifact, err := publishOperationCandidate(s, feature.Slug, prepared, execution)
-	if err != nil {
-		t.Fatal(err)
-	}
-	status, err := s.LoadFeatureStatus(feature.Slug)
-	if err != nil {
-		t.Fatal(err)
-	}
-	existingArtifact, existingState, existingRoot, existingReference, err := readOperationCandidateArtifacts(s.Root, reference, feature.Slug, status.Reconcile.OperationCandidate)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = existingRoot.Close() }()
-	defer func() { _ = existingReference.Close() }()
-	reuseLock, err := candidatelock.TryAcquire(filepath.Join(s.Root, ".tpatch", "locks", "reconcile", feature.Slug+".lock"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = reuseLock.Release() }()
-	reuse, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot, reuseLock)
-	if err != nil || !reuse.Reusable {
-		t.Fatalf("reuse should require full production validator pass: reuse=%+v err=%v", reuse, err)
-	}
-	collision := artifact
-	collision.Bindings.RecipeSHA256 = strings.Repeat("f", 64)
-	reuse, err = operationCandidateReuseCheck(prepared.Preparation, artifact, existingState, collision, existingRoot, reuseLock)
-	if err != nil || reuse.RefusalCode != "candidate-id-collision" {
-		t.Fatalf("collision should refuse before validation: reuse=%+v err=%v", reuse, err)
-	}
-	path := filepath.Join(s.Root, filepath.FromSlash(status.Reconcile.OperationCandidate.Path), candidate.CandidateMetadataName)
+	defer reuseLock.Release()
+	path := filepath.Join(f.s.Root, filepath.FromSlash(status.Reconcile.OperationCandidate.Path), candidate.CandidateMetadataName)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -522,37 +465,13 @@ func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
 	if err := os.WriteFile(path, bad, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	latestStatus, err := s.LoadFeatureStatus(feature.Slug)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if latestStatus.Reconcile.OperationCandidate == nil {
-		t.Fatal("tamper precondition lost candidate pointer")
-	}
-	if latestStatus.Reconcile.OperationCandidate.Status != candidate.CandidateStatusPending {
-		t.Fatalf("tamper precondition requires pending pointer status, got %q", latestStatus.Reconcile.OperationCandidate.Status)
-	}
-	metadataReference, err := openOperationCandidateReference(s.Root, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := metadataReference.ReadCandidateMetadata(feature.Slug, artifact.CandidateID); err == nil {
-		_ = metadataReference.Close()
-		t.Fatal("tamper precondition did not corrupt candidate metadata")
-	}
-	_ = metadataReference.Close()
-	got, err := runOperationCandidatePreflight(s, feature.Slug, candidate.CandidateStalenessInput{
-		UpstreamCommit:     upstream,
-		SourceFeatureState: "applied",
-		Bindings:           artifact.Bindings,
-	})
-	if err == nil && got.DerivationEnabled {
-		t.Fatalf("tampered candidate metadata unexpectedly granted authority: %+v", got)
+	if _, err := operationCandidateReuseCheck(prepared, existingRoot, reuseLock); err == nil {
+		t.Fatal("tampered artifact granted reuse")
 	}
 	if err := os.RemoveAll(existingRoot.WorktreePath()); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot, reuseLock); err == nil {
+	if _, err := operationCandidateReuseCheck(prepared, existingRoot, reuseLock); err == nil {
 		t.Fatal("reuse unexpectedly accepted missing candidate worktree")
 	}
 }
@@ -566,6 +485,222 @@ func TestROCS5CoexistenceRefusals(t *testing.T) {
 	status.Reconcile.ShadowPath = "shadow"
 	if code := operationCandidateCoexistenceRefusal(status, "candidate-action"); code != "shadow-pending" {
 		t.Fatalf("candidate coexistence refusal mismatch: %q", code)
+	}
+}
+
+func TestROCS5ResumePreparationUsesRealEligibility(t *testing.T) {
+	for _, kind := range []string{"disabled", "forged-event", "forged-descriptor"} {
+		t.Run(kind, func(t *testing.T) {
+			f := rocS2NewFixture(t, true)
+			switch kind {
+			case "disabled":
+				cfg, _ := f.s.LoadConfig()
+				cfg.OperationCandidateEnabled = false
+				if err := f.s.SaveConfig(cfg); err != nil {
+					t.Fatal(err)
+				}
+			case "forged-event":
+				f.event.CoverageSHA256 = strings.Repeat("f", 64)
+				raw, _ := json.Marshal(f.event)
+				f.write(t, "recipe-capture-event.json", raw)
+			case "forged-descriptor":
+				f.coverage.Effects[0].EffectSHA256 = strings.Repeat("f", 64)
+				f.save(t)
+			}
+			if _, err := prepareOperationCandidate(f.s, f.slug, f.invocation); err == nil {
+				t.Fatal("unproved eligibility granted preparation")
+			}
+			if _, err := os.Stat(filepath.Join(f.s.Root, ".tpatch", "reconcile-candidates", f.slug)); !os.IsNotExist(err) {
+				t.Fatalf("refused preparation created candidate namespace: %v", err)
+			}
+		})
+	}
+}
+
+func TestROCS5ResumeFinalizationRechecksStateBindingsAndRejection(t *testing.T) {
+	for _, kind := range []string{"source-state", "recipe", "rejection", "recovery", "shadow", "other-feature"} {
+		t.Run(kind, func(t *testing.T) {
+			f := rocS2NewFixture(t, true)
+			prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := json.Marshal(prepared); err == nil {
+				t.Fatal("preparation serialized")
+			}
+			slug := f.slug
+			switch kind {
+			case "source-state":
+				f.changeStatus(t, func(s *store.FeatureStatus) { s.State = store.StateBlocked })
+			case "recipe":
+				f.recipe = append(f.recipe, '\n')
+				f.rebindRecipe()
+				f.save(t)
+			case "rejection":
+				lock, _, err := acquireOperationCandidateFeatureLock(f.s.Root, f.slug)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ref, err := openOperationCandidateReference(f.s.Root, prepared.eligibility.upstreamCommit)
+				if err != nil {
+					t.Fatal(err)
+				}
+				b := operationCandidateBindings(prepared.eligibility)
+				err = ref.AppendRejectedRecord(f.slug, candidate.CandidateRejectedRecord{
+					CandidateID: prepared.candidateID, SourceFeatureState: string(prepared.eligibility.sourceFeatureState),
+					UpstreamCommit: prepared.eligibility.upstreamCommit, ReferenceCommit: prepared.eligibility.referenceCommit,
+					CaptureEventSHA256: b.CaptureEventSHA256, CoverageSHA256: b.CoverageSHA256,
+					PatchSHA256: b.PatchSHA256, RecipeSHA256: b.RecipeSHA256,
+				}, lock)
+				_ = ref.Close()
+				_ = lock.Release()
+				if err != nil {
+					t.Fatal(err)
+				}
+			case "recovery":
+				dir := filepath.Join(f.s.Root, ".tpatch", "reconcile-candidates", f.slug, prepared.candidateID)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, candidate.CandidateJournalName), []byte("{}"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			case "shadow":
+				f.changeStatus(t, func(s *store.FeatureStatus) { s.Reconcile.ShadowPath = "shadow" })
+			case "other-feature":
+				slug = "other-feature"
+			}
+			if _, err := finalizeOperationCandidate(f.s, slug, prepared); err == nil {
+				t.Fatal("stale or unrelated preparation published")
+			}
+			tree := filepath.Join(f.s.Root, ".tpatch", "reconcile-candidates", slug, prepared.candidateID, "worktree")
+			if _, err := os.Stat(tree); !os.IsNotExist(err) {
+				t.Fatalf("refusal created a worktree: %v", err)
+			}
+		})
+	}
+}
+
+func TestROCS5ResumeRejectGlobalContentionPreservesPendingPair(t *testing.T) {
+	f := newROCS5LifecycleFixture(t)
+	global, err := candidatelock.TryAcquire(filepath.Join(f.store.Root, ".tpatch", "locks", "worktree-mutation.lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rejectPendingOperationCandidate(f.store, f.slug); err == nil {
+		t.Fatal("contended prune succeeded")
+	}
+	ref, err := openOperationCandidateReference(f.store.Root, f.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ref.Close()
+	_, state, err := ref.ReadCandidateMetadata(f.slug, f.artifact.CandidateID)
+	if err != nil || state.Status != candidate.CandidateStatusPending {
+		t.Fatalf("contention changed terminal state: %+v %v", state, err)
+	}
+	status, err := f.store.LoadFeatureStatus(f.slug)
+	if err != nil || status.Reconcile.OperationCandidate == nil || status.Reconcile.OperationCandidate.Status != candidate.CandidateStatusPending {
+		t.Fatalf("contention changed pointer: %+v %v", status, err)
+	}
+	if err := global.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rejectPendingOperationCandidate(f.store, f.slug); err != nil {
+		t.Fatal(err)
+	}
+	status, _ = f.store.LoadFeatureStatus(f.slug)
+	if status.Reconcile.OperationCandidate != nil {
+		t.Fatal("rejection retry left pointer")
+	}
+}
+
+func TestROCS5ResumeRejectStatusFailureCanFinishUnderNextHold(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("requires enforced Unix directory permissions")
+	}
+	f := newROCS5LifecycleFixture(t)
+	dir := filepath.Join(f.store.Root, ".tpatch", "features", f.slug)
+	if err := os.Chmod(dir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
+	if _, err := rejectPendingOperationCandidate(f.store, f.slug); err == nil {
+		t.Fatal("status failure was swallowed")
+	}
+	if err := os.Chmod(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
+		UpstreamCommit: f.upstreamCommit, SourceFeatureState: "blocked", Bindings: f.artifact.Bindings,
+	})
+	if err != nil || !got.DerivationEnabled {
+		t.Fatalf("failed rejection did not finish safely: %+v %v", got, err)
+	}
+	status, _ := f.store.LoadFeatureStatus(f.slug)
+	if status.Reconcile.OperationCandidate != nil {
+		t.Fatal("incomplete rejection still has a pointer")
+	}
+	if _, err := os.Stat(filepath.Join(f.store.Root, filepath.FromSlash(f.pointerPath), "worktree")); !os.IsNotExist(err) {
+		t.Fatalf("old worktree retained after retry: %v", err)
+	}
+}
+
+func TestROCS5ResumeOrphanPendingNeverEnablesDerivation(t *testing.T) {
+	f := newROCS5LifecycleFixture(t)
+	status, _ := f.store.LoadFeatureStatus(f.slug)
+	status.Reconcile.OperationCandidate = nil
+	if err := f.store.SaveFeatureStatus(status); err != nil {
+		t.Fatal(err)
+	}
+	got, err := runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
+		UpstreamCommit: f.upstreamCommit, SourceFeatureState: "blocked", Bindings: f.artifact.Bindings,
+	})
+	if err == nil || got.DerivationEnabled {
+		t.Fatalf("orphan pending was invisible: %+v %v", got, err)
+	}
+}
+
+func TestROCS5ResumePublicationFailureDoesNotLeavePendingOrphan(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("requires enforced Unix directory permissions")
+	}
+	f := rocS2NewFixture(t, true)
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(f.s.Root, ".tpatch", "features", f.slug)
+	if err := os.Chmod(dir, 0500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
+	if _, err := finalizeOperationCandidate(f.s, f.slug, prepared); err == nil {
+		t.Fatal("pointer write failure was swallowed")
+	}
+	if err := os.Chmod(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	status, _ := f.s.LoadFeatureStatus(f.slug)
+	if status.Reconcile.OperationCandidate != nil {
+		t.Fatal("failed publication left pointer")
+	}
+	ref, err := openOperationCandidateReference(f.s.Root, f.invocation.upstreamCommit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ref.Close()
+	_, state, err := ref.ReadCandidateMetadata(f.slug, prepared.candidateID)
+	if err != nil || state.Status != candidate.CandidateStatusStale {
+		t.Fatalf("failed publication left pending metadata: %+v %v", state, err)
+	}
+	present, err := ref.CandidateWorktreePresent(f.slug, prepared.candidateID)
+	if err != nil || present {
+		t.Fatalf("failed publication retained worktree: %t %v", present, err)
+	}
+	// A fully validated retry can reuse the retained immutable audit.
+	if _, err := finalizeOperationCandidate(f.s, f.slug, prepared); err != nil {
+		t.Fatal(err)
 	}
 }
 
