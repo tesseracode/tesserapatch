@@ -700,14 +700,29 @@ func (r *CandidateRoot) borrowMutationLocks(featureLock, worktreeMutationLock *c
 	return &borrowedMutationLocks{releaseGlobal: releaseGlobal, releaseFeature: releaseFeature}, nil
 }
 
+func (r *CandidateRoot) borrowFeatureLock(featureLock *candidatelock.Handle) (func(), error) {
+	if featureLock == nil {
+		return nil, fmt.Errorf("feature lock handle is required")
+	}
+	featurePath := r.featureLockPath()
+	if err := r.ensureLockPathBoundToRepo(featurePath); err != nil {
+		return nil, err
+	}
+	return featureLock.Borrow(featurePath)
+}
+
 func (r *CandidateRoot) ensureLockPathBoundToRepo(lockPath string) error {
-	if r.repo == nil || r.repo.root == nil {
+	return ensureLockPathBoundToRepo(r.repo, r.repoRoot, lockPath)
+}
+
+func ensureLockPathBoundToRepo(repo *heldRoot, repoRoot, lockPath string) error {
+	if repo == nil || repo.root == nil {
 		return fmt.Errorf("repository root is not initialized")
 	}
-	if err := safety.EnsureSafeRepoPath(r.repoRoot, lockPath); err != nil {
+	if err := safety.EnsureSafeRepoPath(repoRoot, lockPath); err != nil {
 		return fmt.Errorf("lock path escaped repository root: %w", err)
 	}
-	rel, err := filepath.Rel(r.repoRoot, lockPath)
+	rel, err := filepath.Rel(repoRoot, lockPath)
 	if err != nil {
 		return fmt.Errorf("resolve lock path relative to repo root: %w", err)
 	}
@@ -715,7 +730,7 @@ func (r *CandidateRoot) ensureLockPathBoundToRepo(lockPath string) error {
 	if err != nil {
 		return fmt.Errorf("normalize lock path relative to repo root: %w", err)
 	}
-	info, err := r.repo.root.Lstat(normalized)
+	info, err := repo.root.Lstat(normalized)
 	if err != nil {
 		return fmt.Errorf("stat lock path from held repo root: %w", err)
 	}

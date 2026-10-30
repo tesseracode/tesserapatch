@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/tesseracode/tesserapatch/internal/candidatelock"
 	"github.com/tesseracode/tesserapatch/internal/safety"
 )
 
@@ -84,30 +85,40 @@ func (r *ReferenceRoot) FindCandidateRecoveryJournal(slug string) (string, error
 		return "", err
 	}
 	defer func() { _ = slugRoot.close() }()
-	var found string
-	walkErr := filepath.WalkDir(slugRoot.path, func(current string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		mode := entry.Type()
-		if mode&os.ModeSymlink != 0 || mode&os.ModeIrregular != 0 {
-			return fmt.Errorf("candidate slug path changed unexpectedly")
-		}
-		if entry.IsDir() || entry.Name() != CandidateJournalName {
-			return nil
-		}
-		relative, err := filepath.Rel(r.repo.path, current)
-		if err != nil {
-			return err
-		}
-		found = filepath.ToSlash(relative)
-		return fs.SkipAll
-	})
-	if walkErr != nil && !errors.Is(walkErr, fs.SkipAll) {
-		return "", walkErr
+	entries, err := os.ReadDir(slugRoot.path)
+	if err != nil {
+		return "", err
 	}
-	if found != "" {
-		return found, nil
+	for _, entry := range entries {
+		mode := entry.Type()
+		if mode == 0 {
+			info, infoErr := entry.Info()
+			if infoErr != nil {
+				return "", infoErr
+			}
+			mode = info.Mode()
+		}
+		if mode&os.ModeSymlink != 0 || mode&os.ModeIrregular != 0 {
+			return "", fmt.Errorf("candidate slug metadata path changed unexpectedly")
+		}
+		if !mode.IsDir() {
+			continue
+		}
+		if !candidateIDPattern.MatchString(entry.Name()) {
+			continue
+		}
+		relative := path.Join(entry.Name(), CandidateJournalName)
+		info, statErr := slugRoot.root.Lstat(relative)
+		if statErr != nil {
+			if errors.Is(statErr, fs.ErrNotExist) {
+				continue
+			}
+			return "", statErr
+		}
+		if err := validateRegularFileMode(info.Mode(), relative); err != nil {
+			return "", err
+		}
+		return path.Join(".tpatch", "reconcile-candidates", slug, relative), nil
 	}
 	return "", nil
 }
@@ -153,13 +164,18 @@ func (r *ReferenceRoot) ReadRejectedRecords(slug string) ([]CandidateRejectedRec
 	return rows, nil
 }
 
-func (r *ReferenceRoot) AppendRejectedRecord(slug string, record CandidateRejectedRecord) error {
+func (r *ReferenceRoot) AppendRejectedRecord(slug string, record CandidateRejectedRecord, featureLock *candidatelock.Handle) error {
 	if r == nil {
 		return fmt.Errorf("reference root is nil")
 	}
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
+	release, err := r.borrowFeatureLock(slug, featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
 	body, err := EncodeRejectedRecord(record)
 	if err != nil {
 		return err
@@ -172,13 +188,18 @@ func (r *ReferenceRoot) AppendRejectedRecord(slug string, record CandidateReject
 	return appendRootedRegularFile(slugRoot.root, CandidateRejectedName, body)
 }
 
-func (r *ReferenceRoot) ClearRejectedRecords(slug string) error {
+func (r *ReferenceRoot) ClearRejectedRecords(slug string, featureLock *candidatelock.Handle) error {
 	if r == nil {
 		return fmt.Errorf("reference root is nil")
 	}
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
+	release, err := r.borrowFeatureLock(slug, featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
 	slugRoot, err := r.openCandidateSlugRoot(slug, true)
 	if err != nil {
 		return err
@@ -216,10 +237,19 @@ func (r *CandidateRoot) ReadPatch() ([]byte, error) {
 	return readRootedRegularFile(r.parent.root, CandidatePatchName)
 }
 
-func (r *CandidateRoot) WriteArtifact(artifact CandidateArtifact) error {
+func (r *CandidateRoot) WriteArtifact(artifact CandidateArtifact, featureLock *candidatelock.Handle) error {
+	return r.writeCandidateMetadata(artifact, featureLock)
+}
+
+func (r *CandidateRoot) writeCandidateMetadata(artifact CandidateArtifact, featureLock *candidatelock.Handle) error {
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
+	release, err := r.borrowFeatureLock(featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
 	body, err := EncodeCandidateArtifact(artifact)
 	if err != nil {
 		return err
@@ -227,10 +257,15 @@ func (r *CandidateRoot) WriteArtifact(artifact CandidateArtifact) error {
 	return rewriteRootedRegularFile(r.parent.root, CandidateMetadataName, body)
 }
 
-func (r *CandidateRoot) WriteState(state CandidateState) error {
+func (r *CandidateRoot) WriteState(state CandidateState, featureLock *candidatelock.Handle) error {
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
+	release, err := r.borrowFeatureLock(featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
 	body, err := EncodeCandidateState(state)
 	if err != nil {
 		return err
@@ -238,11 +273,23 @@ func (r *CandidateRoot) WriteState(state CandidateState) error {
 	return rewriteRootedRegularFile(r.parent.root, CandidateStateName, body)
 }
 
-func (r *CandidateRoot) WritePatch(body []byte) error {
+func (r *CandidateRoot) WritePatch(body []byte, featureLock *candidatelock.Handle) error {
 	if err := r.ensureAvailable(); err != nil {
 		return err
 	}
+	release, err := r.borrowFeatureLock(featureLock)
+	if err != nil {
+		return err
+	}
+	defer release()
 	return rewriteRootedRegularFile(r.parent.root, CandidatePatchName, body)
+}
+
+func WriteCandidateMetadata(root *CandidateRoot, artifact CandidateArtifact, featureLock *candidatelock.Handle) error {
+	if root == nil {
+		return fmt.Errorf("candidate root is nil")
+	}
+	return root.writeCandidateMetadata(artifact, featureLock)
 }
 
 // OpenExistingCandidateRoot reopens an already-created candidate namespace
@@ -264,7 +311,13 @@ func OpenExistingCandidateRoot(reference *ReferenceRoot, slug, candidateID strin
 	if err != nil {
 		return nil, err
 	}
+	if err := validateRootedDirectoryPath(reference.repo.root, parentRel, false); err != nil {
+		return nil, err
+	}
 	worktreeRel := path.Join(parentRel, CandidateWorktreeName)
+	if err := validateRootedDirectoryPath(reference.repo.root, worktreeRel, false); err != nil {
+		return nil, err
+	}
 	worktreePath := filepath.Join(reference.repo.path, filepath.FromSlash(worktreeRel))
 	if err := safety.EnsureSafeRepoPath(reference.repo.path, worktreePath); err != nil {
 		return nil, fmt.Errorf("candidate worktree path escaped repository root: %w", err)
@@ -318,6 +371,11 @@ func (r *ReferenceRoot) openCandidateSlugRoot(slug string, create bool) (*heldRo
 		if err := ensureRootedDirectoryPath(r.repo.root, slugRel); err != nil {
 			return nil, err
 		}
+	} else if err := validateRootedDirectoryPath(r.repo.root, slugRel, false); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, fs.ErrNotExist
+		}
+		return nil, err
 	}
 	root, err := r.repo.openNestedRoot(slugRel)
 	if err != nil {
@@ -330,6 +388,10 @@ func (r *ReferenceRoot) openCandidateSlugRoot(slug string, create bool) (*heldRo
 }
 
 func ensureRootedDirectoryPath(root *os.Root, relative string) error {
+	return validateRootedDirectoryPath(root, relative, true)
+}
+
+func validateRootedDirectoryPath(root *os.Root, relative string, create bool) error {
 	normalized, err := normalizeRelativePath(relative)
 	if err != nil {
 		return err
@@ -347,6 +409,9 @@ func ensureRootedDirectoryPath(root *os.Root, relative string) error {
 			if !errors.Is(err, fs.ErrNotExist) {
 				return err
 			}
+			if !create {
+				return fs.ErrNotExist
+			}
 			if mkErr := root.Mkdir(current, 0o755); mkErr != nil && !errors.Is(mkErr, fs.ErrExist) {
 				return mkErr
 			}
@@ -361,6 +426,62 @@ func ensureRootedDirectoryPath(root *os.Root, relative string) error {
 		}
 	}
 	return nil
+}
+
+func (r *ReferenceRoot) borrowFeatureLock(slug string, featureLock *candidatelock.Handle) (func(), error) {
+	if featureLock == nil {
+		return nil, fmt.Errorf("feature lock handle is required")
+	}
+	slugRel, err := CandidateSlugRelative(slug)
+	if err != nil {
+		return nil, err
+	}
+	lockPath := filepath.Join(r.repo.path, ".tpatch", "locks", "reconcile", slug+".lock")
+	if err := ensureLockPathBoundToRepo(r.repo, r.repo.path, lockPath); err != nil {
+		return nil, err
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, path.Dir(slugRel), false); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	return featureLock.Borrow(lockPath)
+}
+
+func (r *ReferenceRoot) ReadCandidateMetadata(slug, candidateID string) (CandidateArtifact, CandidateState, error) {
+	if r == nil {
+		return CandidateArtifact{}, CandidateState{}, fmt.Errorf("reference root is nil")
+	}
+	if err := r.ensureAvailable(); err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	parentRel, err := CandidateDirectoryRelative(slug, candidateID)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, parentRel, false); err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	parentRoot, err := r.repo.openNestedRoot(parentRel)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	defer func() { _ = parentRoot.close() }()
+	artifactRaw, err := readRootedRegularFile(parentRoot.root, CandidateMetadataName)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	artifact, err := DecodeCandidateArtifact(artifactRaw)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	stateRaw, err := readRootedRegularFile(parentRoot.root, CandidateStateName)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	state, err := DecodeCandidateState(stateRaw)
+	if err != nil {
+		return CandidateArtifact{}, CandidateState{}, err
+	}
+	return artifact, state, nil
 }
 
 func rewriteRootedRegularFile(root *os.Root, name string, body []byte) error {
@@ -525,12 +646,27 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 	if err != nil {
 		return err
 	}
+	repoResolved, err := filepath.EvalSymlinks(r.repoRoot)
+	if err != nil {
+		return err
+	}
 	worktreesResolved, err := filepath.EvalSymlinks(filepath.Join(r.repoRoot, ".git", "worktrees"))
 	if err != nil {
 		return err
 	}
 	if !strings.HasPrefix(filepath.Clean(gitdirResolved)+string(os.PathSeparator), filepath.Clean(worktreesResolved)+string(os.PathSeparator)) {
 		return fmt.Errorf("candidate worktree gitdir is not in the repository worktree registry")
+	}
+	gitdirRelResolved, err := filepath.Rel(repoResolved, gitdirResolved)
+	if err != nil {
+		return err
+	}
+	gitdirRel, err := normalizeRelativePath(gitdirRelResolved)
+	if err != nil {
+		return fmt.Errorf("candidate worktree gitdir escaped repository root")
+	}
+	if err := validateRootedDirectoryPath(r.repo.root, gitdirRel, false); err != nil {
+		return err
 	}
 	commonRaw, stderr, err := runGitWithIdentity(r.worktree, nil, "rev-parse", "--path-format=absolute", "--git-common-dir")
 	if err != nil {
@@ -568,16 +704,29 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 	if strings.TrimSpace(string(headRaw)) != expectedCommit {
 		return fmt.Errorf("candidate worktree HEAD does not match expected commit")
 	}
+	requestedSuffix := "/" + filepath.ToSlash(filepath.Clean(r.worktreeRel))
 	entries, err := r.loadRegisteredWorktrees()
 	if err != nil {
 		return err
 	}
 	for _, entry := range entries {
-		entryInfo, err := os.Stat(entry.path)
+		entryPath := strings.TrimSpace(entry.path)
+		if entryPath == "" {
+			continue
+		}
+		if !filepath.IsAbs(entryPath) {
+			entryPath = filepath.Join(r.repoRoot, entryPath)
+		}
+		entryAbs, err := filepath.Abs(entryPath)
+		if err != nil {
+			return err
+		}
+		entryInfo, err := os.Stat(entryAbs)
 		if err != nil {
 			continue
 		}
-		if os.SameFile(entryInfo, r.worktree.identity) {
+		entryNormalized := filepath.ToSlash(filepath.Clean(entryAbs))
+		if strings.HasSuffix(entryNormalized, requestedSuffix) {
 			if entry.head != expectedCommit {
 				return fmt.Errorf("registered candidate worktree commit drifted")
 			}
@@ -585,6 +734,9 @@ func (r *CandidateRoot) validateReopenedCandidateAuthority(expectedCommit string
 				return fmt.Errorf("registered candidate worktree is not detached")
 			}
 			return nil
+		}
+		if os.SameFile(entryInfo, r.worktree.identity) {
+			return fmt.Errorf("candidate worktree registered path mismatch")
 		}
 	}
 	return fmt.Errorf("candidate worktree is not registered with git")

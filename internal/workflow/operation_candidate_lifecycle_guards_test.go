@@ -14,7 +14,7 @@ func validateROCS5LifecycleSource(source string) error {
 		"stalePendingOperationCandidate(s, slug, status, current, lock)",
 		"candidate.CandidateNeedsStaleMark",
 		"pruneOperationCandidateWorktree",
-		"appendRejectedOperationCandidate(s.Root, slug, artifact)",
+		"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)",
 		"clearOperationCandidateRejectionsLocked",
 	} {
 		if !strings.Contains(source, needle) {
@@ -46,7 +46,7 @@ func TestROCS5LifecycleSourceGuardAndSensitivity(t *testing.T) {
 		{"acquireOperationCandidateFeatureLock", "skipLockAcquire"},
 		{"findOperationCandidateRecoveryJournal", "readRecoveryJournalAfterPrune"},
 		{"stalePendingOperationCandidate(s, slug, status, current, lock)", "noopStaleCandidate(s, slug, status, current, lock)"},
-		{"appendRejectedOperationCandidate(s.Root, slug, artifact)", "writeRejectedTimestamped(s.Root, slug, artifact)"},
+		{"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)", "writeRejectedTimestamped(s.Root, slug, artifact, lock)"},
 	} {
 		if strings.Count(source, mutation[0]) == 0 {
 			t.Fatalf("missing mutation anchor %q", mutation[0])

@@ -48,12 +48,32 @@ func TestBuildCandidateArtifactExpectedIDAndTreeHashSemantics(t *testing.T) {
 	artifact, err := BuildCandidateArtifact(CandidateMaterializeInput{
 		Preparation: preparation,
 		Execution:   validExecution,
+		FeatureLock: featureLock,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(artifact.Result.CandidateTreeSHA256) != 64 || artifact.Result.CandidateTreeSHA256 == strings.Repeat("c", 40) {
 		t.Fatalf("candidate_tree_sha256 is not SHA-256 integrity hash: %q", artifact.Result.CandidateTreeSHA256)
+	}
+	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
+		Preparation: preparation,
+		Execution:   validExecution,
+		FeatureLock: nil,
+	}); err == nil {
+		t.Fatal("BuildCandidateArtifact accepted missing feature lock capability")
+	}
+	wrongFeatureLock := acquireFeatureLock(t, root, "other-feature")
+	defer releaseLock(t, wrongFeatureLock)
+	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
+		Preparation: preparation,
+		Execution:   validExecution,
+		FeatureLock: wrongFeatureLock,
+	}); err == nil {
+		t.Fatal("BuildCandidateArtifact accepted wrong feature lock capability")
+	}
+	if _, err := preparation.ValidateReusableCandidate(validExecution.Root, nil); err == nil {
+		t.Fatal("ValidateReusableCandidate accepted missing feature lock capability")
 	}
 	for _, execution := range []ExecutionResult{
 		{
@@ -81,6 +101,7 @@ func TestBuildCandidateArtifactExpectedIDAndTreeHashSemantics(t *testing.T) {
 		if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
 			Preparation: preparation,
 			Execution:   execution,
+			FeatureLock: featureLock,
 		}); err == nil {
 			t.Fatal("BuildCandidateArtifact accepted unverified execution output")
 		}
@@ -108,6 +129,7 @@ func TestBuildCandidateArtifactExpectedIDAndTreeHashSemantics(t *testing.T) {
 	if _, err := BuildCandidateArtifact(CandidateMaterializeInput{
 		Preparation: tamperedPreparation,
 		Execution:   validExecution,
+		FeatureLock: featureLock,
 	}); err == nil {
 		t.Fatal("BuildCandidateArtifact accepted mismatched prepared bindings/candidate id")
 	}

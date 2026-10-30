@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -263,17 +264,54 @@ func TestROCS5PreflightRecoveryBeforeStale(t *testing.T) {
 	}
 }
 
-func TestROCS5PreflightStalesPendingCandidateAndPreservesStateNotes(t *testing.T) {
+func TestROCS5RecoveryScanIgnoresUnrelatedWorktreeSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture is not portable on windows")
+	}
 	f := newROCS5LifecycleFixture(t)
+	outside := filepath.Join(f.store.Root, "outside.txt")
+	if err := os.WriteFile(outside, []byte("outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	worktree := filepath.Join(f.store.Root, filepath.FromSlash(f.pointerPath), candidate.CandidateWorktreeName)
+	if err := os.Symlink(outside, filepath.Join(worktree, "linked-outside.txt")); err != nil {
+		t.Fatal(err)
+	}
 	got, err := runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
 		UpstreamCommit:     f.artifact.UpstreamCommit,
 		SourceFeatureState: f.artifact.SourceFeatureState,
-		Bindings: candidate.CandidateBindings{
-			CaptureEventSHA256: f.artifact.Bindings.CaptureEventSHA256,
-			CoverageSHA256:     f.artifact.Bindings.CoverageSHA256,
-			PatchSHA256:        f.artifact.Bindings.PatchSHA256,
-			RecipeSHA256:       strings.Repeat("9", 64),
-		},
+		Bindings:           f.artifact.Bindings,
+	})
+	if err != nil || !got.DerivationEnabled || got.Reason != "" {
+		t.Fatalf("worktree symlink should not block metadata recovery scan: result=%+v err=%v", got, err)
+	}
+	journal := filepath.Join(f.store.Root, filepath.FromSlash(f.pointerPath), candidate.CandidateJournalName)
+	if err := os.WriteFile(journal, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err = runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
+		UpstreamCommit:     f.artifact.UpstreamCommit,
+		SourceFeatureState: f.artifact.SourceFeatureState,
+		Bindings:           f.artifact.Bindings,
+	})
+	if err != nil || got.Reason != "recovery-required" {
+		t.Fatalf("metadata journal must still block derivation: result=%+v err=%v", got, err)
+	}
+}
+
+func TestROCS5PreflightStalesPendingCandidateAndPreservesStateNotes(t *testing.T) {
+	f := newROCS5LifecycleFixture(t)
+	writeRepoFile(t, f.store, "tracked.txt", []byte("v2\n"))
+	git(t, f.store.Root, "add", "tracked.txt")
+	git(t, f.store.Root, "commit", "-qm", "upstream-advanced")
+	liveHead := strings.TrimSpace(git(t, f.store.Root, "rev-parse", "HEAD"))
+	if liveHead == f.artifact.UpstreamCommit {
+		t.Fatal("fixture failed to advance live HEAD")
+	}
+	got, err := runOperationCandidatePreflight(f.store, f.slug, candidate.CandidateStalenessInput{
+		UpstreamCommit:     liveHead,
+		SourceFeatureState: f.artifact.SourceFeatureState,
+		Bindings:           f.artifact.Bindings,
 	})
 	if err != nil || !got.DerivationEnabled || got.StaleCandidateID != f.artifact.CandidateID {
 		t.Fatalf("staleness preflight failed: result=%+v err=%v", got, err)
@@ -306,6 +344,13 @@ func TestROCS5PreflightStalesPendingCandidateAndPreservesStateNotes(t *testing.T
 
 func TestROCS5RejectAndRejectedLogLifecycle(t *testing.T) {
 	f := newROCS5LifecycleFixture(t)
+	writeRepoFile(t, f.store, "tracked.txt", []byte("v2\n"))
+	git(t, f.store.Root, "add", "tracked.txt")
+	git(t, f.store.Root, "commit", "-qm", "live-head-advanced")
+	liveHead := strings.TrimSpace(git(t, f.store.Root, "rev-parse", "HEAD"))
+	if liveHead == f.artifact.UpstreamCommit {
+		t.Fatal("fixture failed to advance live HEAD")
+	}
 	rejectedID, err := rejectPendingOperationCandidate(f.store, f.slug)
 	if err != nil || rejectedID != f.artifact.CandidateID {
 		t.Fatalf("reject transition failed: id=%s err=%v", rejectedID, err)
@@ -435,24 +480,24 @@ func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	existingArtifact, existingState, existingRoot, err := readOperationCandidateArtifacts(reference, feature.Slug, status.Reconcile.OperationCandidate)
+	existingArtifact, existingState, existingRoot, existingReference, err := readOperationCandidateArtifacts(s.Root, reference, feature.Slug, status.Reconcile.OperationCandidate)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = existingRoot.Close() }()
-	reuse, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot)
+	defer func() { _ = existingReference.Close() }()
+	reuseLock, err := candidatelock.TryAcquire(filepath.Join(s.Root, ".tpatch", "locks", "reconcile", feature.Slug+".lock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = reuseLock.Release() }()
+	reuse, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot, reuseLock)
 	if err != nil || !reuse.Reusable {
 		t.Fatalf("reuse should require full production validator pass: reuse=%+v err=%v", reuse, err)
 	}
-	if err := os.RemoveAll(existingRoot.WorktreePath()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot); err == nil {
-		t.Fatal("reuse unexpectedly accepted missing candidate worktree")
-	}
 	collision := artifact
 	collision.Bindings.RecipeSHA256 = strings.Repeat("f", 64)
-	reuse, err = operationCandidateReuseCheck(prepared.Preparation, artifact, existingState, collision, existingRoot)
+	reuse, err = operationCandidateReuseCheck(prepared.Preparation, artifact, existingState, collision, existingRoot, reuseLock)
 	if err != nil || reuse.RefusalCode != "candidate-id-collision" {
 		t.Fatalf("collision should refuse before validation: reuse=%+v err=%v", reuse, err)
 	}
@@ -465,7 +510,11 @@ func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
 	if err := json.Unmarshal(raw, &node); err != nil {
 		t.Fatal(err)
 	}
-	node["unknown"] = true
+	resultNode, ok := node["result"].(map[string]any)
+	if !ok {
+		t.Fatal("candidate metadata fixture missing result object")
+	}
+	resultNode["validated"] = "tests"
 	bad, err := json.Marshal(node)
 	if err != nil {
 		t.Fatal(err)
@@ -473,12 +522,38 @@ func TestROCS5ReuseValidationAndTamperedArtifactRefusal(t *testing.T) {
 	if err := os.WriteFile(path, bad, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runOperationCandidatePreflight(s, feature.Slug, candidate.CandidateStalenessInput{
+	latestStatus, err := s.LoadFeatureStatus(feature.Slug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latestStatus.Reconcile.OperationCandidate == nil {
+		t.Fatal("tamper precondition lost candidate pointer")
+	}
+	if latestStatus.Reconcile.OperationCandidate.Status != candidate.CandidateStatusPending {
+		t.Fatalf("tamper precondition requires pending pointer status, got %q", latestStatus.Reconcile.OperationCandidate.Status)
+	}
+	metadataReference, err := openOperationCandidateReference(s.Root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := metadataReference.ReadCandidateMetadata(feature.Slug, artifact.CandidateID); err == nil {
+		_ = metadataReference.Close()
+		t.Fatal("tamper precondition did not corrupt candidate metadata")
+	}
+	_ = metadataReference.Close()
+	got, err := runOperationCandidatePreflight(s, feature.Slug, candidate.CandidateStalenessInput{
 		UpstreamCommit:     upstream,
 		SourceFeatureState: "applied",
 		Bindings:           artifact.Bindings,
-	}); err == nil {
-		t.Fatal("tampered candidate metadata unexpectedly granted authority")
+	})
+	if err == nil && got.DerivationEnabled {
+		t.Fatalf("tampered candidate metadata unexpectedly granted authority: %+v", got)
+	}
+	if err := os.RemoveAll(existingRoot.WorktreePath()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := operationCandidateReuseCheck(prepared.Preparation, existingArtifact, existingState, artifact, existingRoot, reuseLock); err == nil {
+		t.Fatal("reuse unexpectedly accepted missing candidate worktree")
 	}
 }
 

@@ -189,6 +189,140 @@ func TestOpenExistingCandidateRootReusesTypedReference(t *testing.T) {
 	}
 }
 
+func TestCandidateMutationAPIsRequireFeatureLockCapability(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	featurePath := filepath.Join(root, ".tpatch", "locks", "reconcile", "demo-feature.lock")
+
+	candidateRoot, err := CreateCandidateRoot(root, "demo-feature", "rc_111111111111", head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	if err := featureLock.Release(); err != nil {
+		t.Fatalf("release seed feature lock: %v", err)
+	}
+	featureLock = nil
+	holder, err := candidatelock.TryAcquire(featurePath)
+	if err != nil {
+		t.Fatalf("reacquire feature lock: %v", err)
+	}
+
+	state := CandidateState{
+		SchemaVersion:    CandidateSchemaVersion,
+		CandidateID:      "rc_111111111111",
+		Status:           CandidateStatusPending,
+		AcceptValidation: CandidateAcceptValidationNone,
+	}
+	if err := candidateRoot.WriteState(state, nil); err == nil {
+		t.Fatal("WriteState accepted nil feature lock")
+	}
+	zero := &candidatelock.Handle{}
+	if err := candidateRoot.WritePatch([]byte("patch"), zero); err == nil {
+		t.Fatal("WritePatch accepted uninitialized feature lock")
+	}
+	releasedHandle, err := candidatelock.TryAcquire(filepath.Join(root, ".tpatch", "locks", "reconcile", "released.lock"))
+	if err != nil {
+		t.Fatalf("acquire released lock fixture: %v", err)
+	}
+	if err := releasedHandle.Release(); err != nil {
+		t.Fatalf("release released lock fixture: %v", err)
+	}
+	if err := candidateRoot.WriteArtifact(testCandidateArtifact(t, "applied"), releasedHandle); err == nil {
+		t.Fatal("WriteArtifact accepted released feature lock")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".tpatch", "reconcile-candidates", "demo-feature", "rc_111111111111", CandidateMetadataName)); !os.IsNotExist(err) {
+		t.Fatalf("WriteArtifact mutated candidate metadata without capability: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".tpatch", "reconcile-candidates", "demo-feature", "rc_111111111111", CandidateStateName)); !os.IsNotExist(err) {
+		t.Fatalf("WriteState mutated candidate state without capability: %v", err)
+	}
+	if err := candidateRoot.WriteState(state, holder); err != nil {
+		t.Fatalf("WriteState with valid feature lock: %v", err)
+	}
+	if err := candidateRoot.WritePatch([]byte("diff --git a/a b/a\n"), holder); err != nil {
+		t.Fatalf("WritePatch with valid feature lock: %v", err)
+	}
+
+	reference, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatalf("OpenReferenceRoot: %v", err)
+	}
+	defer func() { _ = reference.Close() }()
+	record := RejectedRecordFromArtifact(testCandidateArtifact(t, "applied"))
+	if err := reference.AppendRejectedRecord("demo-feature", record, nil); err == nil {
+		t.Fatal("AppendRejectedRecord accepted nil feature lock")
+	}
+	wrongFeatureLock, err := candidatelock.TryAcquire(filepath.Join(root, ".tpatch", "locks", "reconcile", "other-feature.lock"))
+	if err != nil {
+		t.Fatalf("acquire wrong feature lock: %v", err)
+	}
+	defer func() { _ = wrongFeatureLock.Release() }()
+	if err := reference.AppendRejectedRecord("demo-feature", record, wrongFeatureLock); err == nil {
+		t.Fatal("AppendRejectedRecord accepted wrong feature lock")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".tpatch", "reconcile-candidates", "demo-feature", CandidateRejectedName)); !os.IsNotExist(err) {
+		t.Fatalf("AppendRejectedRecord mutated rejection log without capability: %v", err)
+	}
+	if err := reference.AppendRejectedRecord("demo-feature", record, holder); err != nil {
+		t.Fatalf("AppendRejectedRecord with valid feature lock: %v", err)
+	}
+	if err := reference.ClearRejectedRecords("demo-feature", holder); err != nil {
+		t.Fatalf("ClearRejectedRecords with valid feature lock: %v", err)
+	}
+
+	if err := candidateRoot.Prune(holder, globalLock); err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if err := holder.Release(); err != nil {
+		t.Fatalf("release holder feature lock: %v", err)
+	}
+	if err := globalLock.Release(); err != nil {
+		t.Fatalf("release global lock: %v", err)
+	}
+}
+
+func TestOpenExistingCandidateRootRejectsSlugSymlinkAlias(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture is not portable on windows")
+	}
+	root, head := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "real-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	candidateID := "rc_222222222222"
+	created, err := CreateCandidateRoot(root, "real-feature", candidateID, head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	sentinel := filepath.Join(created.WorktreePath(), "sentinel.txt")
+	if err := os.WriteFile(sentinel, []byte("keep\n"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+	slugRoot := filepath.Join(root, ".tpatch", "reconcile-candidates")
+	if err := os.Symlink(
+		filepath.Join(slugRoot, "real-feature"),
+		filepath.Join(slugRoot, "alias-feature"),
+	); err != nil {
+		t.Fatalf("create slug alias symlink: %v", err)
+	}
+
+	reference, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatalf("OpenReferenceRoot: %v", err)
+	}
+	defer func() { _ = reference.Close() }()
+	if _, err := OpenExistingCandidateRoot(reference, "alias-feature", candidateID); err == nil {
+		t.Fatal("OpenExistingCandidateRoot accepted slug symlink alias")
+	}
+	body, err := os.ReadFile(sentinel)
+	if err != nil || string(body) != "keep\n" {
+		t.Fatalf("alias reopen refusal mutated real candidate worktree: %q err=%v", body, err)
+	}
+	if err := created.Prune(featureLock, globalLock); err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+}
+
 func TestCreateCandidateRootRejectsInvalidLockCapabilities(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	repo2, _ := initCandidateRepo(t)

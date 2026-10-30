@@ -120,16 +120,17 @@ func stalePendingOperationCandidate(
 	if status.Reconcile.ShadowPath != "" {
 		return "", fmt.Errorf("shadow-pending")
 	}
-	reference, err := openOperationCandidateReference(s.Root, current.UpstreamCommit)
+	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = reference.Close() }()
-	artifact, state, root, err := readOperationCandidateArtifacts(reference, slug, pointer)
+	artifact, state, root, upstreamReference, err := readOperationCandidateArtifacts(s.Root, reference, slug, pointer)
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = root.Close() }()
+	defer func() { _ = upstreamReference.Close() }()
 	if state.Status == candidate.CandidateStatusStale {
 		releaseMutation, err := borrowOperationCandidateFeatureMutation(featureLock, s.Root, slug)
 		if err != nil {
@@ -162,7 +163,7 @@ func stalePendingOperationCandidate(
 	}
 	defer releaseMutation()
 	state.Status = candidate.CandidateStatusStale
-	if err := root.WriteState(state); err != nil {
+	if err := root.WriteState(state, featureLock); err != nil {
 		return "", err
 	}
 	if err := pruneOperationCandidateWorktree(s.Root, root, featureLock); err != nil {
@@ -197,45 +198,46 @@ func findOperationCandidateRecoveryJournal(reference *candidate.ReferenceRoot, s
 	return reference.FindCandidateRecoveryJournal(slug)
 }
 
-func readOperationCandidateArtifacts(reference *candidate.ReferenceRoot, slug string, pointer *store.OperationCandidateSummary) (candidate.CandidateArtifact, candidate.CandidateState, *candidate.CandidateRoot, error) {
+func readOperationCandidateArtifacts(
+	repoRoot string,
+	reference *candidate.ReferenceRoot,
+	slug string,
+	pointer *store.OperationCandidateSummary,
+) (candidate.CandidateArtifact, candidate.CandidateState, *candidate.CandidateRoot, *candidate.ReferenceRoot, error) {
 	if err := store.ValidateOperationCandidateSummary(pointer); err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
 	}
 	expectedPath, err := candidate.CandidatePointerPath(slug, pointer.CandidateID)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
 	}
 	if pointer.Path != expectedPath {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer path mismatch: have %s want %s", pointer.Path, expectedPath)
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer path mismatch: have %s want %s", pointer.Path, expectedPath)
 	}
-	root, err := candidate.OpenExistingCandidateRoot(reference, slug, pointer.CandidateID)
+	artifact, state, err := reference.ReadCandidateMetadata(slug, pointer.CandidateID)
 	if err != nil {
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
-	}
-	artifact, err := root.ReadArtifact()
-	if err != nil {
-		_ = root.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
-	}
-	state, err := root.ReadState()
-	if err != nil {
-		_ = root.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, err
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
 	}
 	if artifact.CandidateID != pointer.CandidateID || state.CandidateID != pointer.CandidateID {
-		_ = root.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer/id mismatch")
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer/id mismatch")
 	}
 	if pointer.SourceFeatureState != artifact.SourceFeatureState {
-		_ = root.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer state drift")
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer state drift")
 	}
 	if pointer.Status != state.Status &&
 		!(pointer.Status == candidate.CandidateStatusPending && (state.Status == candidate.CandidateStatusStale || state.Status == candidate.CandidateStatusRejected)) {
-		_ = root.Close()
-		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, fmt.Errorf("candidate pointer state drift")
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, fmt.Errorf("candidate pointer state drift")
 	}
-	return artifact, state, root, nil
+	upstreamReference, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
+	if err != nil {
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+	}
+	root, err := candidate.OpenExistingCandidateRoot(upstreamReference, slug, pointer.CandidateID)
+	if err != nil {
+		_ = upstreamReference.Close()
+		return candidate.CandidateArtifact{}, candidate.CandidateState{}, nil, nil, err
+	}
+	return artifact, state, root, upstreamReference, nil
 }
 
 func pruneOperationCandidateWorktree(repoRoot string, root *candidate.CandidateRoot, featureLock *candidatelock.Handle) error {
@@ -255,7 +257,14 @@ func pruneOperationCandidateWorktree(repoRoot string, root *candidate.CandidateR
 	return releaseErr
 }
 
-func operationCandidateReuseCheck(preparation candidate.CandidatePreparation, existingArtifact candidate.CandidateArtifact, existingState candidate.CandidateState, derived candidate.CandidateArtifact, root *candidate.CandidateRoot) (operationCandidateReuseResult, error) {
+func operationCandidateReuseCheck(
+	preparation candidate.CandidatePreparation,
+	existingArtifact candidate.CandidateArtifact,
+	existingState candidate.CandidateState,
+	derived candidate.CandidateArtifact,
+	root *candidate.CandidateRoot,
+	featureLock *candidatelock.Handle,
+) (operationCandidateReuseResult, error) {
 	decision, err := candidate.CompareExistingCandidate(existingArtifact, existingState, derived)
 	if err != nil {
 		return operationCandidateReuseResult{}, err
@@ -266,7 +275,7 @@ func operationCandidateReuseCheck(preparation candidate.CandidatePreparation, ex
 	if root == nil {
 		return operationCandidateReuseResult{}, fmt.Errorf("reusable candidate root is required")
 	}
-	result, err := preparation.ValidateReusableCandidate(root)
+	result, err := preparation.ValidateReusableCandidate(root, featureLock)
 	if err != nil {
 		return operationCandidateReuseResult{}, err
 	}
@@ -276,18 +285,18 @@ func operationCandidateReuseCheck(preparation candidate.CandidatePreparation, ex
 	return operationCandidateReuseResult{Reusable: true}, nil
 }
 
-func appendRejectedOperationCandidateWithReference(reference *candidate.ReferenceRoot, slug string, artifact candidate.CandidateArtifact) error {
+func appendRejectedOperationCandidateWithReference(reference *candidate.ReferenceRoot, slug string, artifact candidate.CandidateArtifact, featureLock *candidatelock.Handle) error {
 	record := candidate.RejectedRecordFromArtifact(artifact)
-	return reference.AppendRejectedRecord(slug, record)
+	return reference.AppendRejectedRecord(slug, record, featureLock)
 }
 
-func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact) error {
+func appendRejectedOperationCandidate(repoRoot, slug string, artifact candidate.CandidateArtifact, featureLock *candidatelock.Handle) error {
 	reference, err := openOperationCandidateReference(repoRoot, artifact.UpstreamCommit)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = reference.Close() }()
-	return appendRejectedOperationCandidateWithReference(reference, slug, artifact)
+	return appendRejectedOperationCandidateWithReference(reference, slug, artifact, featureLock)
 }
 
 func readRejectedOperationCandidates(reference *candidate.ReferenceRoot, slug string) ([]candidate.CandidateRejectedRecord, error) {
@@ -302,8 +311,8 @@ func isOperationCandidateRejected(reference *candidate.ReferenceRoot, slug, cand
 	return candidate.RejectedContainsCandidateID(rows, candidateID), nil
 }
 
-func clearOperationCandidateRejections(reference *candidate.ReferenceRoot, slug string) error {
-	return reference.ClearRejectedRecords(slug)
+func clearOperationCandidateRejections(reference *candidate.ReferenceRoot, slug string, featureLock *candidatelock.Handle) error {
+	return reference.ClearRejectedRecords(slug, featureLock)
 }
 
 func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error) {
@@ -329,11 +338,12 @@ func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error
 		return "", err
 	}
 	defer releaseMutation()
-	artifact, state, root, err := readOperationCandidateArtifacts(reference, slug, pointer)
+	artifact, state, root, upstreamReference, err := readOperationCandidateArtifacts(s.Root, reference, slug, pointer)
 	if err != nil {
 		return "", err
 	}
 	defer func() { _ = root.Close() }()
+	defer func() { _ = upstreamReference.Close() }()
 
 	if state.Status == candidate.CandidateStatusAccepted {
 		return "", fmt.Errorf("candidate-not-pending")
@@ -347,12 +357,12 @@ func rejectPendingOperationCandidate(s *store.Store, slug string) (string, error
 			return "", err
 		}
 		if !rejected {
-			if err := appendRejectedOperationCandidate(s.Root, slug, artifact); err != nil {
+			if err := appendRejectedOperationCandidate(s.Root, slug, artifact, lock); err != nil {
 				return "", err
 			}
 		}
 		state.Status = candidate.CandidateStatusRejected
-		if err := root.WriteState(state); err != nil {
+		if err := root.WriteState(state, lock); err != nil {
 			return "", err
 		}
 	}
@@ -388,7 +398,7 @@ func clearOperationCandidateRejectionsLocked(s *store.Store, slug string) error 
 		return err
 	}
 	defer releaseMutation()
-	return clearOperationCandidateRejections(reference, slug)
+	return clearOperationCandidateRejections(reference, slug, lock)
 }
 
 func prepareOperationCandidate(
@@ -500,6 +510,7 @@ func publishOperationCandidate(
 	artifact, err := candidate.BuildCandidateArtifact(candidate.CandidateMaterializeInput{
 		Preparation: prepared.Preparation,
 		Execution:   execution,
+		FeatureLock: lock,
 	})
 	if err != nil {
 		return candidate.CandidateArtifact{}, err
@@ -510,10 +521,10 @@ func publishOperationCandidate(
 	if artifact.CandidateID != prepared.CandidateID {
 		return candidate.CandidateArtifact{}, fmt.Errorf("candidate id mismatch while publishing")
 	}
-	if err := execution.Root.WriteArtifact(artifact); err != nil {
+	if err := candidate.WriteCandidateMetadata(execution.Root, artifact, lock); err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
-	if err := execution.Root.WritePatch([]byte(execution.Diff)); err != nil {
+	if err := execution.Root.WritePatch([]byte(execution.Diff), lock); err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
 	state := candidate.CandidateState{
@@ -522,7 +533,7 @@ func publishOperationCandidate(
 		Status:           candidate.CandidateStatusPending,
 		AcceptValidation: candidate.CandidateAcceptValidationNone,
 	}
-	if err := execution.Root.WriteState(state); err != nil {
+	if err := execution.Root.WriteState(state, lock); err != nil {
 		return candidate.CandidateArtifact{}, err
 	}
 	status, err := s.LoadFeatureStatus(slug)

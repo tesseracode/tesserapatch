@@ -9,6 +9,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/tesseracode/tesserapatch/internal/candidatelock"
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
@@ -46,6 +47,7 @@ type candidatePreparationAuthority struct {
 type CandidateMaterializeInput struct {
 	Preparation CandidatePreparation
 	Execution   ExecutionResult
+	FeatureLock *candidatelock.Handle
 }
 
 type CandidateExistingDecision struct {
@@ -90,7 +92,7 @@ func BuildCandidateArtifact(input CandidateMaterializeInput) (CandidateArtifact,
 	if !reflect.DeepEqual(input.Execution.EffectMap, authority.effectMap) {
 		return CandidateArtifact{}, fmt.Errorf("candidate execution effect_map differs from prepared authority")
 	}
-	validationResult, err := validatePreparedCandidateAgainstRoot(authority, input.Execution.Root)
+	validationResult, err := validatePreparedCandidateAgainstRoot(authority, input.Execution.Root, input.FeatureLock)
 	if err != nil {
 		return CandidateArtifact{}, err
 	}
@@ -194,12 +196,12 @@ func (prep CandidatePreparation) CandidateID() (string, error) {
 	return authority.candidateID, nil
 }
 
-func (prep CandidatePreparation) ValidateReusableCandidate(root *CandidateRoot) (CandidateResult, error) {
+func (prep CandidatePreparation) ValidateReusableCandidate(root *CandidateRoot, featureLock *candidatelock.Handle) (CandidateResult, error) {
 	authority, err := prep.requireAuthority()
 	if err != nil {
 		return CandidateResult{}, err
 	}
-	validationResult, err := validatePreparedCandidateAgainstRoot(authority, root)
+	validationResult, err := validatePreparedCandidateAgainstRoot(authority, root, featureLock)
 	if err != nil {
 		return CandidateResult{}, err
 	}
@@ -251,7 +253,7 @@ func (prep CandidatePreparation) requireAuthority() (*candidatePreparationAuthor
 	return prep.authority, nil
 }
 
-func validatePreparedCandidateAgainstRoot(authority *candidatePreparationAuthority, root *CandidateRoot) (validationResult, error) {
+func validatePreparedCandidateAgainstRoot(authority *candidatePreparationAuthority, root *CandidateRoot, featureLock *candidatelock.Handle) (validationResult, error) {
 	if authority == nil {
 		return validationResult{}, fmt.Errorf("candidate preparation authority is required")
 	}
@@ -264,6 +266,11 @@ func validatePreparedCandidateAgainstRoot(authority *candidatePreparationAuthori
 	if root.Commit() != authority.upstreamCommit {
 		return validationResult{}, fmt.Errorf("candidate root upstream mismatch")
 	}
+	releaseFeature, err := root.borrowFeatureLock(featureLock)
+	if err != nil {
+		return validationResult{}, err
+	}
+	defer releaseFeature()
 	reference, err := OpenReferenceRoot(root.repoRoot, authority.referenceCommit)
 	if err != nil {
 		return validationResult{}, err
