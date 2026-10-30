@@ -1,3 +1,14 @@
+## S3 Review Dispatch — 2026-10-29
+
+Freeze `16b2086fa2212f96d1fa0d02d8476debc5d9958f` against S3 WAVE_BASE
+`4702b10`. Initial and strengthened focused suites pass, including the
+exhaustive oracle and both worked fixtures. The final bounded-read regression
+is formatted and queued with broader tests.
+
+Request one independent read-only review of S3 code and proposed ADR-045.
+Parent owns resource-admitted affected-package/vet/build checks; reviewer
+runs no Go. Scope remains S3 only; no S4 dispatch or acceptance yet.
+
 ## S3 Focused Validation — 2026-10-29
 
 Initial `7645e03` passes admitted formatting and focused S3/S0/S2/root/parser

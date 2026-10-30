@@ -17,7 +17,7 @@ No automatic scope expansion into unaccepted product contracts.
 
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
-| GH #13 S3 | Draft / focused checks pass | `7645e03` (initial draft) | Exhaustive oracle, worked fixtures and source controls pass; broader review next |
+| GH #13 S3 | Independent review / broader checks | `16b2086` | Focused oracle/fixtures/controls pass; affected/full/native pending |
 | GH #13 S4+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

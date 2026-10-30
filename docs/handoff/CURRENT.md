@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 GH #13 S3 is assigned under the operator's approximately twelve-hour autonomous
 window. S0-S2 remain accepted. Advance sequentially only after each stage
@@ -14,13 +14,14 @@ passes independent review, complete local/native validation and durable close.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Exact insertion derivation, all-optimal alignment and
   three-state classification
-- **Status**: Draft implemented; preparing focused admitted validation
+- **Status**: Focused checks pass; frozen for independent review and broader validation
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `4702b10735681ca63145b67561f33d4612450e69`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044;
   proposed implementation boundary in ADR-045
 - **Autonomy deadline**: approximately 2026-10-30 18:00 UTC / 11:00 PDT
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
+- **Frozen review checkpoint**: `16b2086fa2212f96d1fa0d02d8476debc5d9958f`
 
 WAVE_BASE = 4702b10735681ca63145b67561f33d4612450e69
 
@@ -77,15 +78,20 @@ Proposed ADR-045 and the overnight log record the implementation choices.
   stop. Follow-up adds explicit no-partial-domain/source-boundary controls,
   checks L1 before record scanning and rejects duplicate run identities.
   Broader validation and independent review are next.
+- Follow-up focused checks also PASS at `75d4ecd` (candidate 1.703s,
+  gitutil 0.438s, workflow 10.828s). `16b2086` additionally checks reference
+  record limits before extraction and adds oversized-side regressions;
+  formatting passes, broader validation is next.
 - S2 accepted at `8d3b9ef`: 8/8 gate, 42/42 commands including 39/39 tests,
   native CI `41000838573` all five required jobs pass.
 - S2 closing-tip CI `41010587650` at `4702b10` remains in progress.
 
 ## Next Steps
 
-1. Implement bounded S3 with its finite scope/source-inventory transition.
-2. Run focused/affected checks, independent review and complete 39-command/
-   native validation; record decisions and failed attempts, not just successes.
+1. Review frozen `16b2086` and ADR-045 independently while the parent alone
+   runs admitted affected packages, vet and build in a clean checkout.
+2. Resolve findings, then complete 39-command/native validation; record
+   decisions and failed attempts, not just successes.
 3. Close/archive/push S3 before selecting S4. Do not dispatch dependent work
    against unaccepted or unpushed code. Preserve a clear handoff at the deadline.
 
