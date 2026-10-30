@@ -1,3 +1,14 @@
+## Narrow Review — S2 Config schema correction — 2026-10-29
+
+**Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;
+runtime metadata reconfirms OpenAI `gpt-5.3-codex`.
+**Delta**: `1b2f706..a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`.
+**Verdict**: APPROVED; no significant issues found in the test-only correction.
+
+The exact field-removal proof and prior schema protection are approved.
+Parent-owned PIB-477/AP-observer checks remain separate evidence; do not
+start another Go workload or claim full/native completion from this verdict.
+
 ## Narrow Review and Runtime Dispatch — S2 Config schema correction — 2026-10-29
 
 Freeze test-only correction `a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`.

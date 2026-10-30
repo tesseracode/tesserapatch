@@ -1662,6 +1662,9 @@ The full CI attempt fails on PIB-477's pre-S2 Config schema pin; AP observers
 fail on the same target. Stop the local attempt, preserve its partial evidence,
 and register only the approved default-off boolean field with exact-delta
 negative controls. Production code remains unchanged; no S2 acceptance.
+The exact schema correction at `a5af08e` passes its sensitivity controls and
+independent narrow review. PIB-477/AP-observer execution and fresh complete
+local/native validation remain required.
 
 ### GH #13 — ✅ S1 typed roots, locks and Git primitives ACCEPTED — 2026-10-29
 

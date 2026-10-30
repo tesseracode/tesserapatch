@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,13 +14,14 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Exact Config-schema correction passes focused controls; PIB-477/observer and narrow review next
+- **Status**: Exact Config-schema correction independently approved; PIB-477/observer checks pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
 - **Prior accepted S1 validation checkpoint**: `24be224e46cb0569de3488bf466467e9c252fd8b`
 - **Frozen S2 review checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`
 - **Reviewed inventory correction**: `b18977042b79a7e9e2c378f49c97469d93fa03bd`
+- **Reviewed schema correction**: `a5af08e22e380ae7e7b57dc34c5f4a74a01f5905`
 - **Published validation checkpoint**: `1b2f7064761e84d11cf5b04ca3aaa9b7c374c7c8`
 
 WAVE_BASE = bd95a237cbf5b5894f21c19c27bb1d628808db8f
@@ -138,6 +139,9 @@ negative controls (CLI 0.562s, workflow 0.588s), with no resource stop.
 Production bytes remain unchanged. The retained reviewer will review only
 the two-test-file delta while parent shell `roc-s2-schema-runtime` runs
 PIB-477 and its AP observer in separate freshly admitted processes.
+The retained reviewer now APPROVES the narrow schema correction at `a5af08e`,
+with no significant issues. Runtime metadata reconfirms `gpt-5.3-codex`.
+Approval does not replace the active runtime checks or the full/native retry.
 
 ## Current State — bounded S2 scope
 
