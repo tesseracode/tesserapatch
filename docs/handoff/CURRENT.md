@@ -4,34 +4,47 @@
 
 **Cluster state**: IN PROGRESS
 
-**S5 is PAUSED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
+**S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
 The canonical mid-cycle token intentionally prevents a false wave-close pass.
 Published `origin/main` remains accepted/restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5 has no full 39-shard gate, native CI or
 acceptance. No S6 work or release/tag was started.
 
-The autonomous window was approximately 06:00-18:00 UTC on 2026-10-30.
-Final bounded work is checkpointed before that deadline rather than rushing
-the remaining authority/finalization changes. No Go workload or agent task
-remains active; the deadline timer was stopped after work finished.
+The operator authorizes a new four-hour #13-only window:
+2026-10-30 22:08:53 UTC through 2026-10-31 02:08:53 UTC
+(15:08-19:08 PDT). Fix forward; preserve all committed work and closed findings.
+Close S5 properly and restore clean HEAD=origin/main before advancing to S6.
+Advance within #13 only after each predecessor closes. Stop when #13 completes
+or the window ends; any extension requires new approval. Do not start #9,
+unrelated migrations or broader coverage work regardless of spare time.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Paused — three authority/consistency findings and finalization composition open
+- **Status**: In progress — fixing remaining authority/consistency and finalization forward
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
+- **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
+- **Current window deadline**: `2026-10-31T02:08:53Z`
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Fresh fetch confirms the expected clean local draft HEAD `1b0676c` and
+published accepted S4 `f9d5501`; no stash, one main worktree, no Git operation
+markers. Keep S5 WAVE_BASE unchanged so its eventual gate covers the complete
+unpublished slice. Parent implements the remaining continuous authority/
+finalization path directly, with retained independent S5 reviewer `7712b628`.
+No competing Go workload. Timer `gh13-followup-deadline` enforces this window.
+The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
 and full gates, then parent inspection found bare-root forwarding/global-lock
@@ -114,15 +127,15 @@ Passing basic checks do not override open review blockers.
 
 ## Next Steps
 
-1. Read the final review entries in LOG and this open set; inspect local
-   `origin/main..HEAD`. Do not reset or discard the committed S5 draft.
-2. Resolve F3/F4/F6 and complete finalization with production-path negative
+1. Resolve F3/F4/F6 and complete finalization with production-path negative
    tests, not callback assertions or field-shape-only tests.
-3. Use the same retained S5 reviewer for this same task, or a fresh independent
+2. Use the same retained S5 reviewer for this same task, or a fresh independent
    reviewer if unavailable; require explicit closure and ADR-048 assessment.
-4. Run admitted affected/vet/build, then publish only an approved checkpoint
+3. Run admitted affected/vet/build, then publish only an approved checkpoint
    for full 39-shard/native CI with the recorded S5 WAVE_BASE.
-5. Accept/archive/push S5 only after complete gates; only then consider S6.
+4. Accept/archive/push S5 only after complete gates; verify clean main equality.
+5. Continue sequentially within #13 while authorized; stop before #9 even if
+   time remains. Do not continue beyond the four-hour deadline without approval.
 
 ## Validation Policy
 

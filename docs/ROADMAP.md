@@ -1623,7 +1623,13 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S5 PAUSED / NEEDS REVISION — local draft, not accepted — 2026-10-30
+### GH #13 — 🚧 S5 RESUMED — fixing forward; not accepted — 2026-10-30
+
+New four-hour authorization: 2026-10-30 22:08:53 UTC through
+2026-10-31 02:08:53 UTC. Finish S5 findings/finalization, review/full gates,
+archive/push and clean main before S6. Continue within #13 only while
+authorized; stop after #13 or at the deadline, and never start #9 in this run.
+Unrelated migrations/coverage widening stay out of scope.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
