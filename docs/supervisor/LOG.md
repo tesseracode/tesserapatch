@@ -1,3 +1,11 @@
+## S4 Independent Review Dispatched — 2026-10-30
+
+Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc`, explicit OpenAI
+`gpt-5.3-codex`, receives frozen `a9e3182` and proposed ADR-046.
+Review is read-only and runs no Go. Parent shell `roc-s4-parent-basic`
+owns serial admitted formatting/affected/vet/build in the clean draft checkout,
+stopping on the first failure. Full/native validation and acceptance remain pending.
+
 ## S4 Draft / Review Transition — 2026-10-30
 
 Implementer `26ea48b1-7dd4-4141-a2cc-73aac199ce33`, runtime confirmed

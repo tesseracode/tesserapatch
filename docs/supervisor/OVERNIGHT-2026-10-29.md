@@ -18,7 +18,7 @@ No automatic scope expansion into unaccepted product contracts.
 | Stage | Status | Baseline / checkpoint | Review and validation |
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review approved; 39/39 local tests; CI five jobs + Windows CLW pass |
-| GH #13 S4 | Draft awaiting independent review | `a9e3182`, WAVE_BASE `5d22acf` | Focused checks pass; ADR-046 proposed; broader/local/native pending |
+| GH #13 S4 | Independent review / basic validation | `a9e3182`, WAVE_BASE `5d22acf` | Reviewer `c7fa235b`; ADR-046 proposed; full/native pending |
 | GH #13 S5+ | Not dispatched | Depends on accepted predecessor | Pending |
 
 ## Decisions

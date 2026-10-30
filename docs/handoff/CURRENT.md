@@ -42,6 +42,11 @@ bounded draft and focused checks; parent now owns ALL local Go validation.
 Do not launch another workload. Production/test files are frozen at `a9e3182`.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
 all nine routing controls pass. Full gate is not configured or running.
+Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
+explicit OpenAI `gpt-5.3-codex` (runtime confirmation pending), read-only
+and no Go. Parent shell `roc-s4-parent-basic` runs admitted formatting,
+full affected packages, vet and build serially in clean
+`bin/roc-s4-20261030/source-s4-a9e3182`. Stop at first failure.
 S3 closing-tip CI `41028948776` is watched by `roc-s3-close-ci`; no push
 while that exact-tip run is active. At 09:29 UTC about 8.5 hours remain.
 

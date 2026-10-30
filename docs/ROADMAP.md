@@ -1638,6 +1638,8 @@ no S4 code validation or acceptance yet.
 Draft `a9e3182` now passes admitted formatting and focused S4/S3/S0/source
 checks. Independent review of code/proposed ADR-046 and full validation remain
 pending; the draft does not constitute stage acceptance.
+Fresh independent reviewer `c7fa235b` and parent-only serial basic validation
+are active against the frozen draft; no second local Go workload.
 
 ### GH #13 — ✅ S3 exact derivation and alignment ACCEPTED — 2026-10-30
 
