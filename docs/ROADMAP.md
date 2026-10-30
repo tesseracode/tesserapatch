@@ -1652,6 +1652,9 @@ targeted checks and retained re-review are in progress. No gate waiver.
 Conversion safety is independently closed; F3 still requires POSIX mode
 fidelity when core.fileMode=false. Add explicit private mode observation and
 the chmod regression before claiming complete structural proof.
+Mode/symlink correction `b46129e` has actual chmod red-before and focused
+green-after evidence, with private sparse/case shortcuts disabled. Final
+independent review/basic checks precede the full gate; no acceptance yet.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

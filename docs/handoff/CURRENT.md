@@ -24,13 +24,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Byte/filter fidelity closed; correcting POSIX mode-ignoring materialization
+- **Status**: Complete byte/mode proof frozen; final re-review and basic checks pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
-- **Frozen review checkpoint**: `0a378c6` (conversion safety)
+- **Frozen review checkpoint**: `b46129e96b92139a61bc9512f2fe26fa69fae1f1`
 - **Current window deadline**: `2026-10-31T02:08:53Z`
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -146,6 +146,14 @@ Re-review closes filter/conversion safety but finds POSIX core.fileMode=false
 can hide unrelated chmod changes. Force actual mode observation in the private
 POSIX materializing add; preserve Windows logical-mode semantics. Add a real
 unrelated-file chmod/no-forged-hash regression and exact envelope update.
+Actual POSIX chmod hiding reproduces unsafe success on old code
+(`mode-hiding-red`). Fix `b46129e` passes all focused candidate/gitutil/
+workflow materialization/capture/S5 guards (4.713s/7.503s/33.742s), normal
+pressure/no swap-outs. Private settings also preserve actual POSIX symlink
+types and disable sparse/case hiding; repository configuration is unchanged.
+Prior full affected/vet/build passed at `b4508e7`; final checks and review now
+cover the mode delta. At 23:54 UTC about 2h14 remain, so full gates consume
+most of this window. S6 still requires a clean accepted S5 close.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

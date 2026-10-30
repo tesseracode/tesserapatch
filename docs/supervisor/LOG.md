@@ -1,3 +1,17 @@
+## S5 Final Mode Fidelity Checkpoint — 2026-10-30
+
+Freeze `b46129e96b92139a61bc9512f2fe26fa69fae1f1`. The real chmod case
+returns unsafe success on old code (`mode-hiding-red`); corrected targeted
+candidate/gitutil/workflow checks pass (4.713s/7.503s/33.742s), normal
+pressure/no swap-outs. Private POSIX mode/symlink observation and private
+sparse/case settings preserve physical fidelity without changing repo config.
+Exact envelope inventory/poison controls remain enforced.
+
+Prior full affected/vet/build at `b4508e7` passed (179.44s/10.45s/0.94s).
+Retained reviewer checks final F3 closure; parent runs final basic validation.
+At 23:54 UTC about 2h14 remain. Full gates are not shortened, and S6 cannot
+dispatch until S5 closes with clean published main.
+
 ## Review — S5 Byte Fidelity Closed, Mode Fidelity Required — 2026-10-30
 
 Reviewer `7712b628` confirms the conversion/filter bypass is closed at
