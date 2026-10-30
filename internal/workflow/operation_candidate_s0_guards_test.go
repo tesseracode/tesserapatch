@@ -142,6 +142,69 @@ func rocS4ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
+var rocS5AllowedPaths = map[string]bool{
+	"docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md":    true,
+	"internal/candidate/alignment.go":                                true,
+	"internal/candidate/artifact.go":                                 true,
+	"internal/candidate/artifact_guard_test.go":                      true,
+	"internal/candidate/artifact_root.go":                            true,
+	"internal/candidate/artifact_test.go":                            true,
+	"internal/candidate/derivation.go":                               true,
+	"internal/candidate/identity.go":                                 true,
+	"internal/candidate/identity_test.go":                            true,
+	"internal/candidate/lifecycle.go":                                true,
+	"internal/candidate/lifecycle_test.go":                           true,
+	"internal/candidate/root.go":                                     true,
+	"internal/candidate/root_test.go":                                true,
+	"internal/candidate/source_guard_test.go":                        true,
+	"internal/store/operation_candidate.go":                          true,
+	"internal/store/operation_candidate_test.go":                     true,
+	"internal/store/types.go":                                        true,
+	"internal/workflow/operation_candidate_lifecycle.go":             true,
+	"internal/workflow/operation_candidate_lifecycle_test.go":        true,
+	"internal/workflow/operation_candidate_lifecycle_guards_test.go": true,
+	"internal/workflow/operation_candidate_s0_guards_test.go":        true,
+}
+
+func rocS5ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS5AllowedPaths[path] {
+			continue
+		}
+		if err := rocS4ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS5ScopeTransition(t *testing.T) {
+	for path := range rocS5AllowedPaths {
+		if err := rocS5ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if !rocS4AllowedPaths[path] && !rocS3AllowedPaths[path] && !rocS2AllowedPaths[path] && !rocS1AllowedPaths[path] && !rocS0CaptureAllowedPaths[path] {
+			if err := rocS4ValidateStageChangedPaths([]string{path}); err == nil {
+				t.Fatalf("S4 accepted S5 path %s", path)
+			}
+		}
+		if !rocS0CaptureAllowedPaths[path] {
+			if err := rocS0ValidateCaptureChangedPaths([]string{path}); err == nil {
+				t.Fatalf("capture accepted S5 path %s", path)
+			}
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/reconcile.go", "internal/cli/cobra.go",
+		"internal/workflow/operation_candidate_phase6.go", "internal/store/candidate_wip.go",
+		"internal/candidate/./artifact.go", "docs/adrs/ADR-048-draft-extra.md",
+	} {
+		if err := rocS5ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S5 accepted later/unregistered surface %s", path)
+		}
+	}
+}
+
 func TestROCS4ScopeTransition(t *testing.T) {
 	for path := range rocS4AllowedPaths {
 		if err := rocS4ValidateStageChangedPaths([]string{path}); err != nil {
@@ -289,7 +352,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS4ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS5ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

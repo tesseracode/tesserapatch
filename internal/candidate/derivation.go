@@ -12,12 +12,19 @@ import (
 )
 
 type operation struct {
-	kind                              string
-	path                              string
-	effectOrdinal                     int
-	runOrdinals                       []int
-	boundary, left, right, byteOffset int
-	payload                           []byte
+	kind                 string
+	path                 string
+	effectOrdinal        int
+	runOrdinals          []int
+	boundary             int
+	left                 int
+	right                int
+	byteOffset           int
+	baseRecordCount      int
+	upstreamRecordCount  int
+	alignmentLength      int
+	insertionRecordCount int
+	payload              []byte
 }
 
 type effectClassification struct {
@@ -232,6 +239,8 @@ func derive(reference *ReferenceRoot, upstream snapshotRoot, patch string, effec
 				plan.operations = append(plan.operations, operation{kind: "insert-by-boundary", path: effect.Path,
 					effectOrdinal: effect.Ordinal, runOrdinals: boundary.runOrdinals, boundary: boundary.boundary,
 					left: boundary.left, right: boundary.right, byteOffset: boundary.byteOffset,
+					baseRecordCount: boundary.baseRecordCount, upstreamRecordCount: boundary.upstreamRecordCount,
+					alignmentLength: boundary.alignmentLength, insertionRecordCount: boundary.insertionRecordCount,
 					payload: bytes.Join(boundary.records, nil)})
 			}
 		}

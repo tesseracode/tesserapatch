@@ -52,8 +52,12 @@ func TestCandidateProductionSourceInventory(t *testing.T) {
 func checkCandidateProductionInventory(names []string) error {
 	want := []string{
 		"alignment.go",
+		"artifact.go",
+		"artifact_root.go",
 		"derivation.go",
 		"execute.go",
+		"identity.go",
+		"lifecycle.go",
 		"readflags_other.go",
 		"readflags_unix.go",
 		"reference.go",

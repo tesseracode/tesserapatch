@@ -35,6 +35,7 @@ type ReferenceRoot struct {
 // CandidateRoot is a detached worktree rooted at one upstream commit.
 type CandidateRoot struct {
 	repo         *heldRoot
+	ownsRepo     bool
 	parent       *heldRoot
 	worktree     *heldRoot
 	repoRoot     string
@@ -120,6 +121,7 @@ func CreateCandidateRoot(repoRoot, slug, candidateID, commit string, featureLock
 
 	candidateRoot := &CandidateRoot{
 		repo:         repo,
+		ownsRepo:     true,
 		repoRoot:     repo.path,
 		slug:         slug,
 		candidateID:  candidateID,
@@ -229,7 +231,7 @@ func (r *CandidateRoot) Close() error {
 			first = err
 		}
 	}
-	if r.repo != nil {
+	if r.repo != nil && r.ownsRepo {
 		if err := r.repo.close(); err != nil && first == nil {
 			first = err
 		}

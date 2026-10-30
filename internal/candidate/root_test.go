@@ -154,6 +154,41 @@ func TestCreateCandidateRootNamespaceAndPrune(t *testing.T) {
 	assertLockHeld(t, filepath.Join(root, ".tpatch", "locks", "worktree-mutation.lock"))
 }
 
+func TestOpenExistingCandidateRootReusesTypedReference(t *testing.T) {
+	root, head := initCandidateRepo(t)
+	featureLock, globalLock := acquireCandidateLocks(t, root, "demo-feature")
+	defer releaseCandidateLocks(t, featureLock, globalLock)
+
+	created, err := CreateCandidateRoot(root, "demo-feature", "rc_0123456789ab", head, featureLock, globalLock)
+	if err != nil {
+		t.Fatalf("CreateCandidateRoot: %v", err)
+	}
+	if err := created.Close(); err != nil {
+		t.Fatalf("close created root: %v", err)
+	}
+
+	reference, err := OpenReferenceRoot(root, head)
+	if err != nil {
+		t.Fatalf("OpenReferenceRoot: %v", err)
+	}
+	defer func() { _ = reference.Close() }()
+
+	reopened, err := OpenExistingCandidateRoot(reference, "demo-feature", "rc_0123456789ab")
+	if err != nil {
+		t.Fatalf("OpenExistingCandidateRoot: %v", err)
+	}
+	body, err := reopened.ReadFile("tracked.txt")
+	if err != nil || string(body) != "v1\n" {
+		t.Fatalf("reopened candidate did not expose immutable worktree bytes: %q err=%v", body, err)
+	}
+	if err := reopened.Prune(featureLock, globalLock); err != nil {
+		t.Fatalf("Prune: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".tpatch", "reconcile-candidates", "demo-feature", "rc_0123456789ab", "worktree")); !os.IsNotExist(err) {
+		t.Fatalf("worktree residue remains after reopen+prune: %v", err)
+	}
+}
+
 func TestCreateCandidateRootRejectsInvalidLockCapabilities(t *testing.T) {
 	root, head := initCandidateRepo(t)
 	repo2, _ := initCandidateRepo(t)

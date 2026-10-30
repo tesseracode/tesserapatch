@@ -47,13 +47,17 @@ type insertionRun struct {
 }
 
 type alignedBoundary struct {
-	boundary    int
-	runOrdinals []int
-	left, right int
-	byteOffset  int
-	records     [][]byte
-	state       classification
-	unanimous   bool
+	boundary             int
+	runOrdinals          []int
+	left, right          int
+	byteOffset           int
+	records              [][]byte
+	state                classification
+	unanimous            bool
+	baseRecordCount      int
+	upstreamRecordCount  int
+	alignmentLength      int
+	insertionRecordCount int
 }
 
 type alignmentTables struct {
@@ -256,6 +260,10 @@ func alignInsertionRuns(base, upstream []byte, runs []insertionRun) ([]alignedBo
 			}
 		}
 		bound.left, bound.right = left, right
+		bound.baseRecordCount = len(b)
+		bound.upstreamRecordCount = len(u)
+		bound.alignmentLength = int(tables.l)
+		bound.insertionRecordCount = len(bound.records)
 		for _, record := range u[:left] {
 			bound.byteOffset += len(record)
 		}

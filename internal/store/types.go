@@ -399,6 +399,20 @@ type ReconcileSummary struct {
 	// when Config.PatchIDDetectorEnabled is true. `omitempty` is
 	// load-bearing for back-compat against pre-M17 Wave D fixtures.
 	PatchIDMatch *PatchIDMatch `json:"patch_id_match,omitempty"`
+
+	// OperationCandidate carries the pending operation-replay candidate
+	// pointer. `omitempty` is load-bearing: nil must preserve byte identity
+	// for no-candidate summaries.
+	OperationCandidate *OperationCandidateSummary `json:"operation_candidate,omitempty"`
+}
+
+// OperationCandidateSummary references one immutable candidate directory while
+// preserving the feature's own lifecycle state in status.json.
+type OperationCandidateSummary struct {
+	CandidateID        string `json:"candidate_id"`
+	Path               string `json:"path"`
+	Status             string `json:"status"`
+	SourceFeatureState string `json:"source_feature_state"`
 }
 
 // EffectiveOutcome returns the compound presentation of (Outcome, Labels)
