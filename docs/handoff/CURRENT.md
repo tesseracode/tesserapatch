@@ -114,6 +114,12 @@ valid modeled staging, canonical-event formatting, audit handling and strict
 source inventories. Normal pressure/no swap-outs. Return to the same reviewer
 for F3 closure; parent runs fresh full affected/vet/build. At 23:18 UTC
 about 2h50 remain; no S5 approval or publication is claimed yet.
+Active re-review: retained `7712b628` on `7aac220`. Active sole Go shell:
+`s5-materialized-review-basic`, using
+`bin/roc-s5-resume-20261030/materialized-review-source`.
+All earlier validation commands completed/stopped; only this run and the
+authorization timer remain active. Fresh full-gate harness routing controls
+pass 9/9 and runner bytes are unchanged.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

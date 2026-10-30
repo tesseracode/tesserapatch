@@ -10,6 +10,9 @@ The actual old-code exploit returned nil; preserve that red evidence.
 Retained reviewer verifies F3 closure and ADR-048's stronger tree proof.
 Parent owns fresh admitted full affected/vet/build in the frozen checkout.
 At 23:18 UTC about 2h50 remain. Full gates/push still require code approval.
+Current Go shell is `s5-materialized-review-basic`, source
+`bin/roc-s5-resume-20261030/materialized-review-source`; no second local
+Go workload. Unchanged full-gate wrapper controls pass 9/9.
 
 ## S5 Index-independent Proof Choice — 2026-10-30
 
