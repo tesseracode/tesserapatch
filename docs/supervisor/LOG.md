@@ -1,3 +1,15 @@
+## S5 Independent Review Dispatched — 2026-10-30
+
+Fresh reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f`, explicit OpenAI
+`gpt-6-astra`, receives frozen `1e1dae6` and proposed ADR-048. Read-only,
+no Go. Review must establish strict cross-object schema/identity authority,
+actual S4 reuse validation, typed reopening and locked lifecycle invariants,
+not infer correctness from passing tests or callback labels.
+
+Parent shell `roc-s5-parent-basic` owns admitted format/vet/build in the
+verified clean draft checkout; full affected tests already passed.
+No full-gate/publication or acceptance yet; deadline timer remains active.
+
 ## S5 Draft Frozen for Review — 2026-10-30
 
 Implementer `bde5671e`, runtime confirmed OpenAI `gpt-5.3-codex`, returns

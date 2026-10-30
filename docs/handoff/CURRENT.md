@@ -41,6 +41,10 @@ checkpoint requested by 16:00 UTC. It owns code/tests/proposed ADR-048 and
 sole admitted focused Go checks. Parent owns tracking/infrastructure only.
 Runtime is now confirmed `gpt-5.3-codex`; implementer returned `1e1dae6`
 before the checkpoint target. Parent now owns all Go checks; code is frozen.
+Fresh reviewer `7712b628-a60b-4dc9-9eff-4049e0c2e62f` is assigned,
+explicit OpenAI `gpt-6-astra` (runtime confirmation pending), read-only/no Go.
+Parent shell `roc-s5-parent-basic` runs admitted formatting/vet/build in the
+verified clean `source-s5-1e1dae6` checkout; prior full affected checks passed.
 Draft includes strict artifact/state/identity helpers, typed reopening,
 callable lifecycle/rejection/preflight helpers and the optional status pointer.
 ADR-048 remains Proposed, including an explicit domain-separated SHA-256

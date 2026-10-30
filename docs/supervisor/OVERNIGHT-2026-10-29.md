@@ -19,7 +19,7 @@ No automatic scope expansion into unaccepted product contracts.
 |-------|--------|-----------------------|-----------------------|
 | GH #13 S3 | ACCEPTED and pushed | code `083d20f`; close `5d22acf` | Review/local/native pass; closing CI `41028948776` also green |
 | GH #13 S4 | Acceptance RESTORED and pushed | validated `c4f2f1e`, close `f9d5501` | Fresh review, 39/39 local tests and native five jobs + Windows CLW pass |
-| GH #13 S5 | Draft awaiting independent review | `1e1dae6`, WAVE_BASE `f9d5501` | Focused/full affected tests pass; review/full gates pending |
+| GH #13 S5 | Independent review / remaining basic checks | `1e1dae6`, WAVE_BASE `f9d5501` | Reviewer `7712b628`; affected pass; full gates pending |
 | GH #13 S6+ | Not dispatched | Depends on accepted S5 | Pending |
 
 ## Decisions
