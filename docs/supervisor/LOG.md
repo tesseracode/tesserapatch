@@ -1,3 +1,15 @@
+## S4 Repair Full Validation Running — 2026-10-30
+
+Prior close CI `41051527581` completes successfully: five jobs, no failed
+steps. Publish frozen `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`;
+HEAD=origin/main. The reviewed code is unchanged.
+
+Fresh complete gate `roc-s4-boundary-full-gate` is responsive in the clean
+isolated source with repair WAVE_BASE `78e501c`; no other local Go workload.
+Native CI `41058918380` and watcher `roc-s4-boundary-native-ci` run alongside.
+At 12:54 UTC about five authorized hours remain. S5 remains blocked;
+do not restore S4 acceptance until both fresh validations pass.
+
 ## S4 Repair Ready for Full Validation — 2026-10-30
 
 Repair `5d52d39` passes all basic checks: formatting, affected packages

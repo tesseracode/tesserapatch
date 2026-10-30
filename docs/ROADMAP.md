@@ -1645,6 +1645,8 @@ checking typed helpers, feature borrowing, global windows and contention.
 Formatting/affected checks pass; fresh full-local/native acceptance still gates S5.
 Vet/build also pass; at 12:33 UTC publication waits for prior exact closing
 CI `41051527581` rather than cancelling it. Fresh full gates are queued.
+Prior CI has passed; published repair checkpoint `c4f2f1e` now runs a fresh
+complete local gate and native CI `41058918380`. S4 acceptance is not yet restored.
 
 ### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 

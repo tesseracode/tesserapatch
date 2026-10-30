@@ -16,7 +16,7 @@ requires fresh full local/native validation.
 - **Task ID**: `repair-operation-replay-candidate-s4-boundary`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Repair typed execution boundary and short global-lock scope
-- **Status**: Repair review/basic checks pass; publication waits for prior exact-tip CI
+- **Status**: Repair review/basic checks pass; fresh complete local/native validation running
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `78e501c5ef0985a79fca177a888d97eb956de4e6`
 - **Contract**: accepted ADR-037/PRD rev-7 and ADR-043 through ADR-046
@@ -25,6 +25,8 @@ requires fresh full local/native validation.
 - **Prior validated checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
 - **Prior native CI**: `41039157086`
 - **Frozen repair checkpoint**: `5d52d39c55e6cc1402420567f0f12d94ff171027`
+- **Published repair validation checkpoint**: `c4f2f1e492a7197dc7d1d6ee8e3fd45a19d48ff8`
+- **Repair native CI**: `41058918380`
 
 WAVE_BASE = 78e501c5ef0985a79fca177a888d97eb956de4e6
 
@@ -65,6 +67,12 @@ Vet (8.73s) and build (0.48s) also pass; normal pressure/no new swap-outs.
 No local Go workload remains. At 12:33 UTC prior closing CI `41051527581`
 still runs macOS/Linux test jobs; hold publication rather than cancel it.
 The reviewed repair is queued for a fresh full gate immediately after that run.
+Prior closing CI `41051527581` now passes all five jobs, no failed steps.
+Published frozen `c4f2f1e` after it completed. Fresh full gate
+`roc-s4-boundary-full-gate` is responsive from the clean isolated source;
+it is the only local Go workload. Native CI `41058918380` and watcher
+`roc-s4-boundary-native-ci` run concurrently. Keep progress commits local
+while exact-tip CI runs. At 12:54 UTC about five authorized hours remain.
 New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
 harness is unchanged and nine routing controls pass. Prior closing CI
 `41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
@@ -153,8 +161,8 @@ native watcher processes completed. Do not delete prior evidence.
 
 ## Next Steps
 
-1. Finish basic checks and await prior closing-tip CI before publishing repair.
-2. Run fresh full local/native gates with repair WAVE_BASE `78e501c`.
+1. Await fresh complete local/native gates at `c4f2f1e`, preserving all evidence.
+2. Restore S4 acceptance only after both pass; retain the historical reopened audit.
 3. Archive/push repaired acceptance before considering S5; preserve unfinished
    work explicitly at the autonomy deadline.
 
