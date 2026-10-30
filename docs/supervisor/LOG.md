@@ -1,3 +1,15 @@
+## S4 Full Local / Native Validation Running — 2026-10-30
+
+Published `ed7efb28c0016615b09363b627a22385448b8869`; HEAD=origin/main.
+Reviewed production/test bytes match `1bc18c9`. Full gate is responsive under
+`roc-s4-full-gate`, the only local Go workload, with exact S4 WAVE_BASE and
+fresh isolated source/caches. Native CI `41039157086` and bounded watcher
+`roc-s4-native-ci` run concurrently.
+
+At 10:13 UTC roughly 7.75 authorized hours remain. Keep tracking-only commits
+local while exact-tip CI runs. S4 acceptance and S5 remain blocked on full
+local/native completion; ADR-046 is still Proposed.
+
 ## S4 Full-validation Publication — 2026-10-30
 
 Final build also PASS (0.61s); all basic commands passed under individual

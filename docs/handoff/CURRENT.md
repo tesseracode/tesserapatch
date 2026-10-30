@@ -16,12 +16,14 @@ validation remains required before S5.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Closed candidate execution, structural validation,
   production-classifier idempotency and total absorption accounting
-- **Status**: Final code and basic checks approved; publishing full-validation checkpoint
+- **Status**: Final code and basic checks approved; complete local/native validation running
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `5d22acfc389d6cb264b994f87c00da31886f1171`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043, ADR-044 and ADR-045
 - **Operator log**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
 - **Frozen implementation checkpoint**: `1bc18c9cd71d5da2d0732921dce5107c8a25ef30`
+- **Published validation checkpoint**: `ed7efb28c0016615b09363b627a22385448b8869`
+- **Native CI**: `41039157086`
 
 WAVE_BASE = 5d22acfc389d6cb264b994f87c00da31886f1171
 
@@ -46,7 +48,11 @@ completed broader revalidation; implementation again owns narrow correction
 and admitted focused checks, now completed at `1bc18c9`. Parent resumes sole
 Go ownership for final candidate-package/vet/build checks.
 The copied S4 runner/full-gate harness is byte-identical to accepted S3;
-all nine routing controls pass. Full gate is not configured or running.
+all nine routing controls pass. Full gate now runs at the published checkpoint under shell `roc-s4-full-gate`,
+the only local Go workload, using the clean isolated full-history checkout
+`bin/roc-s4-20261030/full-gate/source`. Native watcher `roc-s4-native-ci`
+follows `41039157086`. Hold progress-only commits locally until exact-tip
+CI finishes. Reviewed production/test bytes are unchanged.
 Independent reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` is assigned,
 runtime-confirmed OpenAI `gpt-5.3-codex`, read-only
 and no Go. Parent shell `roc-s4-parent-basic` completed admitted formatting,
@@ -85,6 +91,8 @@ after with postcondition-failed. The redundant late helper is removed.
 Independent final re-review APPROVES `1bc18c9`, including phase ordering,
 shifted final offsets and negative guards; both earlier findings remain closed.
 ADR-046's direction is acceptable, Proposed until full acceptance.
+At 10:13 UTC roughly 7.75 hours remain in the autonomous window. The full
+39-test/42-command local gate and native CI are running; no S5 dispatch.
 S3 closing-tip CI `41028948776` completed successfully, all five required
 jobs and no failed steps. Watcher `roc-s3-close-ci` exited successfully.
 At 09:44 UTC about 8.25 hours remain. S4 publication still awaits review.
@@ -154,8 +162,8 @@ new swap-outs. All 536 owned identities reconciled, zero remaining.
 
 ## Next Steps
 
-1. Publish the code-approved validation checkpoint and freeze its exact SHA.
-2. Run all 39 local shards / 42 gate commands and native CI at that exact SHA.
+1. Await local gate and native CI at `ed7efb2`, preserving all evidence.
+2. Resolve any failure without weakening guards; do not count partial runs.
 3. Resolve findings, then complete 39-shard full gate and native CI.
 4. Only then archive/push acceptance and consider S5 within the deadline.
 
