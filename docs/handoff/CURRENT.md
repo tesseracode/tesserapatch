@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 GH #13 S2 is explicitly assigned. S1 and the 39-shard validation maintenance
 remain accepted. No S3+, candidate execution, phase wiring or deferred
@@ -14,7 +14,7 @@ upstream Git-strategy research is authorized.
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: S2 eligibility, paired evidence recomputation, offline
   reconstruction and default-off configuration
-- **Status**: Corrected S2 checkpoint frozen for affected-package validation and independent review
+- **Status**: Code independently approved; broader and full/native validation pending
 - **Assigned**: 2026-10-29
 - **WAVE_BASE**: `bd95a237cbf5b5894f21c19c27bb1d628808db8f`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 and ADR-044
@@ -66,6 +66,9 @@ owns formatting, full affected packages, vet and build in sequence.
 Clean-checkout `gofmt -l .` now passes. No duplicate validation is allowed.
 The eventual full-gate harness is prepared in `bin/roc-s2-20261029/full-gate/`;
 its nine routing controls pass, but it is not configured or running yet.
+Independent review now APPROVES frozen `2c462a3`, with no significant issues.
+Runtime metadata confirms OpenAI `gpt-5.3-codex`. The canonical APPROVED field
+records code-review status only; S2 is not accepted until validation completes.
 
 ## Current State — bounded S2 scope
 
@@ -128,8 +131,8 @@ Tracking: CURRENT, ROADMAP and supervisor LOG. No CLI/phase/asset edits.
 
 ## Next Steps
 
-1. Review frozen `2c462a3` independently while the parent alone runs admitted
-   affected-package checks in `bin/roc-s2-20261029/review-source`.
+1. Await the existing parent-owned `roc-s2-review-validation` checks at
+   independently approved `2c462a3`; do not launch duplicate Go work.
 2. Resolve any findings and complete formatting/vet/build, full 39-command
    and native validation before acceptance.
 3. Keep dispatch/progress durable without cancelling S1 closing-tip CI.

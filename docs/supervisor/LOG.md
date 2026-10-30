@@ -1,3 +1,16 @@
+## Review — GH #13 S2 corrected checkpoint — 2026-10-29
+
+**Reviewer**: `dee26d79-d708-4b4c-8a3d-84c4478c5f0a`;
+runtime metadata confirms OpenAI `gpt-5.3-codex`.
+**Checkpoint**: `2c462a3086f9dbb89f322a19494f6d474960944b`.
+**Verdict**: APPROVED; no significant issues found.
+
+The bounded review covers the ordered eligibility, decoder reuse, offline
+typed-root plumbing, default-off config and scope-preservation changes.
+Parent-owned broader validation remains separate; approval is not a full
+39-command/native pass or S2 acceptance. Keep the existing validator running
+without duplication and record its actual result before publishing.
+
 ## Review Dispatch — GH #13 S2 corrected checkpoint — 2026-10-29
 
 Freeze `2c462a3086f9dbb89f322a19494f6d474960944b` against S2 base
