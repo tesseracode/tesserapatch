@@ -1632,6 +1632,8 @@ invariants; preserve their archive, do not call S5 ready.
 Repair WAVE_BASE `78e501c5ef0985a79fca177a888d97eb956de4e6`.
 Restore typed execution, feature-borrow lifetime and short global holds,
 strengthen discriminating guards, then repeat independent/full/native gates.
+The same bounded implementer owns correction/focused checks; parent holds
+S5 and prepares a fresh unchanged gate harness (nine routing controls pass).
 
 ### GH #13 — S4 prior acceptance (reopened above) — 2026-10-30
 

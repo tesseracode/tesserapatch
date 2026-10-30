@@ -1,3 +1,15 @@
+## S4 Conformance Repair Assigned — 2026-10-30
+
+Same implementer `26ea48b1-7dd4-4141-a2cc-73aac199ce33` owns the bounded
+typed-root/lock repair and sole admitted focused Go workload; parent owns
+tracking/infrastructure only. Same independent reviewer `c7fa235b` awaits
+frozen code and explicit old-API/lock-scope counterexamples.
+
+New evidence root `bin/roc-s4-boundary-20261030/` uses the unchanged admitted
+runner/gate harness; nine routing controls pass. Prior close CI `41051527581`
+is watched by `roc-s4-prior-close-ci`; keep repair local until it completes.
+At 12:00 UTC about six authorized hours remain. S5 is blocked, not dispatched.
+
 ## S4 Acceptance Reopened — Typed-root / Lock Conformance — 2026-10-30
 
 During S5 prerequisite inspection, parent found two concrete contract gaps

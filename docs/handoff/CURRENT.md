@@ -36,6 +36,14 @@ pin feature capability across mutation. Add real contention/lifetime tests
 and a negative guard reproducing the missed old signatures. ADR-047 records
 the correction choice; do not weaken the accepted two-constructor contract.
 No S5 code or phase wiring is authorized until this repair closes.
+Same implementation agent `26ea48b1-7dd4-4141-a2cc-73aac199ce33` owns the
+bounded repair and admitted focused Go checks. Parent runs no competing Go.
+Reviewer `c7fa235b-5753-4d0d-a31b-2a4ec0fdb9fc` awaits a frozen repair.
+Both runtimes are confirmed OpenAI `gpt-5.3-codex`.
+New evidence root: `bin/roc-s4-boundary-20261030/`; copied runner/full-gate
+harness is unchanged and nine routing controls pass. Prior closing CI
+`41051527581` remains active under watcher `roc-s4-prior-close-ci`; do not
+cancel it with a push. At 12:00 UTC roughly six authorized hours remain.
 
 The remainder records the prior S4 work/evidence, not approval of the gaps.
 
