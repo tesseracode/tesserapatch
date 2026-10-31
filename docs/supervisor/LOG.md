@@ -1,3 +1,13 @@
+## S6 Guarded Core Review Dispatch — 2026-10-31
+
+Frozen60d2ded continues the same #13 authority trace into S6 consumers of
+reviewed S5 lifecycle primitives. Retained OpenAI reviewer7712b628 performs
+independent read-only review; parent alone runs admitted checks. Review must
+cover proof/staging carriers, CG failure/publication paths, phase precedence,
+preflight ordering, held publication through status merge, flag-off parity,
+refusal truthfulness, CLI rendering and the source guards' negative controls.
+The source is not approved or accepted yet. Deadline10:08:53Z remains unchanged.
+
 ## S6 Core Runtime Check / Guarded Retry — 2026-10-31
 
 Core98175fe formats and compiles. Targeted workflow25.303s and candidate1.971s

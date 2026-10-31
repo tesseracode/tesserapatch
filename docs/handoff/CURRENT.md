@@ -20,7 +20,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: In progress — core phase/evidence draft ready for formatting and targeted checks
+- **Status**: Review — guarded core60d2ded in independent review and admitted targeted validation
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -30,6 +30,13 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Guarded core checkpoint `60d2dedede99b33fd73501ff8c49946b237ea075` is frozen
+for continued independent #13 authority review through S6's new S5 consumers.
+Retained OpenAI reviewer7712b628 owns read-only review; parent owns all Go
+validation. The CLI fixture now uses the existing --upstream-ref/--allow-dirty
+options. Source guard controls, stale-binding/malformed-staging cases and
+gate-off/legacy/multi/lock-held pending-pointer cases are included. No acceptance.
 
 S5 passed independent source/test/mirror review, all42 full-gate commands/
 all39 uncached test shards with exact CI parity, and native CI41159960598.
