@@ -172,6 +172,7 @@ var rocS5AllowedPaths = map[string]bool{
 }
 
 var rocS6AllowedPaths = map[string]bool{
+	"docs/adrs/ADR-049-phase2-authority-integration.md": true,
 	"internal/workflow/reconcile.go":                  true,
 	"internal/workflow/labels_reconcile_path_test.go": true,
 }

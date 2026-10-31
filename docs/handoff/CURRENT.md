@@ -25,6 +25,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
 - **Owner**: parent implementation; independent review required before acceptance
+- **Proposed decisions**: ADR-049-phase2-authority-integration.md
 
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
@@ -68,6 +69,11 @@ artifact/evidence sequence while bypassing only its status-state writer.
 The private proof may be passed only to save/gate, never returned by another
 helper or placed on a result/context; the evaluator should invoke save itself.
 Exact single assignment/mutation/read staging guards still need implementation.
+ADR-049 records the selected integration approach, pending independent review:
+readonly phase2 metadata; caller-held S5 finalization through summary persistence;
+evaluator invokes save rather than returning the typed proof; separate staging
+initialization/append mutation/sole persist read; denial-only handling of new
+authority publication failure without changing gate-off legacy semantics.
 
 No S7 terminal flags/exclusivity, S8 acceptance/CAS/recovery transactions,
 S9 shipped docs/assets or release. Architectural deviations require an ADR;
@@ -98,6 +104,9 @@ dependent surface must be recorded before changing it.
 No S6 validation yet. The first unit adds four persisted-pointer regressions
 across ordinary outcomes and a finite S6 scope transition with negative inputs.
 An old-production overlay will prove the pointer-loss failure before green checks.
+The first formatter stopped before tests on a misplaced nested test declaration.
+It is moved to package scope; retry uses a fresh source/stage and preserves
+the failed formatter evidence. No red/green runtime result is claimed yet.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has

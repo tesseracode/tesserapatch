@@ -1,3 +1,15 @@
+## S6 Integration Decisions Recorded — 2026-10-31
+
+Proposed ADR-049 records the boundary choices before core wiring: readonly
+phase2 metadata, caller-held S5 finalization through dedicated summary write,
+parameter-only proof handed directly to save, exact staging-site categories,
+and denial-only publication-failure handling limited to the new authority.
+The first summary unit is frozen at eb3a400; admitted format/red proof is active.
+ADR acceptance awaits independent review and complete S6 gates.
+The first summary formatter refused a misplaced nested test declaration before
+any runtime tests. Correct its placement and retry with new evidence; no runtime
+red/green claim or validation waiver.
+
 ## S6 First Unit — Shared Summary Preservation — 2026-10-31
 
 Trace confirms one production whole-summary replacement. Extract it through

@@ -128,45 +128,6 @@ func TestRunReconcile_NonUpstreamedOutcome_StillProducesLabels(t *testing.T) {
 		Outcome: store.ReconcileBlockedRequiresHuman,
 		Phase:   "phase-4-forward-apply",
 	}
-
-	func TestROCS6OrdinarySummaryPreservesPendingCandidate(t *testing.T) {
-		for _, test := range []struct {
-			outcome store.ReconcileOutcome
-			state   store.FeatureState
-			notes   string
-		}{
-			{store.ReconcileUpstreamed, store.StateUpstreamMerged, "Feature adopted by upstream — local patch retired"},
-			{store.ReconcileBlocked, store.StateBlocked, "Reconciliation blocked — manual intervention needed"},
-			{store.ReconcileReapplied, store.StateApplied, "Patch re-applied cleanly to new upstream"},
-			{store.ReconcileStillNeeded, store.StateApplied, "Feature still needed — partial upstream adoption"},
-		} {
-			t.Run(string(test.outcome), func(t *testing.T) {
-				f := newROCS5LifecycleFixture(t)
-				before, err := f.store.LoadFeatureStatus(f.slug)
-				if err != nil {
-					t.Fatal(err)
-				}
-				result := &ReconcileResult{
-					Slug: f.slug, Outcome: test.outcome, UpstreamRef: "origin/main",
-					UpstreamCommit: f.upstreamCommit, Phase: "phase-4-forward-apply-strict",
-				}
-				updateFeatureState(f.store, f.slug, result)
-				after, err := f.store.LoadFeatureStatus(f.slug)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if !reflect.DeepEqual(after.Reconcile.OperationCandidate, before.Reconcile.OperationCandidate) {
-					t.Fatal("ordinary summary replacement lost or changed the pending candidate")
-				}
-				if after.State != test.state || after.Notes != test.notes {
-					t.Fatalf("ordinary lifecycle semantics changed: state=%s notes=%q", after.State, after.Notes)
-				}
-				if after.Reconcile.Outcome != test.outcome || after.Reconcile.UpstreamCommit != f.upstreamCommit {
-					t.Fatal("carry-forward suppressed the new reconcile outcome")
-				}
-			})
-		}
-	}
 	saveReconcileArtifacts(s, "child", result)
 	updateFeatureState(s, "child", result)
 
@@ -176,5 +137,44 @@ func TestRunReconcile_NonUpstreamedOutcome_StillProducesLabels(t *testing.T) {
 	}
 	if !hasLabel(got.Reconcile.Labels, store.LabelWaitingOnParent) {
 		t.Fatalf("expected waiting-on-parent label for non-retired outcome, got %v", got.Reconcile.Labels)
+	}
+}
+
+func TestROCS6OrdinarySummaryPreservesPendingCandidate(t *testing.T) {
+	for _, test := range []struct {
+		outcome store.ReconcileOutcome
+		state   store.FeatureState
+		notes   string
+	}{
+		{store.ReconcileUpstreamed, store.StateUpstreamMerged, "Feature adopted by upstream — local patch retired"},
+		{store.ReconcileBlocked, store.StateBlocked, "Reconciliation blocked — manual intervention needed"},
+		{store.ReconcileReapplied, store.StateApplied, "Patch re-applied cleanly to new upstream"},
+		{store.ReconcileStillNeeded, store.StateApplied, "Feature still needed — partial upstream adoption"},
+	} {
+		t.Run(string(test.outcome), func(t *testing.T) {
+			f := newROCS5LifecycleFixture(t)
+			before, err := f.store.LoadFeatureStatus(f.slug)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := &ReconcileResult{
+				Slug: f.slug, Outcome: test.outcome, UpstreamRef: "origin/main",
+				UpstreamCommit: f.upstreamCommit, Phase: "phase-4-forward-apply-strict",
+			}
+			updateFeatureState(f.store, f.slug, result)
+			after, err := f.store.LoadFeatureStatus(f.slug)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(after.Reconcile.OperationCandidate, before.Reconcile.OperationCandidate) {
+				t.Fatal("ordinary summary replacement lost or changed the pending candidate")
+			}
+			if after.State != test.state || after.Notes != test.notes {
+				t.Fatalf("ordinary lifecycle semantics changed: state=%s notes=%q", after.State, after.Notes)
+			}
+			if after.Reconcile.Outcome != test.outcome || after.Reconcile.UpstreamCommit != f.upstreamCommit {
+				t.Fatal("carry-forward suppressed the new reconcile outcome")
+			}
+		})
 	}
 }
