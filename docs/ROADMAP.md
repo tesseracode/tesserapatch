@@ -1683,6 +1683,9 @@ and native candidate pilot now pass. Native Linux/macOS also expose the
 dependent store-function inventory and whole-file schema guard; the AP observer
 reports PIB-477 unsuccessful. Register only the exact S5 additions with negative
 controls, preserving prior schema pins. Full replacement validation is pending.
+Test-only correction is frozen for retained review and remote targeted checks:
+exact three-helper inventory and exact summary normalization retain both old
+schema digests; negative controls exercise each authorized addition.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored

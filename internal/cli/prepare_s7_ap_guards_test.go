@@ -645,13 +645,23 @@ func validateS7APProducedBySources(sources map[string]string) error {
 		if typed == nil || typed.relFiles[rel] == nil {
 			return fmt.Errorf("typed controlled schema source %s is missing", rel)
 		}
-		actual := s7APJSONSchemaDeclarations(typed.relFiles[rel])
+		schema := typed.relFiles[rel]
+		if rel == "internal/store/types.go" {
+			schema, err = parser.ParseFile(token.NewFileSet(), rel, sources[rel], 0)
+			if err != nil {
+				return err
+			}
+			if err := s7APRemoveOperationCandidateSummary(schema); err != nil {
+				return err
+			}
+		}
+		actual := s7APJSONSchemaDeclarations(schema)
 		sort.Strings(expected)
 		if !reflect.DeepEqual(actual, expected) {
 			return fmt.Errorf("%s schema inventory drift:\ngot  %#v\nwant %#v",
 				rel, actual, expected)
 		}
-		digest := s7APJSONSchemaDigest(typed.relFiles[rel])
+		digest := s7APJSONSchemaDigest(schema)
 		if digest != expectedSchemaDigests[rel] {
 			schemaDigestDrifts = append(schemaDigestDrifts,
 				fmt.Sprintf("%s=%s", rel, digest))
@@ -844,7 +854,71 @@ func s7APJSONSchemaDeclarations(file *ast.File) []string {
 	return result
 }
 
-// S2 adds exactly one opt-in field; all prior schema keys remain pinned.
+// Remove only the verified S5 additions from a private AST, retaining prior pins.
+func s7APRemoveOperationCandidateSummary(file *ast.File) error {
+	structures := map[string]*ast.StructType{}
+	for _, decl := range file.Decls {
+		group, ok := decl.(*ast.GenDecl)
+		if !ok || group.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range group.Specs {
+			named, ok := spec.(*ast.TypeSpec)
+			if !ok || (named.Name.Name != "ReconcileSummary" && named.Name.Name != "OperationCandidateSummary") {
+				continue
+			}
+			structure, ok := named.Type.(*ast.StructType)
+			if !ok || named.Assign.IsValid() || named.TypeParams != nil || structures[named.Name.Name] != nil {
+				return errors.New("S5 candidate summary declaration changed")
+			}
+			structures[named.Name.Name] = structure
+		}
+	}
+	reconcile, summary := structures["ReconcileSummary"], structures["OperationCandidateSummary"]
+	if reconcile == nil || summary == nil || len(summary.Fields.List) != 4 {
+		return errors.New("S5 candidate summary is missing or has extra fields")
+	}
+	for i, expected := range []struct{ name, key string }{
+		{"CandidateID", "candidate_id"}, {"Path", "path"},
+		{"Status", "status"}, {"SourceFeatureState", "source_feature_state"},
+	} {
+		field := summary.Fields.List[i]
+		kind, ok := field.Type.(*ast.Ident)
+		if !ok || kind.Name != "string" || len(field.Names) != 1 || field.Names[0].Name != expected.name || field.Tag == nil {
+			return errors.New("S5 candidate summary field shape changed")
+		}
+		tag, err := strconv.Unquote(field.Tag.Value)
+		if err != nil || tag != `json:"`+expected.key+`"` {
+			return errors.New("S5 candidate summary wire key changed")
+		}
+	}
+	selected := -1
+	for i, field := range reconcile.Fields.List {
+		for _, name := range field.Names {
+			if name.Name != "OperationCandidate" {
+				continue
+			}
+			pointer, ok := field.Type.(*ast.StarExpr)
+			if !ok || selected != -1 || len(field.Names) != 1 || field.Tag == nil {
+				return errors.New("S5 candidate pointer is not unique and optional")
+			}
+			kind, ok := pointer.X.(*ast.Ident)
+			tag, err := strconv.Unquote(field.Tag.Value)
+			if !ok || kind.Name != "OperationCandidateSummary" || err != nil || tag != `json:"operation_candidate,omitempty"` {
+				return errors.New("S5 candidate pointer type or wire key changed")
+			}
+			selected = i
+		}
+	}
+	if selected == -1 {
+		return errors.New("S5 candidate pointer is missing")
+	}
+	reconcile.Fields.List = append(reconcile.Fields.List[:selected], reconcile.Fields.List[selected+1:]...)
+	summary.Fields.List = nil
+	return nil
+}
+
+// S2 adds exactly one opt-in field; S5's exact summary is checked separately.
 func validateS7APOperationCandidateConfig(source string) error {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "types.go", source, 0)
@@ -891,6 +965,9 @@ func validateS7APOperationCandidateConfig(source string) error {
 	if err != nil {
 		return err
 	}
+	if err := s7APRemoveOperationCandidateSummary(legacy); err != nil {
+		return err
+	}
 	if s7APJSONSchemaDigest(legacy) != "00d6e584ee67c28aaa5364725f5b1e7e8f1c14d406da5570448eaa5c49cbf025" {
 		return errors.New("S2 config extension changed the prior controlled schema")
 	}
@@ -916,6 +993,34 @@ func TestROCS2ControlledConfigSchemaTransition(t *testing.T) {
 		}
 		mutant := strings.Replace(source, mutation[0], mutation[1], 1)
 		if err := validateS7APOperationCandidateConfig(mutant); err == nil {
+			t.Fatalf("controlled schema accepted %s", mutation[1])
+		}
+	}
+}
+
+func TestROCS5ControlledSummarySchemaTransition(t *testing.T) {
+	source := s6RepoFile(t, "internal/store/types.go")
+	if err := validateS7APOperationCandidateConfig(source); err != nil {
+		t.Fatal(err)
+	}
+	const field = "OperationCandidate *OperationCandidateSummary `json:\"operation_candidate,omitempty\"`"
+	for _, mutation := range [][2]string{
+		{field, ""},
+		{field, strings.Replace(field, "*OperationCandidateSummary", "OperationCandidateSummary", 1)},
+		{field, strings.Replace(field, "*OperationCandidateSummary", "*OtherSummary", 1)},
+		{field, strings.Replace(field, ",omitempty", "", 1)},
+		{field, field + "\n " + field},
+		{"type OperationCandidateSummary struct {", "type OperationCandidateSummary struct {\n Extra string `json:\"produced_by\"`"},
+		{"type OperationCandidateSummary struct {", "type OperationCandidateSummary struct {\n Hidden string"},
+		{"CandidateID        string", "CandidateID        bool"},
+		{"CandidateID        string", "CandidateID, Other string"},
+		{`json:"source_feature_state"`, `json:"source_feature_state,omitempty"`},
+		{field, strings.Replace(field, "operation_candidate,", "other_candidate,", 1)},
+	} {
+		if strings.Count(source, mutation[0]) != 1 {
+			t.Fatalf("summary schema mutation anchor is not unique: %s", mutation[0])
+		}
+		if err := validateS7APOperationCandidateConfig(strings.Replace(source, mutation[0], mutation[1], 1)); err == nil {
 			t.Fatalf("controlled schema accepted %s", mutation[1])
 		}
 	}

@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Remote fixture pilot passed; correcting dependent legacy schema/function inventories
+- **Status**: Test-only inventory fix frozen for review and admitted remote checks
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -52,6 +52,14 @@ also reports PIB-477 unsuccessful. S5 legitimately adds three store helpers
 and one exact optional summary type/field; extend those dependent guards
 narrowly, retaining prior schema pins and real mutation controls. No production
 CLI/schema widening, golden recapture or unrelated migration work is authorized.
+The correction registers exactly the three existing S5 helpers, with a
+replacement mutation for each. The schema guard validates the exact optional
+pointer and four string fields before removing only those additions from a
+private AST; both prior schema digests remain unchanged. Eleven real summary
+mutations cover missing/duplicate pointers, type/tag drift and extra fields.
+Only the existing CLI test guard is added to S5's finite scope inventory.
+Retained reviewer `7712b628` reviews this test-only delta while the old Mac
+owns serial admitted formatting and targeted guard/scope checks.
 The prior paragraphs below are chronological evidence, not current run status.
 
 Fresh fetch confirms the expected clean local draft HEAD `1b0676c` and

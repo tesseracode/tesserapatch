@@ -1,3 +1,14 @@
+## S5 Test-only Guard Correction Dispatched — 2026-10-31
+
+Register exactly CarryForwardOperationCandidate, CloneOperationCandidateSummary
+and ValidateOperationCandidateSummary in PIB-214, with individual replacement
+mutations. Validate the S5 optional pointer and exact four string fields before
+normalizing a private schema AST for comparison against the unchanged prior
+schema digests. Eleven malformed-summary mutations exercise the new validator.
+The S5 scope inventory admits only the dependent CLI test file, not production
+CLI changes. Retained reviewer 7712b628 reviews the delta; the old Mac owns
+serial admitted formatting/targeted checks. No full-gate success is claimed.
+
 ## S5 Remote Pilot Pass / Dependent Native Guard Failures — 2026-10-31
 
 The old Mac passes individually admitted fixture formatting, Windows test

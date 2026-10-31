@@ -858,8 +858,13 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 		// `implement --manual` can checkpoint the exact recipe bytes after
 		// validation and before the state transition. The legacy method
 		// delegates to it with a nil callback. S4 adds the reviewed generic
-		// atomic artifact adapter; no other store surface is authorized.
+		// atomic artifact adapter. GH #13 S5 adds only the three summary helpers.
+		candidateHelpers := []string{
+			"CarryForwardOperationCandidate", "CloneOperationCandidateSummary",
+			"ValidateOperationCandidateSummary",
+		}
 		want = append(want, "*Store.AdvanceStateManuallyWithCheckpoint", "*Store.WriteArtifactAtomic")
+		want = append(want, candidateHelpers...)
 		sort.Strings(want)
 		got, err := prepareS5StoreFunctionSet(current)
 		if err != nil {
@@ -887,6 +892,22 @@ func TestPrepareS5NonInvalidationSourceRows(t *testing.T) {
 		}
 		if reflect.DeepEqual(withoutAtomic, want) {
 			t.Fatal("removing the required S4 atomic adapter did not change the guarded surface")
+		}
+		for _, name := range candidateHelpers {
+			missing := clonePrepareS5Sources(current)
+			const path = "internal/store/operation_candidate.go"
+			anchor := "func " + name + "("
+			if bytes.Count(missing[path], []byte(anchor)) != 1 {
+				t.Fatalf("candidate helper mutation anchor is not unique: %s", name)
+			}
+			missing[path] = bytes.Replace(missing[path], []byte(anchor), []byte("func Unexpected"+name+"("), 1)
+			changed, err := prepareS5StoreFunctionSet(missing)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if reflect.DeepEqual(changed, want) {
+				t.Fatalf("replacing required candidate helper %s did not change the guarded surface", name)
+			}
 		}
 	})
 }
