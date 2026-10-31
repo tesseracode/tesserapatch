@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S5 SOURCE/TEST FIXES APPROVED; REPLACEMENT FULL GATES PENDING.**
-APPROVED denotes independent source review, not S5 stage acceptance.
-The next published checkpoint replaces failed validation checkpoint `5fd2829`.
+**S5 REMAINS UNACCEPTED; DEPENDENT INTENT STATUS MIRROR REQUIRES ALIGNMENT.**
+Published checkpoint `9637e2c` fixes the prior Windows fixture/inventory failures,
+but native CI now exposes the missing S5 summary in intent's local status mirror.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -26,7 +26,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Guard correction approved and targeted checks passed; replacement full gates pending
+- **Status**: Correcting dependent intent status mirror after native parity failure
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -40,6 +40,18 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Native CI `41156126648` completes with both observer jobs PASS, but Linux,
+macOS and blocking Windows tests fail `TestAVPStatusSchemaParity` and its
+unmutated sensitivity control: OperationCandidateSummary has no mirror rule.
+This is directly coupled to S5's status-field addition, not unrelated migration
+work. Align the existing local mirror without importing store, preserve unknown-
+field tolerance, add focused runtime/parity negative controls, and re-review.
+
+Stopped the obsolete remote gate via its identity-verified runner PID4854.
+Formatting/vet/build passed; the first test command was still running. Preserve
+`full-gate/evidence/interruption.json` and all partial evidence; no full pass is
+claimed. No replacement Go workload starts until owned-process cleanup is verified.
 
 Test-only correction `2737264` passes remote admitted formatting, CLI
 PIB-214/PIB-477 and S2/S5 schema controls (14.751s; command71.06s), and workflow

@@ -1691,6 +1691,10 @@ remote guard/scope checks and complete replacement gates remain pending.
 Remote targeted correction now PASS: CLI14.751s/workflow6.876s, no formatter
 delta. Publish the approved correction for complete39-shard old-Mac validation
 and fresh exact-tip native CI; prior failed run is complete. S5 still unaccepted.
+CI41156126648 at9637e2c passes both observers, but all native test platforms
+expose the missing OperationCandidateSummary mirror in internal/intent.
+Stop the obsolete remote gate and align only that existing schema mirror with
+focused runtime/parity sensitivity checks; re-review precedes replacement gates.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored

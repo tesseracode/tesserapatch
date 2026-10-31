@@ -1,3 +1,17 @@
+## S5 Native Parity Failure / Remote Gate Interrupted — 2026-10-31
+
+Native CI41156126648 at9637e2c passes both S7 observer jobs. Linux/macOS test
+jobs and Windows' blocking GH16 surface fail intent's status parity guard:
+OperationCandidateSummary is now reachable from store.FeatureStatus but has no
+local mirror/rule. Preserve the existing no-store-import architecture and add
+the exact optional summary shape; do not broaden unknown-field strictness.
+This is an S5-dependent production mirror correction, not unrelated migration.
+
+Stop the obsolete remote gate by its identity-verified runner PID4854, preserving
+interruption.json and partial evidence. Formatting/vet/build passed; first test
+command was still running. Verify no owned survivors before any replacement Go.
+No S5 acceptance/S6 dispatch; narrow review and full replacement gates remain.
+
 ## S5 Corrected Checkpoint Ready for Full Gates — 2026-10-31
 
 Source-reviewed test correction2737264 passes admitted remote formatting,
