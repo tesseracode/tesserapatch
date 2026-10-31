@@ -5,6 +5,9 @@ formatting, including all revised authority/fault/source controls. Combined
 validation stops at CLI compilation: the phase-order renderer lacks its stdlib
 sort import. Add that import only; no runtime/guard semantics change. Then run
 CLI checks, full affected packages, vet and build before full-gate publication.
+Frozen d3c3f40, active sole Go shell s6-approved-basic. Initial formatting passes;
+remaining CLI/affected/vet/build steps are serial. Frozen release/asset/research/
+golden surfaces verified unchanged; no full S6 gate has started.
 
 ## Review — S6 Checked Retirement2930204 — 2026-10-31
 

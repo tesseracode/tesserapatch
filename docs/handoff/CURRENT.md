@@ -31,6 +31,12 @@ WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
 
+Approved source plus stdlib import is frozen atd3c3f40. Sole Go shell
+`s6-approved-basic` runs CLI checks, full workflow/candidate/store tests,
+vet and build in approved-source; formatting has passed. Previous targeted
+commands are complete. Frozen assets/SPEC/CI/scripts/goldens/research and the
+v0.17.0 tag have empty/unchanged diffs at this boundary.
+
 Independent reviewer APPROVES source2930204: final R2/status-write and syntax
 blockers closed; R1/R3/R4/R5 remain closed; ADR-049 interpretation approved.
 Runtime/basic/full local/native validation is still required before acceptance.
