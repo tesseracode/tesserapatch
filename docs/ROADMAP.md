@@ -1660,6 +1660,9 @@ independent review/basic checks precede the full gate; no acceptance yet.
 Review requires one shared inspection/materialization policy: case-sensitive
 add must not activate a filter hidden by case-insensitive check-attr. Unify the
 private command options and add the ordered-rule/no-execution regression.
+Shared-policy WIP `efe351f` is in retained review. Formatting was blocked by
+continuous load above5; a fresh unchanged admission retry is active. The
+operator-approved extension runs through 10:08:53 UTC, still #13 only.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

@@ -1,3 +1,11 @@
+## S5 Shared-policy Checkpoint / Retry — 2026-10-31
+
+Freeze shared-policy WIP `efe351fa3386383d1d1daf48c8add447c204b273`
+without claiming formatting/runtime validation. Retained reviewer checks the
+one-policy propagation and ordered-case counterexample. Sole command
+`s5-shared-policy-red-retry` retries the unchanged 600s admission budget.
+The approved extended deadline is 10:08:53 UTC; no issue9 or unrelated work.
+
 ## Authorization Extended / Resource Admission Blocked — 2026-10-31
 
 Operator explicitly selected an eight-hour extension: effective deadline

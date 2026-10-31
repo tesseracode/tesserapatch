@@ -25,13 +25,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Byte/mode fixes pass; unifying inspection/materialization case policy
+- **Status**: Shared policy frozen for review; resource-admitted format/red proof retry active
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
-- **Frozen review checkpoint**: `b46129e96b92139a61bc9512f2fe26fa69fae1f1`
+- **Frozen review checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273` (shared-policy WIP)
 - **Current window deadline**: `2026-10-31T10:08:53Z` (eight-hour extension approved)
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -175,6 +175,10 @@ The pending shared-policy formatter was BLOCKED at 600s admission, before
 execution: all sampled load1 values were 5.26-6.86, pressure normal. No guard
 was relaxed and no Go/formatter result is claimed for that attempt. Retry
 only under the unchanged continuous quiet-window policy.
+Retained reviewer is inspecting frozen `efe351f`. Sole validation command
+`s5-shared-policy-red-retry` retries admitted formatting and the old-code
+ordered-filter counterexample; no other Go work is running. Effective deadline
+is the approved extended 10:08:53 UTC, with no scope beyond #13.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
