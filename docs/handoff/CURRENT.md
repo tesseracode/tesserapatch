@@ -20,7 +20,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Needs revision — five independent review findings; S5 remains accepted
+- **Status**: Source approved at2930204 — runtime/basic/full validation pending
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -31,6 +31,11 @@ WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
 
+Independent reviewer APPROVES source2930204: final R2/status-write and syntax
+blockers closed; R1/R3/R4/R5 remain closed; ADR-049 interpretation approved.
+Runtime/basic/full local/native validation is still required before acceptance.
+The active checked-status targeted run must finish before broader Go checks.
+
 Re-review ofa5c15d0 closes R1/R3/R4/R5. R2 still requires the all-present
 caller to check updateFeatureState's status-load/save failures. The two newly
 added fault-test declarations were accidentally nested; they are moved to
@@ -40,6 +45,10 @@ The checked status return and all-present caller check are now implemented.
 A post-load filesystem fault forces atomic status replacement to fail and
 asserts publication error/original status retention. All new declarations are
 verified at package scope; no test assertion was removed.
+Frozen checkpoint29302048166ae0d9c08e9b4626da9fb237123d19 is in final R2
+re-review. Sole Go shell `s6-checked-status-targeted` runs the corrected combined
+suite in checked-status-source. All earlier Go commands are complete; no full
+S6 gate has started.
 
 The review corrections are drafted: evaluator errors propagate late recovery
 without ordinary persistence; new-path checked artifact/evidence/summary

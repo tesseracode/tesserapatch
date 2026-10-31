@@ -1645,6 +1645,9 @@ Independent core review NEEDS REVISION on late recovery propagation, checked
 candidate persistence, retained phase2 findings on stronger outcomes, analyzer
 call-boundary handling and latest-invocation review rendering. ADR-049 direction
 is acceptable; fix forward and re-review before full gates.
+Source revision2930204 is independently APPROVED; all five findings and the
+test syntax blocker are closed. Runtime/basic/full local/native validation
+still gates S6 acceptance; no S7 dispatch.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
