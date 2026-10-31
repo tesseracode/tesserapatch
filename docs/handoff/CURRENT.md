@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S5 REMAINS UNACCEPTED; DEPENDENT INTENT STATUS MIRROR REQUIRES ALIGNMENT.**
-Published checkpoint `9637e2c` fixes the prior Windows fixture/inventory failures,
-but native CI now exposes the missing S5 summary in intent's local status mirror.
+**S5 SOURCE AND DEPENDENT MIRROR APPROVED; FULL REPLACEMENT GATES PENDING.**
+APPROVED denotes source review, not stage acceptance. The next checkpoint
+replaces native-failed `9637e2c`; the exact mirror correction now passes.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -26,13 +26,13 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Correcting dependent intent status mirror after native parity failure
+- **Status**: Mirror correction approved and affected checks passed; fresh full gates pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
-- **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
+- **Reviewed code checkpoints**: `efe351f` authority, `2737264` guards, `fca0b87` dependent mirror
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
-- **Frozen review checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273` (shared-policy WIP)
+- **Frozen review checkpoint**: `fca0b873ac0ed891fedc67265bbba582308cb478` (all prior approvals retained)
 - **Current window deadline**: `2026-10-31T10:08:53Z` (eight-hour extension approved)
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
@@ -40,6 +40,20 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Mirror correction passes remote admitted formatting, full intent package
+(125.693s; command127.61s), and workflow scope controls (7.484s; command18.77s).
+Collected formatter output is whitespace-only against reviewed `fca0b87`;
+all evidence is retained. No remote Go workload remains.
+
+Operational decision: the local 32GiB Mac now reports normal pressure, load4.25
+and58% diagnostic free memory. Use the faster local host for the next complete
+gate only after the unchanged continuous60s admission; the old Mac remains an
+idle fallback if resources block. This probe grants no admission or threshold
+waiver. Use a fresh isolated full-history checkout and fresh caches, identical
+Go1.26.5/harness/39-test partition. Never overlap owned Go across hosts.
+The next native watcher reports first failed job promptly. Publish the exact
+checkpoint once, then freeze it for full gate and native CI; no S6 acceptance.
 
 Native CI `41156126648` completes with both observer jobs PASS, but Linux,
 macOS and blocking Windows tests fail `TestAVPStatusSchemaParity` and its

@@ -1,3 +1,17 @@
+## S5 Mirror Green / Validation Host Decision — 2026-10-31
+
+Reviewed mirror correction passes admitted remote formatting, full intent
+tests125.693s and workflow scope controls7.484s. Formatter delta is whitespace
+only against fca0b87; collected evidence and all earlier failures are retained.
+
+The local32GiB host now has normal pressure/load4.25/58% diagnostic free memory.
+Prefer its faster CPU for the next full gate, contingent on the unchanged
+continuous60s admission and runtime stops. This is an operational host choice,
+not a waiver or architecture change; the isolated old Mac remains idle fallback.
+No overlapping local/remote Go. Use a fresh full-history source/cache and the
+unchanged pinned harness/39-test partition. Publish/freeze a new exact native
+checkpoint; first failed CI job will notify promptly. S5 remains unaccepted.
+
 ## Review — S5 Dependent Intent Mirror — 2026-10-31
 
 **Reviewer**: roc-s5-independent-review / 7712b628, verified gpt-6-astra.

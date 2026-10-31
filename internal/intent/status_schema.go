@@ -101,18 +101,18 @@ type statusOperationCandidateSummary struct {
 }
 
 type statusReconcileSummary struct {
-	AttemptedAt    string              `json:"attempted_at,omitempty"`
-	UpstreamRef    string              `json:"upstream_ref,omitempty"`
-	UpstreamCommit string              `json:"upstream_commit,omitempty"`
-	Outcome        string              `json:"outcome,omitempty"`
-	ReviewVerdict  string              `json:"review_verdict,omitempty"`
-	ShadowPath     string              `json:"shadow_path,omitempty"`
-	ResolveSession string              `json:"resolve_session_id,omitempty"`
-	ResolvedFiles  int                 `json:"resolved_files,omitempty"`
-	FailedFiles    int                 `json:"failed_files,omitempty"`
-	SkippedFiles   int                 `json:"skipped_files,omitempty"`
-	Labels         []string            `json:"labels,omitempty"`
-	PatchIDMatch   *statusPatchIDMatch `json:"patch_id_match,omitempty"`
+	AttemptedAt        string                           `json:"attempted_at,omitempty"`
+	UpstreamRef        string                           `json:"upstream_ref,omitempty"`
+	UpstreamCommit     string                           `json:"upstream_commit,omitempty"`
+	Outcome            string                           `json:"outcome,omitempty"`
+	ReviewVerdict      string                           `json:"review_verdict,omitempty"`
+	ShadowPath         string                           `json:"shadow_path,omitempty"`
+	ResolveSession     string                           `json:"resolve_session_id,omitempty"`
+	ResolvedFiles      int                              `json:"resolved_files,omitempty"`
+	FailedFiles        int                              `json:"failed_files,omitempty"`
+	SkippedFiles       int                              `json:"skipped_files,omitempty"`
+	Labels             []string                         `json:"labels,omitempty"`
+	PatchIDMatch       *statusPatchIDMatch              `json:"patch_id_match,omitempty"`
 	OperationCandidate *statusOperationCandidateSummary `json:"operation_candidate,omitempty"`
 }
 

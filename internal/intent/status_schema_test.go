@@ -31,31 +31,31 @@ type schemaField struct {
 // two maps are the only hand-maintained part of the guard, and a struct that
 // appears in one and not the other fails the walk.
 var storeToCanonical = map[string]string{
-	"FeatureStatus":         "FeatureStatus",
-	"ApplySummary":          "ApplySummary",
-	"ReconcileSummary":      "ReconcileSummary",
+	"FeatureStatus":             "FeatureStatus",
+	"ApplySummary":              "ApplySummary",
+	"ReconcileSummary":          "ReconcileSummary",
 	"OperationCandidateSummary": "OperationCandidateSummary",
-	"PatchIDMatch":          "PatchIDMatch",
-	"Dependency":            "Dependency",
-	"VerifyRecord":          "VerifyRecord",
-	"RejectionStatus":       "RejectionStatus",
-	"RejectionHistoryEntry": "RejectionHistoryEntry",
-	"EvidenceRef":           "EvidenceRef",
-	"DivergenceDetail":      "DivergenceDetail",
+	"PatchIDMatch":              "PatchIDMatch",
+	"Dependency":                "Dependency",
+	"VerifyRecord":              "VerifyRecord",
+	"RejectionStatus":           "RejectionStatus",
+	"RejectionHistoryEntry":     "RejectionHistoryEntry",
+	"EvidenceRef":               "EvidenceRef",
+	"DivergenceDetail":          "DivergenceDetail",
 }
 
 var mirrorToCanonical = map[string]string{
-	"statusDocument":              "FeatureStatus",
-	"statusApplySummary":          "ApplySummary",
-	"statusReconcileSummary":      "ReconcileSummary",
+	"statusDocument":                  "FeatureStatus",
+	"statusApplySummary":              "ApplySummary",
+	"statusReconcileSummary":          "ReconcileSummary",
 	"statusOperationCandidateSummary": "OperationCandidateSummary",
-	"statusPatchIDMatch":          "PatchIDMatch",
-	"statusDependency":            "Dependency",
-	"statusVerifyRecord":          "VerifyRecord",
-	"statusRejection":             "RejectionStatus",
-	"statusRejectionHistoryEntry": "RejectionHistoryEntry",
-	"statusEvidenceRef":           "EvidenceRef",
-	"statusDivergenceDetail":      "DivergenceDetail",
+	"statusPatchIDMatch":              "PatchIDMatch",
+	"statusDependency":                "Dependency",
+	"statusVerifyRecord":              "VerifyRecord",
+	"statusRejection":                 "RejectionStatus",
+	"statusRejectionHistoryEntry":     "RejectionHistoryEntry",
+	"statusEvidenceRef":               "EvidenceRef",
+	"statusDivergenceDetail":          "DivergenceDetail",
 }
 
 // namedStringTypes are store enums that marshal as plain JSON strings. The

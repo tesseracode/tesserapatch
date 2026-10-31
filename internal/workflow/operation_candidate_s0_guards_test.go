@@ -143,8 +143,8 @@ func rocS4ValidateStageChangedPaths(paths []string) error {
 }
 
 var rocS5AllowedPaths = map[string]bool{
-	"internal/intent/status_schema.go":                              true,
-	"internal/intent/status_schema_test.go":                         true,
+	"internal/intent/status_schema.go":                               true,
+	"internal/intent/status_schema_test.go":                          true,
 	"internal/cli/prepare_s5_test.go":                                true,
 	"docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md":    true,
 	"internal/gitutil/capture_attributes.go":                         true,

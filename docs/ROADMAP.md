@@ -1699,6 +1699,10 @@ Mirror correction `fca0b87` has real red-before evidence: old production accepts
 all three malformed candidate shapes. Retained review and admitted full intent/
 scope checks are in progress; no validation threshold or source pin is loosened.
 Retained independent review APPROVES `fca0b87`; runtime/full gates still pending.
+Remote mirror formatting/full intent (125.693s)/scope (7.484s) now PASS.
+The local32GiB host has recovered to normal pressure/load4.25; prefer its
+faster CPU for the fresh full gate subject to unchanged60s admission, keeping
+the old Mac idle as fallback. No overlapping Go or validation waiver.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored
