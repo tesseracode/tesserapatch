@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S5 SOURCE/MIRROR APPROVED; REVIEWED TEST DELTA NEEDS CURRENT-SOURCE PIN.**
-Published `84d524a` passes the corrected intent tests but CI's PIB-391 source
-freeze still expects the pre-S5 mirror test. No S5 acceptance is claimed.
+**S5 SOURCE/MIRROR APPROVED; PROVENANCE CORRECTION PASSES; FULL GATES PENDING.**
+APPROVED denotes source approval, not S5 acceptance. The next checkpoint
+replaces `84d524a`; its exact reviewed current-source pin now passes PIB-391.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -26,7 +26,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Registering approved mirror-test delta through existing CurrentSHA256 mechanism
+- **Status**: Provenance controls passed; fresh full gate/native validation pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -40,6 +40,18 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Exact source-pin registration `676b9ba` passes admitted formatting and full PIB
+pre-change golden/provenance/history controls, intent status parity/sensitivity/
+runtime cases and S5 scope transition (CLI26.792s/intent0.166s/workflow0.207s;
+command48.53s). Formatter changes are whitespace-only. Historical accepted
+source at cacaaf8 still hashes to the original e6dc84...; its history/freeze and
+all golden bytes remain unchanged. No Go workload remains.
+
+Publish the corrected checkpoint, then launch `s5-provenance-full-gate` with
+fresh full-gate-v3 source/caches and `s5-provenance-native-ci` on that exact SHA.
+The old Mac stays idle. All admission/runtime rules and39-test/42-command
+partition remain unchanged; no tracking-only push while CI runs. No S6 yet.
 
 Fail-fast CI watcher reports Linux PIB-391 at `84d524a`: the accepted-check
 source freeze detects the deliberately reviewed status_schema_test.go delta.
@@ -426,6 +438,12 @@ No new module dependency. v0.17.0 is unchanged.
   macOS store/schema inventories; AP registration also failed. Not accepted.
 - `2737264` remote inventory format/CLI controls/workflow scope checks: PASS.
   CLI14.751s/workflow6.876s, unchanged safeguards, no formatter delta.
+- `fca0b87` mirror correction: red-before three malformed cases; admitted
+  remote full intent125.693s/workflow scope7.484s PASS.
+- `676b9ba` current-source registration: full PIB goldens/provenance/history,
+  intent status and S5 scope controls PASS (26.792s/0.166s/0.207s).
+- CI41158908886 exposed the omitted current-source pin; its local full gate
+  stopped during first-test admission, with32 sampled identities reconciled.
 
 Evidence: `bin/roc-s5-20261030/`; final checked source:
 `bin/roc-s5-20261030/f2-corrected-source/`. Preserve all previous raw evidence.

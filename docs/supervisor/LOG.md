@@ -1,3 +1,16 @@
+## S5 Provenance Registration Green — 2026-10-31
+
+Exact reviewed-source amendment676b9ba passes admitted formatting and full PIB
+pre-change goldens/provenance/history, intent status and scope controls:
+CLI26.792s/intent0.166s/workflow0.207s, command48.53s. Formatter delta is only
+whitespace. Independently verified original accepted source at cacaaf8 retains
+e6dc84... SHA256; historical history/freeze and golden bytes are unchanged.
+
+Publish one frozen checkpoint, then run fresh full-gate-v3 (39 tests/42 commands)
+and fail-fast native CI. Same toolchain/resource guards, old Mac idle, no
+tracking-only pushes during exact-tip CI. Existing source approvals stand;
+the mechanical amendment changes no source/guard logic. S5 is not accepted.
+
 ## S5 Reviewed Source-Pin Registration Required — 2026-10-31
 
 Fail-fast native CI41158908886 detects Linux PIB-391's current-source freeze:

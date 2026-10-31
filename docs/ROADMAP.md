@@ -1707,6 +1707,10 @@ Fail-fast CI at84d524a detects the reviewed mirror-test change in PIB-391's
 current-source freeze. Register its exact approved current hash via the existing
 CurrentSHA256 field, retaining historical hash/history/freeze and all guard logic.
 Local gate stopped before tests;32 sampled owned identities are gone.
+Exact amendment676b9ba passes full PIB golden/provenance/history and intent
+status/scope controls (26.792s/0.166s/0.207s). Historical source hash verified
+unchanged; only the approved current-source amendment is pinned. Fresh full/
+native gates next, with no S5 acceptance or S6 dispatch yet.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored
