@@ -1,3 +1,11 @@
+## S6 Budgeted Checkpoint Native Pass — 2026-10-31
+
+CI41228600239 atb9d42f4 passes all five jobs. Actual Windows logs show223
+known top-level failures and no new failure versus validated S5/S6 baselines;
+#17 remains open. At19:24 UTC the3GiB full old-Mac gate has passed10/42
+commands (7/39 test commands) and is admitting command11. Continue unchanged
+to full parity/resource/cleanup verification; no S6 acceptance or S7 dispatch.
+
 ## S6 Memory-Budget Pilot Pass / Full Retry Authorized — 2026-10-31
 
 Pilotff306d6 with GOMEMLIMIT=3GiB passes the complete failed AQ selector:

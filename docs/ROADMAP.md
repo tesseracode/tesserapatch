@@ -1676,6 +1676,9 @@ The3GiB AQ pilot PASSES (524.68s command,3.89GiB sampled owned peak, normal
 pressure/zero swap-outs;73 owned identities gone). The authorized fresh full
 old-Mac rerun will use that budget with all original safeguards and no reused
 results. S6 acceptance still requires the complete gate.
+Native CI41228600239 atb9d42f4 PASS; actual Windows residuals remain known.
+The fresh3GiB old-Mac gate is still running (command11/42 at19:24 UTC).
+No source changes, partial-result reuse or S6 acceptance yet.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

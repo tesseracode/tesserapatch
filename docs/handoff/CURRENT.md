@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Full3GiB old-Mac gate active atb9d42f4; native CI running
+- **Status**: Native CI passed atb9d42f4; full3GiB old-Mac gate still running
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,12 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Native CI41228600239 atb9d42f4 passes all five jobs. Raw Windows comparison
+finds223 known top-level failures and none outside validated S5/S6 baselines;
+#17 remains open. The3GiB full old-Mac gate continues: at19:24 UTC10/42
+commands (7/39 test shards) had passed, with command11 in admission. No local
+Go or later-stage work starts while this complete acceptance gate is pending.
 
 The3GiB pilot atff306d6 PASSES the formerly blocked AQ shard: CLI384.181s,
 command524.68s, admission61.20s, sampled peak owned RSS3.89GiB, pressure1
