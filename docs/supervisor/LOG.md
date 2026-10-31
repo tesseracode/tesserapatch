@@ -1,3 +1,15 @@
+## S6 Memory-Budget Pilot Pass / Full Retry Authorized — 2026-10-31
+
+Pilotff306d6 with GOMEMLIMIT=3GiB passes the complete failed AQ selector:
+CLI384.181s, command524.68s, admission61.20s, sampled peak owned RSS3.89GiB,
+normal pressure and zero new swap-outs. All73 sampled identities exited;
+source stayed clean and evidence is retained.
+
+The user's conditional authorization now permits a fresh full old-Mac gate.
+Use new source/cache directories, identical guarded harness and the same3GiB
+budget; run all39 test commands/all42 commands with no prior-result reuse.
+Deadline remains2026-11-01T02:08:53Z. S6 is not accepted until complete results.
+
 ## Operator Approves Memory-Budget Pilot and Further Extension — 2026-10-31
 
 Operator selected the3GiB GOMEMLIMIT old-Mac pilot, with a fresh full rerun

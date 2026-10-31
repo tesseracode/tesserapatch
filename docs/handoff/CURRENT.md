@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S6 BOUNDED-MEMORY PILOT AUTHORIZED; NOT ACCEPTED.**
-Source review and native CI remain approved. The full old-Mac retry stopped on
-new system swap-outs; neither interrupted full gate is counted as successful.
+**S6 MEMORY-BUDGET PILOT PASSES; FRESH COMPLETE RETRY AUTHORIZED.**
+APPROVED denotes source review only. Neither earlier interrupted full gate is
+counted as successful; S6 still requires complete acceptance validation.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Approved GOMEMLIMIT=3GiB AQ pilot; conditional full retry only after pilot success
+- **Status**: 3GiB AQ pilot passed — preparing the authorized fresh full old-Mac rerun
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,17 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+The3GiB pilot atff306d6 PASSES the formerly blocked AQ shard: CLI384.181s,
+command524.68s, admission61.20s, sampled peak owned RSS3.89GiB, pressure1
+throughout and zero new swap-outs. All73 sampled owned identities are gone;
+source remained clean. Evidence is collected locally under aq-3gib.
+
+The operator's conditional full-rerun authorization is now satisfied. Publish
+a fresh checkpoint and use new s6-budget-source/s6-budget-full-gate directories
+and fresh caches, with GOMEMLIMIT=3GiB and every existing safeguard unchanged.
+Run all39 test commands/all42 commands from the start; do not reuse pilot or
+earlier passed results. No local Go. Deadline2026-11-01T02:08:53Z.
 
 Operator approved the GOMEMLIMIT=3GiB old-Mac failed-shard pilot, followed by
 a fresh complete gate only if the pilot passes. Because the reply arrived near
@@ -332,9 +343,9 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Blockers
 
-Both full attempts remain resource-blocked. The explicitly authorized3GiB
-runtime-budget pilot is the next check; full retry is conditional on success.
-No guard relaxation, partial acceptance or work beyond the new deadline.
+Both earlier full attempts remain resource-blocked. The3GiB pilot passes,
+authorizing a fresh full attempt under the same strict resource guards.
+No partial acceptance or work beyond the new deadline.
 
 ## Context for Next Agent
 

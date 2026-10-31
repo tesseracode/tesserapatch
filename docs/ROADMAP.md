@@ -1672,6 +1672,10 @@ conservative runtime-memory-budget pilot or pause rather than blind retries.
 Operator approved GOMEMLIMIT=3GiB pilot with all existing guards unchanged, then
 a fresh full retry only after success. A separate explicit eight-hour extension
 sets the deadline to2026-11-01T02:08:53Z. S6 remains unaccepted.
+The3GiB AQ pilot PASSES (524.68s command,3.89GiB sampled owned peak, normal
+pressure/zero swap-outs;73 owned identities gone). The authorized fresh full
+old-Mac rerun will use that budget with all original safeguards and no reused
+results. S6 acceptance still requires the complete gate.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
