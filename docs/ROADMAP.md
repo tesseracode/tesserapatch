@@ -1648,6 +1648,9 @@ is acceptable; fix forward and re-review before full gates.
 Source revision2930204 is independently APPROVED; all five findings and the
 test syntax blocker are closed. Runtime/basic/full local/native validation
 still gates S6 acceptance; no S7 dispatch.
+Final basic checks atd3c3f40 PASS: CLI2.248s; full affected packages168.02s;
+vet6.84s/build0.55s, normal pressure/no swap-outs. Publish the frozen reviewed
+checkpoint for all39 local shards and exact-tip native CI. S6 still unaccepted.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

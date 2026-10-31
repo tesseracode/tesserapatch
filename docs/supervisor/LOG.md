@@ -1,3 +1,15 @@
+## S6 Approved Basic Checks Complete — 2026-10-31
+
+Atd3c3f40, formatting/CLI2.248s/full affected168.02s/vet6.84s/build0.55s all
+pass with individual admission, normal pressure and zero new swap-outs.
+All five review findings remain independently closed; source approval stands.
+Frozen assets/SPEC/CI/scripts/goldens/research/release inputs are unchanged.
+
+Publish the frozen checkpoint, then run complete local39-test/42-command gate
+with WAVE_BASE62698be and exact-tip native CI. No local/remote Go overlap,
+tracking-only push or later-stage dispatch while these gates are outstanding.
+Canonical APPROVED denotes source review only; S6 is not accepted yet.
+
 ## S6 Runtime Pass / Missing Renderer Import — 2026-10-31
 
 Approved checked-status source passes workflow33.643s/candidate1.938s and

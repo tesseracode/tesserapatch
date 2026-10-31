@@ -2,14 +2,15 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S6 DISPATCHED after durable S5 acceptance.**
+**S6 SOURCE/BASIC CHECKS APPROVED; COMPLETE GATES PENDING.**
+APPROVED denotes independent source review, not stage acceptance.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
-The first summary-preservation unit passes its combined regressions. Core
-phase/authority integration is drafted but not yet compiled or reviewed.
+Core phase/authority integration and all review corrections pass targeted and
+affected-package checks, vet and build. Full local/native validation remains.
 
 The approved #13-only window ends at **2026-10-31T10:08:53Z**.
 Stop after #13 or at that deadline; never start #9 in this run. No unrelated
@@ -20,7 +21,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Source approved at2930204 — runtime/basic/full validation pending
+- **Status**: Source and basic checks approved — publishing frozen full-validation checkpoint
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -30,6 +31,18 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Final basic checks atd3c3f40 all PASS: formatting; CLI2.248s; full
+workflow149.664s/candidate8.496s/store2.770s (command168.02s); vet6.84s;
+build0.55s. Each stage admitted separately, normal pressure/no new swap-outs.
+All S6 source findings remain independently closed. No Go workload remains.
+
+Publish the frozen checkpoint and run `s6-full-gate` plus fail-fast
+`s6-native-ci`. The full gate uses a clean full-history source and fresh caches,
+the unchanged Go1.26.5 guarded harness, all39 tests/all42 commands and S6
+WAVE_BASE62698be. Inspect actual Windows outcomes against the accepted baseline.
+No tracking-only pushes during exact-tip CI; no S7 until durable S6 acceptance.
+The following chronology preserves prior iterations, not current task status.
 
 Approved source plus stdlib import is frozen atd3c3f40. Sole Go shell
 `s6-approved-basic` runs CLI checks, full workflow/candidate/store tests,
@@ -149,8 +162,11 @@ policy and intent/status mirror parity.
 
 ## Files Changed
 
-Dispatch tracking plus first summary unit: reconcile.go,
-labels_reconcile_path_test.go, and the S6 finite scope guard.
+Workflow phase/evidence/confirmation and shared summary integration; new
+operation_candidate_phase helpers/guards/runtime/fault tests; S5 caller-held
+lifecycle adapters and guards; scalar S3 plan observations; CLI recovery
+mapping and latest-invocation rendering/tests; legacy nil-proof test callers;
+S6 finite scope and ADR-049/CURRENT/ROADMAP/LOG tracking.
 
 Expected implementation surface: workflow reconcile/evidence/confirmation/
 summary writers and candidate-phase helpers/tests, CLI reconcile-review
@@ -181,6 +197,10 @@ order, with positive/mutation controls. Added malformed staging, changed
 phase2 bindings and pending-pointer carry-forward regressions.
 
 ## Test Results
+
+Final approved basic sequence: all PASS, as summarized above. Evidence:
+`bin/roc-s6-20261031/approved-*`; checked source is approved-source.
+Full39-shard/native validation has not completed for S6.
 
 The first unit adds four persisted-pointer regressions
 across ordinary outcomes and a finite S6 scope transition with negative inputs.
