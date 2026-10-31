@@ -1669,6 +1669,9 @@ The old-Mac full retry also stops on resources: command12/AQ,2227 new swap-out
 pages,11/42 commands8/39 tests passed. Pressure stayed normal;747 owned identities
 exited. Source/native approvals stand but S6 remains unaccepted. Request a
 conservative runtime-memory-budget pilot or pause rather than blind retries.
+Operator approved GOMEMLIMIT=3GiB pilot with all existing guards unchanged, then
+a fresh full retry only after success. A separate explicit eight-hour extension
+sets the deadline to2026-11-01T02:08:53Z. S6 remains unaccepted.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

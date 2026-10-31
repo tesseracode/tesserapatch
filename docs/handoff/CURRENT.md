@@ -4,7 +4,7 @@
 
 **Cluster state**: IN PROGRESS
 
-**S6 RESOURCE-BLOCKED ON BOTH MACS; NOT ACCEPTED.**
+**S6 BOUNDED-MEMORY PILOT AUTHORIZED; NOT ACCEPTED.**
 Source review and native CI remain approved. The full old-Mac retry stopped on
 new system swap-outs; neither interrupted full gate is counted as successful.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
@@ -13,7 +13,7 @@ archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
 Core phase/authority integration and all review corrections pass targeted and
 affected-package checks, vet and build. Full local/native validation remains.
 
-The approved #13-only window now ends at **2026-10-31T18:08:53Z**.
+The approved #13-only window now ends at **2026-11-01T02:08:53Z**.
 Stop after #13 or at that deadline; never start #9 in this run. No unrelated
 migration, coverage expansion, upstream-Git research or release work.
 
@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Blocked — old-Mac swap-out stop; awaiting bounded-memory retry decision
+- **Status**: Approved GOMEMLIMIT=3GiB AQ pilot; conditional full retry only after pilot success
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,18 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Operator approved the GOMEMLIMIT=3GiB old-Mac failed-shard pilot, followed by
+a fresh complete gate only if the pilot passes. Because the reply arrived near
+the former deadline, the operator separately approved another eight-hour
+extension: new deadline2026-11-01T02:08:53Z. The former timer is stopped.
+All pressure/swap/admission/timeouts stay unchanged; no code or test is weakened.
+
+At17:57 UTC the old Mac is idle/normal (pressure1/load1.49), exact private
+Go1.26.5 and clean ff306d6 source. The pilot uses a new private runner/cache
+directory, preserving previous failures. Runtime budget is recorded separately
+and inherited by all Go subprocesses; it is advisory, not a hard RSS ceiling.
+No local Go workload. Do not launch a full rerun before the pilot passes.
 
 The old-Mac retry stops at command12, `^TestS7AQ.*$`, on2227 new swap-out pages
 (about8.7MiB). OS pressure stayed normal. 11/42 commands and8/39 tests passed;
@@ -313,13 +325,13 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 2. Implement S6 with focused regressions; preserve prior-stage/source pins.
 3. Independent review, complete admitted gate/native CI, then archive/push
    before any S7 dispatch. Do not treat partial validation as acceptance.
-4. Stop by18:08:53Z or after #13; no #9 regardless of remaining time.
+4. Stop by2026-11-01T02:08:53Z or after #13; no #9 regardless of remaining time.
 
 ## Blockers
 
-Both full attempts remain resource-blocked. Old-Mac AQ triggered new swap-outs
-despite normal pressure. Need operator decision on a conservative Go memory
-budget pilot or pause; no guard relaxation or partial acceptance is authorized.
+Both full attempts remain resource-blocked. The explicitly authorized3GiB
+runtime-budget pilot is the next check; full retry is conditional on success.
+No guard relaxation, partial acceptance or work beyond the new deadline.
 
 ## Context for Next Agent
 
