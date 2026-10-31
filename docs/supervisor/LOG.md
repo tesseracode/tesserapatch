@@ -1,3 +1,16 @@
+## S6 Dispatched After Durable S5 Close — 2026-10-31
+
+S5 terminal handoff archived byte-for-byte (SHA256
+06dbd76013604e3eecde9d55f3b9fd01160a903ac4c2794db91c9be02e78d5eb),
+HISTORY prefix preserved; closure62698be pushed and clean main equality
+verified. No production delta from validated c42fc65. Closure trailers verified.
+
+Freshly fetched S6 WAVE_BASE62698be. Parent traces/implements the accepted S6
+phase/evidence/confirmation/shared-summary contract; independent review remains
+mandatory. No later-stage flags/transactions/assets/release or unrelated work.
+The approved #13-only window ends10:08:53Z; do not shorten gates to fit or start
+#9. The complete S5 handoff remains archived; CURRENT now scopes S6 explicitly.
+
 ## S5 Accepted — Complete Gate and Native Validation — 2026-10-31
 
 **Decision**: ACCEPTED at validated checkpoint

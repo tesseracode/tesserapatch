@@ -1623,6 +1623,16 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S6 IN PROGRESS — phase wiring and evidence — 2026-10-31
+
+Dispatched only after S5 closure62698be was pushed and clean HEAD=origin/main
+verified. S6 WAVE_BASE=`62698be412fb7e9a3e723d2589d6091b8eae3e5f`.
+Implement the accepted phase2/phase4 arm table, private authority/staged
+verdict carriers, CG1-CG7 confirmation, state-preserving candidate persistence,
+shared summary carry-forward, verdict/supporting rendering and exact guards.
+No S7 flags, S8 transactions, S9 assets/release or unrelated backlog.
+Window ends2026-10-31T10:08:53Z; complete review/full gates before acceptance.
+
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
 **Validated range**: `f9d5501f45e00365789eb24c53620a76513d52d5..c42fc65a376b136976d85f3352ca336a6d249a5b`.
@@ -1633,6 +1643,8 @@ swap-outs,535 observed identities reconciled/zero survivors. Native CI4115996059
 passes all five jobs; Windows'224 allowed failures match accepted S4 baselines
 and do not close #17. Frozen source/asset/research/release surfaces unchanged.
 Archive/push terminal S5 tracking before recording S6's fresh wave base.
+**Durable close**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`, pushed;
+terminal handoff archived verbatim and clean main equality verified.
 
 The following preserves the S5 execution chronology.
 
