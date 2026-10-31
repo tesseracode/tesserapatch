@@ -1,3 +1,13 @@
+## S6 First Unit — Shared Summary Preservation — 2026-10-31
+
+Trace confirms one production whole-summary replacement. Extract it through
+the already accepted store.CarryForwardOperationCandidate helper and exercise
+pending-pointer preservation across ordinary lifecycle outcomes; keep existing
+State/Notes rules. This is the accepted S6 merge contract, not a new design.
+The phase2 factory stays lock-free; actual S5 preparation/finalization belongs
+after phase4 conflict. Gate-off legacy behavior remains byte-identical.
+No phase/evidence authority has been added yet; review/full gates still required.
+
 ## S6 Dispatched After Durable S5 Close — 2026-10-31
 
 S5 terminal handoff archived byte-for-byte (SHA256

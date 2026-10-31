@@ -1200,18 +1200,8 @@ func evidencePhaseAndKind(result *ReconcileResult) (store.ReconcileEvidencePhase
 	}
 }
 
-// Update feature state based on reconciliation outcome
-func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
-	status, err := s.LoadFeatureStatus(slug)
-	if err != nil {
-		return
-	}
-
-	if result != nil && result.attemptedAt == "" {
-		result.attemptedAt = time.Now().UTC().Format(time.RFC3339)
-	}
-
-	status.Reconcile = store.ReconcileSummary{
+func mergedReconcileSummary(loaded store.ReconcileSummary, result *ReconcileResult) store.ReconcileSummary {
+	return store.CarryForwardOperationCandidate(store.ReconcileSummary{
 		AttemptedAt:    result.attemptedAt,
 		UpstreamRef:    result.UpstreamRef,
 		UpstreamCommit: result.UpstreamCommit,
@@ -1229,7 +1219,21 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 		// the verdict. `omitempty` on the field is load-bearing for
 		// default-OFF byte-identity.
 		PatchIDMatch: result.PatchIDMatch,
+	}, loaded)
+}
+
+// Update feature state based on reconciliation outcome
+func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
+	status, err := s.LoadFeatureStatus(slug)
+	if err != nil {
+		return
 	}
+
+	if result != nil && result.attemptedAt == "" {
+		result.attemptedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	status.Reconcile = mergedReconcileSummary(status.Reconcile, result)
 	status.LastCommand = "reconcile"
 	status.UpdatedAt = result.attemptedAt
 

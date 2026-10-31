@@ -8,7 +8,8 @@
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
-No S6 code has been implemented yet.
+The first summary-preservation unit is implemented; core phase/authority
+integration and all S6 validation/review remain incomplete.
 
 The approved #13-only window ends at **2026-10-31T10:08:53Z**.
 Stop after #13 or at that deadline; never start #9 in this run. No unrelated
@@ -19,7 +20,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: In progress — contract/source trace before implementation
+- **Status**: In progress — first shared-summary unit ready for admitted checks
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -51,6 +52,23 @@ S6 implements only accepted PRD §6.2/§6.11/§6.17 and the S6 checklist:
   only without changing its diagnostic note bytes.
 - Focused runtime and mutation-sensitive source/authority guards.
 
+Contract/source trace confirms the gate-off legacy all-present arm must stay
+unchanged (§6.4); retirement is gate-on only. There is one production whole
+ReconcileSummary replacement, in updateFeatureState. The first bounded unit
+extracts its exact construction through the accepted S5 carry-forward helper;
+ordinary lifecycle state/notes behavior stays unchanged. Focused pending-pointer
+regressions precede the phase/authority integration.
+
+Further integration constraints identified: phase2 derivation must remain
+lock-free, so it cannot call S5's locked preparation factory there; hold only
+readonly classification/binding metadata and use the real factory/finalizer
+after an eligible phase4 conflict. Preflight binding reads must occur after
+lock/recovery ordering. Candidate-ready persistence must reuse the shipped
+artifact/evidence sequence while bypassing only its status-state writer.
+The private proof may be passed only to save/gate, never returned by another
+helper or placed on a result/context; the evaluator should invoke save itself.
+Exact single assignment/mutation/read staging guards still need implementation.
+
 No S7 terminal flags/exclusivity, S8 acceptance/CAS/recovery transactions,
 S9 shipped docs/assets or release. Architectural deviations require an ADR;
 do not invent alternatives to the accepted contract to save time.
@@ -67,7 +85,8 @@ policy and intent/status mirror parity.
 
 ## Files Changed
 
-Dispatch tracking only: CURRENT, ROADMAP and supervisor LOG.
+Dispatch tracking plus first summary unit: reconcile.go,
+labels_reconcile_path_test.go, and the S6 finite scope guard.
 
 Expected implementation surface: workflow reconcile/evidence/confirmation/
 summary writers and candidate-phase helpers/tests, CLI reconcile-review
@@ -76,7 +95,10 @@ dependent surface must be recorded before changing it.
 
 ## Test Results
 
-No S6 validation yet. S5 accepted evidence:
+No S6 validation yet. The first unit adds four persisted-pointer regressions
+across ordinary outcomes and a finite S6 scope transition with negative inputs.
+An old-production overlay will prove the pointer-loss failure before green checks.
+S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has
 224 top-level failures, all present in accepted S4 runs41072987684/41058918380.

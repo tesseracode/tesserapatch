@@ -171,6 +171,43 @@ var rocS5AllowedPaths = map[string]bool{
 	"internal/workflow/operation_candidate_s0_guards_test.go":        true,
 }
 
+var rocS6AllowedPaths = map[string]bool{
+	"internal/workflow/reconcile.go":                  true,
+	"internal/workflow/labels_reconcile_path_test.go": true,
+}
+
+func rocS6ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS6AllowedPaths[path] {
+			continue
+		}
+		if err := rocS5ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS6ScopeTransition(t *testing.T) {
+	for path := range rocS6AllowedPaths {
+		if err := rocS6ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if err := rocS5ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S5 accepted S6 surface %s", path)
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/operation_candidate_accept.go",
+		"internal/cli/candidate_flags.go", "assets/skills/SKILL.md",
+		"internal/workflow/./reconcile.go",
+	} {
+		if err := rocS6ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S6 accepted later or unregistered surface %s", path)
+		}
+	}
+}
+
 func rocS5ValidateStageChangedPaths(paths []string) error {
 	for _, path := range paths {
 		if rocS5AllowedPaths[path] {

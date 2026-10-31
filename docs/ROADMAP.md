@@ -1632,6 +1632,9 @@ verdict carriers, CG1-CG7 confirmation, state-preserving candidate persistence,
 shared summary carry-forward, verdict/supporting rendering and exact guards.
 No S7 flags, S8 transactions, S9 assets/release or unrelated backlog.
 Window ends2026-10-31T10:08:53Z; complete review/full gates before acceptance.
+First bounded unit preserves pending pointers through the sole ordinary
+summary replacement, retaining shipped State/Notes rules. Core phase/proof/
+evidence wiring remains pending; no S6 acceptance or S7 dispatch.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
