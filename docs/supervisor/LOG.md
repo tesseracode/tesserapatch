@@ -1,4 +1,33 @@
-## S5 Ready for Full Local / Native Validation — 2026-10-31
+## Old-Mac Pinned Setup / Cross-platform Fixture Fix — 2026-10-31
+
+The old Mac has no Go1.26.5 installation. Provision the official Intel-Mac
+archive in a newly allocated private validation workspace only; verify its
+published SHA-256 before extraction. No Homebrew/system/global settings change.
+Python3.9.6, Git, make, transfer tools and GitHub read access are available.
+
+Fix native compilation by moving the existing mixed execution fixture and
+its reconstruction helpers intact from the !windows test file into the shared
+cross-platform helper file. Preserve all assertions and Windows coverage.
+Use admitted remote checks and pinned toolchain before a replacement full
+gate; local full gate is stopped and no duplicate Go workload is allowed.
+
+## Native Fixture Failure / Authorized Old-Mac Preflight — 2026-10-31
+
+At published `5fd2829`, native CI `41153830846` fails Windows compilation:
+cross-platform candidate/lifecycle_test.go calls executionFixture, defined
+only in !windows execute_test.go. This is S5-owned, not the historical #17
+allowed-failure backlog. Stop the obsolete local full gate and preserve its
+interruption sidecar. Fix fixture availability without dropping assertions
+or adding a Windows skip. Production source review remains approved.
+
+Operator suggests SSH offload to the named old Mac. Read-only probe confirms
+Intel Darwin24.6, 16GiB/8 logical CPUs, normal pressure, load2.11 and 77%
+diagnostic free memory. Installed versions found are Go1.27.1 and1.22.2;
+require exact1.26.5 before claiming equivalent validation. Use an isolated
+checkout/cache and identical resource/shard guards, with no overlapping Go
+workloads or shared-system configuration changes.
+
+## S5 Ready for Full Local / Native Validation — 2026-1031
 
 Approved shared-policy source now passes admitted formatting, full
 candidate/gitutil/store/workflow tests (171.84s), vet (4.85s) and build

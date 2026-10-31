@@ -1674,6 +1674,10 @@ old ordered-filter bypass is reproduced; corrected broad validation is next.
 Corrected full affected/vet/build now pass (171.84s/4.85s/0.52s), normal
 pressure/no swap-outs. Publish the approved checkpoint for complete local/
 native gates; S5 acceptance and S6 dispatch remain blocked until completion.
+Native checkpoint `5fd2829` exposes a Windows-only test fixture compilation
+failure; local full gate stopped for a coverage-preserving test fix.
+User-authorized old-Mac offload is being checked with the same pinned
+toolchain/resource/shard requirements, not substituted with weaker validation.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Source/basic checks approved; publishing checkpoint for complete local/native gates
+- **Status**: Correcting native Windows fixture compilation; remote gate feasibility checked
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -199,6 +199,24 @@ Final shared-policy formatting, full affected packages (171.84s), vet (4.85s)
 and build (0.52s) all PASS, normal pressure/no swap-outs. No local Go workload
 remains. Publish a reviewed checkpoint and run the complete local gate/native
 CI at its exact SHA; no source or assertion changes after the approved proof.
+Published checkpoint is `5fd2829`; local gate `s5-resume-full-gate` was
+stopped after native CI `41153830846` exposed a Windows test compilation
+failure: the cross-platform metadata test calls executionFixture from a
+!windows file. Fix the fixture boundary without skipping coverage; production
+approval remains unchanged. Preserve local interruption evidence.
+
+Operator authorizes considering the old Mac over SSH for offload. Read-only
+probe: Intel Darwin24.6, 16GiB RAM, 8 logical CPUs, normal pressure, load2.11
+and 77% diagnostic free memory. Go1.27.1/1.22.2 are present, not the pinned
+1.26.5. Probe exact toolchain availability before isolated setup; never change
+shared/global config or duplicate local/remote Go workloads.
+Pinned Go1.26.5 was absent, so the official Darwin-amd64 archive was installed
+only in a new private remote validation workspace after published SHA-256
+verification. Existing Go installations/configuration are untouched.
+The mixed execution fixture is moved intact into the cross-platform test
+helper file, including its raw Git/reconstruction helpers; no assertions or
+Windows tests are skipped. Remote admitted formatting/targeted/cross-build
+checks precede the replacement complete gate.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline
