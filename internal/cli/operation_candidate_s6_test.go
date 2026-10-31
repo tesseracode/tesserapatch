@@ -32,7 +32,9 @@ func TestROCS6ReviewLabelsEvidenceWithoutChangingRevisionJSON(t *testing.T) {
 	terminal.EvidenceKind = store.EvidenceKindForwardApply
 	terminal.RawReconcileVerdict, terminal.ReasonCode = "blocked", "phase-4-forward-apply-conflicts"
 	terminal.AttemptID = store.ComputeAttemptID(terminal)
-	if err := store.AppendReconcileEvidence(s, slug, terminal); err != nil { t.Fatal(err) }
+	if err := store.AppendReconcileEvidence(s, slug, terminal); err != nil {
+		t.Fatal(err)
+	}
 	entry.Phase = store.EvidencePhase35
 	entry.EvidenceKind = store.EvidenceKindManualReview
 	entry.MatchedOperations = []string{"confirmation-gate"}
@@ -44,8 +46,12 @@ func TestROCS6ReviewLabelsEvidenceWithoutChangingRevisionJSON(t *testing.T) {
 	writeSession := func(outcome string, evidence []store.ReconcileEvidence) {
 		t.Helper()
 		raw, err := json.Marshal(map[string]any{"outcome": outcome, "phase": "phase-4-blocked", "evidence": evidence})
-		if err != nil { t.Fatal(err) }
-		if err := s.WriteArtifact(slug, "reconcile-session.json", string(raw)); err != nil { t.Fatal(err) }
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.WriteArtifact(slug, "reconcile-session.json", string(raw)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	writeSession("still_needed", []store.ReconcileEvidence{first, terminal, entry})
 	out, stderr, err := runCLIForEvidence("reconcile", "review", "list", "--path", dir, slug)
@@ -65,7 +71,9 @@ func TestROCS6ReviewLabelsEvidenceWithoutChangingRevisionJSON(t *testing.T) {
 	latest.EvidenceKind = store.EvidenceKindForwardApply
 	latest.RawReconcileVerdict, latest.ReasonCode = "blocked", "phase-4-blocked"
 	latest.AttemptID = store.ComputeAttemptID(latest)
-	if err := store.AppendReconcileEvidence(s, slug, latest); err != nil { t.Fatal(err) }
+	if err := store.AppendReconcileEvidence(s, slug, latest); err != nil {
+		t.Fatal(err)
+	}
 	writeSession("blocked", []store.ReconcileEvidence{latest})
 	out, stderr, err = runCLIForEvidence("reconcile", "review", "list", "--path", dir, slug)
 	if err != nil || strings.Contains(out, first.AttemptID) || strings.Contains(out, entry.AttemptID) ||

@@ -195,11 +195,17 @@ func TestROCS6StrongerArmsDiscardCandidatePlan(t *testing.T) {
 				t.Fatalf("marker promotion changed: %+v", result)
 			}
 			logged, err := store.LoadReconcileEvidence(f.s, f.slug)
-			if err != nil { t.Fatal(err) }
+			if err != nil {
+				t.Fatal(err)
+			}
 			raw, err := f.s.ReadFeatureFile(f.slug, "artifacts/reconcile-session.json")
-			if err != nil { t.Fatal(err) }
+			if err != nil {
+				t.Fatal(err)
+			}
 			var session ReconcileResult
-			if err := json.Unmarshal([]byte(raw), &session); err != nil { t.Fatal(err) }
+			if err := json.Unmarshal([]byte(raw), &session); err != nil {
+				t.Fatal(err)
+			}
 			for _, entries := range [][]store.ReconcileEvidence{logged, session.Evidence} {
 				found := 0
 				for _, entry := range entries {
@@ -210,7 +216,9 @@ func TestROCS6StrongerArmsDiscardCandidatePlan(t *testing.T) {
 						}
 					}
 				}
-				if found != 1 { t.Fatalf("stronger arm lost or duplicated phase2 observation: %+v", entries) }
+				if found != 1 {
+					t.Fatalf("stronger arm lost or duplicated phase2 observation: %+v", entries)
+				}
 			}
 		})
 	}

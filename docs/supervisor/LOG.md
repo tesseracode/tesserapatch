@@ -1,3 +1,11 @@
+## S6 Runtime Pass / Missing Renderer Import — 2026-10-31
+
+Approved checked-status source passes workflow33.643s/candidate1.938s and
+formatting, including all revised authority/fault/source controls. Combined
+validation stops at CLI compilation: the phase-order renderer lacks its stdlib
+sort import. Add that import only; no runtime/guard semantics change. Then run
+CLI checks, full affected packages, vet and build before full-gate publication.
+
 ## Review — S6 Checked Retirement2930204 — 2026-10-31
 
 **Reviewer**: 7712b628, verified gpt-6-astra.

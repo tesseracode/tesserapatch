@@ -35,6 +35,11 @@ Independent reviewer APPROVES source2930204: final R2/status-write and syntax
 blockers closed; R1/R3/R4/R5 remain closed; ADR-049 interpretation approved.
 Runtime/basic/full local/native validation is still required before acceptance.
 The active checked-status targeted run must finish before broader Go checks.
+Checked-status formatting passes; workflow33.643s and candidate1.938s pass,
+including every reviewed fault/source-guard case. CLI compilation exposes the
+missing stdlib sort import for the new phase-order renderer; add only that
+import, then run CLI checks and full affected/vet/build. Source approval stands;
+no full validation pass is claimed.
 
 Re-review ofa5c15d0 closes R1/R3/R4/R5. R2 still requires the all-present
 caller to check updateFeatureState's status-load/save failures. The two newly
