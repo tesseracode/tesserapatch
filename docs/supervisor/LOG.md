@@ -1,3 +1,18 @@
+## S6 Review Corrections Drafted — 2026-10-31
+
+Late recovery now propagates terminally; new candidate/authority persistence
+returns checked errors while leaving valid pending state recoverable. Stronger
+arms retain phase2 still_needed observations through both direct-append sinks,
+with medium confidence rather than a completed-validation claim. Human review
+selects latest-session membership, phase-orders it and labels returned outcome
+separately; --all labels history. Revision JSON stays unchanged.
+
+Added separate evidence/session/summary failure tests, provider-time recovery,
+both-sink stronger-arm assertions, and two-invocation display checks. The
+analyzer call-boundary correction retains explicit closure-capture sensitivity.
+All five findings await runtime results and independent re-review; no closure
+or full-gate claim yet.
+
 ## Review — S6 Core60d2ded — 2026-10-31
 
 **Reviewer**: 7712b628, verified gpt-6-astra.

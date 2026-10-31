@@ -271,7 +271,10 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 
 	for i, slug := range slugs {
 		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts, invocation, preflights[slug], operationEnabled)
-		if errors.Is(err, ErrCoveragePublication) {
+		if errors.Is(err, ErrOperationCandidateRecoveryRequired) {
+			return nil, err
+		}
+		if errors.Is(err, ErrCoveragePublication) || errors.Is(err, ErrOperationCandidatePersistence) {
 			publicationErrors = append(publicationErrors, fmt.Errorf("reconcile %q: %w", slug, err))
 			// Keep the existing blocked outcome and recovery shadow instead
 			// of replacing them with the generic per-feature error record.
@@ -475,7 +478,10 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	var candidatePlan *operationPhaseSnapshot
 	if operationEnabled {
 		var finished bool
-		candidatePlan, finished = evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, nil, "")
+		candidatePlan, finished, err = evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, nil, "")
+		if err != nil {
+			return result, err
+		}
 		if finished {
 			return result, nil
 		}
@@ -519,6 +525,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 					result.Outcome = store.ReconcileUpstreamed
 					result.Phase = "phase-3-provider-semantic"
 					result.Notes = append(result.Notes, "Provider determined upstream satisfies acceptance criteria")
+					evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, "discard")
 					saveReconcileArtifacts(s, slug, result, nil)
 					updateFeatureState(s, slug, result)
 					return result, nil
@@ -564,6 +571,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		result.Phase = "phase-4-forward-apply-strict"
 		result.Notes = append(result.Notes, "Patch applies cleanly (strict) — safe to auto-apply")
 		promoteIfMarkers(result)
+		evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, "discard")
 		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
@@ -576,6 +584,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		}
 		result.Notes = append(result.Notes, note)
 		promoteIfMarkers(result)
+		evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, "discard")
 		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
@@ -585,6 +594,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		// --resolve. Otherwise, preserve the v0.4.4 behavior:
 		// report as BLOCKED so humans are warned.
 		if opts.Resolve {
+			evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, "discard")
 			// M14.3 / ADR-011 D6: when a hard parent is blocked, the
 			// resolver cannot meaningfully fix this child — running it
 			// would burn provider budget against a broken baseline.
@@ -624,7 +634,11 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 			result.Notes = append(result.Notes, fmt.Sprintf("git: %s", preview.Stderr))
 		}
 		if candidatePlan != nil {
-			if _, finished := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase); finished {
+			_, finished, phaseErr := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase)
+			if phaseErr != nil {
+				return result, phaseErr
+			}
+			if finished {
 				return result, nil
 			}
 		}
@@ -642,7 +656,11 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	}
 	result.Conflicts = append(result.Conflicts, "Forward-apply failed — check for merge conflicts")
 	if candidatePlan != nil {
-		if _, finished := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase); finished {
+		_, finished, phaseErr := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase)
+		if phaseErr != nil {
+			return result, phaseErr
+		}
+		if finished {
 			return result, nil
 		}
 	}
@@ -774,7 +792,7 @@ Does the upstream now satisfy this feature's requirements? Compare the acceptanc
 //   - Per-file resolver outcomes live in artifacts/resolution-session.json
 //     (resolver-owned) — see resolver.persistSession. Splitting the two
 //     artifacts is what fixes the v0.5.2 dual-writer collision.
-func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult, proof *phase2AuthorityProof) {
+func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult, proof *phase2AuthorityProof) error {
 	// M14 fix-pass F2: generate the AttemptedAt timestamp once and
 	// share it with updateFeatureState. ComposeLabels uses this same
 	// value as the staleness baseline so that, when persisted, the
@@ -816,7 +834,7 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 		}
 	}
 
-	entries, hadStaging := persistReconcileEvidence(s, slug, result, proof != nil)
+	entries, hadStaging, evidenceErr := persistReconcileEvidence(s, slug, result, proof != nil)
 	authorityAttempted := proof != nil || hadStaging
 	if !hadStaging || len(entries) != 1 || !qualifyingOperationAttempt(entries[0], result) {
 		proof = nil
@@ -832,12 +850,13 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 		result.Outcome = store.ReconcileBlocked
 		result.ReviewVerdict = "rejected-upstreamed"
 		result.Notes = append(result.Notes, "confirmation gate: operation authority evidence could not be published")
+		evidenceErr = errors.Join(evidenceErr, fmt.Errorf("operation confirmation evidence could not be published"))
 	}
 	result.Revisions = append(result.Revisions, persistRevisionPassLog(s, slug, result)...)
 
 	// Save reconcile-session.json
-	data, _ := json.MarshalIndent(result, "", "  ")
-	s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
+	data, marshalErr := json.MarshalIndent(result, "", "  ")
+	sessionErr := s.WriteArtifact(slug, "reconcile-session.json", string(data)+"\n")
 
 	// Save reconcile.md
 	var b strings.Builder
@@ -862,20 +881,21 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 		}
 		b.WriteString("\n")
 	}
-	s.WriteArtifact(slug, "reconcile.md", b.String())
+	markdownErr := s.WriteArtifact(slug, "reconcile.md", b.String())
 
 	// Save per-version log
 	commitRange := fmt.Sprintf("%s-to-%s", truncateCommit(result.UpstreamCommit), "HEAD")
-	s.WriteFeatureFile(slug, filepath.Join("reconciliation", commitRange+".md"), b.String())
+	logErr := s.WriteFeatureFile(slug, filepath.Join("reconciliation", commitRange+".md"), b.String())
+	return errors.Join(evidenceErr, marshalErr, sessionErr, markdownErr, logErr)
 }
 
 var warnReconcileEvidence = func(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult, hasProof bool) ([]store.ReconcileEvidence, bool) {
+func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult, hasProof bool) ([]store.ReconcileEvidence, bool, error) {
 	if result == nil || result.Outcome == "" {
-		return nil, false
+		return nil, false, nil
 	}
 	attempts := result.verdictAttempts
 	hadStaging := len(attempts) != 0
@@ -884,15 +904,15 @@ func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResu
 		for _, entry := range attempts {
 			if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 				warnReconcileEvidenceAppendError(slug, err)
-				return entries, true
+				return entries, true, err
 			}
 			entries = append(entries, entry)
 		}
-		return entries, true
+		return entries, true, nil
 	}
 	phase, kind := evidencePhaseAndKind(result)
 	if phase == "" {
-		return nil, hadStaging
+		return nil, hadStaging, nil
 	}
 	status, _ := s.LoadFeatureStatus(slug)
 	baseCommit := status.Apply.BaseCommit
@@ -952,9 +972,9 @@ func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResu
 	entry.AttemptID = store.ComputeAttemptID(entry)
 	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 		warnReconcileEvidenceAppendError(slug, err)
-		return nil, hadStaging
+		return nil, hadStaging, err
 	}
-	return []store.ReconcileEvidence{entry}, hadStaging
+	return []store.ReconcileEvidence{entry}, hadStaging, nil
 }
 
 func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {

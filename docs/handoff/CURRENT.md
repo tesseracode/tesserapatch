@@ -31,6 +31,16 @@ WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
 
+The review corrections are drafted: evaluator errors propagate late recovery
+without ordinary persistence; new-path checked artifact/evidence/summary
+failures return a publication error and retain safe pending state; stronger
+arms append their readonly phase2 finding to JSONL and session; review defaults
+to phase-ordered latest-session evidence with returned outcome separately
+labelled and explicit --all history. Added separate evidence/session/summary
+fault cases, provider-time recovery, stronger-arm sink assertions and two-
+invocation CLI cases. ADR-049 records these decisions. Runtime validation and
+independent closure are still required for every finding.
+
 Independent S6 review60d2ded is NEEDS REVISION: late recovery must stay terminal;
 candidate-ready persistence errors must be returned; stronger outcomes must
 retain the readonly phase2 finding; the nested-call analyzer false positive

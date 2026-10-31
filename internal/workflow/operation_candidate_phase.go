@@ -15,6 +15,9 @@ import (
 )
 
 var ErrOperationCandidateRecoveryRequired = errors.New("recovery-required")
+var ErrOperationCandidatePersistence = errors.New("operation candidate persistence failed")
+
+var operationCandidateBeforeSummaryWrite = func() {}
 
 type phase2AuthorityProof struct {
 	owner              *store.Store
@@ -138,7 +141,7 @@ func operationPhaseRefusalCode(err error) string {
 	}
 	if err != nil {
 		for _, code := range []string{
-			"candidate-lock-held", "lock-unsupported", "lock-filesystem-unsupported",
+			"recovery-required", "candidate-lock-held", "lock-unsupported", "lock-filesystem-unsupported",
 			"candidate-feature-state-unsupported", "coverage-unusable", "coverage-owner-mismatch", "coverage-incomplete",
 			"capture-event-owner-mismatch", "capture-event-pair-mismatch", "binding-presence-drift", "binding-hash-drift",
 			"recipe-undecodable", "recipe-owner-mismatch", "reference-not-reconstructable", "effect-binding-drift",
@@ -217,26 +220,51 @@ func appendOperationPhaseRefusal(s *store.Store, slug string, result *ReconcileR
 	result.Evidence = append(result.Evidence, entry)
 }
 
-func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *ReconcileResult, invocation operationCandidateInvocation, preflight operationCandidatePreflightResult, pending *operationPhaseSnapshot, finalReason string) (*operationPhaseSnapshot, bool) {
+func operationCandidateObservation(s *store.Store, slug string, result *ReconcileResult, derivation candidate.CandidateDerivation, confidence store.ReconcileEvidenceConfidence) (store.ReconcileEvidence, error) {
+	entry := operationPhaseEvidence(s, slug, result, store.EvidencePhase2, store.EvidenceKindRecipeOperationMatch,
+		string(store.ReconcileStillNeeded), "phase-2-operation-candidate", confidence)
+	entry.MatchOrigin = store.EvidenceMatchOriginUpstream
+	entry.PreReconcilePresence = store.EvidencePresencePresent
+	entry.UpstreamCommitRefs = []string{result.UpstreamCommit}
+	seen := map[string]bool{}
+	for _, effect := range derivation.EffectMap {
+		if !seen[effect.Path] {
+			entry.MatchedPaths = append(entry.MatchedPaths, effect.Path)
+			seen[effect.Path] = true
+		}
+	}
+	sort.Strings(entry.MatchedPaths)
+	for _, operation := range derivation.Operations {
+		hash, err := candidate.CandidateOperationProofHash(operation)
+		if err != nil {
+			return store.ReconcileEvidence{}, err
+		}
+		entry.MatchedOperations = append(entry.MatchedOperations, hash)
+	}
+	entry.AttemptID = store.ComputeAttemptID(entry)
+	return entry, nil
+}
+
+func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *ReconcileResult, invocation operationCandidateInvocation, preflight operationCandidatePreflightResult, pending *operationPhaseSnapshot, finalReason string) (*operationPhaseSnapshot, bool, error) {
 	if finalReason == "" {
 		if !preflight.DerivationEnabled {
-			return nil, false
+			return nil, false, nil
 		}
 		snapshot, err := captureOperationPhaseSnapshot(s, slug, invocation)
 		if err != nil {
 			appendOperationPhaseRefusal(s, slug, result, operationPhaseRefusalCode(err), store.EvidenceConfidenceUnknown)
-			return nil, false
+			return nil, false, nil
 		}
 		if !snapshot.eligibility.enabled {
-			return nil, false
+			return nil, false, nil
 		}
 		if !snapshot.eligibility.eligible {
 			appendOperationPhaseRefusal(s, slug, result, snapshot.eligibility.reason, store.EvidenceConfidenceUnknown)
-			return nil, false
+			return nil, false, nil
 		}
 		if snapshot.conflictCount != 0 {
 			appendOperationPhaseRefusal(s, slug, result, snapshot.conflictCode, store.EvidenceConfidenceLow)
-			return nil, false
+			return nil, false, nil
 		}
 		if snapshot.effectCount > 0 && snapshot.presentCount == snapshot.effectCount && snapshot.operationCount == 0 {
 			result.Outcome = store.ReconcileUpstreamed
@@ -252,18 +280,33 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 				effectCount: snapshot.effectCount, effectDigest: snapshot.effectDigest, presentCount: snapshot.presentCount,
 				applicableCount: snapshot.applicableCount, conflictCount: snapshot.conflictCount, operationCount: snapshot.operationCount,
 			}
-			saveReconcileArtifacts(s, slug, result, proof)
+			if err := saveReconcileArtifacts(s, slug, result, proof); err != nil {
+				return nil, true, fmt.Errorf("%w: %v", ErrOperationCandidatePersistence, err)
+			}
 			updateFeatureState(s, slug, result)
-			return nil, true
+			return nil, true, nil
 		}
 		if snapshot.applicableCount > 0 {
-			return snapshot, false
+			return snapshot, false, nil
 		}
 		appendOperationPhaseRefusal(s, slug, result, "effect-unexplained", store.EvidenceConfidenceLow)
-		return nil, false
+		return nil, false, nil
 	}
-	if pending == nil || (finalReason != "phase-4-forward-apply-conflicts" && finalReason != "phase-4-blocked") {
-		return nil, false
+	if pending == nil {
+		return nil, false, nil
+	}
+	if finalReason != "phase-4-forward-apply-conflicts" && finalReason != "phase-4-blocked" {
+		entry, err := operationCandidateObservation(s, slug, result, pending.derivation, store.EvidenceConfidenceMedium)
+		if err == nil {
+			err = store.AppendReconcileEvidence(s, slug, entry)
+			if err == nil {
+				result.Evidence = append(result.Evidence, entry)
+			}
+		}
+		if err != nil {
+			warnReconcileEvidenceAppendError(slug, err)
+		}
+		return nil, false, nil
 	}
 	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
 	if err != nil || refusal.Reason != "" {
@@ -272,7 +315,7 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 			code = operationPhaseRefusalCode(err)
 		}
 		appendOperationPhaseRefusal(s, slug, result, code, store.EvidenceConfidenceUnknown)
-		return nil, false
+		return nil, false, nil
 	}
 	defer lock.Release()
 	prepared, err := prepareOperationCandidateHeld(s, slug, invocation, lock)
@@ -294,31 +337,16 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 	}
 	if err != nil {
 		code := operationPhaseRefusalCode(err)
+		if code == "recovery-required" {
+			return nil, false, fmt.Errorf("%w: %v", ErrOperationCandidateRecoveryRequired, err)
+		}
 		appendOperationPhaseRefusal(s, slug, result, code, operationRefusalConfidence(code))
-		return nil, false
+		return nil, false, nil
 	}
-	first := operationPhaseEvidence(s, slug, result, store.EvidencePhase2, store.EvidenceKindRecipeOperationMatch,
-		string(store.ReconcileStillNeeded), "phase-2-operation-candidate", store.EvidenceConfidenceHigh)
-	first.MatchOrigin = store.EvidenceMatchOriginUpstream
-	first.PreReconcilePresence = store.EvidencePresencePresent
-	first.UpstreamCommitRefs = []string{result.UpstreamCommit}
-	seen := map[string]bool{}
-	for _, effect := range artifact.Derivation.EffectMap {
-		if !seen[effect.Path] {
-			first.MatchedPaths = append(first.MatchedPaths, effect.Path)
-			seen[effect.Path] = true
-		}
+	first, err := operationCandidateObservation(s, slug, result, artifact.Derivation, store.EvidenceConfidenceHigh)
+	if err != nil {
+		return nil, true, fmt.Errorf("%w: %v", ErrOperationCandidatePersistence, err)
 	}
-	sort.Strings(first.MatchedPaths)
-	for _, operation := range artifact.Derivation.Operations {
-		hash, hashErr := candidate.CandidateOperationProofHash(operation)
-		if hashErr != nil {
-			appendOperationPhaseRefusal(s, slug, result, "effect-unexplained", store.EvidenceConfidenceLow)
-			return nil, false
-		}
-		first.MatchedOperations = append(first.MatchedOperations, hash)
-	}
-	first.AttemptID = store.ComputeAttemptID(first)
 	second := operationPhaseEvidence(s, slug, result, store.EvidencePhase4, store.EvidenceKindForwardApply,
 		string(store.ReconcileBlocked), finalReason, store.EvidenceConfidenceLow)
 	second.MatchedPaths = append([]string{}, result.Conflicts...)
@@ -327,19 +355,21 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 	result.Outcome = store.ReconcileStillNeeded
 	result.Phase = "phase-2-operation-candidate"
 	result.Notes = append(result.Notes, "Operation candidate ready: "+artifact.CandidateID)
-	saveReconcileArtifacts(s, slug, result, nil)
+	if err := saveReconcileArtifacts(s, slug, result, nil); err != nil {
+		return nil, true, fmt.Errorf("%w: %v", ErrOperationCandidatePersistence, err)
+	}
+	operationCandidateBeforeSummaryWrite()
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
-		result.Notes = append(result.Notes, "Candidate summary could not be loaded")
-		return nil, true
+		return nil, true, fmt.Errorf("%w: load candidate summary: %v", ErrOperationCandidatePersistence, err)
 	}
 	status.Reconcile = mergedReconcileSummary(status.Reconcile, result)
 	status.LastCommand = "reconcile"
 	status.UpdatedAt = result.attemptedAt
 	if err := s.SaveFeatureStatus(status); err != nil {
-		result.Notes = append(result.Notes, "Candidate summary could not be saved")
+		return nil, true, fmt.Errorf("%w: save candidate summary: %v", ErrOperationCandidatePersistence, err)
 	}
-	return nil, true
+	return nil, true, nil
 }
 
 func qualifyingOperationAttempt(entry store.ReconcileEvidence, result *ReconcileResult) bool {

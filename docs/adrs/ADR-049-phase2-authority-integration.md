@@ -54,6 +54,24 @@ remain the contract; no new wire schema or later-stage action is introduced.
    persistence retains its State/Notes rules; candidate-ready persistence
    changes neither. Explicit locked candidate transitions remain the only
    pointer writers.
+7. **Checked new-path persistence and late recovery.** The shipped artifact
+   writer returns its evidence/session/markdown/log errors; legacy callers
+   retain their existing ignore-and-warn behavior, while new authority and
+   candidate-ready callers propagate a publication error. A valid pending
+   candidate is retained when later presentation/status persistence fails.
+   Recovery discovered by finalization remains the terminal recovery sentinel,
+   never an ordinary phase2 refusal.
+8. **Retain observations when stronger answers win.** A discarded readonly
+   candidate observation is appended to both evidence sinks before the winning
+   arm is saved. It is phase-local still_needed with medium confidence, not
+   the high-confidence claim reserved for completed candidate validation.
+   It creates no worktree or confirmation proof and does not use staged
+   substitution.
+9. **Latest-invocation review.** Human review selects the evidence IDs recorded
+   in the latest reconcile-session, resolves them against the validated
+   evidence log and displays them in phase order. The returned outcome is
+   labelled separately; --all explicitly labels historical append order.
+   The existing revision JSON envelope is unchanged.
 
 ## Implementation constraints
 

@@ -3228,9 +3228,47 @@ func reconcileReviewCmd() *cobra.Command {
 			if evidenceErr != nil {
 				return evidenceErr
 			}
+			var invocation struct {
+				Outcome  string                    `json:"outcome"`
+				Phase    string                    `json:"phase"`
+				Evidence []store.ReconcileEvidence `json:"evidence"`
+			}
+			session, sessionErr := s.ReadFeatureFile(args[0], filepath.Join("artifacts", "reconcile-session.json"))
+			if sessionErr == nil {
+				if err := json.Unmarshal([]byte(session), &invocation); err != nil {
+					return fmt.Errorf("reconcile review list: malformed latest invocation")
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "latest invocation returned outcome: %s (phase=%s)\n", invocation.Outcome, invocation.Phase)
+			} else if !os.IsNotExist(sessionErr) {
+				return sessionErr
+			}
+			if !all {
+				wanted := make(map[string]bool, len(invocation.Evidence))
+				for _, entry := range invocation.Evidence {
+					wanted[entry.AttemptID] = true
+				}
+				current := make([]store.ReconcileEvidence, 0, len(wanted))
+				for _, entry := range evidence {
+					if wanted[entry.AttemptID] {
+						current = append(current, entry)
+						delete(wanted, entry.AttemptID)
+					}
+				}
+				if len(wanted) != 0 {
+					return fmt.Errorf("reconcile review list: latest invocation references missing evidence")
+				}
+				sort.SliceStable(current, func(i, j int) bool { return current[i].Phase < current[j].Phase })
+				evidence = current
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "historical evidence (all invocations, append order):")
+			}
 			for _, e := range evidence {
-				fmt.Fprintf(cmd.OutOrStdout(), "evidence %s: class=%s phase=%s kind=%s verdict=%s reason=%s\n",
-					e.AttemptID, reconcileEvidenceClass(e), e.Phase, e.EvidenceKind, e.RawReconcileVerdict, e.ReasonCode)
+				label := "phase-local verdict"
+				if reconcileEvidenceClass(e) == "supporting" {
+					label = "supporting evidence subject"
+				}
+				fmt.Fprintf(cmd.OutOrStdout(), "evidence %s: class=%s phase=%s kind=%s %s=%s reason=%s\n",
+					e.AttemptID, reconcileEvidenceClass(e), e.Phase, e.EvidenceKind, label, e.RawReconcileVerdict, e.ReasonCode)
 			}
 			for _, c := range evidenceCorrupt {
 				fmt.Fprintf(cmd.OutOrStdout(), "corrupted evidence: line %d: %s\n", c.Line, c.Error)

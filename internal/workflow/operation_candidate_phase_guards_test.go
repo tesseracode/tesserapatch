@@ -349,7 +349,7 @@ func TestROCS6AuthoritySourceGuardAndSensitivity(t *testing.T) {
 	for _, mutation := range [][3]string{
 		{"operation_candidate_phase.go", "type phase2AuthorityProof struct {", "type phase2AuthorityProof struct {\n Public bool"},
 		{"operation_candidate_phase.go", "saveReconcileArtifacts(s, slug, result, proof)", "leakProof(proof)"},
-		{"operation_candidate_phase.go", "saveReconcileArtifacts(s, slug, result, proof)", "func() { saveReconcileArtifacts(s, slug, result, proof) }()"},
+		{"operation_candidate_phase.go", "saveReconcileArtifacts(s, slug, result, proof)", "func() error { return saveReconcileArtifacts(s, slug, result, proof) }()"},
 		{"operation_candidate_phase.go", "var proof *phase2AuthorityProof", "var proof *phase2AuthorityProof\n alias := proof\n _ = alias"},
 		{"operation_candidate_phase.go", "result.verdictAttempts = append(result.verdictAttempts, first, second)", "result.verdictAttempts = nil"},
 		{"reconcile.go", "attempts := result.verdictAttempts", "attempts := []store.ReconcileEvidence{}"},

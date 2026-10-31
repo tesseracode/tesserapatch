@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -193,6 +194,24 @@ func TestROCS6StrongerArmsDiscardCandidatePlan(t *testing.T) {
 			if name == "live-markers" && result.Phase != "phase-4-live-conflict-markers" {
 				t.Fatalf("marker promotion changed: %+v", result)
 			}
+			logged, err := store.LoadReconcileEvidence(f.s, f.slug)
+			if err != nil { t.Fatal(err) }
+			raw, err := f.s.ReadFeatureFile(f.slug, "artifacts/reconcile-session.json")
+			if err != nil { t.Fatal(err) }
+			var session ReconcileResult
+			if err := json.Unmarshal([]byte(raw), &session); err != nil { t.Fatal(err) }
+			for _, entries := range [][]store.ReconcileEvidence{logged, session.Evidence} {
+				found := 0
+				for _, entry := range entries {
+					if entry.Phase == store.EvidencePhase2 && entry.EvidenceKind == store.EvidenceKindRecipeOperationMatch {
+						found++
+						if entry.RawReconcileVerdict != string(store.ReconcileStillNeeded) || entry.Confidence == store.EvidenceConfidenceHigh {
+							t.Fatalf("discarded candidate observation overstated: %+v", entry)
+						}
+					}
+				}
+				if found != 1 { t.Fatalf("stronger arm lost or duplicated phase2 observation: %+v", entries) }
+			}
 		})
 	}
 }
@@ -274,7 +293,11 @@ func TestROCS6MissingAuthorityPublicationNeverRetires(t *testing.T) {
 	if err := os.Mkdir(f.s.ReconcileEvidencePath(f.slug), 0755); err != nil {
 		t.Fatal(err)
 	}
-	result := rocS6Run(t, f, nil, provider.Config{}, ReconcileOptions{})
+	results, runErr := RunReconcile(context.Background(), f.s, []string{f.slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+	if !errors.Is(runErr, ErrOperationCandidatePersistence) || len(results) != 1 {
+		t.Fatalf("publication failure not returned: %+v %v", results, runErr)
+	}
+	result := results[0]
 	status, err := f.s.LoadFeatureStatus(f.slug)
 	if err != nil || status.State == store.StateUpstreamMerged || result.Outcome != store.ReconcileBlocked {
 		t.Fatalf("unpublished authority retired feature: %+v %+v %v", result, status, err)
@@ -382,6 +405,65 @@ func TestROCS6PendingPointerSurvivesDisabledAndContendedRuns(t *testing.T) {
 				cfg.OperationCandidateEnabled = false
 				if err := f.s.SaveConfig(cfg); err != nil {
 					t.Fatal(err)
+				}
+			}
+
+			func TestROCS6LateRecoveryRefusesBeforeOrdinaryPersistence(t *testing.T) {
+				f := rocS6PhaseFixture(t, rocS6UpstreamDeletion)
+				before, err := f.s.LoadFeatureStatus(f.slug)
+				if err != nil { t.Fatal(err) }
+				prov := &rocS6Provider{response: `{"decision":"unclear","reasoning":"fixture"}`, probe: func() {
+					path := filepath.Join(f.s.Root, ".tpatch", "reconcile-candidates", f.slug, "rc_0123456789ab")
+					if err := os.MkdirAll(path, 0755); err != nil { t.Fatal(err) }
+					if err := os.WriteFile(filepath.Join(path, candidate.CandidateJournalName), []byte("{}"), 0644); err != nil { t.Fatal(err) }
+				}}
+				_, err = RunReconcile(context.Background(), f.s, []string{f.slug}, "HEAD", prov,
+					provider.Config{BaseURL: "http://unused", Model: "fixture"}, ReconcileOptions{})
+				if !errors.Is(err, ErrOperationCandidateRecoveryRequired) {
+					t.Fatalf("late recovery downgraded: %v", err)
+				}
+				after, err := f.s.LoadFeatureStatus(f.slug)
+				if err != nil || after.State != before.State || after.Notes != before.Notes || after.Reconcile.Outcome != before.Reconcile.Outcome {
+					t.Fatalf("ordinary persistence ran after journal: %+v %v", after, err)
+				}
+				if _, err := os.Stat(f.s.ReconcileEvidencePath(f.slug)); !os.IsNotExist(err) {
+					t.Fatalf("late recovery appended ordinary evidence: %v", err)
+				}
+			}
+
+			func TestROCS6CandidatePersistenceFailuresAreReturned(t *testing.T) {
+				for _, name := range []string{"evidence", "session", "summary"} {
+					t.Run(name, func(t *testing.T) {
+						f := rocS6PhaseFixture(t, rocS6UpstreamDeletion)
+						statusPath := filepath.Join(f.s.Root, ".tpatch", "features", f.slug, "status.json")
+						savedStatus := statusPath
+						switch name {
+						case "evidence":
+							if err := os.Mkdir(f.s.ReconcileEvidencePath(f.slug), 0755); err != nil { t.Fatal(err) }
+						case "session":
+							path := filepath.Join(f.s.Root, ".tpatch", "features", f.slug, "artifacts", "reconcile-session.json")
+							if err := os.Mkdir(path, 0755); err != nil { t.Fatal(err) }
+						case "summary":
+							old := operationCandidateBeforeSummaryWrite
+							t.Cleanup(func() { operationCandidateBeforeSummaryWrite = old })
+							savedStatus = statusPath + ".saved"
+							operationCandidateBeforeSummaryWrite = func() {
+								if err := os.Rename(statusPath, savedStatus); err != nil { t.Fatal(err) }
+								if err := os.Mkdir(statusPath, 0755); err != nil { t.Fatal(err) }
+							}
+						}
+						_, err := RunReconcile(context.Background(), f.s, []string{f.slug}, "HEAD", nil, provider.Config{}, ReconcileOptions{})
+						if !errors.Is(err, ErrOperationCandidatePersistence) {
+							t.Fatalf("%s persistence failure reported success: %v", name, err)
+						}
+						raw, err := os.ReadFile(savedStatus)
+						if err != nil { t.Fatal(err) }
+						var status store.FeatureStatus
+						if err := json.Unmarshal(raw, &status); err != nil { t.Fatal(err) }
+						if status.State != store.StateBlocked || status.Notes != "keep-s6-notes" || status.Reconcile.OperationCandidate == nil {
+							t.Fatalf("failed persistence did not retain safe pending state: %+v", status)
+						}
+					})
 				}
 			}
 			if name == "multi-slug" {
