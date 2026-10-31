@@ -175,6 +175,11 @@ The pending shared-policy formatter was BLOCKED at 600s admission, before
 execution: all sampled load1 values were 5.26-6.86, pressure normal. No guard
 was relaxed and no Go/formatter result is claimed for that attempt. Retry
 only under the unchanged continuous quiet-window policy.
+Operator explicitly selected "Keep waiting and retry under the existing
+limits." A bounded admission-only coordinator retries only 600s quiet-window
+timeouts that occurred before command execution, with 60s between attempts.
+It never retries a formatter/test/runtime/telemetry failure and will not start
+another attempt near the approved deadline. No unrelated process is stopped.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline

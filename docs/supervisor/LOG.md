@@ -1,3 +1,12 @@
+## Operator Chooses Waiting Under Existing Limits — 2026-10-31
+
+Operator explicitly selects continued waiting/retry, not a threshold change.
+Use a private bounded coordinator that retries only admission timeouts before
+execution, preserving unique evidence per attempt and a 60s pause. Runtime/
+formatter/test/telemetry failures stop rather than retry. Its predicate has
+positive and negative controls; it cannot start another attempt near the
+approved 10:08:53 UTC deadline. No other workload is stopped.
+
 ## S5 Runtime Validation Resource-blocked — 2026-10-31
 
 Second 600s admission window expires before formatter/tests start:
