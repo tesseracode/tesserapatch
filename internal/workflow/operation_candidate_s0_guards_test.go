@@ -179,6 +179,7 @@ var rocS6AllowedPaths = map[string]bool{
 	"internal/workflow/operation_candidate_phase.go":             true,
 	"internal/workflow/operation_candidate_phase_test.go":        true,
 	"internal/workflow/operation_candidate_phase_guards_test.go": true,
+	"internal/workflow/operation_candidate_status_failure_test.go": true,
 	"internal/cli/cobra.go":                                      true,
 	"internal/cli/reconcile_evidence_cli_test.go":                true,
 	"internal/cli/operation_candidate_s6_test.go":                true,

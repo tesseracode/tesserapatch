@@ -31,6 +31,16 @@ WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
 
+Re-review ofa5c15d0 closes R1/R3/R4/R5. R2 still requires the all-present
+caller to check updateFeatureState's status-load/save failures. The two newly
+added fault-test declarations were accidentally nested; they are moved to
+package scope. Formatting stopped before runtime tests. Add the checked
+status return and a real atomic-replacement failure case before retry.
+The checked status return and all-present caller check are now implemented.
+A post-load filesystem fault forces atomic status replacement to fail and
+asserts publication error/original status retention. All new declarations are
+verified at package scope; no test assertion was removed.
+
 The review corrections are drafted: evaluator errors propagate late recovery
 without ordinary persistence; new-path checked artifact/evidence/summary
 failures return a publication error and retain safe pending state; stronger

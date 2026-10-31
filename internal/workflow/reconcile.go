@@ -1343,11 +1343,13 @@ func mergedReconcileSummary(loaded store.ReconcileSummary, result *ReconcileResu
 	}, loaded)
 }
 
-// Update feature state based on reconciliation outcome
-func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
+var beforeReconcileStatusWrite = func() {}
+
+// Update feature state based on reconciliation outcome.
+func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) error {
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
-		return
+		return err
 	}
 
 	if result != nil && result.attemptedAt == "" {
@@ -1382,7 +1384,8 @@ func updateFeatureState(s *store.Store, slug string, result *ReconcileResult) {
 		status.Notes = "Reconciliation blocked — manual intervention needed"
 	}
 
-	s.SaveFeatureStatus(status)
+	beforeReconcileStatusWrite()
+	return s.SaveFeatureStatus(status)
 }
 
 func updateUpstreamLock(s *store.Store, ref, commit string) {

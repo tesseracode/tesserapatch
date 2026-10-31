@@ -283,7 +283,9 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 			if err := saveReconcileArtifacts(s, slug, result, proof); err != nil {
 				return nil, true, fmt.Errorf("%w: %v", ErrOperationCandidatePersistence, err)
 			}
-			updateFeatureState(s, slug, result)
+			if err := updateFeatureState(s, slug, result); err != nil {
+				return nil, true, fmt.Errorf("%w: save confirmed status: %v", ErrOperationCandidatePersistence, err)
+			}
 			return nil, true, nil
 		}
 		if snapshot.applicableCount > 0 {

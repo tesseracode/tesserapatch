@@ -59,6 +59,10 @@ remain the contract; no new wire schema or later-stage action is introduced.
    retain their existing ignore-and-warn behavior, while new authority and
    candidate-ready callers propagate a publication error. A valid pending
    candidate is retained when later presentation/status persistence fails.
+   updateFeatureState likewise returns load/save errors: the new all-present
+   caller checks them, while existing callers retain their ignored-return
+   behavior. A failed atomic status replacement cannot report successful
+   retirement.
    Recovery discovered by finalization remains the terminal recovery sentinel,
    never an ordinary phase2 refusal.
 8. **Retain observations when stronger answers win.** A discarded readonly

@@ -1,3 +1,25 @@
+## S6 Checked Retirement Revision — 2026-10-31
+
+updateFeatureState now returns status-load/save errors. The new all-present
+caller checks them and propagates the publication sentinel; legacy callers
+continue ignoring the return. A post-load directory replacement fault exercises
+the actual failed status save and retained original state. Both misplaced test
+declarations are back at package scope. These changes await admitted runtime
+validation and final R2 closure; prior R1/R3/R4/R5 closures remain unchanged.
+
+## Review — S6 Revisiona5c15d0 — 2026-10-31
+
+**Verdict**: NEEDS REVISION. Reviewer7712b628 closes late recovery (R1),
+discarded findings (R3), analyzer logic (R4) and latest-invocation view (R5).
+R2 remains HIGH because the new all-present caller still ignores status-load/
+save errors from updateFeatureState. Return a checked status error to that
+caller while legacy callers retain existing behavior.
+
+The frozen test file also contained two misplaced nested declarations; parent
+has moved them to package scope without changing assertions. The formatter
+stopped before runtime tests, so no pass was claimed. Finish the checked
+all-present status path and its fault regression, then rerun/re-review.
+
 ## S6 Review Corrections Drafted — 2026-10-31
 
 Late recovery now propagates terminally; new candidate/authority persistence
