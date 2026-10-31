@@ -1654,6 +1654,10 @@ checkpoint for all39 local shards and exact-tip native CI. S6 still unaccepted.
 Native CI41177819192 at7a913f6 PASS on all five jobs. Windows has no new
 top-level failures versus accepted S5 (223 versus224 legacy failures); #17
 remains open. Local full gate is past halfway and still running; acceptance waits.
+Local full gate is now RESOURCE-BLOCKED at command36 on OS warning pressure:
+35/42 commands and32/39 tests passed, all469 owned identities exited, no swap-outs.
+Source/native approvals stand but S6 is not accepted. Request an authorized
+full retry/extension or pause; no threshold waiver or S7 dispatch.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

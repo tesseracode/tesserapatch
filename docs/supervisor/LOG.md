@@ -1,3 +1,16 @@
+## S6 Full Gate Resource Stop — 2026-10-31
+
+At7a913f6, command36 (TestS7ObservedAQRegistrationAuthority) stops on OS
+pressure1→2. This is a runtime resource refusal, not a failing test assertion.
+35/42 commands and32/39 test commands passed; complete parity is false.
+Runtime5,931.74s; peak owned RSS7.27GiB, zero new swap-outs. All469 sampled
+owned identities exited with no cleanup signals; source/release remain clean.
+
+Later local probe is normal (pressure1/load3.11/53% diagnostic free), but no
+admission or retry is inferred. About100 minutes remain to10:08:53Z, shorter
+than a complete measured rerun. Request explicit extension/retry host choice
+or pause with S6 unaccepted. No partial acceptance, threshold waiver or S7.
+
 ## S6 Native CI Pass / Local Gate Continuing — 2026-10-31
 
 CI41177819192 at7a913f6 succeeds on all five jobs. Raw Windows full-suite

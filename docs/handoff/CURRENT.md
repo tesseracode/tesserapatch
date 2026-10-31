@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S6 NATIVE CI PASSES; LOCAL COMPLETE GATE STILL RUNNING.**
-APPROVED denotes independent source review, not stage acceptance.
+**S6 RESOURCE-BLOCKED; NOT ACCEPTED.**
+Independent source review and native CI remain approved. The local full gate
+stopped on OS warning pressure, not a test assertion failure.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
@@ -21,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Native CI passed at7a913f6 — awaiting complete local gate and cleanup
+- **Status**: Blocked — runtime memory-pressure stop; complete gate requires another authorized attempt
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -31,6 +32,19 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+The full local gate at7a913f6 stops at command36,
+TestS7ObservedAQRegistrationAuthority, when OS pressure changes from1 to2.
+35/42 commands and32/39 test commands passed; the remaining work is not a pass.
+Runtime5,931.74s, peak sampled owned RSS7.27GiB, zero new swap-outs. All469
+sampled owned identities exited; source stayed clean and release tag unchanged.
+Evidence remains in `bin/roc-s6-20261031/full-gate/evidence/`.
+
+No Go workload remains. A later probe reports pressure1/load3.11/53% diagnostic
+free memory, but grants no admission. Only about100 minutes remain before
+10:08:53Z, less than the measured complete-gate duration. Ask the operator to
+extend and select a full unchanged-guard retry, or pause with S6 unaccepted.
+No partial-gate acceptance, runtime threshold waiver or S7 dispatch.
 
 Native CI41177819192 at7a913f6 passes all five jobs. Actual Windows full-suite
 logs were compared with accepted S5 c42fc65:223 top-level failures versus224,
@@ -268,7 +282,9 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Blockers
 
-None at dispatch. About5h45 remain; do not shorten review/gates to fit.
+Runtime OS warning pressure stopped the full gate. Current deadline10:08:53Z
+does not leave enough time for a measured full rerun and closure. An extension
+requires explicit operator approval; otherwise stop with S6 unaccepted.
 
 ## Context for Next Agent
 
