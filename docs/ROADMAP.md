@@ -1695,6 +1695,10 @@ CI41156126648 at9637e2c passes both observers, but all native test platforms
 expose the missing OperationCandidateSummary mirror in internal/intent.
 Stop the obsolete remote gate and align only that existing schema mirror with
 focused runtime/parity sensitivity checks; re-review precedes replacement gates.
+Mirror correction `fca0b87` has real red-before evidence: old production accepts
+all three malformed candidate shapes. Retained review and admitted full intent/
+scope checks are in progress; no validation threshold or source pin is loosened.
+Retained independent review APPROVES `fca0b87`; runtime/full gates still pending.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored

@@ -58,6 +58,15 @@ its two transitive parity maps; unknown keys remain accepted and no store import
 is added. Three parity mutations and runtime wrong-shape/type cases protect it.
 Run the new runtime cases against old production via a Go test-source overlay
 first; no repository source is rewritten for this red-before proof.
+The red proof fails exactly the three malformed candidate cases: old production
+returns ("defined", true) for an array summary, boolean candidate_id and array
+source_feature_state. Null/forward-compatible positives do not fail. Frozen
+mirror fix `fca0b87` is in retained review; admitted remote formatting/full
+intent/scope checks are next. A fresh byte-identical full-gate harness has no
+reused caches/evidence. The next CI observer will notify on the first failed
+job instead of waiting for all jobs; five observer routing controls pass.
+Retained reviewer APPROVES `fca0b87` with no significant issues and prior
+approvals unchanged. Runtime green/full replacement validation remains required.
 
 Test-only correction `2737264` passes remote admitted formatting, CLI
 PIB-214/PIB-477 and S2/S5 schema controls (14.751s; command71.06s), and workflow

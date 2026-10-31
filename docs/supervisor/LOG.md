@@ -1,3 +1,22 @@
+## Review — S5 Dependent Intent Mirror — 2026-10-31
+
+**Reviewer**: roc-s5-independent-review / 7712b628, verified gpt-6-astra.
+**Checkpoint**: `fca0b873ac0ed891fedc67265bbba582308cb478`.
+**Verdict**: APPROVED — no significant issues in the intent-mirror delta;
+prior approvals remain unchanged. No reviewer Go workload. Parent retains
+runtime/full-gate ownership and S5 remains unaccepted.
+
+## S5 Intent Mirror Red Proof / Review Dispatch — 2026-10-31
+
+The test-source overlay against old production fails exactly three malformed
+candidate cases (array summary, boolean candidate_id, array source state),
+each incorrectly decoded as valid. Null/forward-compatible positive controls
+do not fail. Frozen correction fca0b87 is in retained independent review.
+Run admitted formatting/full intent/scope checks next, then full replacement
+gates. Fresh full-gate harness is byte-identical and uses no old caches/evidence.
+A private native-CI observer now reports the first failed job; its success,
+terminal failure, early failure, wrong-head and transport-error controls pass.
+
 ## S5 Native Parity Failure / Remote Gate Interrupted — 2026-10-31
 
 Native CI41156126648 at9637e2c passes both S7 observer jobs. Linux/macOS test
