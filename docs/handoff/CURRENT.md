@@ -101,16 +101,18 @@ dependent surface must be recorded before changing it.
 
 ## Test Results
 
-No S6 validation yet. The first unit adds four persisted-pointer regressions
+The first unit adds four persisted-pointer regressions
 across ordinary outcomes and a finite S6 scope transition with negative inputs.
 An old-production overlay will prove the pointer-loss failure before green checks.
 The first formatter stopped before tests on a misplaced nested test declaration.
 It is moved to package scope; retry uses a fresh source/stage and preserves
-the failed formatter evidence. No red/green runtime result is claimed yet.
+the failed formatter evidence; that attempt ran no runtime tests.
 Corrected formatting passes. Old-production overlay now fails all four
 pending-pointer cases (upstreamed/blocked/reapplied/still_needed) exactly at
 the preservation assertion. This is real red-before evidence, not a compile
-failure. Corrected S0/S5/S6 and label regressions are next.
+failure. Corrected S0/S5/S6 and label regressions are running in
+`s6-summary-green`, the sole Go workload, against
+`bin/roc-s6-20261031/summary-source-v2` atd6ac94d plus formatter-only changes.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has
