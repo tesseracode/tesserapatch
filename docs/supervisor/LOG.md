@@ -1,3 +1,11 @@
+## S6 Summary Red Proof Confirmed — 2026-10-31
+
+Corrected formatting passes. The unchanged S5 reconcile implementation, loaded
+through a Go source overlay, fails all four new pending-pointer persistence
+cases at the intended assertion. Ordinary summary replacement really loses the
+pointer; no syntax failure is counted as this proof. Run corrected S0/S5/S6
+and label checks before advancing this unit. Core S6 integration remains pending.
+
 ## S6 Integration Decisions Recorded — 2026-10-31
 
 Proposed ADR-049 records the boundary choices before core wiring: readonly

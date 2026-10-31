@@ -107,6 +107,10 @@ An old-production overlay will prove the pointer-loss failure before green check
 The first formatter stopped before tests on a misplaced nested test declaration.
 It is moved to package scope; retry uses a fresh source/stage and preserves
 the failed formatter evidence. No red/green runtime result is claimed yet.
+Corrected formatting passes. Old-production overlay now fails all four
+pending-pointer cases (upstreamed/blocked/reapplied/still_needed) exactly at
+the preservation assertion. This is real red-before evidence, not a compile
+failure. Corrected S0/S5/S6 and label regressions are next.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has
