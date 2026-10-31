@@ -1,3 +1,14 @@
+## S5 Runtime Validation Resource-blocked — 2026-10-31
+
+Second 600s admission window expires before formatter/tests start:
+load1 sampled 5.36-6.67 throughout, memory pressure normal. First blocked
+window was also continuously above5. No code failure is inferred and no
+runtime pass is claimed. Source approval remains valid; full validation and
+publication remain blocked. No Go workload remains; only the deadline timer.
+
+Request a quieter CPU window or continue waiting under unchanged limits.
+No process belonging to another workload will be stopped and no gate weakened.
+
 ## Review — S5 Source APPROVED — 2026-10-31
 
 Retained reviewer `7712b628` APPROVES frozen `efe351f`. Shared effective

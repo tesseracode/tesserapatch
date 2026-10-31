@@ -4,8 +4,8 @@
 
 **Cluster state**: APPROVED
 
-**S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
-The canonical mid-cycle token intentionally prevents a false wave-close pass.
+**S5 SOURCE IS APPROVED; VALIDATION IS RESOURCE-BLOCKED. LOCAL ONLY, NOT ACCEPTED.**
+The canonical APPROVED token denotes source review only, not stage acceptance.
 Published `origin/main` remains accepted/restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5 has no full 39-shard gate, native CI or
@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Source review approved; formatting/runtime/full gates still required
+- **Status**: Source review approved; two admission windows blocked before formatting/tests
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -184,6 +184,10 @@ findings/composition stay closed, and ADR-048's revised direction is approved.
 This canonical APPROVED token means source review only, NOT S5 acceptance.
 The current format/red-proof retry must finish before corrected runtime/basic
 checks and complete local/native gates; no admission requirement is waived.
+Second 600s admission attempt also expired before formatting: sampled load1
+5.36-6.67, normal pressure. No Go workload remains; only the extended deadline
+timer is active. Request a quieter CPU window or keep waiting under the same
+limits. Do not retry blindly or weaken thresholds.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review
@@ -214,7 +218,8 @@ Implemented locally: strict artifact/state schemas and proof/identity helpers,
 ephemeral boundary-proof metadata, optional omitempty status pointer, typed
 metadata/reopen APIs, feature-capability-protected artifact mutations, callable
 preflight/reject/clear/prepare/publish/reuse paths and focused guards.
-These callables are **not yet safe or complete enough to accept**.
+The corrected callables have independent source approval, but **are not yet
+accepted**: formatting/runtime/basic/full local and native validation remain.
 
 Closed by independent review: F1 rooted mutation capability, F2 verified exact
 worktree registration/namespace ownership, F5 recovery/coexistence action checks,
@@ -222,14 +227,14 @@ F7 loaded source-state comparison, F8 classification/resolution consistency,
 F9 exact identity comparison, F10 stored-upstream reopen, F11 metadata-only
 recovery scanning. ADR-048 remains Proposed.
 
-## Blockers — Exact Remaining Work
+## Source Findings — Closed by Review; Full Validation Still Required
 
-| ID | Open obligation | Concrete regression required |
+| ID | Resolved source obligation | Regression/validation evidence |
 |---|---|---|
-| F3 | Bind reuse artifact/state/preparation/root/feature lock into one checked identity. | Artifact A plus preparation/root B with equal results must not approve A or ignore its missing/corrupt worktree. |
-| F4 | Mint preparation only from recomputed paired eligibility, exact bindings/descriptors and typed repository/feature identity. | Invented hashes, `eligible == false`, substituted descriptor hashes, another slug or repository must not mint structural authority/publish. |
-| F6 | Preserve coherent lifecycle state across prune/status-write failures and subsequent invocations. | Global contention during rejection must not leave pending pointer/rejected disk state that next preflight ignores; failed pointer save must not orphan pending publication. |
-| Missing composition | Real continuous-lock finalization with fresh recovery/coexistence/binding/state/rejection checks and existing-candidate decisions before creation. | Reject second pending ID, accepted/rejected audit overwrite, changed preparation state/bindings, late rejection, and execution-to-publication self-contention. |
+| F3 — CLOSED | Root/identity-bound reuse and byte/mode-faithful materialization under one policy. | Actual index/filter/mode hiding regressions and strict shared-policy guard retained; latest policy runtime checks await admission. |
+| F4 — CLOSED | Private preparation from freshly recomputed S2 inputs and typed repository/feature identity. | Real eligibility, binding and cross-candidate negative cases pass. |
+| F6 — CLOSED | Pending inventory and safe interrupted transition handling. | Contention, status-write failure, retries and orphan cases pass. |
+| Composition — CLOSED | Continuous feature hold with fresh checks and existing/rejected decisions before creation. | Finalization owns actual execution/publication; no asserted success callback or injected execution result. |
 
 These are S5 callable semantics, **not** deferred S6 phase wiring. S6 owns
 pipeline/evidence/confirmation/shared-summary-merge integration only.
