@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S5 SOURCE IS APPROVED; RESOURCE ADMISSION HAS RESUMED. LOCAL ONLY, NOT ACCEPTED.**
+**S5 SOURCE AND BASIC CHECKS ARE APPROVED. FULL GATES PENDING; NOT ACCEPTED.**
 The canonical APPROVED token denotes source review only, not stage acceptance.
 Published `origin/main` remains accepted/restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Source approved; formatting passed and old-code counterexample reproduced; final checks next
+- **Status**: Source/basic checks approved; publishing checkpoint for complete local/native gates
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -195,6 +195,10 @@ The admission-wait coordinator is complete; only this validator and the
 extended deadline timer remain active. At native validation, inspect actual
 S5 Windows test output rather than relying on the allowed-failure full-suite
 step's green conclusion; unrelated historical #17 failures remain out of scope.
+Final shared-policy formatting, full affected packages (171.84s), vet (4.85s)
+and build (0.52s) all PASS, normal pressure/no swap-outs. No local Go workload
+remains. Publish a reviewed checkpoint and run the complete local gate/native
+CI at its exact SHA; no source or assertion changes after the approved proof.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline

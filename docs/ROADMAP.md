@@ -1671,6 +1671,9 @@ tests, with normal memory pressure but load1 continuously above5. Source
 approval stands; runtime/full gates remain pending until admission is possible.
 Admission has recovered under unchanged limits. Formatting passes and the
 old ordered-filter bypass is reproduced; corrected broad validation is next.
+Corrected full affected/vet/build now pass (171.84s/4.85s/0.52s), normal
+pressure/no swap-outs. Publish the approved checkpoint for complete local/
+native gates; S5 acceptance and S6 dispatch remain blocked until completion.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

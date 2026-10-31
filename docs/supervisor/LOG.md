@@ -1,3 +1,15 @@
+## S5 Ready for Full Local / Native Validation — 2026-10-31
+
+Approved shared-policy source now passes admitted formatting, full
+candidate/gitutil/store/workflow tests (171.84s), vet (4.85s) and build
+(0.52s), normal pressure/no new swap-outs. Production bytes match reviewed
+`efe351f`; subsequent code change is test formatting only.
+
+Publish a frozen checkpoint, then run all 39 local shards / 42 commands and
+native CI with S5 WAVE_BASE `f9d5501f45e00365789eb24c53620a76513d52d5`.
+Inspect actual new S5 Windows results despite the old allowed-failure step.
+S5 is not accepted until both full validations complete; S6 remains blocked.
+
 ## S5 Admission Recovered / Ordered-rule Red Proof — 2026-10-31
 
 The first bounded coordinator attempt qualifies after 61.8s and formatting
