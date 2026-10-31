@@ -180,6 +180,9 @@ limits." A bounded admission-only coordinator retries only 600s quiet-window
 timeouts that occurred before command execution, with 60s between attempts.
 It never retries a formatter/test/runtime/telemetry failure and will not start
 another attempt near the approved deadline. No unrelated process is stopped.
+Active wait shell: `s5-resource-admission-wait`; coordinator:
+`bin/roc-s5-resume-20261030/wait-for-admission.py`. Its startup controls pass
+and it is responsive. The only other active helper is the extended deadline timer.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline
