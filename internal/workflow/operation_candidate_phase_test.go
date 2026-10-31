@@ -135,6 +135,7 @@ func TestROCS6CandidateReadyPreservesStateAndSubstitutesEvidence(t *testing.T) {
 type rocS6Provider struct {
 	calls int
 	probe func()
+	response string
 }
 
 func (p *rocS6Provider) Check(context.Context, provider.Config) (*provider.Health, error) {
@@ -145,6 +146,9 @@ func (p *rocS6Provider) Generate(context.Context, provider.Config, provider.Gene
 	p.calls++
 	if p.probe != nil {
 		p.probe()
+	}
+	if p.response != "" {
+		return p.response, nil
 	}
 	return `{"decision":"upstreamed","reasoning":"fixture"}`, nil
 }
@@ -228,17 +232,23 @@ func TestROCS6ConfirmationRejectsAlteredProofAndEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	mutations := map[string]func(*phase2AuthorityProof, *ReconcileResult){
-		"other-result": func(p *phase2AuthorityProof, r *ReconcileResult) { copy := *r; p.result = &copy },
-		"other-store": func(p *phase2AuthorityProof, _ *ReconcileResult) { copy := *f.s; p.owner = &copy },
-		"binding": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.captureEventSHA256 = strings.Repeat("0", 64) },
-		"gate": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.gatesPassed[3] = false },
+		"other-result":  func(p *phase2AuthorityProof, r *ReconcileResult) { copy := *r; p.result = &copy },
+		"other-store":   func(p *phase2AuthorityProof, _ *ReconcileResult) { copy := *f.s; p.owner = &copy },
+		"binding":       func(p *phase2AuthorityProof, _ *ReconcileResult) { p.captureEventSHA256 = strings.Repeat("0", 64) },
+		"gate":          func(p *phase2AuthorityProof, _ *ReconcileResult) { p.gatesPassed[3] = false },
 		"effect-digest": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.effectDigest = strings.Repeat("0", 64) },
-		"operations": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.operationCount = 1 },
+		"operations":    func(p *phase2AuthorityProof, _ *ReconcileResult) { p.operationCount = 1 },
 		"present-count": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.presentCount = 0 },
-		"source-state": func(p *phase2AuthorityProof, _ *ReconcileResult) { p.sourceFeatureState = "applied" },
-		"entry-origin": func(_ *phase2AuthorityProof, r *ReconcileResult) { r.Evidence[0].MatchOrigin = store.EvidenceMatchOriginFork },
-		"entry-presence": func(_ *phase2AuthorityProof, r *ReconcileResult) { r.Evidence[0].PreReconcilePresence = store.EvidencePresenceUnknown },
-		"extra-ref": func(_ *phase2AuthorityProof, r *ReconcileResult) { r.Evidence[0].UpstreamCommitRefs = append(r.Evidence[0].UpstreamCommitRefs, f.invocation.upstreamCommit) },
+		"source-state":  func(p *phase2AuthorityProof, _ *ReconcileResult) { p.sourceFeatureState = "applied" },
+		"entry-origin": func(_ *phase2AuthorityProof, r *ReconcileResult) {
+			r.Evidence[0].MatchOrigin = store.EvidenceMatchOriginFork
+		},
+		"entry-presence": func(_ *phase2AuthorityProof, r *ReconcileResult) {
+			r.Evidence[0].PreReconcilePresence = store.EvidencePresenceUnknown
+		},
+		"extra-ref": func(_ *phase2AuthorityProof, r *ReconcileResult) {
+			r.Evidence[0].UpstreamCommitRefs = append(r.Evidence[0].UpstreamCommitRefs, f.invocation.upstreamCommit)
+		},
 		"duplicate-entry": func(_ *phase2AuthorityProof, r *ReconcileResult) { r.Evidence = append(r.Evidence, r.Evidence[0]) },
 	}
 	for name, mutate := range mutations {
@@ -288,5 +298,108 @@ func TestROCS6RecoveryRefusesBeforePipelineMutation(t *testing.T) {
 	after, err := f.store.LoadFeatureStatus(f.slug)
 	if err != nil || after.State != before.State || after.Notes != before.Notes || after.Reconcile.OperationCandidate == nil {
 		t.Fatalf("recovery refusal mutated lifecycle: %+v %v", after, err)
+	}
+}
+
+func TestROCS6FinalizationRechecksPhaseTwoBindings(t *testing.T) {
+	f := rocS6PhaseFixture(t, rocS6UpstreamDeletion)
+	prov := &rocS6Provider{
+		response: `{"decision":"unclear","reasoning":"fixture"}`,
+		probe: func() { f.write(t, "apply-recipe.json", append(append([]byte(nil), f.recipe...), '\n')) },
+	}
+	result := rocS6Run(t, f, prov, provider.Config{BaseURL: "http://unused", Model: "fixture"}, ReconcileOptions{})
+	status, err := f.s.LoadFeatureStatus(f.slug)
+	if err != nil || status.Reconcile.OperationCandidate != nil || result.Outcome != store.ReconcileBlocked {
+		t.Fatalf("stale phase2 snapshot published: %+v %+v %v", result, status, err)
+	}
+	found := false
+	for _, entry := range result.Evidence {
+		if entry.Phase == store.EvidencePhase2 && entry.ReasonCode == "binding-hash-drift" {
+			found = entry.Confidence == store.EvidenceConfidenceUnknown
+		}
+	}
+	if !found {
+		t.Fatalf("fresh E6 refusal missing: %+v", result.Evidence)
+	}
+}
+
+func TestROCS6MalformedStagingUsesOnlyLegacyEvidence(t *testing.T) {
+	f := rocS6PhaseFixture(t, rocS6Feature)
+	snapshot, err := captureOperationPhaseSnapshot(f.s, f.slug, f.invocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"missing-proof", "missing-staging", "duplicate-phase", "wrong-entry"} {
+		t.Run(name, func(t *testing.T) {
+			result := &ReconcileResult{Slug: f.slug, UpstreamRef: "HEAD", UpstreamCommit: f.invocation.upstreamCommit,
+				Outcome: store.ReconcileUpstreamed, Phase: "phase-2-operation-level"}
+			result.verdictAttempts = []store.ReconcileEvidence{qualifyingOperationPhaseEvidence(f.s, f.slug, result)}
+			proof := rocS6TestProof(f.s, result, snapshot)
+			switch name {
+			case "missing-proof":
+				proof = nil
+			case "missing-staging":
+				result.verdictAttempts = nil
+			case "duplicate-phase":
+				result.verdictAttempts = append(result.verdictAttempts, result.verdictAttempts[0])
+			case "wrong-entry":
+				result.verdictAttempts[0].MatchOrigin = store.EvidenceMatchOriginFork
+			}
+			saveReconcileArtifacts(f.s, f.slug, result, proof)
+			if result.Outcome != store.ReconcileBlocked || len(result.Evidence) == 0 ||
+				result.Evidence[0].Confidence != store.EvidenceConfidenceLow {
+				t.Fatalf("illegal staging retained authority: %+v", result)
+			}
+			phaseTwo := 0
+			for _, entry := range result.Evidence {
+				if entry.Phase == store.EvidencePhase2 {
+					phaseTwo++
+				}
+			}
+			if phaseTwo != 1 {
+				t.Fatalf("staged and derived entries coexisted: %+v", result.Evidence)
+			}
+		})
+	}
+}
+
+func TestROCS6PendingPointerSurvivesDisabledAndContendedRuns(t *testing.T) {
+	for _, name := range []string{"gate-off", "legacy", "multi-slug", "held-lock"} {
+		t.Run(name, func(t *testing.T) {
+			f := rocS6PhaseFixture(t, rocS6UpstreamDeletion)
+			first := rocS6Run(t, f, nil, provider.Config{}, ReconcileOptions{})
+			before, err := f.s.LoadFeatureStatus(f.slug)
+			if err != nil || first.Phase != "phase-2-operation-candidate" || before.Reconcile.OperationCandidate == nil {
+				t.Fatalf("seed candidate failed: %+v %v", first, err)
+			}
+			slugs := []string{f.slug}
+			opts := ReconcileOptions{CumulativeLegacy: name == "legacy"}
+			if name == "gate-off" {
+				cfg, err := f.s.LoadConfig()
+				if err != nil { t.Fatal(err) }
+				cfg.OperationCandidateEnabled = false
+				if err := f.s.SaveConfig(cfg); err != nil { t.Fatal(err) }
+			}
+			if name == "multi-slug" {
+				other, err := f.s.AddFeature(store.AddFeatureInput{Title: "S6 other feature"})
+				if err != nil { t.Fatal(err) }
+				other.State = store.StateApplied
+				if err := f.s.SaveFeatureStatus(other); err != nil { t.Fatal(err) }
+				if err := f.s.WriteArtifact(other.Slug, "post-apply.patch", string(f.patch)); err != nil { t.Fatal(err) }
+				slugs = append(slugs, other.Slug)
+			}
+			if name == "held-lock" {
+				lock, err := candidatelock.TryAcquire(filepath.Join(f.s.Root, ".tpatch", "locks", "reconcile", f.slug+".lock"))
+				if err != nil { t.Fatal(err) }
+				defer lock.Release()
+			}
+			_, err = RunReconcile(context.Background(), f.s, slugs, "HEAD", nil, provider.Config{}, opts)
+			if err != nil { t.Fatal(err) }
+			after, err := f.s.LoadFeatureStatus(f.slug)
+			if err != nil || after.Reconcile.OperationCandidate == nil ||
+				*after.Reconcile.OperationCandidate != *before.Reconcile.OperationCandidate {
+				t.Fatalf("unrelated outcome lost pending pointer: %+v %v", after, err)
+			}
+		})
 	}
 }

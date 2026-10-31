@@ -52,7 +52,7 @@ func TestROCS6PlainReconcileRecoveryRefusesWithExitThree(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(path, "accept-journal.json"), []byte("{}"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	out, stderr, err := runCLIForEvidence("reconcile", "--path", dir, "--upstream", "HEAD", slug)
+	out, stderr, err := runCLIForEvidence("reconcile", "--path", dir, "--upstream-ref", "HEAD", slug)
 	var coded *ExitCodeError
 	if !errors.As(err, &coded) || coded.Code != 3 || !strings.Contains(err.Error(), "recovery-required") {
 		t.Fatalf("recovery refusal: %q %q %v", out, stderr, err)

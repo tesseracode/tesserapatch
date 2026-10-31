@@ -1638,6 +1638,9 @@ evidence wiring remains pending; no S6 acceptance or S7 dispatch.
 Summary unit now passes combined S0/S5/S6/label checks. Core phase/proof/evidence/
 held-finalization and CLI rendering draft is ready for initial formatting and
 targeted checks; source guards and independent review still pending.
+Initial core workflow/candidate checks pass. A CLI test flag typo is corrected;
+the added authority-source guards and adversarial cases are entering combined
+validation. No S6 acceptance or later-stage dispatch.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

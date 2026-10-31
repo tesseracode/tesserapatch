@@ -110,12 +110,17 @@ Core draft now adds operation_candidate_phase.go and threads the explicit proof
 through save/gate, with nil at legacy callers. CLI changes are limited to
 plain-reconcile recovery exit3 and human review evidence class labels; the
 existing review JSON envelope stays unchanged. No terminal candidate flags.
-The core draft is not yet formatted/compiled or reviewed.
+The initial core formats/compiles and passes targeted workflow/candidate cases.
+Its first combined run stopped only at a CLI test's misspelled --upstream flag;
+the fixture now uses the existing --upstream-ref spelling.
 New runtime cases cover real immutable-upstream all-present confirmation,
 delete/insertion textual-conflict candidate readiness, stronger-arm precedence,
 provider-time lock release, malformed proof fields/entry pairing, failed
 authority publication, recovery refusal and CLI evidence classes. Dedicated
-proof/staging source guards and additional adversarial cases remain to be added.
+proof/staging source guards are now drafted, including carrier escape,
+joint mint/append/read counts, allowed save/gate callers and supporting-call
+order, with positive/mutation controls. Added malformed staging, changed
+phase2 bindings and pending-pointer carry-forward regressions.
 
 ## Test Results
 
@@ -135,6 +140,10 @@ capture-only S0 validator and memo-lifetime validator unchanged. No Go workload
 remained until the corrected combined retry. That retry now PASSes the combined
 S0/S5/S6 and label suite (21.277s; command27.75s), normal pressure/no swap-outs.
 S5 closing CI41168364452 at62698be also completed successfully.
+Core checkpoint98175fe: formatting PASS, workflow25.303s/candidate1.971s PASS;
+CLI stopped at the test-only unknown --upstream flag before its recovery
+assertion. Corrected fixture plus the new source guards/adversarial tests need
+the next combined run. No S6 acceptance/full-gate claim.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has

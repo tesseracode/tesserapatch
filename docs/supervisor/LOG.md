@@ -1,3 +1,15 @@
+## S6 Core Runtime Check / Guarded Retry — 2026-10-31
+
+Core98175fe formats and compiles. Targeted workflow25.303s and candidate1.971s
+pass, including actual all-present confirmation, textual-conflict candidate,
+stronger-arm precedence, CG tampering, recovery and pointer/state preservation.
+Combined run stops at CLI fixture's unknown --upstream flag; use shipped
+--upstream-ref instead. No production behavior is changed to satisfy the fixture.
+
+Carrier/staging/call-order source guards and mutation controls are now drafted,
+with further stale-binding/illegal-staging/pending-pointer runtime cases. Run
+the guarded combined set before independent review/full validation.
+
 ## S6 Summary Unit Green / Core Draft — 2026-10-31
 
 Corrected scope dispatch passes combined S0/S5/S6/label checks21.277s

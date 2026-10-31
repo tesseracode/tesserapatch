@@ -38,19 +38,19 @@ type phase2AuthorityProof struct {
 }
 
 type operationPhaseSnapshot struct {
-	owner              *store.Store
-	repoPath           string
-	repoIdentity       os.FileInfo
-	invocation         operationCandidateInvocation
-	eligibility        operationCandidateEligibility
-	derivation         candidate.CandidateDerivation
-	presentCount       int
-	applicableCount    int
-	conflictCount      int
-	operationCount     int
-	effectCount        int
-	effectDigest       string
-	conflictCode       string
+	owner           *store.Store
+	repoPath        string
+	repoIdentity    os.FileInfo
+	invocation      operationCandidateInvocation
+	eligibility     operationCandidateEligibility
+	derivation      candidate.CandidateDerivation
+	presentCount    int
+	applicableCount int
+	conflictCount   int
+	operationCount  int
+	effectCount     int
+	effectDigest    string
+	conflictCode    string
 }
 
 func captureOperationPhaseSnapshot(s *store.Store, slug string, invocation operationCandidateInvocation) (*operationPhaseSnapshot, error) {
@@ -139,16 +139,37 @@ func operationPhaseRefusalCode(err error) string {
 	if err != nil {
 		for _, code := range []string{
 			"candidate-lock-held", "lock-unsupported", "lock-filesystem-unsupported",
+			"candidate-feature-state-unsupported", "coverage-unusable", "coverage-owner-mismatch", "coverage-incomplete",
+			"capture-event-owner-mismatch", "capture-event-pair-mismatch", "binding-presence-drift", "binding-hash-drift",
+			"recipe-undecodable", "recipe-owner-mismatch", "reference-not-reconstructable", "effect-binding-drift",
+			"recipe-stale-marker-present", "recipe-unsupported", "supersession-not-authority",
+			"parent-blocked", "derivation-mode-unsupported",
 			"candidate-already-accepted", "candidate-rejected", "candidate-id-collision",
 			"candidate-integrity-drift", "candidate-pending", "shadow-pending",
 			"capture-event-unusable", "effect-unexplained",
 		} {
-			if strings.HasPrefix(err.Error(), code) {
+			if err.Error() == code || strings.HasPrefix(err.Error(), code+":") {
 				return code
 			}
 		}
 	}
 	return "reference-not-reconstructable"
+}
+
+func operationRefusalConfidence(code string) store.ReconcileEvidenceConfidence {
+	for _, eligibility := range []string{
+		"candidate-lock-held", "lock-unsupported", "lock-filesystem-unsupported",
+		"candidate-feature-state-unsupported", "coverage-unusable", "coverage-owner-mismatch", "coverage-incomplete",
+		"capture-event-unusable", "capture-event-owner-mismatch", "capture-event-pair-mismatch",
+		"binding-presence-drift", "binding-hash-drift", "recipe-undecodable", "recipe-owner-mismatch",
+		"reference-not-reconstructable", "effect-binding-drift", "recipe-stale-marker-present", "recipe-unsupported",
+		"supersession-not-authority", "parent-blocked", "derivation-mode-unsupported", "shadow-pending",
+	} {
+		if code == eligibility {
+			return store.EvidenceConfidenceUnknown
+		}
+	}
+	return store.EvidenceConfidenceLow
 }
 
 func operationPhaseEvidence(s *store.Store, slug string, result *ReconcileResult, phase store.ReconcileEvidencePhase, kind store.ReconcileEvidenceKind, verdict, reason string, confidence store.ReconcileEvidenceConfidence) store.ReconcileEvidence {
@@ -163,7 +184,7 @@ func operationPhaseEvidence(s *store.Store, slug string, result *ReconcileResult
 		BaseCommit: base, Phase: phase, EvidenceKind: kind, RawReconcileVerdict: verdict,
 		Confidence: confidence, ReasonCode: reason, MatchedPaths: []string{},
 		MatchedOperations: []string{}, UpstreamCommitRefs: []string{},
-		MatchOrigin: store.EvidenceMatchOriginUnknown,
+		MatchOrigin:          store.EvidenceMatchOriginUnknown,
 		PreReconcilePresence: store.EvidencePresenceNotChecked, RequiresConfirmation: true,
 	}
 	entry.AttemptID = store.ComputeAttemptID(entry)
@@ -272,7 +293,8 @@ func evaluateReconcileOperationCandidate(s *store.Store, slug string, result *Re
 		artifact, err = finalizeOperationCandidateHeld(s, slug, prepared, lock)
 	}
 	if err != nil {
-		appendOperationPhaseRefusal(s, slug, result, operationPhaseRefusalCode(err), store.EvidenceConfidenceLow)
+		code := operationPhaseRefusalCode(err)
+		appendOperationPhaseRefusal(s, slug, result, code, operationRefusalConfidence(code))
 		return nil, false
 	}
 	first := operationPhaseEvidence(s, slug, result, store.EvidencePhase2, store.EvidenceKindRecipeOperationMatch,

@@ -81,7 +81,7 @@ type ReconcileResult struct {
 	//
 	// Unexported and so ignored by encoding/json (no schema impact, no
 	// fixture drift).
-	attemptedAt string
+	attemptedAt     string
 	verdictAttempts []store.ReconcileEvidence
 }
 

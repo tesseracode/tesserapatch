@@ -22,13 +22,13 @@ func validateROCS5LifecycleSource(source string) error {
 		}
 	}
 	for name, ordered := range map[string][]string{
-		"runOperationCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
-		"runReconcileCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
+		"runOperationCandidatePreflight":     {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
+		"runReconcileCandidatePreflight":     {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
 		"runOperationCandidatePreflightHeld": {"borrowOperationCandidateFeatureMutation", "findOperationCandidateRecoveryJournal", "snapshotOperationCandidateBindings", "stalePendingOperationCandidate"},
-		"prepareOperationCandidateHeld":   {"borrowOperationCandidateFeatureMutation", "operationCandidateActionPreflight", "assessOperationCandidateEligibility", "candidate.DescribeDerivation", "candidate.ComputeCandidateID"},
-		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "finalizeOperationCandidateHeld"},
-		"finalizeOperationCandidateHeld":  {"borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "candidate.WriteCandidateMetadata", "s.SaveFeatureStatus"},
-		"rejectPendingOperationCandidate": {"operationCandidateActionPreflight", "pruneOperationCandidateIfPresent", "appendRejectedOperationCandidate", "reference.WriteCandidateState", "s.SaveFeatureStatus"},
+		"prepareOperationCandidateHeld":      {"borrowOperationCandidateFeatureMutation", "operationCandidateActionPreflight", "assessOperationCandidateEligibility", "candidate.DescribeDerivation", "candidate.ComputeCandidateID"},
+		"finalizeOperationCandidate":         {"acquireOperationCandidateFeatureLock", "finalizeOperationCandidateHeld"},
+		"finalizeOperationCandidateHeld":     {"borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "candidate.WriteCandidateMetadata", "s.SaveFeatureStatus"},
+		"rejectPendingOperationCandidate":    {"operationCandidateActionPreflight", "pruneOperationCandidateIfPresent", "appendRejectedOperationCandidate", "reference.WriteCandidateState", "s.SaveFeatureStatus"},
 	} {
 		fn := functions[name]
 		if fn == nil {
