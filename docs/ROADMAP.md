@@ -1711,6 +1711,10 @@ Exact amendment676b9ba passes full PIB golden/provenance/history and intent
 status/scope controls (26.792s/0.166s/0.207s). Historical source hash verified
 unchanged; only the approved current-source amendment is pinned. Fresh full/
 native gates next, with no S5 acceptance or S6 dispatch yet.
+Native CI41159960598 atc42fc65 PASS on all five jobs. Actual Windows full-suite
+output still has224 legacy top-level failures, all observed in accepted S4
+runs41072987684/41058918380; no new top-level failure against those baselines,
+and #17 remains open. Local full39-shard gate is still running; acceptance waits.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored

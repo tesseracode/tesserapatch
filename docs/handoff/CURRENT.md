@@ -4,9 +4,9 @@
 
 **Cluster state**: APPROVED
 
-**S5 SOURCE/MIRROR APPROVED; PROVENANCE CORRECTION PASSES; FULL GATES PENDING.**
-APPROVED denotes source approval, not S5 acceptance. The next checkpoint
-replaces `84d524a`; its exact reviewed current-source pin now passes PIB-391.
+**S5 NATIVE CI PASSES; LOCAL COMPLETE GATE STILL RUNNING.**
+APPROVED denotes source approval, not S5 acceptance. Published checkpoint
+`c42fc65` has five successful native jobs; final local parity/cleanup remains.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -26,7 +26,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Provenance controls passed; fresh full gate/native validation pending
+- **Status**: Native CI passed; awaiting complete local39-shard gate and cleanup
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -40,6 +40,22 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Native CI41159960598 at `c42fc65` completes successfully on all five jobs:
+Linux/macOS full shards and observers, and Windows blocking surfaces.
+Inspected actual Windows full-suite output rather than trusting its allowed-
+failure conclusion:224 top-level failures remain, all seen in accepted S4
+baselines f9d5501 (CI41072987684) or c4f2f1e (CI41058918380). The three
+candidate/Git-envelope failures have identical pre-S5 causes; the extra
+oversized-attribute metadata failure relative to f9d5501 also occurs at c4f2f1e.
+No newly failing top-level Windows case was found against both baselines.
+This is NOT a green Windows full suite and does NOT close #17.
+
+Local `s5-provenance-full-gate` continues unchanged. At03:19 UTC,21/42 commands
+(18/39 test shards) had passed and command22 was running. Keep source frozen;
+do not accept/archive/dispatch S6 until all39 shards, exact command parity,
+resource evidence and owned-process cleanup complete. Native logs/comparison
+are in `bin/roc-s5-resume-20261030/`; old Mac remains idle.
 
 Exact source-pin registration `676b9ba` passes admitted formatting and full PIB
 pre-change golden/provenance/history controls, intent status parity/sensitivity/
@@ -444,6 +460,10 @@ No new module dependency. v0.17.0 is unchanged.
   intent status and S5 scope controls PASS (26.792s/0.166s/0.207s).
 - CI41158908886 exposed the omitted current-source pin; its local full gate
   stopped during first-test admission, with32 sampled identities reconciled.
+- CI41159960598 atc42fc65: all five jobs PASS. Windows full-suite still has
+  224 legacy top-level failures, each present in one of two accepted S4 runs;
+  blocking Windows surfaces pass. Raw logs/comparison retained; #17 remains open.
+- Local full-gate-v3: still running; no complete-gate pass/cleanup claim yet.
 
 Evidence: `bin/roc-s5-20261030/`; final checked source:
 `bin/roc-s5-20261030/f2-corrected-source/`. Preserve all previous raw evidence.

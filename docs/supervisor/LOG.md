@@ -1,3 +1,20 @@
+## S5 Native CI Pass / Actual Windows Baseline Comparison — 2026-10-31
+
+CI41159960598 atc42fc65 succeeds on all five jobs. Linux/macOS full test shards
+and both observers pass; Windows' blocking surfaces pass. The allowed-failure
+Windows full-suite step is not treated as green: its raw log contains224
+top-level failures. All are present in accepted S4 Windows runs41072987684
+(f9d5501) or41058918380 (c4f2f1e). Candidate prune/env wrappers and tree-hash
+envelope fail for the same prior causes. The one extra failure relative to
+f9d5501 (oversized indexed attributes, readonly metadata assertion) also occurs
+atc4f2f1e; its legacy call path retains the same reader/arguments and returns
+before the new materialization code. No new top-level Windows failure found.
+Keep #17 open; no unrelated Windows-reliability fixes enter S5.
+
+Local full-gate-v3 remains active:21/42 commands and18/39 shards passed as of
+03:19 UTC, command22 running. Do not claim S5 acceptance before complete parity,
+resource/cleanup evidence and durable archive/close. No S6 dispatch yet.
+
 ## S5 Provenance Registration Green — 2026-10-31
 
 Exact reviewed-source amendment676b9ba passes admitted formatting and full PIB
