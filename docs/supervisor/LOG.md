@@ -1,3 +1,11 @@
+## S6 Summary Check — Scope Dispatcher Correction — 2026-10-31
+
+The corrected pointer/label cases pass, but combined S0/S5/S6 validation fails
+because rocS0AssertStageScope still dispatches to the S5 allowlist. Select the
+existing tested S6 allowlist at that one call site. Capture-only S0 restrictions
+and the AR memo-lifetime validator remain unchanged; the failure is not waived.
+Retry the same combined selectors after admitted formatting.
+
 ## S6 Summary Red Proof Confirmed — 2026-10-31
 
 Corrected formatting passes. The unchanged S5 reconcile implementation, loaded

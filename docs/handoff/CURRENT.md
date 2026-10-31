@@ -110,9 +110,11 @@ the failed formatter evidence; that attempt ran no runtime tests.
 Corrected formatting passes. Old-production overlay now fails all four
 pending-pointer cases (upstreamed/blocked/reapplied/still_needed) exactly at
 the preservation assertion. This is real red-before evidence, not a compile
-failure. Corrected S0/S5/S6 and label regressions are running in
-`s6-summary-green`, the sole Go workload, against
-`bin/roc-s6-20261031/summary-source-v2` atd6ac94d plus formatter-only changes.
+failure. Corrected pointer/label cases pass, but the combined check stops at
+the actual changed-path dispatcher still selecting S5's scope. Switch that
+single dispatcher to the already mutation-tested S6 allowlist; keep the
+capture-only S0 validator and memo-lifetime validator unchanged. No Go workload
+remains until the corrected combined retry.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has
