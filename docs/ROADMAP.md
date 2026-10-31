@@ -1662,6 +1662,9 @@ Operator selected an eight-hour extension and full old-Mac rerun: deadline
 2026-10-31T18:08:53Z. Remote probe confirms normal pressure/load1.79 and exact
 privateGo1.26.5. Fresh source/caches and unchanged full39-shard guards required;
 no local Go overlap, partial reuse or scope expansion.
+Native retry CI41187564992 atff306d6 PASS on all five jobs; Windows residuals
+are all known. Full old-Mac gate continues (command9/42 at10:10 UTC), with no
+partial reuse or guard changes. S6 acceptance remains pending.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

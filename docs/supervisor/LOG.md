@@ -1,3 +1,14 @@
+## S6 Native Retry Pass / Old-Mac Gate Continuing — 2026-10-31
+
+CI41187564992 atff306d6 passes all five jobs. Raw Windows comparison finds224
+top-level failures, all present in validated S5/S6 baselines; variation from223
+is the already observed intermittent oversized-attribute case. #17 remains open.
+
+At10:10 UTC the full old-Mac gate has passed8/42 commands (5/39 test commands)
+and is executing command9. Formatting/vet/build passed; no shard reuse, local
+Go overlap or threshold change. Continue to complete parity/cleanup before
+S6 acceptance; extended18:08:53Z deadline remains in force.
+
 ## Operator Authorizes Full Old-Mac Retry / Eight-Hour Extension — 2026-10-31
 
 Operator selected `extend-old-mac-8h`. Effective deadline is now

@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S6 FULL OLD-MAC RETRY AUTHORIZED; NOT ACCEPTED.**
+**S6 NATIVE RETRY PASSES; COMPLETE OLD-MAC GATE RUNNING.**
 APPROVED denotes source review only. The operator chose an eight-hour extension
 and a complete old-Mac rerun; the prior local resource failure stays recorded.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Complete old-Mac retry authorized — fresh source/cache setup
+- **Status**: Native CI passed atff306d6 — complete old-Mac gate still running
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,16 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Native CI41187564992 atff306d6 passes all five jobs. Actual Windows full-suite
+output has224 top-level failures, all seen in validated S5/S6 baselines; the
+intermittent oversized-attribute case accounts for223↔224 variation. No new
+failure or #17 closure is claimed.
+
+Old-Mac full retry is active. At10:10 UTC,8/42 commands (5/39 test shards) had
+passed and command9 was running. Formatting/vet/build passed under unchanged
+guards; fresh source/caches are in use and no previous shard is reused.
+The extended deadline remains18:08:53Z. No local Go or S7 dispatch.
 
 Operator explicitly selected `extend-old-mac-8h`: extend the existing deadline
 by eight hours to2026-10-31T18:08:53Z and rerun the complete gate on the old Mac.
