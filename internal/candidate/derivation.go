@@ -44,6 +44,19 @@ func (p Plan) MarshalJSON() ([]byte, error) {
 	return nil, fmt.Errorf("derivation plan is ephemeral and cannot be serialized")
 }
 
+func (p Plan) OperationCount() int {
+	return len(p.operations)
+}
+
+func (p Plan) ConflictCode() string {
+	for _, effect := range p.effects {
+		if effect.state == conflict {
+			return effect.reason
+		}
+	}
+	return ""
+}
+
 func (p Plan) Counts() (presentCount, applicableCount, conflictCount int) {
 	for _, effect := range p.effects {
 		switch effect.state {

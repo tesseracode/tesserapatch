@@ -2507,6 +2507,9 @@ func reconcileCmd() *cobra.Command {
 			}
 			results, err := workflow.RunReconcile(ctx, s, args, upstreamRef, prov, cfg, opts)
 			if err != nil {
+				if errors.Is(err, workflow.ErrOperationCandidateRecoveryRequired) {
+					return &ExitCodeError{Code: 3, Message: err.Error()}
+				}
 				return err
 			}
 
@@ -3221,11 +3224,25 @@ func reconcileReviewCmd() *cobra.Command {
 			for _, e := range entries {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s: raw=%s review=%s action=%s final=%s reason=%s evidence=%s\n", e.EntryID, e.RawReconcileVerdict, e.ReviewVerdict, e.ActionTaken, e.FinalFeatureState, e.ReasonCode, e.EvidenceAttemptID)
 			}
+			evidence, evidenceCorrupt, evidenceErr := store.LoadReconcileEvidenceLenient(s.ReconcileEvidencePath(args[0]))
+			if evidenceErr != nil {
+				return evidenceErr
+			}
+			for _, e := range evidence {
+				fmt.Fprintf(cmd.OutOrStdout(), "evidence %s: class=%s phase=%s kind=%s verdict=%s reason=%s\n",
+					e.AttemptID, reconcileEvidenceClass(e), e.Phase, e.EvidenceKind, e.RawReconcileVerdict, e.ReasonCode)
+			}
+			for _, c := range evidenceCorrupt {
+				fmt.Fprintf(cmd.OutOrStdout(), "corrupted evidence: line %d: %s\n", c.Line, c.Error)
+			}
 			for _, c := range corrupt {
 				fmt.Fprintf(cmd.OutOrStdout(), "corrupted entries: line %d: %s\n", c.Line, c.Error)
 			}
 			if len(corrupt) > 0 {
 				return fmt.Errorf("reconcile review list: corrupt revision entries")
+			}
+			if len(evidenceCorrupt) > 0 {
+				return fmt.Errorf("reconcile review list: corrupt evidence entries")
 			}
 			return nil
 		},
@@ -3234,6 +3251,19 @@ func reconcileReviewCmd() *cobra.Command {
 	list.Flags().Bool("all", false, "Include superseded entries")
 	cmd.AddCommand(add, list)
 	return cmd
+}
+
+func reconcileEvidenceClass(entry store.ReconcileEvidence) string {
+	switch entry.EvidenceKind {
+	case store.EvidenceKindFileNovelty, store.EvidenceKindHunkOverlap,
+		store.EvidenceKindPathRestructure, store.EvidenceKindBlockedClassification:
+		return "supporting"
+	case store.EvidenceKindManualReview:
+		if containsString(entry.MatchedOperations, "confirmation-gate") {
+			return "supporting"
+		}
+	}
+	return "verdict-bearing"
 }
 
 func latestRevisionEntries(entries []store.ReconcileRevision) []store.ReconcileRevision {

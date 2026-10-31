@@ -82,6 +82,7 @@ type ReconcileResult struct {
 	// Unexported and so ignored by encoding/json (no schema impact, no
 	// fixture drift).
 	attemptedAt string
+	verdictAttempts []store.ReconcileEvidence
 }
 
 // ReconcileOptions configures RunReconcile. Zero value keeps v0.4.x
@@ -212,6 +213,22 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 
 	results := make([]ReconcileResult, 0, len(slugs))
 	var publicationErrors []error
+	operationEnabled := false
+	if config, configErr := s.LoadConfig(); configErr == nil {
+		operationEnabled = config.OperationCandidateEnabled
+	}
+	invocation := operationCandidateInvocation{slugs: append([]string(nil), slugs...), upstreamCommit: upstreamCommit, cumulativeLegacy: opts.CumulativeLegacy}
+	preflights := make(map[string]operationCandidatePreflightResult, len(slugs))
+	for _, slug := range slugs {
+		preflight, preflightErr := runReconcileCandidatePreflight(s, slug, upstreamCommit)
+		if preflightErr != nil {
+			preflight = operationCandidatePreflightResult{Reason: operationPhaseRefusalCode(preflightErr)}
+		}
+		if preflight.Reason == "recovery-required" {
+			return nil, fmt.Errorf("%w: %s", ErrOperationCandidateRecoveryRequired, preflight.RecoveryPath)
+		}
+		preflights[slug] = preflight
+	}
 
 	// PRD-multi-slug-reconcile-canonical-safety §4.2 D2 / ADR-030 D1:
 	// cumulative delta derivation is default-OFF. Each feature's
@@ -253,7 +270,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	migrationHintFired := false
 
 	for i, slug := range slugs {
-		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts)
+		result, err := reconcileFeature(ctx, s, slug, upstreamRef, upstreamCommit, prov, cfg, opts, invocation, preflights[slug], operationEnabled)
 		if errors.Is(err, ErrCoveragePublication) {
 			publicationErrors = append(publicationErrors, fmt.Errorf("reconcile %q: %w", slug, err))
 			// Keep the existing blocked outcome and recovery shadow instead
@@ -321,7 +338,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	return results, errors.Join(publicationErrors...)
 }
 
-func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, upstreamCommit string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) (*ReconcileResult, error) {
+func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, upstreamCommit string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions, invocation operationCandidateInvocation, preflight operationCandidatePreflightResult, operationEnabled bool) (*ReconcileResult, error) {
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return nil, err
@@ -357,6 +374,9 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		UpstreamRef:    upstreamRef,
 		UpstreamCommit: upstreamCommit,
 	}
+	if preflight.Reason != "" && (operationEnabled || preflight.Reason == "candidate-lock-held" || strings.HasPrefix(preflight.Reason, "lock-")) {
+		appendOperationPhaseRefusal(s, slug, result, preflight.Reason, store.EvidenceConfidenceUnknown)
+	}
 
 	// ADR-032 D2 / PRD-feature-unapply AC-16: an explicitly named
 	// unapplied feature may be reconciled for viability, but absence of
@@ -389,7 +409,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		result.Outcome = store.ReconcileUpstreamed
 		result.Phase = "phase-1-reverse-apply"
 		result.Notes = append(result.Notes, "Patch is already present in upstream (reverse-apply succeeded)")
-		saveReconcileArtifacts(s, slug, result)
+		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
 	}
@@ -438,7 +458,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 						note += fmt.Sprintf("; %d additional match(es)", len(det.Match.AdditionalMatches))
 					}
 					result.Notes = append(result.Notes, note)
-					saveReconcileArtifacts(s, slug, result)
+					saveReconcileArtifacts(s, slug, result, nil)
 					updateFeatureState(s, slug, result)
 					return result, nil
 				case det.Skipped:
@@ -452,16 +472,24 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 	}
 
 	// Phase 2: Operation-level evaluation (if apply-recipe.json exists)
+	var candidatePlan *operationPhaseSnapshot
+	if operationEnabled {
+		var finished bool
+		candidatePlan, finished = evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, nil, "")
+		if finished {
+			return result, nil
+		}
+	}
 	recipeData, recipeErr := s.ReadFeatureFile(slug, filepath.Join("artifacts", "apply-recipe.json"))
 	if recipeErr == nil && recipeData != "" {
 		var recipe ApplyRecipe
 		if err := json.Unmarshal([]byte(recipeData), &recipe); err == nil && len(recipe.Operations) > 0 {
 			opResult := evaluateRecipeOperations(s.Root, recipe.Operations)
-			if opResult.allPresent {
+			if opResult.allPresent && !operationEnabled {
 				result.Outcome = store.ReconcileUpstreamed
 				result.Phase = "phase-2-operation-level"
 				result.Notes = append(result.Notes, "All recipe operations already present in upstream")
-				saveReconcileArtifacts(s, slug, result)
+				saveReconcileArtifacts(s, slug, result, nil)
 				updateFeatureState(s, slug, result)
 				return result, nil
 			}
@@ -491,7 +519,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 					result.Outcome = store.ReconcileUpstreamed
 					result.Phase = "phase-3-provider-semantic"
 					result.Notes = append(result.Notes, "Provider determined upstream satisfies acceptance criteria")
-					saveReconcileArtifacts(s, slug, result)
+					saveReconcileArtifacts(s, slug, result, nil)
 					updateFeatureState(s, slug, result)
 					return result, nil
 				}
@@ -536,7 +564,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		result.Phase = "phase-4-forward-apply-strict"
 		result.Notes = append(result.Notes, "Patch applies cleanly (strict) — safe to auto-apply")
 		promoteIfMarkers(result)
-		saveReconcileArtifacts(s, slug, result)
+		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
 	case gitutil.ForwardApply3WayClean:
@@ -548,7 +576,7 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		}
 		result.Notes = append(result.Notes, note)
 		promoteIfMarkers(result)
-		saveReconcileArtifacts(s, slug, result)
+		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
 	case gitutil.ForwardApply3WayConflicts:
@@ -576,13 +604,13 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 					result.Conflicts = append(result.Conflicts, preview.ConflictFiles...)
 					result.Notes = append(result.Notes,
 						"phase 3.5 skipped: a hard parent is blocked — resolve the parent first, then retry `tpatch reconcile "+slug+"` (compound verdict: blocked-by-parent-and-needs-resolution)")
-					saveReconcileArtifacts(s, slug, result)
+					saveReconcileArtifacts(s, slug, result, nil)
 					updateFeatureState(s, slug, result)
 					return result, nil
 				}
 			}
 			phase35, phase35Err := tryPhase35(ctx, s, slug, upstreamCommit, prov, cfg, opts, preview.ConflictFiles, result)
-			saveReconcileArtifacts(s, slug, phase35)
+			saveReconcileArtifacts(s, slug, phase35, nil)
 			updateFeatureState(s, slug, phase35)
 			return phase35, phase35Err
 		}
@@ -595,7 +623,12 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		if preview.Stderr != "" {
 			result.Notes = append(result.Notes, fmt.Sprintf("git: %s", preview.Stderr))
 		}
-		saveReconcileArtifacts(s, slug, result)
+		if candidatePlan != nil {
+			if _, finished := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase); finished {
+				return result, nil
+			}
+		}
+		saveReconcileArtifacts(s, slug, result, nil)
 		updateFeatureState(s, slug, result)
 		return result, nil
 	}
@@ -608,7 +641,12 @@ func reconcileFeature(ctx context.Context, s *store.Store, slug, upstreamRef, up
 		result.Notes = append(result.Notes, fmt.Sprintf("git: %s", preview.Stderr))
 	}
 	result.Conflicts = append(result.Conflicts, "Forward-apply failed — check for merge conflicts")
-	saveReconcileArtifacts(s, slug, result)
+	if candidatePlan != nil {
+		if _, finished := evaluateReconcileOperationCandidate(s, slug, result, invocation, preflight, candidatePlan, result.Phase); finished {
+			return result, nil
+		}
+	}
+	saveReconcileArtifacts(s, slug, result, nil)
 	updateFeatureState(s, slug, result)
 	return result, nil
 }
@@ -736,7 +774,7 @@ Does the upstream now satisfy this feature's requirements? Compare the acceptanc
 //   - Per-file resolver outcomes live in artifacts/resolution-session.json
 //     (resolver-owned) — see resolver.persistSession. Splitting the two
 //     artifacts is what fixes the v0.5.2 dual-writer collision.
-func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult) {
+func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult, proof *phase2AuthorityProof) {
 	// M14 fix-pass F2: generate the AttemptedAt timestamp once and
 	// share it with updateFeatureState. ComposeLabels uses this same
 	// value as the staleness baseline so that, when persisted, the
@@ -778,12 +816,23 @@ func saveReconcileArtifacts(s *store.Store, slug string, result *ReconcileResult
 		}
 	}
 
-	result.Evidence = append(result.Evidence, persistReconcileEvidence(s, slug, result)...)
+	entries, hadStaging := persistReconcileEvidence(s, slug, result, proof != nil)
+	authorityAttempted := proof != nil || hadStaging
+	if !hadStaging || len(entries) != 1 || !qualifyingOperationAttempt(entries[0], result) {
+		proof = nil
+	}
+	result.Evidence = append(result.Evidence, entries...)
 	result.Evidence = append(result.Evidence, persistFileNoveltyEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistHunkOverlapEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistPathRestructureEvidence(s, slug, result)...)
 	result.Evidence = append(result.Evidence, persistBlockedClassificationEvidence(s, slug, result)...)
-	result.Evidence = append(result.Evidence, applyUpstreamedConfirmationGate(s, slug, result)...)
+	confirmationSubject := result.Outcome
+	result.Evidence = append(result.Evidence, applyUpstreamedConfirmationGate(s, slug, result, proof)...)
+	if authorityAttempted && confirmationSubject == store.ReconcileUpstreamed && result.ReviewVerdict == "" {
+		result.Outcome = store.ReconcileBlocked
+		result.ReviewVerdict = "rejected-upstreamed"
+		result.Notes = append(result.Notes, "confirmation gate: operation authority evidence could not be published")
+	}
 	result.Revisions = append(result.Revisions, persistRevisionPassLog(s, slug, result)...)
 
 	// Save reconcile-session.json
@@ -824,13 +873,26 @@ var warnReconcileEvidence = func(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
-func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResult, hasProof bool) ([]store.ReconcileEvidence, bool) {
 	if result == nil || result.Outcome == "" {
-		return nil
+		return nil, false
+	}
+	attempts := result.verdictAttempts
+	hadStaging := len(attempts) != 0
+	if validOperationStaging(attempts, s, slug, result, hasProof) {
+		entries := make([]store.ReconcileEvidence, 0, len(attempts))
+		for _, entry := range attempts {
+			if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
+				warnReconcileEvidenceAppendError(slug, err)
+				return entries, true
+			}
+			entries = append(entries, entry)
+		}
+		return entries, true
 	}
 	phase, kind := evidencePhaseAndKind(result)
 	if phase == "" {
-		return nil
+		return nil, hadStaging
 	}
 	status, _ := s.LoadFeatureStatus(slug)
 	baseCommit := status.Apply.BaseCommit
@@ -890,9 +952,9 @@ func persistReconcileEvidence(s *store.Store, slug string, result *ReconcileResu
 	entry.AttemptID = store.ComputeAttemptID(entry)
 	if err := store.AppendReconcileEvidence(s, slug, entry); err != nil {
 		warnReconcileEvidenceAppendError(slug, err)
-		return nil
+		return nil, hadStaging
 	}
-	return []store.ReconcileEvidence{entry}
+	return []store.ReconcileEvidence{entry}, hadStaging
 }
 
 func persistFileNoveltyEvidence(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
@@ -1052,7 +1114,7 @@ func persistBlockedClassificationEvidence(s *store.Store, slug string, result *R
 	return []store.ReconcileEvidence{entry}
 }
 
-func applyUpstreamedConfirmationGate(s *store.Store, slug string, result *ReconcileResult) []store.ReconcileEvidence {
+func applyUpstreamedConfirmationGate(s *store.Store, slug string, result *ReconcileResult, proof *phase2AuthorityProof) []store.ReconcileEvidence {
 	if result == nil || result.Outcome != store.ReconcileUpstreamed {
 		return nil
 	}
@@ -1080,6 +1142,45 @@ func applyUpstreamedConfirmationGate(s *store.Store, slug string, result *Reconc
 			reason = "confirmed-upstreamed"
 			confidence = store.EvidenceConfidenceHigh
 			matchOrigin = store.EvidenceMatchOriginUpstream
+		}
+	}
+	if !confirmed && proof != nil && proof.owner == s && proof.result == result && proof.repoPath == s.Root && result.Slug == slug {
+		entries := 0
+		var graded store.ReconcileEvidence
+		for _, entry := range result.Evidence {
+			if entry.Phase == store.EvidencePhase2 && entry.EvidenceKind == store.EvidenceKindRecipeOperationMatch {
+				entries++
+				graded = entry
+			}
+		}
+		info, identityErr := os.Stat(s.Root)
+		fresh, freshErr := captureOperationPhaseSnapshot(s, slug, operationCandidateInvocation{slugs: []string{slug}, upstreamCommit: result.UpstreamCommit})
+		gatesPassed := true
+		for _, passed := range proof.gatesPassed {
+			gatesPassed = gatesPassed && passed
+		}
+		if entries == 1 && qualifyingOperationAttempt(graded, result) &&
+			graded.FeatureSlug == slug && graded.AttemptID == store.ComputeAttemptID(graded) &&
+			identityErr == nil && proof.repoIdentity != nil && os.SameFile(proof.repoIdentity, info) &&
+			freshErr == nil && fresh != nil && fresh.eligibility.eligible && gatesPassed &&
+			proof.gatesPassed == fresh.eligibility.gatesPassed &&
+			proof.upstreamCommit == result.UpstreamCommit && proof.upstreamCommit == fresh.eligibility.upstreamCommit &&
+			proof.referenceCommit == fresh.eligibility.referenceCommit &&
+			proof.captureEventSHA256 == fresh.eligibility.captureEventSHA256 &&
+			proof.coverageSHA256 == fresh.eligibility.coverageSHA256 &&
+			proof.patchSHA256 == fresh.eligibility.patchSHA256 && proof.recipeSHA256 == fresh.eligibility.recipeSHA256 &&
+			proof.sourceFeatureState == string(fresh.eligibility.sourceFeatureState) &&
+			proof.effectCount > 0 && proof.effectCount == fresh.effectCount &&
+			proof.effectDigest != "" && proof.effectDigest == fresh.effectDigest &&
+			proof.presentCount == proof.effectCount && proof.presentCount == fresh.presentCount &&
+			proof.applicableCount == 0 && fresh.applicableCount == 0 &&
+			proof.conflictCount == 0 && fresh.conflictCount == 0 &&
+			proof.operationCount == 0 && fresh.operationCount == 0 {
+			confirmed = true
+			reason = "confirmed-upstreamed"
+			confidence = store.EvidenceConfidenceHigh
+			matchOrigin = store.EvidenceMatchOriginUpstream
+			refs = []string{result.UpstreamCommit}
 		}
 	}
 	entry := store.ReconcileEvidence{

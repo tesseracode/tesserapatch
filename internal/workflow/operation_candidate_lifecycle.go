@@ -50,6 +50,24 @@ func runOperationCandidatePreflight(s *store.Store, slug string, current candida
 		return refusal, err
 	}
 	defer lock.Release()
+	return runOperationCandidatePreflightHeld(s, slug, current, lock, false)
+}
+
+func runReconcileCandidatePreflight(s *store.Store, slug, upstreamCommit string) (operationCandidatePreflightResult, error) {
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil || refusal.Reason != "" {
+		return refusal, err
+	}
+	defer lock.Release()
+	return runOperationCandidatePreflightHeld(s, slug, candidate.CandidateStalenessInput{UpstreamCommit: upstreamCommit}, lock, true)
+}
+
+func runOperationCandidatePreflightHeld(s *store.Store, slug string, current candidate.CandidateStalenessInput, lock *candidatelock.Handle, snapshotBindings bool) (operationCandidatePreflightResult, error) {
+	release, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
+	if err != nil {
+		return operationCandidatePreflightResult{}, err
+	}
+	defer release()
 	operationCandidateLifecycleInspectHook()
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
@@ -69,6 +87,12 @@ func runOperationCandidatePreflight(s *store.Store, slug string, current candida
 	}
 	if err := inspectOperationCandidateInventory(reference, slug, status.Reconcile.OperationCandidate); err != nil {
 		return operationCandidatePreflightResult{}, err
+	}
+	if snapshotBindings && status.Reconcile.OperationCandidate != nil {
+		current.Bindings, err = snapshotOperationCandidateBindings(s, slug)
+		if err != nil {
+			return operationCandidatePreflightResult{Reason: "capture-event-unusable"}, nil
+		}
 	}
 	staleID, err := stalePendingOperationCandidate(s, slug, status, current, lock)
 	if err != nil {
@@ -622,6 +646,10 @@ func finalizeOperationCandidate(s *store.Store, slug string, expected operationC
 		return candidate.CandidateArtifact{}, fmt.Errorf("%s", refusal.Reason)
 	}
 	defer lock.Release()
+	return finalizeOperationCandidateHeld(s, slug, expected, lock)
+}
+
+func finalizeOperationCandidateHeld(s *store.Store, slug string, expected operationCandidatePrepared, lock *candidatelock.Handle) (candidate.CandidateArtifact, error) {
 	release, err := borrowOperationCandidateFeatureMutation(lock, s.Root, slug)
 	if err != nil {
 		return candidate.CandidateArtifact{}, err

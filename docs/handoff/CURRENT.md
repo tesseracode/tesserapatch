@@ -8,8 +8,8 @@
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
-The first summary-preservation unit is implemented; core phase/authority
-integration and all S6 validation/review remain incomplete.
+The first summary-preservation unit passes its combined regressions. Core
+phase/authority integration is drafted but not yet compiled or reviewed.
 
 The approved #13-only window ends at **2026-10-31T10:08:53Z**.
 Stop after #13 or at that deadline; never start #9 in this run. No unrelated
@@ -20,7 +20,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: In progress — first shared-summary unit ready for admitted checks
+- **Status**: In progress — core phase/evidence draft ready for formatting and targeted checks
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -99,6 +99,24 @@ summary writers and candidate-phase helpers/tests, CLI reconcile-review
 rendering/tests, directly dependent finite guards. Any newly discovered
 dependent surface must be recorded before changing it.
 
+Next dependent surfaces: operation_candidate_lifecycle.go and its source guard
+gain caller-held preflight/finalization cores without changing the old acquiring
+wrappers. Reconcile's preflight adapter snapshots bindings only after recovery
+inspection under the hold. candidate/derivation.go exposes only the scalar
+operation count and first conflict code needed by CG4/refusal evidence; it
+exposes no payload/coordinate authority.
+
+Core draft now adds operation_candidate_phase.go and threads the explicit proof
+through save/gate, with nil at legacy callers. CLI changes are limited to
+plain-reconcile recovery exit3 and human review evidence class labels; the
+existing review JSON envelope stays unchanged. No terminal candidate flags.
+The core draft is not yet formatted/compiled or reviewed.
+New runtime cases cover real immutable-upstream all-present confirmation,
+delete/insertion textual-conflict candidate readiness, stronger-arm precedence,
+provider-time lock release, malformed proof fields/entry pairing, failed
+authority publication, recovery refusal and CLI evidence classes. Dedicated
+proof/staging source guards and additional adversarial cases remain to be added.
+
 ## Test Results
 
 The first unit adds four persisted-pointer regressions
@@ -114,7 +132,9 @@ failure. Corrected pointer/label cases pass, but the combined check stops at
 the actual changed-path dispatcher still selecting S5's scope. Switch that
 single dispatcher to the already mutation-tested S6 allowlist; keep the
 capture-only S0 validator and memo-lifetime validator unchanged. No Go workload
-remains until the corrected combined retry.
+remained until the corrected combined retry. That retry now PASSes the combined
+S0/S5/S6 and label suite (21.277s; command27.75s), normal pressure/no swap-outs.
+S5 closing CI41168364452 at62698be also completed successfully.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has

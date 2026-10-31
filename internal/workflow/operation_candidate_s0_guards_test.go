@@ -175,6 +175,13 @@ var rocS6AllowedPaths = map[string]bool{
 	"docs/adrs/ADR-049-phase2-authority-integration.md": true,
 	"internal/workflow/reconcile.go":                    true,
 	"internal/workflow/labels_reconcile_path_test.go":   true,
+	"internal/workflow/labels_freshness_test.go": true,
+	"internal/workflow/operation_candidate_phase.go": true,
+	"internal/workflow/operation_candidate_phase_test.go": true,
+	"internal/workflow/operation_candidate_phase_guards_test.go": true,
+	"internal/cli/cobra.go": true,
+	"internal/cli/reconcile_evidence_cli_test.go": true,
+	"internal/cli/operation_candidate_s6_test.go": true,
 }
 
 func rocS6ValidateStageChangedPaths(paths []string) error {

@@ -43,7 +43,7 @@ func TestRunReconcile_ClearsStaleLabel_WhenChildRefreshed(t *testing.T) {
 		Outcome: store.ReconcileReapplied,
 		Phase:   "phase-2-forward-apply",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 
 	// Reload from disk: AttemptedAt must be fresh, Labels must NOT
@@ -99,7 +99,7 @@ func TestRunReconcile_PreservesOtherLabels_WhenStaleResolved(t *testing.T) {
 		Outcome: store.ReconcileReapplied,
 		Phase:   "phase-2-forward-apply",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 
 	got, _ := s.LoadFeatureStatus("child")

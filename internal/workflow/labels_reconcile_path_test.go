@@ -89,7 +89,7 @@ func TestRunReconcile_Phase1ReverseApply_UpstreamedClearsLabels(t *testing.T) {
 		Outcome: store.ReconcileUpstreamed,
 		Phase:   "phase-1-reverse-apply",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 	assertNoLabelsPersisted(t, s, "child")
 }
@@ -101,7 +101,7 @@ func TestRunReconcile_Phase2OperationLevel_UpstreamedClearsLabels(t *testing.T) 
 		Outcome: store.ReconcileUpstreamed,
 		Phase:   "phase-2-operation-level",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 	assertNoLabelsPersisted(t, s, "child")
 }
@@ -113,7 +113,7 @@ func TestRunReconcile_Phase3ProviderSemantic_UpstreamedClearsLabels(t *testing.T
 		Outcome: store.ReconcileUpstreamed,
 		Phase:   "phase-3-provider-semantic",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 	assertNoLabelsPersisted(t, s, "child")
 }
@@ -128,7 +128,7 @@ func TestRunReconcile_NonUpstreamedOutcome_StillProducesLabels(t *testing.T) {
 		Outcome: store.ReconcileBlockedRequiresHuman,
 		Phase:   "phase-4-forward-apply",
 	}
-	saveReconcileArtifacts(s, "child", result)
+	saveReconcileArtifacts(s, "child", result, nil)
 	updateFeatureState(s, "child", result)
 
 	got, err := s.LoadFeatureStatus("child")

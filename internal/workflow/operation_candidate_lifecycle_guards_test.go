@@ -22,9 +22,12 @@ func validateROCS5LifecycleSource(source string) error {
 		}
 	}
 	for name, ordered := range map[string][]string{
-		"runOperationCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "findOperationCandidateRecoveryJournal", "stalePendingOperationCandidate"},
+		"runOperationCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
+		"runReconcileCandidatePreflight":  {"acquireOperationCandidateFeatureLock", "runOperationCandidatePreflightHeld"},
+		"runOperationCandidatePreflightHeld": {"borrowOperationCandidateFeatureMutation", "findOperationCandidateRecoveryJournal", "snapshotOperationCandidateBindings", "stalePendingOperationCandidate"},
 		"prepareOperationCandidateHeld":   {"borrowOperationCandidateFeatureMutation", "operationCandidateActionPreflight", "assessOperationCandidateEligibility", "candidate.DescribeDerivation", "candidate.ComputeCandidateID"},
-		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "candidate.WriteCandidateMetadata", "s.SaveFeatureStatus"},
+		"finalizeOperationCandidate":      {"acquireOperationCandidateFeatureLock", "finalizeOperationCandidateHeld"},
+		"finalizeOperationCandidateHeld":  {"borrowOperationCandidateFeatureMutation", "prepareOperationCandidateHeld", "candidate.Execute", "candidate.WriteCandidateMetadata", "s.SaveFeatureStatus"},
 		"rejectPendingOperationCandidate": {"operationCandidateActionPreflight", "pruneOperationCandidateIfPresent", "appendRejectedOperationCandidate", "reference.WriteCandidateState", "s.SaveFeatureStatus"},
 	} {
 		fn := functions[name]
@@ -87,6 +90,8 @@ func TestROCS5LifecycleSourceGuardAndSensitivity(t *testing.T) {
 		{"stalePendingOperationCandidate(s, slug, status, current, lock)", "skipStale(s, slug, status, current, lock)"},
 		{"assessOperationCandidateEligibility(s, slug, invocation)", "trustCallerEligibility(s, slug, invocation)"},
 		{"appendRejectedOperationCandidate(s.Root, slug, artifact, lock)", "skipRejection(s.Root, slug, artifact, lock)"},
+		{"return finalizeOperationCandidateHeld(s, slug, expected, lock)", "return skipFinalizationHold(s, slug, expected, lock)"},
+		{"return runOperationCandidatePreflightHeld(s, slug, current, lock, false)", "return skipPreflightHold(s, slug, current, lock, false)"},
 	} {
 		mutant := strings.Replace(source, mutation[0], mutation[1], 1)
 		if mutant == source {

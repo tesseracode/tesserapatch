@@ -1,3 +1,16 @@
+## S6 Summary Unit Green / Core Draft — 2026-10-31
+
+Corrected scope dispatch passes combined S0/S5/S6/label checks21.277s
+(command27.75s), with unchanged admission and no swap-outs. S5 closing
+CI41168364452 at62698be also passes. The accepted boundary remains durable.
+
+Core S6 draft now connects preflight, readonly classification, parameter-only
+proof, held finalization/summary persistence, staged evidence substitution and
+CG checks. Legacy callers pass nil. Human review labels evidence classes while
+revision JSON is unchanged; plain recovery refusal maps to exit3. Runtime
+regressions are drafted; formatting/compile/targeted results and source-escape/
+staging guards remain pending. No review or acceptance claim.
+
 ## S6 Summary Check — Scope Dispatcher Correction — 2026-10-31
 
 The corrected pointer/label cases pass, but combined S0/S5/S6 validation fails
