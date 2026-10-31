@@ -1,3 +1,12 @@
+## S6 Guard Analyzer False Positive — 2026-10-31
+
+Guarded runtime/CLI/candidate cases pass; the source analyzer rejects the
+legitimate append of applyUpstreamedConfirmationGate's evidence return because
+it recursively attributes the nested proof argument to append. Check each call
+at its own argument boundary, still visiting/checking nested calls separately.
+Explicitly reject closure capture and add its negative fixture. This changes
+no production authority rule; rerun the full guarded selectors before approval.
+
 ## S6 Guarded Core Review Dispatch — 2026-10-31
 
 Frozen60d2ded continues the same #13 authority trace into S6 consumers of

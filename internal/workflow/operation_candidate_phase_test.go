@@ -133,8 +133,8 @@ func TestROCS6CandidateReadyPreservesStateAndSubstitutesEvidence(t *testing.T) {
 }
 
 type rocS6Provider struct {
-	calls int
-	probe func()
+	calls    int
+	probe    func()
 	response string
 }
 
@@ -305,7 +305,7 @@ func TestROCS6FinalizationRechecksPhaseTwoBindings(t *testing.T) {
 	f := rocS6PhaseFixture(t, rocS6UpstreamDeletion)
 	prov := &rocS6Provider{
 		response: `{"decision":"unclear","reasoning":"fixture"}`,
-		probe: func() { f.write(t, "apply-recipe.json", append(append([]byte(nil), f.recipe...), '\n')) },
+		probe:    func() { f.write(t, "apply-recipe.json", append(append([]byte(nil), f.recipe...), '\n')) },
 	}
 	result := rocS6Run(t, f, prov, provider.Config{BaseURL: "http://unused", Model: "fixture"}, ReconcileOptions{})
 	status, err := f.s.LoadFeatureStatus(f.slug)
@@ -376,25 +376,39 @@ func TestROCS6PendingPointerSurvivesDisabledAndContendedRuns(t *testing.T) {
 			opts := ReconcileOptions{CumulativeLegacy: name == "legacy"}
 			if name == "gate-off" {
 				cfg, err := f.s.LoadConfig()
-				if err != nil { t.Fatal(err) }
+				if err != nil {
+					t.Fatal(err)
+				}
 				cfg.OperationCandidateEnabled = false
-				if err := f.s.SaveConfig(cfg); err != nil { t.Fatal(err) }
+				if err := f.s.SaveConfig(cfg); err != nil {
+					t.Fatal(err)
+				}
 			}
 			if name == "multi-slug" {
 				other, err := f.s.AddFeature(store.AddFeatureInput{Title: "S6 other feature"})
-				if err != nil { t.Fatal(err) }
+				if err != nil {
+					t.Fatal(err)
+				}
 				other.State = store.StateApplied
-				if err := f.s.SaveFeatureStatus(other); err != nil { t.Fatal(err) }
-				if err := f.s.WriteArtifact(other.Slug, "post-apply.patch", string(f.patch)); err != nil { t.Fatal(err) }
+				if err := f.s.SaveFeatureStatus(other); err != nil {
+					t.Fatal(err)
+				}
+				if err := f.s.WriteArtifact(other.Slug, "post-apply.patch", string(f.patch)); err != nil {
+					t.Fatal(err)
+				}
 				slugs = append(slugs, other.Slug)
 			}
 			if name == "held-lock" {
 				lock, err := candidatelock.TryAcquire(filepath.Join(f.s.Root, ".tpatch", "locks", "reconcile", f.slug+".lock"))
-				if err != nil { t.Fatal(err) }
+				if err != nil {
+					t.Fatal(err)
+				}
 				defer lock.Release()
 			}
 			_, err = RunReconcile(context.Background(), f.s, slugs, "HEAD", nil, provider.Config{}, opts)
-			if err != nil { t.Fatal(err) }
+			if err != nil {
+				t.Fatal(err)
+			}
 			after, err := f.s.LoadFeatureStatus(f.slug)
 			if err != nil || after.Reconcile.OperationCandidate == nil ||
 				*after.Reconcile.OperationCandidate != *before.Reconcile.OperationCandidate {

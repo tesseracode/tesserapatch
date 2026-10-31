@@ -151,6 +151,11 @@ Core checkpoint98175fe: formatting PASS, workflow25.303s/candidate1.971s PASS;
 CLI stopped at the test-only unknown --upstream flag before its recovery
 assertion. Corrected fixture plus the new source guards/adversarial tests need
 the next combined run. No S6 acceptance/full-gate claim.
+Guarded runtime cases and corrected CLI now pass, but the new source analyzer
+incorrectly treats append(..., applyGate(..., proof)...) as passing the proof
+to append. Inspect each call's direct dataflow while nested calls are checked
+independently; gate returns evidence, not a proof. Add a closure-capture negative
+control so this correction cannot hide a delayed proof carrier. Retry required.
 S5 accepted evidence:
 `bin/roc-s5-resume-20261030/full-gate-v3/evidence/`.
 Native Windows blocking checks pass. Its allowed-failure full suite still has

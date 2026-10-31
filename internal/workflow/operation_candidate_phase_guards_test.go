@@ -38,8 +38,8 @@ func validateROCS6AuthoritySources(sources map[string]string) error {
 	proofParameters := map[string]bool{}
 	allowedProofFunctions := map[string]bool{
 		"evaluateReconcileOperationCandidate": true,
-		"saveReconcileArtifacts": true,
-		"applyUpstreamedConfirmationGate": true,
+		"saveReconcileArtifacts":              true,
+		"applyUpstreamedConfirmationGate":     true,
 	}
 	var failure error
 	for path, source := range sources {
@@ -135,6 +135,14 @@ func validateROCS6AuthoritySources(sources map[string]string) error {
 					if rocS6MentionsProof(node.Type) {
 						failure = fmt.Errorf("proof closure carrier")
 					}
+					if allowedProofFunctions[name] {
+						ast.Inspect(node.Body, func(n ast.Node) bool {
+							if id, ok := n.(*ast.Ident); ok && id.Name == "proof" {
+								failure = fmt.Errorf("proof captured by closure")
+							}
+							return true
+						})
+					}
 				case *ast.ValueSpec:
 					if rocS6MentionsProof(node.Type) && (name != "evaluateReconcileOperationCandidate" ||
 						len(node.Names) != 1 || node.Names[0].Name != "proof") {
@@ -202,6 +210,9 @@ func validateROCS6AuthoritySources(sources map[string]string) error {
 					}
 					contains := false
 					ast.Inspect(node, func(n ast.Node) bool {
+						if nested, ok := n.(*ast.CallExpr); ok && nested != node {
+							return false
+						}
 						if id, ok := n.(*ast.Ident); ok && id.Name == "proof" {
 							contains = true
 						}
@@ -338,6 +349,7 @@ func TestROCS6AuthoritySourceGuardAndSensitivity(t *testing.T) {
 	for _, mutation := range [][3]string{
 		{"operation_candidate_phase.go", "type phase2AuthorityProof struct {", "type phase2AuthorityProof struct {\n Public bool"},
 		{"operation_candidate_phase.go", "saveReconcileArtifacts(s, slug, result, proof)", "leakProof(proof)"},
+		{"operation_candidate_phase.go", "saveReconcileArtifacts(s, slug, result, proof)", "func() { saveReconcileArtifacts(s, slug, result, proof) }()"},
 		{"operation_candidate_phase.go", "var proof *phase2AuthorityProof", "var proof *phase2AuthorityProof\n alias := proof\n _ = alias"},
 		{"operation_candidate_phase.go", "result.verdictAttempts = append(result.verdictAttempts, first, second)", "result.verdictAttempts = nil"},
 		{"reconcile.go", "attempts := result.verdictAttempts", "attempts := []store.ReconcileEvidence{}"},
