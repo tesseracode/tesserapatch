@@ -1,3 +1,15 @@
+## Review — S5 Native Test Corrections — 2026-10-31
+
+**Reviewer**: roc-s5-independent-review / 7712b628, verified gpt-6-astra.
+**Checkpoint**: `2737264435641c659eb883776ebe4743685a9b51`.
+**Verdict**: APPROVED — no significant issues in the test-only delta.
+
+Review covers the shared Windows fixture, exact three-helper store inventory,
+private-AST summary normalization retaining prior schema pins, and mutation/
+scope controls. Production source approval at efe351f remains unchanged.
+No Go commands were run by the reviewer; remote admitted runtime checks and
+replacement full/native gates remain required before S5 acceptance.
+
 ## S5 Test-only Guard Correction Dispatched — 2026-10-31
 
 Register exactly CarryForwardOperationCandidate, CloneOperationCandidateSummary
@@ -8,6 +20,11 @@ schema digests. Eleven malformed-summary mutations exercise the new validator.
 The S5 scope inventory admits only the dependent CLI test file, not production
 CLI changes. Retained reviewer 7712b628 reviews the delta; the old Mac owns
 serial admitted formatting/targeted checks. No full-gate success is claimed.
+Frozen checkpoint2737264; active shell old-mac-inventory-checks. Two setup-only
+refusals (bundle ref name, then protected formatter WIP) started no Go workload.
+The collected formatter delta is preserved in a private remote snapshot commit,
+not discarded. Separate full-history gate checkout/harness is prepared; exact
+helper hashes match and nine routing controls pass. Full Go gate not started.
 
 ## S5 Remote Pilot Pass / Dependent Native Guard Failures — 2026-10-31
 

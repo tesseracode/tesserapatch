@@ -60,6 +60,16 @@ mutations cover missing/duplicate pointers, type/tag drift and extra fields.
 Only the existing CLI test guard is added to S5's finite scope inventory.
 Retained reviewer `7712b628` reviews this test-only delta while the old Mac
 owns serial admitted formatting and targeted guard/scope checks.
+Frozen checkpoint is `2737264`; active SSH shell is
+`old-mac-inventory-checks`. Two setup attempts stopped before Go: the bundle
+advertises HEAD rather than main, then Git correctly protected uncommitted
+remote formatter output. That already-collected output is preserved on a
+private validation snapshot branch; no reset/discard/cleanup was used.
+A separate full-history full-gate checkout is ready, with identical helper
+hashes and all nine fail-closed routing controls passing. It has not run Go.
+Retained independent reviewer APPROVES the test-only delta at `2737264` with
+no significant issues; runtime guard/scope checks are still running. This
+does not imply S5 acceptance or permission to begin S6.
 The prior paragraphs below are chronological evidence, not current run status.
 
 Fresh fetch confirms the expected clean local draft HEAD `1b0676c` and
@@ -305,7 +315,7 @@ recovery scanning. ADR-048 remains Proposed.
 
 | ID | Resolved source obligation | Regression/validation evidence |
 |---|---|---|
-| F3 — CLOSED | Root/identity-bound reuse and byte/mode-faithful materialization under one policy. | Actual index/filter/mode hiding regressions and strict shared-policy guard retained; latest policy runtime checks await admission. |
+| F3 — CLOSED | Root/identity-bound reuse and byte/mode-faithful materialization under one policy. | Actual index/filter/mode hiding regressions and strict shared-policy guard retained; corrected full affected/vet/build pass at `073459b`. |
 | F4 — CLOSED | Private preparation from freshly recomputed S2 inputs and typed repository/feature identity. | Real eligibility, binding and cross-candidate negative cases pass. |
 | F6 — CLOSED | Pending inventory and safe interrupted transition handling. | Contention, status-write failure, retries and orphan cases pass. |
 | Composition — CLOSED | Continuous feature hold with fresh checks and existing/rejected decisions before creation. | Finalization owns actual execution/publication; no asserted success callback or injected execution result. |
@@ -369,6 +379,10 @@ pressure, no new swap-outs and load1 <=5; 600s admission budget. Observe externa
 Go; own work serial, GOMAXPROCS=1/-p=1. Stop on pressure/swap/telemetry failure
 or >5s gaps. Uncached tests, 40-minute per-process timeouts; no golden capture.
 Full gate uses exact 39-test/42-command partition, never a shortened substitute.
+Current offload uses the path-only adaptation
+`bin/roc-s5-resume-20261030/remote-validate.py` and privately installed exact
+Go1.26.5. Local and remote Go workloads must not overlap. The full-gate runner
+and routing helper bytes are unchanged, with fresh caches outside the checkout.
 
 ## Context for Next Agent
 
