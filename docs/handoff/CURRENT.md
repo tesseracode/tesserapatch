@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: APPROVED
 
 **S5 is RESUMED, NEEDS REVISION, LOCAL ONLY and NOT ACCEPTED.**
 The canonical mid-cycle token intentionally prevents a false wave-close pass.
@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Shared policy frozen for review; resource-admitted format/red proof retry active
+- **Status**: Source review approved; formatting/runtime/full gates still required
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -179,6 +179,11 @@ Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline
 is the approved extended 10:08:53 UTC, with no scope beyond #13.
+Retained reviewer APPROVES frozen `efe351f`: F3 is closed, all other
+findings/composition stay closed, and ADR-048's revised direction is approved.
+This canonical APPROVED token means source review only, NOT S5 acceptance.
+The current format/red-proof retry must finish before corrected runtime/basic
+checks and complete local/native gates; no admission requirement is waived.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

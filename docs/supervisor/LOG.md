@@ -1,3 +1,14 @@
+## Review — S5 Source APPROVED — 2026-10-31
+
+Retained reviewer `7712b628` APPROVES frozen `efe351f`. Shared effective
+policy now covers private-index seeding, config/path inspection, check-attr,
+add and write-tree. F3 CLOSED; F4/F6/composition and all eight prior closures
+remain closed. ADR-048 direction approved.
+
+This is source approval only, not S5 acceptance. Formatting/runtime/basic
+checks, fresh full 39-shard gate and native CI remain required. Admission
+limits are unchanged; source approval does not override the observed load block.
+
 ## S5 Shared-policy Checkpoint / Retry — 2026-10-31
 
 Freeze shared-policy WIP `efe351fa3386383d1d1daf48c8add447c204b273`

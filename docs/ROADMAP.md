@@ -1663,6 +1663,9 @@ private command options and add the ordered-rule/no-execution regression.
 Shared-policy WIP `efe351f` is in retained review. Formatting was blocked by
 continuous load above5; a fresh unchanged admission retry is active. The
 operator-approved extension runs through 10:08:53 UTC, still #13 only.
+Retained source review APPROVES `efe351f`, closing F3 and all remaining
+authority/finalization findings. Runtime/basic and full local/native gates
+still gate acceptance and clean-main closure.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
