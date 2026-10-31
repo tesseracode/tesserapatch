@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: 3GiB AQ pilot passed — preparing the authorized fresh full old-Mac rerun
+- **Status**: Full3GiB old-Mac gate active atb9d42f4; native CI running
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -43,6 +43,9 @@ a fresh checkpoint and use new s6-budget-source/s6-budget-full-gate directories
 and fresh caches, with GOMEMLIMIT=3GiB and every existing safeguard unchanged.
 Run all39 test commands/all42 commands from the start; do not reuse pilot or
 earlier passed results. No local Go. Deadline2026-11-01T02:08:53Z.
+Sole Go shell: s6-budget-full-gate, started18:19 UTC atb9d42f4. Native
+CI41228600239 is watched by s6-budget-native-ci. Environment sidecar records
+the3GiB budget; identical harness and nine routing controls are verified.
 
 Operator approved the GOMEMLIMIT=3GiB old-Mac failed-shard pilot, followed by
 a fresh complete gate only if the pilot passes. Because the reply arrived near

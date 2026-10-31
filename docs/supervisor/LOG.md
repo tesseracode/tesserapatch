@@ -9,6 +9,9 @@ The user's conditional authorization now permits a fresh full old-Mac gate.
 Use new source/cache directories, identical guarded harness and the same3GiB
 budget; run all39 test commands/all42 commands with no prior-result reuse.
 Deadline remains2026-11-01T02:08:53Z. S6 is not accepted until complete results.
+Full retry b9d42f4 started18:19 UTC in s6-budget-full-gate; native
+CI41228600239 watched by s6-budget-native-ci. Fresh source/cache and exact
+harness hashes/9 routing controls verified; no local Go overlaps.
 
 ## Operator Approves Memory-Budget Pilot and Further Extension — 2026-10-31
 
