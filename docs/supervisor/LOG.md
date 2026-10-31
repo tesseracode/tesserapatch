@@ -12,6 +12,8 @@ both-sink stronger-arm assertions, and two-invocation display checks. The
 analyzer call-boundary correction retains explicit closure-capture sensitivity.
 All five findings await runtime results and independent re-review; no closure
 or full-gate claim yet.
+Revision a5c15d0 is frozen for the same reviewer; s6-revision-targeted owns
+serial admitted formatting/targeted checks. No other Go workload is active.
 
 ## Review — S6 Core60d2ded — 2026-10-31
 

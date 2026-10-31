@@ -40,6 +40,9 @@ labelled and explicit --all history. Added separate evidence/session/summary
 fault cases, provider-time recovery, stronger-arm sink assertions and two-
 invocation CLI cases. ADR-049 records these decisions. Runtime validation and
 independent closure are still required for every finding.
+Frozen revision `a5c15d0fa19adcb8b17e078e543487d21e089e71` is in retained
+independent re-review. Active sole Go shell: `s6-revision-targeted`, using
+`bin/roc-s6-20261031/revision-source`. No full gate has started for S6.
 
 Independent S6 review60d2ded is NEEDS REVISION: late recovery must stay terminal;
 candidate-ready persistence errors must be returned; stronger outcomes must
