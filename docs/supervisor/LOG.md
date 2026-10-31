@@ -1,3 +1,23 @@
+## Review — S6 Core60d2ded — 2026-10-31
+
+**Reviewer**: 7712b628, verified gpt-6-astra.
+**Verdict**: NEEDS REVISION; S5 acceptance unchanged.
+
+1. HIGH: a journal appearing during phase3 is downgraded at finalization;
+   propagate recovery-required terminally before ordinary persistence.
+2. HIGH: candidate-ready evidence/artifact/summary failures return success;
+   return checked publication failure while retaining safe pending state.
+3. MEDIUM: stronger outcomes drop the readonly phase2 finding; preserve it
+   through the direct-append route without candidate-ready duplication.
+4. MEDIUM: source guard mistakes nested gate evidence for a proof passed to
+   append. Parent's460769e correction/closure control awaits validation.
+5. MEDIUM: review text mixes historical/current evidence; default to latest
+   invocation, phase-order its attempts and label returned outcome separately.
+
+ADR-049's one initialization/one append mutation/one observation interpretation
+and parameter-only/caller-held directions are acceptable. Implementation
+approval awaits the corrections and independent re-review; no full gate yet.
+
 ## S6 Guard Analyzer False Positive — 2026-10-31
 
 Guarded runtime/CLI/candidate cases pass; the source analyzer rejects the

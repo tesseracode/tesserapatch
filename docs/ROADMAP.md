@@ -1641,6 +1641,10 @@ targeted checks; source guards and independent review still pending.
 Initial core workflow/candidate checks pass. A CLI test flag typo is corrected;
 the added authority-source guards and adversarial cases are entering combined
 validation. No S6 acceptance or later-stage dispatch.
+Independent core review NEEDS REVISION on late recovery propagation, checked
+candidate persistence, retained phase2 findings on stronger outcomes, analyzer
+call-boundary handling and latest-invocation review rendering. ADR-049 direction
+is acceptable; fix forward and re-review before full gates.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

@@ -20,7 +20,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Review — guarded core60d2ded in independent review and admitted targeted validation
+- **Status**: Needs revision — five independent review findings; S5 remains accepted
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -30,6 +30,14 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Independent S6 review60d2ded is NEEDS REVISION: late recovery must stay terminal;
+candidate-ready persistence errors must be returned; stronger outcomes must
+retain the readonly phase2 finding; the nested-call analyzer false positive
+must be fixed; review text must select latest-invocation evidence and report
+the returned outcome separately. ADR-049's principal boundary directions are
+acceptable, but S6 is not approved. Analyzer correction460769e is ready for
+the combined revision run; no obsolete validation is active.
 
 Guarded core checkpoint `60d2dedede99b33fd73501ff8c49946b237ea075` is frozen
 for continued independent #13 authority review through S6's new S5 consumers.
