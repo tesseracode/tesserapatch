@@ -9,6 +9,10 @@ the test outcome rather than blindly retrying.
 Production bytes remain source-reviewed `efe351f`; only test formatting
 changed. Run corrected full affected/vet/build in a fresh checkout next.
 No S5 acceptance/publication yet; extended #13-only deadline is unchanged.
+Active sole Go shell: `s5-shared-policy-final-basic`, clean source
+`shared-policy-approved-source` at `073459b`. Later native validation must
+inspect actual new S5 Windows results despite the legacy allowed-failure
+suite; do not confuse a green job conclusion with those assertions passing.
 
 ## Operator Chooses Waiting Under Existing Limits — 2026-10-31
 

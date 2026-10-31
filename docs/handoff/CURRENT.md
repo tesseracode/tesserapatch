@@ -189,6 +189,12 @@ failed as intended: reuse returned nil and the hidden filter executed.
 Coordinator completed; no retry of that real test failure. Production bytes
 remain exactly source-reviewed `efe351f`; only test formatting changed.
 Run corrected full affected/vet/build next in a clean clone.
+Active sole Go shell is now `s5-shared-policy-final-basic`, source
+`bin/roc-s5-resume-20261030/shared-policy-approved-source` at `073459b`.
+The admission-wait coordinator is complete; only this validator and the
+extended deadline timer remain active. At native validation, inspect actual
+S5 Windows test output rather than relying on the allowed-failure full-suite
+step's green conclusion; unrelated historical #17 failures remain out of scope.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline
