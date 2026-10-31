@@ -257,7 +257,9 @@ var acceptedCheckSourceProvenance = map[string]struct {
 		History: []string{routingFixtureCommit}, FreezeCurrent: true,
 	},
 	"internal/intent/status_schema_test.go": {
-		SHA256:  "e6dc84c99c503b70aef0fe84d631925e7073050cd42c7276eaebeb3de5aee113",
+		// GH #13 S5 adds the reviewed candidate-summary maps and sensitivity cases.
+		CurrentSHA256: "786be1ede16ced4db0ca66d2d4d1e70c3053a768848594f5e5ae21421af8b98b",
+		SHA256:        "e6dc84c99c503b70aef0fe84d631925e7073050cd42c7276eaebeb3de5aee113",
 		History: []string{routingReadmeCommit, routingFixtureCommit}, FreezeCurrent: true,
 	},
 }

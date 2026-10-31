@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S5 SOURCE AND DEPENDENT MIRROR APPROVED; FULL REPLACEMENT GATES PENDING.**
-APPROVED denotes source review, not stage acceptance. The next checkpoint
-replaces native-failed `9637e2c`; the exact mirror correction now passes.
+**S5 SOURCE/MIRROR APPROVED; REVIEWED TEST DELTA NEEDS CURRENT-SOURCE PIN.**
+Published `84d524a` passes the corrected intent tests but CI's PIB-391 source
+freeze still expects the pre-S5 mirror test. No S5 acceptance is claimed.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -26,7 +26,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Mirror correction approved and affected checks passed; fresh full gates pending
+- **Status**: Registering approved mirror-test delta through existing CurrentSHA256 mechanism
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -40,6 +40,21 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Fail-fast CI watcher reports Linux PIB-391 at `84d524a`: the accepted-check
+source freeze detects the deliberately reviewed status_schema_test.go delta.
+Use its existing CurrentSHA256 mechanism, already used for earlier approved
+amendments, to pin the exact reviewed/formatted bytes. Preserve historical
+SHA256, accepted commit range/history and FreezeCurrent=true; no recapture,
+blanket exemption or guard-logic change. Current source SHA256 verified as
+786be1ede16ced4db0ca66d2d4d1e70c3053a768848594f5e5ae21421af8b98b.
+The underlying source remains independently approved; this is mechanical
+provenance registration, not a new source/architecture decision.
+
+Stopped `s5-mirror-full-gate` before its first test command, during admission.
+Formatting/vet/build passed. All32 sampled owned process identities exited;
+interruption evidence is preserved under full-gate-v2/evidence. No Go workload
+remains. Run focused full PIB provenance/parity controls before replacement gates.
 
 Mirror correction passes remote admitted formatting, full intent package
 (125.693s; command127.61s), and workflow scope controls (7.484s; command18.77s).

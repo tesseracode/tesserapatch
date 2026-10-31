@@ -1,3 +1,18 @@
+## S5 Reviewed Source-Pin Registration Required — 2026-10-31
+
+Fail-fast native CI41158908886 detects Linux PIB-391's current-source freeze:
+status_schema_test.go now has the independently reviewed S5 maps/mutations/
+runtime checks. Its verified current SHA256 is
+786be1ede16ced4db0ca66d2d4d1e70c3053a768848594f5e5ae21421af8b98b.
+Use the existing CurrentSHA256 amendment field, as earlier approved deltas do.
+Preserve the original SHA256, accepted-history range and FreezeCurrent=true.
+No source pin is removed and no historical provenance/golden is rewritten.
+
+The source body already has independent approval; parent verifies only this
+mechanical registration. Stop the obsolete local gate during first-test admission;
+format/vet/build passed and all32 sampled owned identities exited. Preserve
+interruption evidence, run PIB provenance/parity controls, then replacement gates.
+
 ## S5 Mirror Green / Validation Host Decision — 2026-10-31
 
 Reviewed mirror correction passes admitted remote formatting, full intent
