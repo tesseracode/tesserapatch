@@ -1,3 +1,14 @@
+## S6 Native CI Pass / Local Gate Continuing — 2026-10-31
+
+CI41177819192 at7a913f6 succeeds on all five jobs. Raw Windows full-suite
+comparison against accepted S5 c42fc65 finds223 top-level failures versus224
+and no new failing test. The known intermittent oversized-attribute metadata
+case passes this run; no #17 fix/closure is claimed.
+
+Local gate remains active:23/42 commands and20/39 test shards passed as of
+07:43 UTC, command24 running. Keep source frozen until exact parity/resource/
+owned-process reconciliation completes. S6 is not accepted; no S7 dispatch.
+
 ## S6 Approved Basic Checks Complete — 2026-10-31
 
 Atd3c3f40, formatting/CLI2.248s/full affected168.02s/vet6.84s/build0.55s all

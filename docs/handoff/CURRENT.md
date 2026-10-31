@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S6 SOURCE/BASIC CHECKS APPROVED; COMPLETE GATES PENDING.**
+**S6 NATIVE CI PASSES; LOCAL COMPLETE GATE STILL RUNNING.**
 APPROVED denotes independent source review, not stage acceptance.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
@@ -21,7 +21,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Source and basic checks approved — publishing frozen full-validation checkpoint
+- **Status**: Native CI passed at7a913f6 — awaiting complete local gate and cleanup
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -31,6 +31,16 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Native CI41177819192 at7a913f6 passes all five jobs. Actual Windows full-suite
+logs were compared with accepted S5 c42fc65:223 top-level failures versus224,
+with no new failures; the previously intermittent oversized-attribute case
+passes this time. #17 remains open; this is not a green Windows full suite.
+
+Local s6-full-gate continues. At07:43 UTC,23/42 commands (20/39 test shards)
+had passed and command24 was running. Keep the exact source frozen and wait
+for full parity/resource/cleanup evidence before accepting or archiving S6.
+No S7 dispatch, new Go workload or tracking-only push while the gate runs.
 
 Final basic checks atd3c3f40 all PASS: formatting; CLI2.248s; full
 workflow149.664s/candidate8.496s/store2.770s (command168.02s); vet6.84s;

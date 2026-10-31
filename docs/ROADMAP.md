@@ -1651,6 +1651,9 @@ still gates S6 acceptance; no S7 dispatch.
 Final basic checks atd3c3f40 PASS: CLI2.248s; full affected packages168.02s;
 vet6.84s/build0.55s, normal pressure/no swap-outs. Publish the frozen reviewed
 checkpoint for all39 local shards and exact-tip native CI. S6 still unaccepted.
+Native CI41177819192 at7a913f6 PASS on all five jobs. Windows has no new
+top-level failures versus accepted S5 (223 versus224 legacy failures); #17
+remains open. Local full gate is past halfway and still running; acceptance waits.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
