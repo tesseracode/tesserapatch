@@ -217,6 +217,14 @@ The mixed execution fixture is moved intact into the cross-platform test
 helper file, including its raw Git/reconstruction helpers; no assertions or
 Windows tests are skipped. Remote admitted formatting/targeted/cross-build
 checks precede the replacement complete gate.
+Local fixture checkpoint `a877bad` is transferred as a narrow Git bundle
+on top of the published checkpoint into a new isolated remote checkout.
+Remote runner differs only in source/toolchain path literals; admission,
+runtime stops and serial policy are unchanged. Active SSH shell
+`old-mac-fixture-validation` owns remote formatting, Windows test cross-compile
+and candidate-package pilot. No local Go validation runs concurrently.
+Private connection/workspace metadata is in
+`bin/roc-s5-resume-20261030/remote-validation.json`, not tracked documentation.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline

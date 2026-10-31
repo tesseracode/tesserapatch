@@ -10,6 +10,11 @@ its reconstruction helpers intact from the !windows test file into the shared
 cross-platform helper file. Preserve all assertions and Windows coverage.
 Use admitted remote checks and pinned toolchain before a replacement full
 gate; local full gate is stopped and no duplicate Go workload is allowed.
+Frozen fixture checkpoint `a877bad` reaches the isolated remote checkout via
+a narrow bundle over published `5fd2829`. SSH shell
+`old-mac-fixture-validation` owns admitted format/Windows cross-compile/native
+candidate checks. Private runner changes are source/toolchain path literals
+only; all resource and serial guards remain identical. No local Go runs.
 
 ## Native Fixture Failure / Authorized Old-Mac Preflight — 2026-10-31
 
