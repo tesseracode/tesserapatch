@@ -44,6 +44,9 @@ Go1.26.5 and clean ff306d6 source. The pilot uses a new private runner/cache
 directory, preserving previous failures. Runtime budget is recorded separately
 and inherited by all Go subprocesses; it is advisory, not a hard RSS ceiling.
 No local Go workload. Do not launch a full rerun before the pilot passes.
+Pilot shell `s6-old-mac-budget-pilot` is running on clean ff306d6; it qualified
+after61.20s admission. Budget/source/deadline are recorded in the private pilot
+environment sidecar. Active deadline timer: gh13-budget-extension-deadline.
 
 The old-Mac retry stops at command12, `^TestS7AQ.*$`, on2227 new swap-out pages
 (about8.7MiB). OS pressure stayed normal. 11/42 commands and8/39 tests passed;

@@ -8,6 +8,8 @@ serial discipline and40m timeout remain unchanged. No partial result reuse.
 Old Mac at17:57 UTC: normal pressure/load1.49, privateGo1.26.5, clean ff306d6
 source. Use a new isolated pilot runner/cache and record the advisory runtime
 budget. Earlier full failures remain failures; S6 is not accepted.
+Pilot s6-old-mac-budget-pilot qualified after61.20s and is running atff306d6.
+The new deadline timer is active; no local Go or full rerun runs concurrently.
 
 ## S6 Old-Mac AQ Swap-Out Stop — 2026-10-31
 
