@@ -1658,6 +1658,10 @@ Local full gate is now RESOURCE-BLOCKED at command36 on OS warning pressure:
 35/42 commands and32/39 tests passed, all469 owned identities exited, no swap-outs.
 Source/native approvals stand but S6 is not accepted. Request an authorized
 full retry/extension or pause; no threshold waiver or S7 dispatch.
+Operator selected an eight-hour extension and full old-Mac rerun: deadline
+2026-10-31T18:08:53Z. Remote probe confirms normal pressure/load1.79 and exact
+privateGo1.26.5. Fresh source/caches and unchanged full39-shard guards required;
+no local Go overlap, partial reuse or scope expansion.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

@@ -2,18 +2,18 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S6 RESOURCE-BLOCKED; NOT ACCEPTED.**
-Independent source review and native CI remain approved. The local full gate
-stopped on OS warning pressure, not a test assertion failure.
+**S6 FULL OLD-MAC RETRY AUTHORIZED; NOT ACCEPTED.**
+APPROVED denotes source review only. The operator chose an eight-hour extension
+and a complete old-Mac rerun; the prior local resource failure stays recorded.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
 Core phase/authority integration and all review corrections pass targeted and
 affected-package checks, vet and build. Full local/native validation remains.
 
-The approved #13-only window ends at **2026-10-31T10:08:53Z**.
+The approved #13-only window now ends at **2026-10-31T18:08:53Z**.
 Stop after #13 or at that deadline; never start #9 in this run. No unrelated
 migration, coverage expansion, upstream-Git research or release work.
 
@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Blocked — runtime memory-pressure stop; complete gate requires another authorized attempt
+- **Status**: Complete old-Mac retry authorized — fresh source/cache setup
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,18 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Operator explicitly selected `extend-old-mac-8h`: extend the existing deadline
+by eight hours to2026-10-31T18:08:53Z and rerun the complete gate on the old Mac.
+No guard, test, timeout or scope is waived. The earlier deadline timer is
+stopped. Remote read-only preflight at09:07 UTC confirms exact privateGo1.26.5,
+normal pressure, load1.79,77% diagnostic free memory and65GiB free disk.
+
+Use new isolated s6-source/s6-full-gate directories in the already authorized
+private workspace, fresh compiler/module caches and byte-identical harness.
+Publish a frozen tracking/source checkpoint, then run `s6-old-mac-full-gate`
+and its exact-tip native watcher. No local Go workload. Do not reuse prior
+passed shards or relabel the interrupted local gate as successful.
 
 The full local gate at7a913f6 stops at command36,
 TestS7ObservedAQRegistrationAuthority, when OS pressure changes from1 to2.
@@ -278,13 +290,13 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 2. Implement S6 with focused regressions; preserve prior-stage/source pins.
 3. Independent review, complete admitted gate/native CI, then archive/push
    before any S7 dispatch. Do not treat partial validation as acceptance.
-4. Stop by10:08:53Z or after #13; no #9 regardless of remaining time.
+4. Stop by18:08:53Z or after #13; no #9 regardless of remaining time.
 
 ## Blockers
 
-Runtime OS warning pressure stopped the full gate. Current deadline10:08:53Z
-does not leave enough time for a measured full rerun and closure. An extension
-requires explicit operator approval; otherwise stop with S6 unaccepted.
+The prior local gate remains resource-blocked. The operator-approved extension
+to18:08:53Z permits a fresh complete old-Mac retry under unchanged admission/
+runtime safeguards. S6 remains unaccepted until that retry and native CI pass.
 
 ## Context for Next Agent
 

@@ -1,3 +1,16 @@
+## Operator Authorizes Full Old-Mac Retry / Eight-Hour Extension — 2026-10-31
+
+Operator selected `extend-old-mac-8h`. Effective deadline is now
+2026-10-31T18:08:53Z; scope remains #13 only, stop before #9. Stop the former
+deadline timer and run a fresh complete gate on the authorized old Mac, not a
+partial resume or threshold waiver. The failed local gate remains failed.
+
+Read-only preflight at09:07 UTC: privateGo1.26.5, pressure1, load1.79,77%
+diagnostic free memory,65GiB free disk. New s6-source/s6-full-gate directories
+and fresh caches; helper bytes unchanged. No local Go while remote validation
+owns the workload. S6 acceptance still requires complete parity/cleanup/native
+success and durable closure.
+
 ## S6 Full Gate Resource Stop — 2026-10-31
 
 At7a913f6, command36 (TestS7ObservedAQRegistrationAuthority) stops on OS
