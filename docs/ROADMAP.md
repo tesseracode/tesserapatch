@@ -1688,6 +1688,9 @@ exact three-helper inventory and exact summary normalization retain both old
 schema digests; negative controls exercise each authorized addition.
 Retained independent review APPROVES test-only checkpoint `2737264`; admitted
 remote guard/scope checks and complete replacement gates remain pending.
+Remote targeted correction now PASS: CLI14.751s/workflow6.876s, no formatter
+delta. Publish the approved correction for complete39-shard old-Mac validation
+and fresh exact-tip native CI; prior failed run is complete. S5 still unaccepted.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
 **Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored

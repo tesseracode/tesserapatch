@@ -1,3 +1,17 @@
+## S5 Corrected Checkpoint Ready for Full Gates — 2026-10-31
+
+Source-reviewed test correction2737264 passes admitted remote formatting,
+PIB-214/PIB-477 and S2/S5 schema controls (CLI14.751s; command71.06s), and
+workflow scope/transition guards (6.876s; command17.52s). No formatter delta;
+prior schema digests and reviewed production bytes remain unchanged.
+
+Publish this correction and tracking as one frozen checkpoint, then run all39
+test commands/all42 top-level commands on the old Mac and fresh native CI.
+Use exact Go1.26.5, unchanged harness, clean full history/fresh private caches,
+existing admission/runtime stops and S5 WAVE_BASE f9d5501. No local Go overlap
+or tracking-only pushes while exact-tip CI runs. Canonical APPROVED means
+source review only; S5 acceptance still requires full remote/native success.
+
 ## Review — S5 Native Test Corrections — 2026-10-31
 
 **Reviewer**: roc-s5-independent-review / 7712b628, verified gpt-6-astra.

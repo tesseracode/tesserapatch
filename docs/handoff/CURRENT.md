@@ -2,10 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S5 PRODUCTION SOURCE APPROVED; NATIVE VALIDATION REQUIRES TEST FIXES.**
-Published `origin/main` is the unaccepted S5 validation checkpoint `5fd2829`.
+**S5 SOURCE/TEST FIXES APPROVED; REPLACEMENT FULL GATES PENDING.**
+APPROVED denotes independent source review, not S5 stage acceptance.
+The next published checkpoint replaces failed validation checkpoint `5fd2829`.
 The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
 validated, archived and pushed. S5's full gate was interrupted and native CI
@@ -25,7 +26,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Test-only inventory fix frozen for review and admitted remote checks
+- **Status**: Guard correction approved and targeted checks passed; replacement full gates pending
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -39,6 +40,19 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Test-only correction `2737264` passes remote admitted formatting, CLI
+PIB-214/PIB-477 and S2/S5 schema controls (14.751s; command71.06s), and workflow
+scope/transition/guard checks (6.876s; command17.52s). The formatter left no
+delta. Evidence is collected locally; both independent source reviews remain
+approved and production bytes are identical to `efe351f`.
+
+Publish the corrected checkpoint and launch `old-mac-s5-full-gate` plus
+`s5-corrected-native-ci` on that exact SHA. Full gate uses the separate clean
+full-history checkout, unchanged harness, fresh private caches and pinned
+Go1.26.5, with all39 uncached test commands/all42 commands under existing
+resource stops. No local Go workloads and no tracking-only pushes during
+exact-tip CI. The failed prior native run has completed; its logs are preserved.
 
 Remote pilot at `a877bad` passes formatting, Windows candidate test
 cross-compilation (28.21s) and native candidate tests (25.462s; command51.05s).
@@ -354,6 +368,8 @@ No new module dependency. v0.17.0 is unchanged.
 - S5 full 39-shard gate at `5fd2829`: interrupted after native Windows failure.
 - Native CI `41153830846`: failed Windows compilation and dependent Linux/
   macOS store/schema inventories; AP registration also failed. Not accepted.
+- `2737264` remote inventory format/CLI controls/workflow scope checks: PASS.
+  CLI14.751s/workflow6.876s, unchanged safeguards, no formatter delta.
 
 Evidence: `bin/roc-s5-20261030/`; final checked source:
 `bin/roc-s5-20261030/f2-corrected-source/`. Preserve all previous raw evidence.
@@ -361,12 +377,12 @@ Passing basic checks do not override open review blockers.
 
 ## Next Steps
 
-1. Correct only the S5-dependent legacy inventories with mutation controls;
-   preserve reviewed production bytes and prior schema pins.
-2. Obtain retained independent review of the test delta and run admitted
-   focused checks on the old Mac; no overlapping local Go workload.
-3. Publish the corrected checkpoint and run fresh complete remote 39-shard/
-   native CI with the recorded S5 WAVE_BASE.
+1. Publish the approved correction, then run fresh complete remote39-shard/
+   native CI at that exact checkpoint with the recorded S5 WAVE_BASE.
+2. Inspect actual Windows S5 results, not just allowed-failure conclusions;
+   preserve complete resource/parity/owned-process evidence.
+3. Keep source frozen during validation; a real failure stops the sequence
+   and requires a narrow fix-forward, not an unconditional retry.
 4. Accept/archive/push S5 only after complete gates; verify clean main equality.
 5. Continue sequentially within #13 while authorized; stop before #9 even if
    time remains. Stop by the extended 2026-10-31T10:08:53Z deadline.
