@@ -11,9 +11,10 @@ Published `origin/main` remains accepted/restored S4 at
 validated, archived and pushed. S5 has no full 39-shard gate, native CI or
 acceptance. No S6 work or release/tag was started.
 
-The operator authorizes a new four-hour #13-only window:
-2026-10-30 22:08:53 UTC through 2026-10-31 02:08:53 UTC
-(15:08-19:08 PDT). Fix forward; preserve all committed work and closed findings.
+The operator initially authorized four hours and explicitly approved an
+eight-hour extension. Effective #13-only window: 2026-10-30 22:08:53 UTC
+through 2026-10-31 10:08:53 UTC (15:08-03:08 PDT).
+Fix forward; preserve all committed work and closed findings.
 Close S5 properly and restore clean HEAD=origin/main before advancing to S6.
 Advance within #13 only after each predecessor closes. Stop when #13 completes
 or the window ends; any extension requires new approval. Do not start #9,
@@ -24,14 +25,14 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Complete byte/mode proof frozen; final re-review and basic checks pending
+- **Status**: Byte/mode fixes pass; unifying inspection/materialization case policy
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
 - **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
 - **Frozen review checkpoint**: `b46129e96b92139a61bc9512f2fe26fa69fae1f1`
-- **Current window deadline**: `2026-10-31T02:08:53Z`
+- **Current window deadline**: `2026-10-31T10:08:53Z` (eight-hour extension approved)
 - **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
 
@@ -158,6 +159,22 @@ Active retained review is on `b46129e`; active sole Go shell is
 `s5-final-fidelity-basic`, clean source
 `bin/roc-s5-resume-20261030/mode-reviewed-source`. All previous bounded
 validators have completed or were explicitly stopped with preserved evidence.
+Re-review finds inspection/add case-policy mismatch can hide ordered filter
+rules. Unify all private-index command options, including check-attr and path
+enumeration, and add ordered-case-rule/no-execution evidence. No approval yet.
+One shared private option list now covers seeding, config/path inspection,
+check-attr, add and write-tree. The older mode-only broad run passed all
+affected packages (170.17s) but was stopped during obsolete vet admission;
+preserve its sidecar. At 00:05 UTC about two hours remain, close to the
+100–115 minute full-gate duration before review/closure overhead; extension
+approval may be needed rather than shortening any gate.
+The operator approved eight additional hours, through 03:08 PDT / 10:08 UTC.
+Old timer stopped; `gh13-followup-extended-deadline` now enforces the new bound.
+Scope remains #13 only and stops before #9 regardless of spare time.
+The pending shared-policy formatter was BLOCKED at 600s admission, before
+execution: all sampled load1 values were 5.26-6.86, pressure normal. No guard
+was relaxed and no Go/formatter result is claimed for that attempt. Retry
+only under the unchanged continuous quiet-window policy.
 The following paragraphs preserve the prior window's evidence.
 
 S3 accepted at `083d20f`, closed/pushed `5d22acf`. S4 initially passed review

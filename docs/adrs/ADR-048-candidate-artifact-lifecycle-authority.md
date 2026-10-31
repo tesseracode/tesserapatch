@@ -70,6 +70,9 @@ integrity rechecks that never rely on mutable labels.
     and case-folding shortcuts for the private materialization so hidden or
     renamed paths cannot inherit logical baseline entries. These are command-
     local settings, not repository configuration changes.
+    One shared option list applies to seeding, configuration/path inspection,
+    check-attr, add and write-tree. In particular, ordered case-varying attribute
+    rules cannot be inspected under a different case policy than materialization.
 
 ## Non-goals in this draft
 

@@ -1630,6 +1630,8 @@ New four-hour authorization: 2026-10-30 22:08:53 UTC through
 archive/push and clean main before S6. Continue within #13 only while
 authorized; stop after #13 or at the deadline, and never start #9 in this run.
 Unrelated migrations/coverage widening stay out of scope.
+Operator subsequently approved eight additional hours: the effective deadline
+is 2026-10-31 10:08:53 UTC / 03:08 PDT. Scope still ends with #13, before #9.
 Fix-forward draft replaces caller-asserted preparation with the private S2
 mint path and a continuous-lock finalizer, plus pending inventory/retry-safe
 cleanup. Focused negative regressions are added; validation/review remain pending.
@@ -1655,6 +1657,9 @@ the chmod regression before claiming complete structural proof.
 Mode/symlink correction `b46129e` has actual chmod red-before and focused
 green-after evidence, with private sparse/case shortcuts disabled. Final
 independent review/basic checks precede the full gate; no acceptance yet.
+Review requires one shared inspection/materialization policy: case-sensitive
+add must not activate a filter hidden by case-insensitive check-attr. Unify the
+private command options and add the ordered-rule/no-execution regression.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

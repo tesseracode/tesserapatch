@@ -73,25 +73,25 @@ func WorktreeTreeHash(repoRoot string) (string, error) {
 		_ = os.Remove(tempPath + ".lock")
 	}()
 
+	options := []string{"-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false",
+		"-c", "core.sparseCheckout=false", "-c", "index.sparse=false", "-c", "core.ignoreCase=false"}
+	// Windows has no POSIX executable bit. Use the same effective policy
+	// for inspection and materialization rather than independently drifting flags.
+	if runtime.GOOS != "windows" {
+		options = append(options, "-c", "core.fileMode=true", "-c", "core.symlinks=true")
+	}
 	env := []string{"GIT_INDEX_FILE=" + tempPath}
-	if _, stderr, err := runTreeGit(identity, env, "-c", "core.sparseCheckout=false", "-c", "index.sparse=false", "read-tree", "HEAD"); err != nil {
+	if _, stderr, err := runTreeGit(identity, env, append(append([]string(nil), options...), "read-tree", "HEAD")...); err != nil {
 		return "", fmt.Errorf("git read-tree HEAD: %v: %s", err, strings.TrimSpace(stderr))
 	}
-	if err := validateWorktreeMaterialization(identity, env); err != nil {
+	if err := validateWorktreeMaterialization(identity, env, options); err != nil {
 		return "", fmt.Errorf("unsafe worktree materialization: %w", err)
 	}
-	addArgs := []string{"-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false",
-		"-c", "core.sparseCheckout=false", "-c", "index.sparse=false", "-c", "core.ignoreCase=false"}
-	// Windows has no POSIX executable bit. On POSIX, the private proof must
-	// observe real mode changes even if the user's index normally ignores them.
-	if runtime.GOOS != "windows" {
-		addArgs = append(addArgs, "-c", "core.fileMode=true", "-c", "core.symlinks=true")
-	}
-	addArgs = append(addArgs, "add", "-A", "--", ".")
+	addArgs := append(append([]string(nil), options...), "add", "-A", "--", ".")
 	if _, stderr, err := runTreeGit(identity, env, addArgs...); err != nil {
 		return "", fmt.Errorf("git add -A -- .: %v: %s", err, strings.TrimSpace(stderr))
 	}
-	out, stderr, err := runTreeGit(identity, env, "write-tree")
+	out, stderr, err := runTreeGit(identity, env, append(append([]string(nil), options...), "write-tree")...)
 	if err != nil {
 		return "", fmt.Errorf("git write-tree: %v: %s", err, strings.TrimSpace(stderr))
 	}

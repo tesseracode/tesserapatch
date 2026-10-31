@@ -1,3 +1,27 @@
+## Authorization Extended / Resource Admission Blocked — 2026-10-31
+
+Operator explicitly selected an eight-hour extension: effective deadline
+2026-10-31T10:08:53Z / 03:08 PDT. The old timer was stopped and
+`gh13-followup-extended-deadline` started. Scope remains #13 only; stop before
+#9 regardless of remaining time, and retain every review/resource/full gate.
+
+The pending shared-policy formatter never executed: its 600s admission
+budget expired with load1 continuously 5.26-6.86 and normal memory pressure.
+Preserve `shared-policy-format` blocked evidence. No guard waiver or result
+claim; continue frozen review and retry the unchanged admission policy.
+
+## Review — S5 Inspection/Materialization Policy Mismatch — 2026-10-30
+
+Reviewer `7712b628` closes the mode/symlink counterexamples at `b46129e`,
+but finds an applicable-filter gap when attribute inspection inherits
+core.ignoreCase=true while materialization forces false. Ordered case-varying
+attribute rules can hide a filter from inspection and activate it during add.
+
+Use one exact command-local policy for private-index seeding, attribute/config/
+path inspection and materialization; no independently drifting option lists.
+Add the ordered-rule/no-filter-execution regression and retain closed command/
+environment controls. Other findings remain closed; full gates still pending.
+
 ## S5 Final Mode Fidelity Checkpoint — 2026-10-30
 
 Freeze `b46129e96b92139a61bc9512f2fe26fa69fae1f1`. The real chmod case

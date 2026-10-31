@@ -718,6 +718,32 @@ func TestROCS5ResumeReuseRejectsHidingCleanFilterBeforeItRuns(t *testing.T) {
 	}
 }
 
+func TestROCS5ResumeReuseRejectsCaseFoldedFilterRules(t *testing.T) {
+	if runtime.GOOS == "windows" { t.Skip("Unix clean-filter sentinel fixture") }
+	f := rocS2NewFixture(t, true)
+	writeRepoFile(t, f.s, "other.txt", []byte("upstream\n"))
+	git(t, f.s.Root, "add", "other.txt")
+	git(t, f.s.Root, "commit", "-qm", "unrelated upstream")
+	f.invocation.upstreamCommit = strings.TrimSpace(git(t, f.s.Root, "rev-parse", "HEAD"))
+	prepared, err := prepareOperationCandidate(f.s, f.slug, f.invocation)
+	if err != nil { t.Fatal(err) }
+	artifact, err := finalizeOperationCandidate(f.s, f.slug, prepared)
+	if err != nil { t.Fatal(err) }
+	dir := t.TempDir()
+	marker := filepath.Join(dir,"filter-ran")
+	script := filepath.Join(dir,"hide.sh")
+	if err := os.WriteFile(script,[]byte("#!/bin/sh\ncat >/dev/null\nprintf 'upstream\\n'\nprintf ran > \""+marker+"\"\n"),0755); err != nil { t.Fatal(err) }
+	git(t, f.s.Root, "config", "filter.hide.clean", script)
+	git(t, f.s.Root, "config", "core.ignoreCase", "true")
+	if err := os.WriteFile(filepath.Join(f.s.Root,".git","info","attributes"),[]byte("other.txt filter=hide\nOTHER.txt -filter\n"),0644); err != nil { t.Fatal(err) }
+	rel, _ := candidate.CandidateWorktreeRelative(f.slug, artifact.CandidateID)
+	if err := os.WriteFile(filepath.Join(f.s.Root,filepath.FromSlash(rel),"other.txt"),[]byte("unexplained\n"),0644); err != nil { t.Fatal(err) }
+	if _, err := finalizeOperationCandidate(f.s,f.slug,prepared); err == nil || !strings.Contains(err.Error(),"filter") {
+		t.Errorf("case policy hid applicable conversion: %v",err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) { t.Fatalf("hidden filter ran: %v",err) }
+}
+
 func TestROCS5ResumeReuseRejectsUnmodeledModeWithFileModeDisabled(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX executable-bit semantics")

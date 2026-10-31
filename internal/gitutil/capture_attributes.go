@@ -194,14 +194,14 @@ type captureAttribute struct {
 }
 
 func readCaptureAttributes(root string, paths []string) ([]captureAttribute, error) {
-	return readCaptureAttributesWithEnv(root, paths, CaptureReadOnlyEnv())
+	return readCaptureAttributesWithEnv(root, paths, CaptureReadOnlyEnv(), nil)
 }
 
-func readCaptureAttributesWithEnv(root string, paths []string, env []string) ([]captureAttribute, error) {
+func readCaptureAttributesWithEnv(root string, paths []string, env, options []string) ([]captureAttribute, error) {
 	if len(paths) == 0 {
 		return nil, nil
 	}
-	cmd := exec.Command("git", "check-attr", "-z", "--all", "--stdin")
+	cmd := exec.Command("git", append(append([]string(nil), options...), "check-attr", "-z", "--all", "--stdin")...)
 	cmd.Dir = root
 	cmd.Env = env
 	cmd.Stdin = strings.NewReader(strings.Join(paths, "\x00") + "\x00")
@@ -265,13 +265,13 @@ func validateCaptureAttributes(attributes []captureAttribute, config captureConv
 // The private index is already seeded from the bound HEAD, but no file has
 // been added yet. Inspect attributes against that same index before filters
 // or byte conversions can run or conceal worktree content.
-func validateWorktreeMaterialization(identity rootedIdentity, extra []string) error {
+func validateWorktreeMaterialization(identity rootedIdentity, extra, options []string) error {
 	env := append(append([]string(nil), extra...), "GIT_OPTIONAL_LOCKS=0")
 	readGit := func(root string, args ...string) (string, error) {
 		if root != identity.path {
 			return "", fmt.Errorf("materialization root mismatch")
 		}
-		args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignoreStat=false"}, args...)
+		args = append(append([]string(nil), options...), args...)
 		out, _, err := runTreeGit(identity, env, args...)
 		return out, err
 	}
@@ -310,7 +310,7 @@ func validateWorktreeMaterialization(identity rootedIdentity, extra []string) er
 	if err := validateCaptureAttributeFallbackWithReader(identity.path, paths, readGit); err != nil {
 		return err
 	}
-	attributes, err := readCaptureAttributesWithEnv(identity.path, paths, HardenedNoLazyGitEnv(env...))
+	attributes, err := readCaptureAttributesWithEnv(identity.path, paths, HardenedNoLazyGitEnv(env...), options)
 	if err != nil {
 		return err
 	}

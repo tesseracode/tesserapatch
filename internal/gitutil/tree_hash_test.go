@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -149,14 +150,23 @@ exec %q "$@"
 			t.Fatalf("tree hash lost mandatory env envelope: %q", line)
 		}
 		temporaryIndex := fields[6]
-		switch fields[12] {
-		case "-c core.sparseCheckout=false -c index.sparse=false read-tree HEAD", "write-tree",
-			"-c core.fsmonitor=false -c core.ignoreStat=false -c core.sparseCheckout=false -c index.sparse=false -c core.ignoreCase=false add -A -- .",
-			"-c core.fsmonitor=false -c core.ignoreStat=false -c core.sparseCheckout=false -c index.sparse=false -c core.ignoreCase=false -c core.fileMode=true -c core.symlinks=true add -A -- .",
-			`-c core.fsmonitor=false -c core.ignoreStat=false config --get-regexp --null ^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`,
-			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --cached --stage -z",
-			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --others --exclude-standard -z",
-			"-c core.fsmonitor=false -c core.ignoreStat=false ls-files --cached -z -- .gitattributes :(glob)**/.gitattributes",
+		policy := "-c core.fsmonitor=false -c core.ignoreStat=false -c core.sparseCheckout=false -c index.sparse=false -c core.ignoreCase=false"
+		if runtime.GOOS != "windows" {
+			policy += " -c core.fileMode=true -c core.symlinks=true"
+		}
+		command := fields[12]
+		if temporaryIndex != "" {
+			if !strings.HasPrefix(command, policy+" ") {
+				t.Fatalf("private command lost shared materialization policy: %q", line)
+			}
+			command = strings.TrimPrefix(command, policy+" ")
+		}
+		switch command {
+		case "read-tree HEAD", "write-tree", "add -A -- .",
+			`config --get-regexp --null ^(filter\.|diff\.external$|diff\..*\.(command|textconv)$|diff\.renames$|core\.autocrlf$)`,
+			"ls-files --cached --stage -z",
+			"ls-files --others --exclude-standard -z",
+			"ls-files --cached -z -- .gitattributes :(glob)**/.gitattributes",
 			"check-attr -z --all --stdin":
 			if filepath.Dir(temporaryIndex) != filepath.Join(root, ".git") ||
 				!strings.HasPrefix(filepath.Base(temporaryIndex), ".tpatch-tree-index-") {
