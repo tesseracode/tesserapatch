@@ -32,7 +32,9 @@ func candidateGitBytes(t *testing.T, root string, args ...string) []byte {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = root
 	out, err := cmd.Output()
-	if err != nil { t.Fatalf("git %v: %v", args, err) }
+	if err != nil {
+		t.Fatalf("git %v: %v", args, err)
+	}
 	return out
 }
 
@@ -43,29 +45,45 @@ func executionFixture(t *testing.T) (root string, reference, upstream *Reference
 	twoPath := filepath.Join(root, "two.go")
 	baseOne := "package demo\n\nfunc one() []string {\n\treturn []string{\n\t\t\"base\",\n\t}\n}\n"
 	baseTwo := "package demo\n\nfunc two() []string {\n\treturn []string{\n\t\t\"base\",\n\t}\n}\n"
-	if err := os.WriteFile(onePath, []byte(baseOne), 0o644); err != nil { t.Fatal(err) }
-	if err := os.WriteFile(twoPath, []byte(baseTwo), 0o644); err != nil { t.Fatal(err) }
+	if err := os.WriteFile(onePath, []byte(baseOne), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(twoPath, []byte(baseTwo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	candidateGit(t, root, "add", "one.go", "two.go")
 	candidateGit(t, root, "commit", "-qm", "reference")
 	baseCommit := candidateGit(t, root, "rev-parse", "HEAD")
 	featureOne := "package demo\n\nfunc one() []string {\n\treturn []string{\n\t\t\"base\",\n\t\t\"feature\",\n\t}\n}\n"
 	featureTwo := "package demo\n\nfunc two() []string {\n\treturn []string{\n\t\t\"base\",\n\t\t\"feature\",\n\t}\n}\n"
-	if err := os.WriteFile(onePath, []byte(featureOne), 0o644); err != nil { t.Fatal(err) }
-	if err := os.WriteFile(twoPath, []byte(featureTwo), 0o644); err != nil { t.Fatal(err) }
+	if err := os.WriteFile(onePath, []byte(featureOne), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(twoPath, []byte(featureTwo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	candidateGit(t, root, "add", "one.go", "two.go")
 	candidateGit(t, root, "commit", "-qm", "feature")
 	patch = string(candidateGitBytes(t, root, "diff", "--binary", baseCommit, "HEAD", "--", "one.go", "two.go"))
 	effects = reconstructEffects(t, root, baseCommit, patch)
-	if err := os.WriteFile(onePath, []byte(baseOne), 0o644); err != nil { t.Fatal(err) }
-	if err := os.WriteFile(twoPath, []byte(featureTwo), 0o644); err != nil { t.Fatal(err) }
+	if err := os.WriteFile(onePath, []byte(baseOne), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(twoPath, []byte(featureTwo), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	candidateGit(t, root, "add", "one.go", "two.go")
 	candidateGit(t, root, "commit", "-qm", "upstream")
 	upstreamCommit := candidateGit(t, root, "rev-parse", "HEAD")
 	var err error
 	reference, err = OpenReferenceRoot(root, baseCommit)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	upstream, err = OpenReferenceRoot(root, upstreamCommit)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { _ = reference.Close(); _ = upstream.Close() })
 	return root, reference, upstream, patch, effects
 }
@@ -73,7 +91,9 @@ func executionFixture(t *testing.T) (root string, reference, upstream *Reference
 func reconstructEffects(t *testing.T, repoRoot, baseCommit, patch string) []gitutil.PatchEffect {
 	t.Helper()
 	rows, err := patchobs.ReconstructOffline(repoRoot, baseCommit, patch)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	effects := make([]gitutil.PatchEffect, len(rows))
 	for i, row := range rows {
 		e := row.Effect

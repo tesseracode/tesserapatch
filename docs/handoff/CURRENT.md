@@ -2,14 +2,14 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S5 SOURCE AND BASIC CHECKS ARE APPROVED. FULL GATES PENDING; NOT ACCEPTED.**
-The canonical APPROVED token denotes source review only, not stage acceptance.
-Published `origin/main` remains accepted/restored S4 at
+**S5 PRODUCTION SOURCE APPROVED; NATIVE VALIDATION REQUIRES TEST FIXES.**
+Published `origin/main` is the unaccepted S5 validation checkpoint `5fd2829`.
+The last accepted boundary remains restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
-validated, archived and pushed. S5 has no full 39-shard gate, native CI or
-acceptance. No S6 work or release/tag was started.
+validated, archived and pushed. S5's full gate was interrupted and native CI
+failed; there is no S5 acceptance. No S6 work or release/tag was started.
 
 The operator initially authorized four hours and explicitly approved an
 eight-hour extension. Effective #13-only window: 2026-10-30 22:08:53 UTC
@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Correcting native Windows fixture compilation; remote gate feasibility checked
+- **Status**: Remote fixture pilot passed; correcting dependent legacy schema/function inventories
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -39,6 +39,20 @@ unrelated migrations or broader coverage work regardless of spare time.
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+Remote pilot at `a877bad` passes formatting, Windows candidate test
+cross-compilation (28.21s) and native candidate tests (25.462s; command51.05s).
+Each admission qualified in about61s with unchanged safeguards. Collected
+formatter output and all three evidence directories locally. Production
+source remains reviewed `efe351f`.
+
+Native CI `41153830846` additionally fails Linux/macOS on PIB-214's store
+function inventory and the prior S2 whole-file schema pin. The AP observer
+also reports PIB-477 unsuccessful. S5 legitimately adds three store helpers
+and one exact optional summary type/field; extend those dependent guards
+narrowly, retaining prior schema pins and real mutation controls. No production
+CLI/schema widening, golden recapture or unrelated migration work is authorized.
+The prior paragraphs below are chronological evidence, not current run status.
 
 Fresh fetch confirms the expected clean local draft HEAD `1b0676c` and
 published accepted S4 `f9d5501`; no stash, one main worktree, no Git operation
@@ -268,8 +282,10 @@ Implemented locally: strict artifact/state schemas and proof/identity helpers,
 ephemeral boundary-proof metadata, optional omitempty status pointer, typed
 metadata/reopen APIs, feature-capability-protected artifact mutations, callable
 preflight/reject/clear/prepare/publish/reuse paths and focused guards.
-The corrected callables have independent source approval, but **are not yet
-accepted**: formatting/runtime/basic/full local and native validation remain.
+The corrected callables have independent source approval and passing basic
+checks, but **are not yet accepted**. The Windows fixture correction passes
+remote compilation/native pilot; dependent inventory corrections and fresh
+complete remote/native validation remain.
 
 Closed by independent review: F1 rooted mutation capability, F2 verified exact
 worktree registration/namespace ownership, F5 recovery/coexistence action checks,
@@ -314,7 +330,12 @@ No new module dependency. v0.17.0 is unchanged.
   Git-directory alias refusal also has regression coverage; it already refused
   in the old path, so only the suffix-impostor fixture is claimed red-before.
 - Every run used individual resource admission; normal pressure/no new swap-outs.
-- S5 full 39-shard mechanical gate and native CI: **NOT RUN**.
+- Shared-policy full affected/vet/build: PASS at `073459b`.
+- `a877bad` remote fixture format/Windows compilation/native candidate pilot:
+  PASS; evidence under `bin/roc-s5-resume-20261030/remote-*`.
+- S5 full 39-shard gate at `5fd2829`: interrupted after native Windows failure.
+- Native CI `41153830846`: failed Windows compilation and dependent Linux/
+  macOS store/schema inventories; AP registration also failed. Not accepted.
 
 Evidence: `bin/roc-s5-20261030/`; final checked source:
 `bin/roc-s5-20261030/f2-corrected-source/`. Preserve all previous raw evidence.
@@ -322,15 +343,15 @@ Passing basic checks do not override open review blockers.
 
 ## Next Steps
 
-1. Resolve F3/F4/F6 and complete finalization with production-path negative
-   tests, not callback assertions or field-shape-only tests.
-2. Use the same retained S5 reviewer for this same task, or a fresh independent
-   reviewer if unavailable; require explicit closure and ADR-048 assessment.
-3. Run admitted affected/vet/build, then publish only an approved checkpoint
-   for full 39-shard/native CI with the recorded S5 WAVE_BASE.
+1. Correct only the S5-dependent legacy inventories with mutation controls;
+   preserve reviewed production bytes and prior schema pins.
+2. Obtain retained independent review of the test delta and run admitted
+   focused checks on the old Mac; no overlapping local Go workload.
+3. Publish the corrected checkpoint and run fresh complete remote 39-shard/
+   native CI with the recorded S5 WAVE_BASE.
 4. Accept/archive/push S5 only after complete gates; verify clean main equality.
 5. Continue sequentially within #13 while authorized; stop before #9 even if
-   time remains. Do not continue beyond the four-hour deadline without approval.
+   time remains. Stop by the extended 2026-10-31T10:08:53Z deadline.
 
 ## Validation Policy
 
@@ -352,4 +373,4 @@ all-optimal algorithm/limits and S4 payload-before-idempotency/body-lifetime gua
 ADR-048's native-OID SHA-256 fingerprint is acceptable as an integrity
 fingerprint, not SHA-256-strength hashing of tree contents.
 No Unreleased heading/frozen ADR-index churn; upstream Git-strategy research
-remains deferred. Local S5 commits are intentionally not on origin/main.
+remains deferred. Published S5 checkpoints are validation-only, not acceptance.

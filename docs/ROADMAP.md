@@ -1678,14 +1678,18 @@ Native checkpoint `5fd2829` exposes a Windows-only test fixture compilation
 failure; local full gate stopped for a coverage-preserving test fix.
 User-authorized old-Mac offload is being checked with the same pinned
 toolchain/resource/shard requirements, not substituted with weaker validation.
+Remote pinned-toolchain fixture formatting, Windows test cross-compilation
+and native candidate pilot now pass. Native Linux/macOS also expose the
+dependent store-function inventory and whole-file schema guard; the AP observer
+reports PIB-477 unsuccessful. Register only the exact S5 additions with negative
+controls, preserving prior schema pins. Full replacement validation is pending.
 
-**Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
-**Published main** remains restored S4 `f9d5501`; S5 is intentionally local.
-Eight findings independently closed; OPEN F3 cross-candidate reuse binding,
-F4 preparation/eligibility/repository/feature authority, F6 failure consistency
-and complete continuous-lock finalization. Basic tests/vet/build pass; no S5
-full 39-shard/native gate or acceptance. ADR-048 Proposed. S6 not dispatched.
-Exact open cases and resumption instructions are in CURRENT/LOG.
+**Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
+**Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored
+S4 `f9d5501` remains the accepted boundary. All source findings and composition
+are independently closed; basic tests/vet/build pass. Native failure requires
+test-only fixes before full replacement validation. ADR-048 Proposed.
+S6 not dispatched; exact evidence and resumption instructions are in CURRENT/LOG.
 
 **S5 overnight chronology**:
 

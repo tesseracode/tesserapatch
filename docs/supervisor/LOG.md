@@ -1,3 +1,17 @@
+## S5 Remote Pilot Pass / Dependent Native Guard Failures — 2026-10-31
+
+The old Mac passes individually admitted fixture formatting, Windows test
+cross-compilation (28.21s) and native candidate tests (25.462s; command51.05s).
+All three admission windows qualify in about61s. Formatter output and evidence
+are collected; production bytes remain unchanged from source-approved efe351f.
+
+CI 41153830846 additionally fails Linux/macOS PIB-214 store-function inventory
+and the S2 whole-file schema pin; the AP observer reports PIB-477 unsuccessful.
+These guards must explicitly recognize the reviewed S5 summary and three store
+helpers, without rebasing away old schema constraints or accepting arbitrary
+additions. Keep mutation controls and obtain narrow independent review. Full
+replacement remote/native gates remain mandatory; S6 is not dispatched.
+
 ## Old-Mac Pinned Setup / Cross-platform Fixture Fix — 2026-10-31
 
 The old Mac has no Go1.26.5 installation. Provision the official Intel-Mac
@@ -32,7 +46,7 @@ require exact1.26.5 before claiming equivalent validation. Use an isolated
 checkout/cache and identical resource/shard guards, with no overlapping Go
 workloads or shared-system configuration changes.
 
-## S5 Ready for Full Local / Native Validation — 2026-1031
+## S5 Ready for Full Local / Native Validation — 2026-10-31
 
 Approved shared-policy source now passes admitted formatting, full
 candidate/gitutil/store/workflow tests (171.84s), vet (4.85s) and build
