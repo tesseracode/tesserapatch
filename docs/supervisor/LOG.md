@@ -11,6 +11,10 @@ Stop the obsolete remote gate by its identity-verified runner PID4854, preservin
 interruption.json and partial evidence. Formatting/vet/build passed; first test
 command was still running. Verify no owned survivors before any replacement Go.
 No S5 acceptance/S6 dispatch; narrow review and full replacement gates remain.
+Cleanup verifies all347 sampled process identities exited. The narrow mirror
+correction retains unknown-key tolerance/no store import and adds parity/runtime
+negative cases. An isolated test-source overlay exercises the new runtime
+cases against old production before corrected checks; no source rollback used.
 
 ## S5 Corrected Checkpoint Ready for Full Gates — 2026-10-31
 

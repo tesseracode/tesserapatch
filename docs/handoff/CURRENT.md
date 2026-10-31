@@ -52,6 +52,12 @@ Stopped the obsolete remote gate via its identity-verified runner PID4854.
 Formatting/vet/build passed; the first test command was still running. Preserve
 `full-gate/evidence/interruption.json` and all partial evidence; no full pass is
 claimed. No replacement Go workload starts until owned-process cleanup is verified.
+Cleanup verified all347 sampled process identities have exited. The correction
+adds only the exact existing store summary shape to intent's local mirror and
+its two transitive parity maps; unknown keys remain accepted and no store import
+is added. Three parity mutations and runtime wrong-shape/type cases protect it.
+Run the new runtime cases against old production via a Go test-source overlay
+first; no repository source is rewritten for this red-before proof.
 
 Test-only correction `2737264` passes remote admitted formatting, CLI
 PIB-214/PIB-477 and S2/S5 schema controls (14.751s; command71.06s), and workflow

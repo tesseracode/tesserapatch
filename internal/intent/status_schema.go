@@ -93,6 +93,13 @@ type statusPatchIDMatch struct {
 	ScannedCount       int      `json:"scanned_count"`
 }
 
+type statusOperationCandidateSummary struct {
+	CandidateID        string `json:"candidate_id"`
+	Path               string `json:"path"`
+	Status             string `json:"status"`
+	SourceFeatureState string `json:"source_feature_state"`
+}
+
 type statusReconcileSummary struct {
 	AttemptedAt    string              `json:"attempted_at,omitempty"`
 	UpstreamRef    string              `json:"upstream_ref,omitempty"`
@@ -106,6 +113,7 @@ type statusReconcileSummary struct {
 	SkippedFiles   int                 `json:"skipped_files,omitempty"`
 	Labels         []string            `json:"labels,omitempty"`
 	PatchIDMatch   *statusPatchIDMatch `json:"patch_id_match,omitempty"`
+	OperationCandidate *statusOperationCandidateSummary `json:"operation_candidate,omitempty"`
 }
 
 // statusDocument mirrors store.FeatureStatus field for field.

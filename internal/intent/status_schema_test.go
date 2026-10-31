@@ -34,6 +34,7 @@ var storeToCanonical = map[string]string{
 	"FeatureStatus":         "FeatureStatus",
 	"ApplySummary":          "ApplySummary",
 	"ReconcileSummary":      "ReconcileSummary",
+	"OperationCandidateSummary": "OperationCandidateSummary",
 	"PatchIDMatch":          "PatchIDMatch",
 	"Dependency":            "Dependency",
 	"VerifyRecord":          "VerifyRecord",
@@ -47,6 +48,7 @@ var mirrorToCanonical = map[string]string{
 	"statusDocument":              "FeatureStatus",
 	"statusApplySummary":          "ApplySummary",
 	"statusReconcileSummary":      "ReconcileSummary",
+	"statusOperationCandidateSummary": "OperationCandidateSummary",
 	"statusPatchIDMatch":          "PatchIDMatch",
 	"statusDependency":            "Dependency",
 	"statusVerifyRecord":          "VerifyRecord",
@@ -174,6 +176,24 @@ func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
 			replace: "\tReason     int           `json:\"reason\"`",
 		},
 		{
+			name:    "candidate-pointer-omitempty-dropped",
+			file:    "types.go",
+			old:     `json:"operation_candidate,omitempty"`,
+			replace: `json:"operation_candidate"`,
+		},
+		{
+			name:    "candidate-pointer-type-changed",
+			file:    "types.go",
+			old:     "OperationCandidate *OperationCandidateSummary",
+			replace: "OperationCandidate []OperationCandidateSummary",
+		},
+		{
+			name:    "candidate-nested-type-changed",
+			file:    "types.go",
+			old:     `SourceFeatureState string ` + "`json:\"source_feature_state\"`",
+			replace: `SourceFeatureState bool ` + "`json:\"source_feature_state\"`",
+		},
+		{
 			// An exported field with no JSON tag still marshals — under its
 			// Go name. Skipping it (the pre-rev-2 `continue`) let a real
 			// document member exist that the mirror had never heard of.
@@ -224,6 +244,28 @@ func TestAVPStatusSchemaParityIsSensitive(t *testing.T) {
 			t.Fatalf("the sensitivity harness rejects the real sources: %v", err)
 		}
 	})
+}
+
+func TestAVPStatusOperationCandidateShape(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		summary string
+		valid   bool
+	}{
+		{"null", `null`, true},
+		{"known-and-future-fields", `{"candidate_id":"rc_0123456789ab","path":".tpatch/features/demo/candidates/rc_0123456789ab","status":"pending","source_feature_state":"blocked","future":{"key":true}}`, true},
+		{"wrong-summary-shape", `[]`, false},
+		{"wrong-candidate-id-type", `{"candidate_id":false}`, false},
+		{"wrong-source-state-type", `{"source_feature_state":[]}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			data := []byte(`{"state":"defined","reconcile":{"operation_candidate":` + test.summary + `}}`)
+			state, ok := decodeStatusDocument(data)
+			if ok != test.valid || (ok && state != "defined") {
+				t.Fatalf("candidate status decode = (%q, %v), want valid=%v", state, ok, test.valid)
+			}
+		})
+	}
 }
 
 // TestAVPStatusSchemaRejectsUnknownFieldStrictness pins the accepted contract
