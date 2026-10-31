@@ -1,3 +1,21 @@
+## S5 Accepted — Complete Gate and Native Validation — 2026-10-31
+
+**Decision**: ACCEPTED at validated checkpoint
+`c42fc65a376b136976d85f3352ca336a6d249a5b`; WAVE_BASE f9d5501.
+All independent source/test/mirror findings are closed; ADR-048 Accepted.
+Mechanical gate passes8/8 checks,42/42 commands,39/39 uncached test commands
+and exact CI parity. Runtime6,760.47s, peak owned RSS7.31GiB, normal pressure,
+zero new swap-outs. All535 sampled owned identities reconciled with zero
+remaining/no cleanup signals. Source clean after; release tag unchanged.
+
+Native CI41159960598 passes all five jobs. Actual Windows legacy failures
+were compared against both accepted S4 runs; no new top-level failure found.
+No #17 closure and no unrelated reliability/migration/coverage work.
+Verified empty diffs for frozen assets/cmd/SPEC/CI/scripts/dependencies/goldens/
+AR memo-lifetime files/research/release inputs. Archive terminal CURRENT
+verbatim, preserve HISTORY prefix, commit/push and verify clean equality before
+S6 dispatch. About5h50 remain in the approved #13-only window.
+
 ## S5 Native CI Pass / Actual Windows Baseline Comparison — 2026-10-31
 
 CI41159960598 atc42fc65 succeeds on all five jobs. Linux/macOS full test shards

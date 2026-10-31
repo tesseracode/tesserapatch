@@ -2,15 +2,14 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S5 NATIVE CI PASSES; LOCAL COMPLETE GATE STILL RUNNING.**
-APPROVED denotes source approval, not S5 acceptance. Published checkpoint
-`c42fc65` has five successful native jobs; final local parity/cleanup remains.
-The last accepted boundary remains restored S4 at
-`f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
-validated, archived and pushed. S5's full gate was interrupted and native CI
-failed; there is no S5 acceptance. No S6 work or release/tag was started.
+**S5 ACCEPTED — complete independent review, full gate and native CI.**
+Validated checkpoint `c42fc65a376b136976d85f3352ca336a6d249a5b` passes all42
+commands/all39 uncached test shards with exact CI parity and zero owned
+survivors. Native CI41159960598 passes all five jobs. Earlier failed/interrupted
+attempts remain preserved as history, not the terminal result. ADR-048 accepted.
+Archive and push this closure before S6 dispatch; no release/tag is included.
 
 The operator initially authorized four hours and explicitly approved an
 eight-hour extension. Effective #13-only window: 2026-10-30 22:08:53 UTC
@@ -26,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Native CI passed; awaiting complete local39-shard gate and cleanup
+- **Status**: Complete — accepted after full local/native validation
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -34,12 +33,28 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Resume HEAD**: `1b0676cca4a926583516859ce76498ecc2db42b6`
 - **Frozen review checkpoint**: `fca0b873ac0ed891fedc67265bbba582308cb478` (all prior approvals retained)
 - **Current window deadline**: `2026-10-31T10:08:53Z` (eight-hour extension approved)
-- **Proposed decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
+- **Accepted decision**: `docs/adrs/ADR-048-candidate-artifact-lifecycle-authority.md`
 - **Operator report**: `docs/supervisor/OVERNIGHT-2026-10-29.md`
 
 WAVE_BASE = f9d5501f45e00365789eb24c53620a76513d52d5
 
 ## Session Summary
+
+S5 is accepted at validated source `c42fc65`. Gate completed at
+2026-10-31T04:19:05Z:42/42 commands,39/39 uncached test commands, exact parity,
+6,760.47s elapsed, peak sampled owned RSS7.31GiB, normal pressure and zero new
+swap-outs. All535 observed owned process identities are gone; no cleanup
+signals were needed. Validated source stayed clean; v0.17.0 is unchanged.
+
+All source findings/composition are independently closed. Test/mirror
+corrections retain their independent approvals and actual red-before/green-
+after evidence. Native CI's five jobs pass; Windows'224 allowed-failure cases
+are pre-existing against the two accepted S4 baselines, not a #17 closure.
+Frozen assets/cmd/SPEC/CI/scripts/dependencies, goldens, AR memo-lifetime files,
+research and release inputs have empty diffs against S5 WAVE_BASE.
+Only terminal tracking/ADR acceptance/archive remains before durable push.
+
+The following chronology preserves intermediate findings and attempts.
 
 Native CI41159960598 at `c42fc65` completes successfully on all five jobs:
 Linux/macOS full shards and observers, and Windows blocking surfaces.
@@ -394,22 +409,21 @@ acceptance. Only the reviewer-confirmed dispositions below are authoritative.
 
 ## Current State
 
-Implemented locally: strict artifact/state schemas and proof/identity helpers,
+Accepted: strict artifact/state schemas and proof/identity helpers,
 ephemeral boundary-proof metadata, optional omitempty status pointer, typed
 metadata/reopen APIs, feature-capability-protected artifact mutations, callable
 preflight/reject/clear/prepare/publish/reuse paths and focused guards.
-The corrected callables have independent source approval and passing basic
-checks, but **are not yet accepted**. The Windows fixture correction passes
-remote compilation/native pilot; dependent inventory corrections and fresh
-complete remote/native validation remain.
+The corrected callables, dependent intent mirror and source-inventory amendments
+have completed review/validation. Full local parity/resource/cleanup checks and
+native CI are complete; no S5 implementation findings remain.
 
 Closed by independent review: F1 rooted mutation capability, F2 verified exact
 worktree registration/namespace ownership, F5 recovery/coexistence action checks,
 F7 loaded source-state comparison, F8 classification/resolution consistency,
 F9 exact identity comparison, F10 stored-upstream reopen, F11 metadata-only
-recovery scanning. ADR-048 remains Proposed.
+recovery scanning. ADR-048 is Accepted.
 
-## Source Findings — Closed by Review; Full Validation Still Required
+## Source Findings — Closed by Review and Complete Validation
 
 | ID | Resolved source obligation | Regression/validation evidence |
 |---|---|---|
@@ -428,7 +442,9 @@ Do not broaden this task into CLI, acceptance/recovery transactions or release.
   proof metadata in alignment/derivation and finite source inventories.
 - Store optional `OperationCandidateSummary` pointer/validation/parity tests.
 - Workflow callable candidate lifecycle, tests and finite S5 scope guards.
-- Proposed ADR-048 and CURRENT/ROADMAP/LOG/overnight tracking.
+- Intent's exact dependent status mirror and its parity/runtime controls.
+- Exact reviewed CLI inventory/current-source pin amendments; no CLI production.
+- Accepted ADR-048 and CURRENT/ROADMAP/LOG/overnight tracking.
 
 No cmd/assets/SPEC/CI/scripts/dependency/research/release changes in S5.
 No new module dependency. v0.17.0 is unchanged.
@@ -463,23 +479,24 @@ No new module dependency. v0.17.0 is unchanged.
 - CI41159960598 atc42fc65: all five jobs PASS. Windows full-suite still has
   224 legacy top-level failures, each present in one of two accepted S4 runs;
   blocking Windows surfaces pass. Raw logs/comparison retained; #17 remains open.
-- Local full-gate-v3: still running; no complete-gate pass/cleanup claim yet.
+- Local full-gate-v3 atc42fc65: PASS, all8 mechanical checks,42/42 commands,
+  39/39 uncached test shards, exact command parity. Runtime6,760.47s;
+  peak owned RSS7.31GiB, pressure1 throughout, zero new swap-outs.
+  All535 sampled owned identities reconciled, zero remaining/no cleanup
+  signals. Source clean after; release tag unchanged.
 
-Evidence: `bin/roc-s5-20261030/`; final checked source:
-`bin/roc-s5-20261030/f2-corrected-source/`. Preserve all previous raw evidence.
-Passing basic checks do not override open review blockers.
+Final evidence: `bin/roc-s5-resume-20261030/full-gate-v3/evidence/` and native
+CI41159960598/raw Windows baseline comparison. Preserve all prior evidence
+under `bin/roc-s5-20261030/` and `bin/roc-s5-resume-20261030/`.
 
 ## Next Steps
 
-1. Publish the approved correction, then run fresh complete remote39-shard/
-   native CI at that exact checkpoint with the recorded S5 WAVE_BASE.
-2. Inspect actual Windows S5 results, not just allowed-failure conclusions;
-   preserve complete resource/parity/owned-process evidence.
-3. Keep source frozen during validation; a real failure stops the sequence
-   and requires a narrow fix-forward, not an unconditional retry.
-4. Accept/archive/push S5 only after complete gates; verify clean main equality.
-5. Continue sequentially within #13 while authorized; stop before #9 even if
-   time remains. Stop by the extended 2026-10-31T10:08:53Z deadline.
+1. Archive this terminal handoff byte-for-byte, commit/push S5 closure and
+   verify clean HEAD=origin/main before dependent work.
+2. Fetch/record a fresh S6 WAVE_BASE; scope phase/evidence/confirmation/shared
+   summary merging only, retaining S5's typed lifecycle authority.
+3. Continue within #13 while authorized; stop before #9 regardless of spare
+   time and by the extended2026-10-31T10:08:53Z deadline.
 
 ## Validation Policy
 
@@ -494,6 +511,10 @@ Current offload uses the path-only adaptation
 Go1.26.5. Local and remote Go workloads must not overlap. The full-gate runner
 and routing helper bytes are unchanged, with fresh caches outside the checkout.
 
+## Blockers
+
+None for S5 closure. S6 requires the durable push/clean-main boundary first.
+
 ## Context for Next Agent
 
 Only explicit file staging, required Copilot trailer, no amend/reset/clean.
@@ -505,4 +526,4 @@ all-optimal algorithm/limits and S4 payload-before-idempotency/body-lifetime gua
 ADR-048's native-OID SHA-256 fingerprint is acceptable as an integrity
 fingerprint, not SHA-256-strength hashing of tree contents.
 No Unreleased heading/frozen ADR-index churn; upstream Git-strategy research
-remains deferred. Published S5 checkpoints are validation-only, not acceptance.
+remains deferred. S5 is accepted; closure tracking must be pushed before S6.

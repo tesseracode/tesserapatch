@@ -1623,7 +1623,18 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S5 RESUMED — fixing forward; not accepted — 2026-10-30
+### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
+
+**Validated range**: `f9d5501f45e00365789eb24c53620a76513d52d5..c42fc65a376b136976d85f3352ca336a6d249a5b`.
+Independent source/test/mirror approvals complete; ADR-048 Accepted.
+Full gate passes8/8 checks,42/42 commands,39/39 uncached test shards and exact
+CI parity. Runtime6,760.47s; peak owned RSS7.31GiB, normal pressure, no new
+swap-outs,535 observed identities reconciled/zero survivors. Native CI41159960598
+passes all five jobs; Windows'224 allowed failures match accepted S4 baselines
+and do not close #17. Frozen source/asset/research/release surfaces unchanged.
+Archive/push terminal S5 tracking before recording S6's fresh wave base.
+
+The following preserves the S5 execution chronology.
 
 New four-hour authorization: 2026-10-30 22:08:53 UTC through
 2026-10-31 02:08:53 UTC. Finish S5 findings/finalization, review/full gates,
@@ -1717,11 +1728,9 @@ runs41072987684/41058918380; no new top-level failure against those baselines,
 and #17 remains open. Local full39-shard gate is still running; acceptance waits.
 
 **Reviewed production checkpoint**: `efe351fa3386383d1d1daf48c8add447c204b273`.
-**Published main** is unaccepted S5 validation checkpoint `5fd2829`; restored
-S4 `f9d5501` remains the accepted boundary. All source findings and composition
-are independently closed; basic tests/vet/build pass. Native failure requires
-test-only fixes before full replacement validation. ADR-048 Proposed.
-S6 not dispatched; exact evidence and resumption instructions are in CURRENT/LOG.
+**Validated main** is `c42fc65`, accepted after complete review/local/native
+validation. All findings and dependent mirror/provenance corrections are closed.
+ADR-048 Accepted. S6 dispatch waits only for durable S5 closure.
 
 **S5 overnight chronology**:
 

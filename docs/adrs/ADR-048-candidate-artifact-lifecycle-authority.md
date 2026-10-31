@@ -1,6 +1,6 @@
-# ADR-048 — Candidate artifact integrity and lifecycle authority (S5 draft)
+# ADR-048 — Candidate artifact integrity and lifecycle authority
 
-**Status**: Proposed (implementation draft for GH #13 S5; not accepted)  
+**Status**: Accepted — 2026-10-31, after S5 independent review and full local/native validation at `c42fc65`
 **Date**: 2026-10-30  
 **Related**: ADR-037, ADR-043, ADR-044, ADR-046, ADR-047
 
@@ -11,7 +11,7 @@ S5 introduces immutable `candidate.json`, mutable `state.json`, deterministic
 audits. The contract requires strict decode/encode, pre-execution identity, and
 integrity rechecks that never rely on mutable labels.
 
-## Proposed decisions
+## Decisions
 
 1. **Identity authority**: compute `candidate_id` from the D19 tuple only
    (including `source_feature_state`, sorted operation/effect proof hash lists).
@@ -74,7 +74,7 @@ integrity rechecks that never rely on mutable labels.
     check-attr, add and write-tree. In particular, ordered case-varying attribute
     rules cannot be inspected under a different case policy than materialization.
 
-## Non-goals in this draft
+## Non-goals
 
 - No S6 reconcile-phase wiring or shared merge integration.
 - No CLI flag wiring, acceptance transaction, recovery-resume transaction, or
