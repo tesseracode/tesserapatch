@@ -1665,6 +1665,10 @@ no local Go overlap, partial reuse or scope expansion.
 Native retry CI41187564992 atff306d6 PASS on all five jobs; Windows residuals
 are all known. Full old-Mac gate continues (command9/42 at10:10 UTC), with no
 partial reuse or guard changes. S6 acceptance remains pending.
+The old-Mac full retry also stops on resources: command12/AQ,2227 new swap-out
+pages,11/42 commands8/39 tests passed. Pressure stayed normal;747 owned identities
+exited. Source/native approvals stand but S6 remains unaccepted. Request a
+conservative runtime-memory-budget pilot or pause rather than blind retries.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

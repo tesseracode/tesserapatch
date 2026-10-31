@@ -1,3 +1,17 @@
+## S6 Old-Mac AQ Swap-Out Stop — 2026-10-31
+
+Full retryff306d6 stops at command12 (`^TestS7AQ.*$`) on2227 new system
+swap-out pages (~8.7MiB), not a test assertion. Pressure remained1. Passed
+11/42 commands and8/39 tests; runtime4,353.71s; peak owned RSS5.42GiB.
+All747 observed identities exited without cleanup signals. Source/tag unchanged;
+full evidence copied locally. No Go workload remains.
+
+Both shared hosts have now tripped existing resource guards on AQ workloads.
+Do not blindly repeat or waive safeguards. Seek approval for GOMEMLIMIT=3GiB
+as a conservative Go-runtime budget pilot on the failed shard, preserving all
+existing guards/timeouts, before another full attempt; otherwise pause with S6
+unaccepted. The approved deadline remains18:08:53Z.
+
 ## S6 Native Retry Pass / Old-Mac Gate Continuing — 2026-10-31
 
 CI41187564992 atff306d6 passes all five jobs. Raw Windows comparison finds224

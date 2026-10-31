@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S6 NATIVE RETRY PASSES; COMPLETE OLD-MAC GATE RUNNING.**
-APPROVED denotes source review only. The operator chose an eight-hour extension
-and a complete old-Mac rerun; the prior local resource failure stays recorded.
+**S6 RESOURCE-BLOCKED ON BOTH MACS; NOT ACCEPTED.**
+Source review and native CI remain approved. The full old-Mac retry stopped on
+new system swap-outs; neither interrupted full gate is counted as successful.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before this dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
@@ -22,7 +22,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Native CI passed atff306d6 — complete old-Mac gate still running
+- **Status**: Blocked — old-Mac swap-out stop; awaiting bounded-memory retry decision
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -32,6 +32,19 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+The old-Mac retry stops at command12, `^TestS7AQ.*$`, on2227 new swap-out pages
+(about8.7MiB). OS pressure stayed normal. 11/42 commands and8/39 tests passed;
+runtime4,353.71s, peak owned RSS5.42GiB. All747 sampled owned process identities
+exited without cleanup signals. Source and release tag remained unchanged.
+Complete evidence is copied locally to old-mac-ff306d6-evidence.
+
+No Go workload remains. Both hosts hit the existing resource guards on AQ work.
+Do not repeat the same full attempt blindly or loosen those guards. Proposed
+next experiment: an explicitly approved GOMEMLIMIT=3GiB runtime budget on the
+failed shard, keeping pressure/swap/admission/timeouts unchanged, followed by a
+fresh complete retry only if the pilot passes. This budget is advisory, not a
+hard process-RSS cap. Otherwise pause with S6 unaccepted. Deadline18:08:53Z.
 
 Native CI41187564992 atff306d6 passes all five jobs. Actual Windows full-suite
 output has224 top-level failures, all seen in validated S5/S6 baselines; the
@@ -304,9 +317,9 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Blockers
 
-The prior local gate remains resource-blocked. The operator-approved extension
-to18:08:53Z permits a fresh complete old-Mac retry under unchanged admission/
-runtime safeguards. S6 remains unaccepted until that retry and native CI pass.
+Both full attempts remain resource-blocked. Old-Mac AQ triggered new swap-outs
+despite normal pressure. Need operator decision on a conservative Go memory
+budget pilot or pause; no guard relaxation or partial acceptance is authorized.
 
 ## Context for Next Agent
 
