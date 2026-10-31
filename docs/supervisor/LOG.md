@@ -1,3 +1,15 @@
+## S5 Admission Recovered / Ordered-rule Red Proof — 2026-10-31
+
+The first bounded coordinator attempt qualifies after 61.8s and formatting
+passes. Old-code ordered-case regression then fails as intended: unsafe reuse
+returns nil and the hidden filter runs (`case-policy-red-after-wait`).
+No threshold change, normal pressure/no swap-outs; the coordinator stops on
+the test outcome rather than blindly retrying.
+
+Production bytes remain source-reviewed `efe351f`; only test formatting
+changed. Run corrected full affected/vet/build in a fresh checkout next.
+No S5 acceptance/publication yet; extended #13-only deadline is unchanged.
+
 ## Operator Chooses Waiting Under Existing Limits — 2026-10-31
 
 Operator explicitly selects continued waiting/retry, not a threshold change.

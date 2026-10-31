@@ -1669,6 +1669,8 @@ still gate acceptance and clean-main closure.
 Two consecutive 600s quiet-window attempts were blocked before formatting/
 tests, with normal memory pressure but load1 continuously above5. Source
 approval stands; runtime/full gates remain pending until admission is possible.
+Admission has recovered under unchanged limits. Formatting passes and the
+old ordered-filter bypass is reproduced; corrected broad validation is next.
 
 **Final code checkpoint**: `a0a747ad1536aa05b4e2379c47ccfb7aae2ff6ad`.
 **Published main** remains restored S4 `f9d5501`; S5 is intentionally local.

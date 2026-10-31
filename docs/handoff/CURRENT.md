@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S5 SOURCE IS APPROVED; VALIDATION IS RESOURCE-BLOCKED. LOCAL ONLY, NOT ACCEPTED.**
+**S5 SOURCE IS APPROVED; RESOURCE ADMISSION HAS RESUMED. LOCAL ONLY, NOT ACCEPTED.**
 The canonical APPROVED token denotes source review only, not stage acceptance.
 Published `origin/main` remains accepted/restored S4 at
 `f9d5501f45e00365789eb24c53620a76513d52d5`. S3 and S4 were fully reviewed,
@@ -25,7 +25,7 @@ unrelated migrations or broader coverage work regardless of spare time.
 - **Task ID**: `implement-operation-replay-candidate-s5`
 - **Milestone**: GH #13 / ADR-037 and ADR-043
 - **Description**: Deterministic identity, strict candidate artifacts and locked lifecycle
-- **Status**: Source review approved; two admission windows blocked before formatting/tests
+- **Status**: Source approved; formatting passed and old-code counterexample reproduced; final checks next
 - **Assigned**: 2026-10-30
 - **WAVE_BASE**: `f9d5501f45e00365789eb24c53620a76513d52d5`
 - **Contract**: accepted ADR-037/PRD rev-7, ADR-043 through ADR-047
@@ -183,6 +183,12 @@ another attempt near the approved deadline. No unrelated process is stopped.
 Active wait shell: `s5-resource-admission-wait`; coordinator:
 `bin/roc-s5-resume-20261030/wait-for-admission.py`. Its startup controls pass
 and it is responsive. The only other active helper is the extended deadline timer.
+Admission recovered without changing any limit: first coordinator attempt
+formatted successfully after 61.8s. The old-code ordered-case fixture then
+failed as intended: reuse returned nil and the hidden filter executed.
+Coordinator completed; no retry of that real test failure. Production bytes
+remain exactly source-reviewed `efe351f`; only test formatting changed.
+Run corrected full affected/vet/build next in a clean clone.
 Retained reviewer is inspecting frozen `efe351f`. Sole validation command
 `s5-shared-policy-red-retry` retries admitted formatting and the old-code
 ordered-filter counterexample; no other Go work is running. Effective deadline
