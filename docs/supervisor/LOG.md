@@ -1,3 +1,27 @@
+## S6 Budgeted Old-Mac Gate Swap-Out Stop — 2026-10-31 (recorded 2026-11-02)
+
+The third complete S6 gate (`s6-budget-full-gate`, b9d42f4, GOMEMLIMIT=3GiB, all
+guards unchanged) ran 2026-10-31T18:19:15Z to 20:37:29Z (8,293.74s) and stopped
+at command 28/42 (`internal/cli` `^TestS7ARAbandonGateTableGuard$`) on new
+system swap-outs. This is not a pass and not a test failure: 27/42 commands and
+24/39 tests passed with no assertion failure; pressure stayed 1, peak owned RSS
+was 4.20GiB, no external Go process ran, all 940 sampled owned identities
+exited, source stayed clean and the release tag is unchanged. The Swapouts
+counter was constant for the first 4,016 samples, then rose 132,210 pages
+(~516MiB) within one ~2s interval while the shard's RSS stayed ~3GiB; an
+unrelated Google Chrome launch on the old Mac (pid 20134, 13:37:17 PDT)
+coincided (process count 759 to 797, load1 3.3 to 9.0, syspolicyd CPU spike).
+
+The local session crashed during the gate. The stop was found on
+2026-11-02T22:14Z, after the authorization window (2026-11-01T02:08:53Z) had
+expired. Remote evidence was verified byte-identical to the local copy
+`bin/roc-s6-20261031/old-mac-budget-full-gate-evidence` (summary.json SHA256
+`55dd05decd76446382e35a3593a3724be5b4370be9753dca1ae2a49e2579ff69`). Only
+read-only remote inspection and the evidence copy were performed: no Go ran and
+no gate, guard or scope changed. S6 remains NOT ACCEPTED; no S7 dispatch.
+Operator decision required: fresh idle-machine retry, an approved protocol
+amendment, or acceptance on native CI plus source review.
+
 ## S6 Budgeted Checkpoint Native Pass — 2026-10-31
 
 CI41228600239 atb9d42f4 passes all five jobs. Actual Windows logs show223

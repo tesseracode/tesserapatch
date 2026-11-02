@@ -4,25 +4,29 @@
 
 **Cluster state**: APPROVED
 
-**S6 MEMORY-BUDGET PILOT PASSES; FRESH COMPLETE RETRY AUTHORIZED.**
-APPROVED denotes source review only. Neither earlier interrupted full gate is
-counted as successful; S6 still requires complete acceptance validation.
+**S6 NOT ACCEPTED: THIRD COMPLETE GATE RESOURCE-STOPPED; AUTHORIZATION EXPIRED.**
+APPROVED denotes source review only. None of the three full-gate attempts is
+counted as successful; S6 still requires one complete acceptance validation.
+The budgeted old-Mac gate at `b9d42f4` stopped at command 28/42 (27/42 commands,
+24/39 tests passed, no test assertion failed) on a swap-out burst that coincided
+with an unrelated Chrome launch on the old Mac. The stop was only observed after
+a session crash, on 2026-11-02T22:14Z. No work is authorized: the #13-only window
+ended at **2026-11-01T02:08:53Z**. Await an operator decision (see Next Steps).
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
-HEAD=origin/main was verified before this dispatch. Its terminal handoff is
+HEAD=origin/main was verified before the S6 dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
 Core phase/authority integration and all review corrections pass targeted and
-affected-package checks, vet and build. Full local/native validation remains.
+affected-package checks, vet, build and native CI. The complete local gate remains.
 
-The approved #13-only window now ends at **2026-11-01T02:08:53Z**.
-Stop after #13 or at that deadline; never start #9 in this run. No unrelated
-migration, coverage expansion, upstream-Git research or release work.
+Never start #9 in this scope. No unrelated migration, coverage expansion,
+upstream-Git research or release work.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Native CI passed atb9d42f4; full3GiB old-Mac gate still running
+- **Status**: NOT ACCEPTED. Third complete gate (b9d42f4, old Mac, 3GiB) was resource-stopped at command 28/42; authorization window expired; awaiting operator decision
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -33,11 +37,39 @@ WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
 
+**Third complete gate (budgeted old Mac) STOPPED: not a pass.**
+`s6-budget-full-gate` at `b9d42f4` (GOMEMLIMIT=3GiB, every guard unchanged) ran
+2026-10-31T18:19:15Z to 20:37:29Z (8,293.74s) and stopped at command 28/42,
+`go test -p=1 ./internal/cli -count=1 -timeout 40m -run '^TestS7ARAbandonGateTableGuard$'`,
+with "new system swap-outs observed; stopped owned workload". 27/42 top-level
+commands and 24/39 test commands passed (wave-close checks [1/8] to [7/8] OK,
+[8/8] stopped); no test assertion failed. Across 4,017 samples: pressure level 1
+throughout, minimum admission free memory 67%, peak owned RSS 4.20GiB, no
+external Go process. The Swapouts counter was constant for the first 4,016
+samples, then rose by 132,210 pages (~516MiB) between samples at 20:37:26.6Z and
+20:37:28.8Z while the stopped shard's cli.test RSS stayed flat (~3.0-3.2GiB). An
+unrelated Google Chrome launch (pid 20134, started 13:37:17 PDT) coincided with
+that interval: system process count 759 to 797, load1 3.3 to 9.0, syspolicyd CPU
+spike. The harness stopped the owned workload; all 940 sampled owned identities
+exited with no cleanup signals; source stayed clean at b9d42f4 and the release
+tag is unchanged.
+
+The local session crashed during this gate. The stop was found on
+2026-11-02T22:14Z, after the authorization window (2026-11-01T02:08:53Z) had
+expired. Only read-only remote inspection and an evidence copy were done: no Go
+ran, no gate/guard/scope changed and no new gate was started. Evidence: remote
+`.../s6-budget-full-gate/evidence`, plus the local copy
+`bin/roc-s6-20261031/old-mac-budget-full-gate-evidence` (118 entries, verified
+byte-identical; summary.json SHA256
+`55dd05decd76446382e35a3593a3724be5b4370be9753dca1ae2a49e2579ff69`).
+For comparison, attempt 2 (uncapped, 5.4GiB owned RSS) stopped on 2,227 pages
+with no process-count or load change; attempt 1 (local) stopped on pressure 1 to 2.
+
 Native CI41228600239 atb9d42f4 passes all five jobs. Raw Windows comparison
 finds223 known top-level failures and none outside validated S5/S6 baselines;
-#17 remains open. The3GiB full old-Mac gate continues: at19:24 UTC10/42
-commands (7/39 test shards) had passed, with command11 in admission. No local
-Go or later-stage work starts while this complete acceptance gate is pending.
+#17 remains open. At19:24 UTC that gate had passed10/42 commands (7/39 test
+shards); it later stopped as described above. No later-stage work starts until
+S6 is accepted.
 
 The3GiB pilot atff306d6 PASSES the formerly blocked AQ shard: CLI384.181s,
 command524.68s, admission61.20s, sampled peak owned RSS3.89GiB, pressure1
@@ -292,6 +324,11 @@ phase2 bindings and pending-pointer carry-forward regressions.
 
 ## Test Results
 
+Third complete gate (b9d42f4, old Mac, GOMEMLIMIT=3GiB): resource-stopped at
+command 28/42; 27/42 commands and 24/39 tests passed with no assertion failure
+(see Session Summary). Native CI41228600239 at the same commit passed all five
+jobs. Passed shards of the three attempts are never combined into a pass.
+
 Final approved basic sequence: all PASS, as summarized above. Evidence:
 `bin/roc-s6-20261031/approved-*`; checked source is approved-source.
 Full39-shard/native validation has not completed for S6.
@@ -344,20 +381,35 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Next Steps
 
-1. Trace accepted phase/confirmation/evidence contract and all summary writers.
-2. Implement S6 with focused regressions; preserve prior-stage/source pins.
-3. Independent review, complete admitted gate/native CI, then archive/push
-   before any S7 dispatch. Do not treat partial validation as acceptance.
-4. Stop by2026-11-01T02:08:53Z or after #13; no #9 regardless of remaining time.
+1. Implementation and independent source review (APPROVED at 2930204) are done.
+   The only open S6 acceptance item is one complete resource-guarded gate
+   (39 test commands/42 commands); native CI already passed.
+2. Await an operator decision: no authorization window is open. Options to put
+   to the operator: (a) a fresh full old-Mac retry on an idle machine with every
+   guard unchanged (needs a new window of roughly 4 hours or more; the last run
+   needed 8,294s to reach command 28); (b) an explicitly approved protocol
+   amendment, such as a resumable shard-by-shard gate; (c) acceptance on native
+   CI plus source review (deviates from the protocol; needs explicit approval).
+   Never weaken a guard, timeout or shard unilaterally.
+3. A retry needs a pushed frozen checkpoint (wave-close [3/8] requires HEAD
+   pushed) with production unchanged from b9d42f4, new source/gate/evidence
+   directories and fresh caches. Local tracking commits are ahead of origin.
+4. After acceptance: archive/push before any S7 dispatch. Never start #9 here.
 
 ## Blockers
 
-Both earlier full attempts remain resource-blocked. The3GiB pilot passes,
-authorizing a fresh full attempt under the same strict resource guards.
-No partial acceptance or work beyond the new deadline.
+All three complete gate attempts (local: pressure 1 to 2; old-Mac uncapped:
+2,227 swap-out pages; old-Mac 3GiB budget: 132,210 swap-out pages coinciding
+with an external Chrome launch) were stopped by the resource guards, none by a
+test failure. The authorization window ended 2026-11-01T02:08:53Z. No further
+gate, guard change or work is authorized until the operator decides.
 
 ## Context for Next Agent
 
+The budgeted gate is NOT running: it ended 2026-10-31T20:37:29Z. Do not wait
+for it or launch a duplicate; its evidence is final. Remote evidence lives in
+`/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s6-budget-full-gate/evidence`;
+never reuse that evidence root for a retry (the harness requires an empty one).
 Explicit file staging only, required Copilot trailer, no amend/reset/clean.
 Preserve S0 goldens and nineteen approved AR memo-lifetime insertions.
 Reviewed test-source amendments use existing CurrentSHA256, preserving baseline

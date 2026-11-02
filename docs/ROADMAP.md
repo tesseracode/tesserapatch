@@ -1679,6 +1679,13 @@ results. S6 acceptance still requires the complete gate.
 Native CI41228600239 atb9d42f4 PASS; actual Windows residuals remain known.
 The fresh3GiB old-Mac gate is still running (command11/42 at19:24 UTC).
 No source changes, partial-result reuse or S6 acceptance yet.
+That fresh 3GiB old-Mac gate is RESOURCE-STOPPED at command 28/42 (`internal/cli`
+`^TestS7ARAbandonGateTableGuard$`): 27/42 commands and 24/39 tests passed with no
+assertion failure; a 132,210-page swap-out burst coincided with an unrelated
+Chrome launch while owned RSS stayed ~3GiB. Pressure stayed normal, 940 owned
+identities exited, source/tag unchanged. The window expired 2026-11-01T02:08:53Z
+and the stop was found after a session crash on 2026-11-02. S6 remains NOT
+ACCEPTED; no S7 dispatch. An operator decision is required before any retry.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
