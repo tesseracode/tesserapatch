@@ -1,3 +1,17 @@
+## Operator Authorizes One Fresh S6 Retry on the Idle Old Mac — 2026-11-02
+
+After being told the budgeted gate stopped at command 28/42 (resource guard, not a
+test failure), the operator selected `retry-idle`: ONE fresh full gate retry
+with every guard unchanged (including the previously approved advisory
+GOMEMLIMIT=3GiB), and a 12-hour window, 2026-11-02T22:28:21Z to
+2026-11-03T10:28:21Z. #13 only; stop before #9; no unrelated work. The protocol
+amendment and acceptance-on-CI options were not selected. A further resource stop
+must be preserved and put to the operator; no blind retry or guard change.
+Frozen checkpoint is tracking-only: production source is byte-identical to the
+validated b9d42f4. Old-Mac preflight: pressure 1, load1 1.87, 73% diagnostic
+free, exact private Go1.26.5, 58GiB disk; the Chrome instance that coincided
+with the last stop is still open there, so that machine must stay idle.
+
 ## S6 Budgeted Old-Mac Gate Swap-Out Stop — 2026-10-31 (recorded 2026-11-02)
 
 The third complete S6 gate (`s6-budget-full-gate`, b9d42f4, GOMEMLIMIT=3GiB, all

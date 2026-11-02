@@ -4,29 +4,35 @@
 
 **Cluster state**: APPROVED
 
-**S6 NOT ACCEPTED: THIRD COMPLETE GATE RESOURCE-STOPPED; AUTHORIZATION EXPIRED.**
-APPROVED denotes source review only. None of the three full-gate attempts is
-counted as successful; S6 still requires one complete acceptance validation.
-The budgeted old-Mac gate at `b9d42f4` stopped at command 28/42 (27/42 commands,
-24/39 tests passed, no test assertion failed) on a swap-out burst that coincided
-with an unrelated Chrome launch on the old Mac. The stop was only observed after
-a session crash, on 2026-11-02T22:14Z. No work is authorized: the #13-only window
-ended at **2026-11-01T02:08:53Z**. Await an operator decision (see Next Steps).
+**S6 NOT ACCEPTED: FOURTH COMPLETE GATE AUTHORIZED (ONE FRESH RETRY).**
+APPROVED denotes source review only. None of the three earlier full-gate
+attempts is counted as successful; S6 still requires one complete acceptance
+validation. The third attempt (budgeted old Mac, `b9d42f4`) stopped at command
+28/42 (27/42 commands, 24/39 tests passed, no test assertion failed) on a
+swap-out burst that coincided with an unrelated Chrome launch on the old Mac.
+That stop was only observed after a session crash, on 2026-11-02T22:14Z, past
+the former window (ended 2026-11-01T02:08:53Z).
+
+On 2026-11-02T22:28:21Z the operator selected `retry-idle`: ONE fresh full gate
+retry on the old Mac, kept idle, every guard unchanged (including the advisory
+GOMEMLIMIT=3GiB budget the operator approved earlier), no partial-result reuse.
+The new #13-only window ends **2026-11-03T10:28:21Z**. A second resource stop
+means: preserve evidence and ask; never retry blindly or loosen a guard.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before the S6 dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
 Core phase/authority integration and all review corrections pass targeted and
 affected-package checks, vet, build and native CI. The complete local gate remains.
 
-Never start #9 in this scope. No unrelated migration, coverage expansion,
-upstream-Git research or release work.
+Stop after #13 or at the deadline; never start #9 in this scope. No unrelated
+migration, coverage expansion, upstream-Git research or release work.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: NOT ACCEPTED. Third complete gate (b9d42f4, old Mac, 3GiB) was resource-stopped at command 28/42; authorization window expired; awaiting operator decision
+- **Status**: NOT ACCEPTED. Fourth complete gate (fresh old-Mac retry) authorized 2026-11-02T22:28:21Z, window to 2026-11-03T10:28:21Z; frozen checkpoint then retry
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -36,6 +42,18 @@ upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+Operator selected `retry-idle` with a 12-hour window (2026-11-02T22:28:21Z to
+2026-11-03T10:28:21Z). Plan: publish a tracking-only frozen checkpoint whose
+production source is byte-identical to the validated b9d42f4 (only the three
+tracking docs differ), then run ONE fresh complete gate from new source/gate/
+evidence directories with fresh caches, the unchanged harness hashes and nine
+routing controls, and an exact-tip native CI watcher. No local Go overlaps.
+Old-Mac preflight at 22:28Z: pressure 1, load1 1.87, 73% diagnostic free, swap
+used 633MiB, exact private Go1.26.5, 58GiB free disk, no gate/Go processes. An
+external factor remains: the Chrome instance (pid 20134, running since the
+2026-10-31 13:37 PDT launch that coincided with the last stop, ~2GB across its
+processes) is still open on the old Mac; keep that machine idle during the run.
 
 **Third complete gate (budgeted old Mac) STOPPED: not a pass.**
 `s6-budget-full-gate` at `b9d42f4` (GOMEMLIMIT=3GiB, every guard unchanged) ran
@@ -383,26 +401,27 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 1. Implementation and independent source review (APPROVED at 2930204) are done.
    The only open S6 acceptance item is one complete resource-guarded gate
-   (39 test commands/42 commands); native CI already passed.
-2. Await an operator decision: no authorization window is open. Options to put
-   to the operator: (a) a fresh full old-Mac retry on an idle machine with every
-   guard unchanged (needs a new window of roughly 4 hours or more; the last run
-   needed 8,294s to reach command 28); (b) an explicitly approved protocol
-   amendment, such as a resumable shard-by-shard gate; (c) acceptance on native
-   CI plus source review (deviates from the protocol; needs explicit approval).
-   Never weaken a guard, timeout or shard unilaterally.
-3. A retry needs a pushed frozen checkpoint (wave-close [3/8] requires HEAD
-   pushed) with production unchanged from b9d42f4, new source/gate/evidence
-   directories and fresh caches. Local tracking commits are ahead of origin.
-4. After acceptance: archive/push before any S7 dispatch. Never start #9 here.
+   (39 test commands/42 commands); native CI already passed at b9d42f4.
+2. Operator selected a fresh full old-Mac retry on an idle machine, every guard
+   unchanged (window to 2026-11-03T10:28:21Z). Publish the frozen tracking-only
+   checkpoint (wave-close [3/8] requires HEAD pushed), create new source/gate/
+   evidence directories with fresh caches, verify harness hashes and the nine
+   routing controls, run the gate and an exact-tip native CI watcher. Do not
+   push anything else until both finish. Never weaken a guard, timeout or shard.
+3. If the gate passes completely (42/42 commands, 39/39 tests, exact parity,
+   zero swap-outs, all owned identities gone): accept ADR-049, archive terminal
+   CURRENT to HISTORY byte-for-byte, push the close and verify clean main. Only
+   then may S7 start, within the window, never #9.
+4. If it stops on a resource guard again: preserve evidence, record it, and ask
+   the operator; do not retry blindly.
 
 ## Blockers
 
-All three complete gate attempts (local: pressure 1 to 2; old-Mac uncapped:
-2,227 swap-out pages; old-Mac 3GiB budget: 132,210 swap-out pages coinciding
-with an external Chrome launch) were stopped by the resource guards, none by a
-test failure. The authorization window ended 2026-11-01T02:08:53Z. No further
-gate, guard change or work is authorized until the operator decides.
+All three earlier complete gate attempts (local: pressure 1 to 2; old-Mac
+uncapped: 2,227 swap-out pages; old-Mac 3GiB budget: 132,210 swap-out pages
+coinciding with an external Chrome launch) were stopped by the resource guards,
+none by a test failure. One fresh retry is authorized until
+2026-11-03T10:28:21Z; a further resource stop needs a new operator decision.
 
 ## Context for Next Agent
 

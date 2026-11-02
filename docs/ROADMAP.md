@@ -1686,6 +1686,9 @@ Chrome launch while owned RSS stayed ~3GiB. Pressure stayed normal, 940 owned
 identities exited, source/tag unchanged. The window expired 2026-11-01T02:08:53Z
 and the stop was found after a session crash on 2026-11-02. S6 remains NOT
 ACCEPTED; no S7 dispatch. An operator decision is required before any retry.
+Operator then selected one fresh full old-Mac retry on an idle machine, all guards
+unchanged, window 2026-11-02T22:28:21Z to 2026-11-03T10:28:21Z. The frozen
+checkpoint is tracking-only; a further resource stop is preserved and asked, not retried.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
