@@ -1723,6 +1723,11 @@ The 34-file snapshot has exactly seven authorized deltas. Guarded formatting
 and routing controls pass; targeted soak/regressions, Windows cross-compilation
 and independent re-review/runtime-coverage audit are dispatched. Cross-
 compilation cannot replace native Windows execution.
+Rev-5 source is independently APPROVED, including the Windows identity and
+no-blanket-skip audit. Runtime then fails in the new legacy-resolver fixture:
+missing `artifacts/post-apply.patch`. Workflow controls pass; the serial batch
+stops before Windows compilation/vet/build. A bounded fixture correction and
+re-review are required. Native verbose coverage evidence is still unresolved.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-5 formatted; guarded checks and independent re-review dispatched
+- **Status**: In progress — rev-5 CLI fixture failed after source approval; bounded correction required
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -203,6 +203,21 @@ after local frozen-hash checks. The same reviewer is rechecking those deltas
 and auditing actual Windows runtime coverage. The serial targeted batch
 includes the real downstream soak, Windows test-binary compilation, vet and
 build. Cross-compilation is not native runtime proof.
+Final rev-5 source verdict is **APPROVED**. The reviewer confirmed legacy
+resolver compatibility, actual candidate-lock authority, native held-root
+identity binding, complete snapshots and the bounded S8 scope admission.
+On Windows, all 18 acceptance tests, 19 recovery-file tests, eight CLI tests
+and persisted-identity test run without a blanket platform skip. Dedicated
+Windows synchronization controls exercise successful flushes and genuine
+identity rejection. Symlink cases can skip when symlink creation is unavailable;
+mode checks use native read-only semantics, not Unix executable permissions.
+The existing nonverbose allowed-failure Windows step cannot identify these
+skips. Job status or unchanged failure counts alone are not native acceptance
+evidence; explicit native execution/coverage evidence is still required.
+Rev-5 runtime then stopped in the new legacy-resolver CLI regression:
+its fixture lacks `artifacts/post-apply.patch`, so acceptance exits before
+the intended success assertion. Correct the fixture using the real legacy
+artifact contract; do not make production accept missing artifacts.
 
 ## Current State
 
@@ -374,6 +389,11 @@ downstream soak, Windows workflow test-binary compilation, vet and build.
 Stop at the first failure. Native Windows execution and the complete fresh
 gate remain required; no unchanged package is rerun merely to duplicate
 the prior diagnostic batch.
+Rev-5 workflow controls PASS (1.236s). CLI FAILS after 54.743s in
+`TestROCS8CLIResolverAcceptDoesNotCreateCandidateLocks`
+(`operation_candidate_s8_test.go:253`), missing `artifacts/post-apply.patch`.
+The batch stops before Windows cross-compilation, vet or build. The actual
+cumulative soak is not established by this failed CLI invocation.
 
 ## Validation Policy
 
@@ -402,8 +422,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Finish guarded rev-5 checks, including the actual cumulative soak, and
-   independent re-review with an explicit native-runtime coverage audit.
+1. Correct the rev-5 legacy-resolver fixture, re-review and run fresh guarded
+   checks including the actual cumulative soak. Preserve failed evidence.
 2. Push a source-approved fix-forward checkpoint for fresh native CI.
    No timeout/partition/memo-policy change is authorized to manufacture green.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive

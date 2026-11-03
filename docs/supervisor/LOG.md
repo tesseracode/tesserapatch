@@ -1,3 +1,38 @@
+## S8 Rev-5 Runtime Fixture Failure — 2026-11-03
+
+The focused workflow controls pass (1.236s). The next CLI command fails after
+54.743s in new `TestROCS8CLIResolverAcceptDoesNotCreateCandidateLocks` at
+`operation_candidate_s8_test.go:253`: legacy acceptance cannot read the
+fixture's missing `artifacts/post-apply.patch`. The serial batch stops there;
+the cumulative soak, Windows compilation, vet and build are not established
+by this run. Preserve rev-5 evidence and diagnose the fixture rather than
+weakening legacy acceptance or bypassing the required artifact.
+
+**Decision**: source approval below is not runtime acceptance. A bounded
+fixture correction and subsequent independent re-review are required.
+
+## Review — GH #13 S8 rev-5 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — current rev-5 source only
+
+All 34 files match the frozen manifest. The seven deltas preserve resolver
+compatibility, actual candidate-lock authority, held-root native identity,
+complete before-acquire/after-release snapshots and historical scope sets.
+Prior closures stand.
+
+Windows audit: 18 acceptance tests, 19 recovery-file tests, eight CLI tests
+and persisted-identity coverage have no blanket Windows skip. The dedicated
+Windows synchronization test requires both successful native flushes and
+real identity rejection through the production-used helper. Symlink cases
+can skip when unavailable; mode assertions use native read-only semantics.
+The existing nonverbose allowed-failure step hides those skips. A green job
+or unchanged failure count alone is insufficient native acceptance evidence.
+
+**Action**: finish runtime corrections, preserve explicit native-coverage
+limitations, and require fresh native evidence plus the complete gate.
+Cross-compilation and the controlled-host AQ pass do not waive either.
+
 ## S8 Rev-5 Guarded Checks and Independent Re-review Dispatched — 2026-11-03
 
 The 34-file source/ADR snapshot contains exactly seven authorized deltas
