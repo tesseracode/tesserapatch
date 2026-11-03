@@ -2,12 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S8 REVIEWED CHECKPOINT — native CI and complete gate pending.**
-The canonical APPROVED token refers to the source-reviewed validation
-checkpoint, not S8 acceptance. Do not close the wave or accept ADR-051 until
-native evidence and the fresh complete gate pass.
+**S8 REV-5 IN PROGRESS — native CI exposed additional regressions.**
+The published cba4423 checkpoint is not accepted. The prepared complete
+gate has not run; fix forward and obtain fresh review/native evidence first.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -24,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Validation — reviewed checkpoint cba4423 pushed; native CI running, complete gate prepared but not started
+- **Status**: In progress — repairing native CI lock-path/fixture failures and investigating the AQ observer timeout
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -177,6 +176,20 @@ empty evidence/caches. The nine Python routing controls initially had a
 wrong-CWD setup error before creating fixtures or running Go; rerunning the
 unchanged controls from the prepared source passed all nine. No full gate
 has started, and no guard was altered.
+Native CI 41718498683 finished **FAILED**. Linux and macOS both fail the
+existing cumulative downstream soak because ordinary reconciliation leaves
+`.tpatch/locks/reconcile/maintained-route.lock`, which later `land` refuses.
+Windows reports success only because its full-suite step is allowed-failure:
+actual failures rise from 224 to 226, adding two S8 fixture failures (held
+directory rename denied; reading an actively locked file denied). The
+existing single panic is unchanged. macOS AQ registration observation also
+times out; the Linux observer job passes. Do not label that timeout flaky or
+raise/skip its checks without diagnosis.
+
+Rev-5 is bounded to the remaining ordinary-path lock side effect and genuine
+Windows controls, with read-only AQ diagnosis before any extra scope. Keep
+lock/journal/land guards intact, preserve all logs, and obtain new independent
+approval. The old prepared cba4423 gate/source remain untouched and unrun.
 
 ## Current State
 
@@ -312,6 +325,18 @@ All remote/local stage hashes match; `blocked.json` is absent and owned
 commands are gone. Evidence remains under `s8-validation/rev4` and
 `bin/roc-s8-20261103/rev4-evidence/evidence`.
 No native Windows result or complete S8 gate result exists yet.
+At cba4423, native formatting/vet/build pass on all three OSes, but native
+runtime does not. Linux/macOS:
+`TestRGAS6CumulativeDownstreamSoak` fails at
+`recipe_authority_s6_soak_test.go:321` on the persistent reconcile lock path.
+Windows adds `TestROCS8WindowsDirectoryFlushRejectsReplacedPath`
+(`operation_candidate_recovery_test.go:57`, rename denied before sync) and
+`TestROCS8JournalProbeDoesNotReplaceHeldRecheck`
+(`operation_candidate_recovery_test.go:522`, locked-file read denied).
+All 224 baseline Windows failures and its known panic remain.
+macOS observer `TestS7ObservedAQRegistrationAuthority` times out at 510.67s:
+PIB-487 started without PASS, PIB-498 never ran. Preserve and diagnose.
+Logs/comparison live under ignored `bin/roc-s8-20261103/s8-cba4423-*`.
 
 ## Validation Policy
 
@@ -340,18 +365,19 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Await native CI 41718498683 at frozen cba4423; compare Windows job
-   126205486285's actual failures/panics/native S8 behavior with the baseline.
-2. If native evidence is satisfactory, start the prepared fresh full gate
-   with unchanged guards and enough time before the deadline.
+1. Fix the remaining ordinary reconcile lock-path regression and Windows
+   fixture assumptions without weakening production guards or native proof.
+2. Diagnose the AQ observer timeout; no timeout/partition/memo-policy change
+   is authorized merely to manufacture green. Review and validate rev-5.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-Source review and affected checks pass. Native Windows verification and the
-fresh complete gate still block acceptance; ADR-051 remains Proposed.
+Native CI fails on the ordinary lock-path regression, two Windows fixture
+assumptions and the macOS AQ observer timeout. Fresh source approval/native
+evidence and a complete gate are still required; ADR-051 remains Proposed.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

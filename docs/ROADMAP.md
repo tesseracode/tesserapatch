@@ -1707,6 +1707,11 @@ running; Windows formatting/vet/build pass, runtime not yet verified.
 Fresh full-history source/harness and empty gate caches/evidence are ready.
 Tracking-only progress commits stay local while the tested origin tip is
 frozen, then push with closure before another wave. No S8 acceptance yet.
+Native CI 41718498683 FAILED: Linux/macOS downstream soak detects a reconcile
+lock file later refused by land; Windows actual failures are 226 versus the
+224 baseline (two new S8 fixture assumptions), despite the green job;
+macOS AQ observer times out while Linux observers pass. Rev-5 is scoped to
+the lock-path/native controls and bounded AQ diagnosis. Full gate not started.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

@@ -1,3 +1,33 @@
+## S8 Native CI Failed; rev-5 Required Before Full Gate — 2026-11-03
+
+CI **41718498683**, exact source **cba4423**, failed. All platform formatting/
+vet/build steps passed, but:
+
+1. Linux/macOS `TestRGAS6CumulativeDownstreamSoak` fails at
+   `recipe_authority_s6_soak_test.go:321`: land rejects the new persistent
+   `.tpatch/locks/reconcile/maintained-route.lock` left by ordinary reconciliation.
+2. Windows' allowed-failure full suite has **226** top-level failures versus
+   **224** baseline, with the same known panic and no removed failures.
+   `TestROCS8WindowsDirectoryFlushRejectsReplacedPath:57` cannot rename a
+   directory held open on Windows, before calling sync;
+   `TestROCS8JournalProbeDoesNotReplaceHeldRecheck:522` reads an actively
+   Windows-locked file. The green job is not S8 native approval.
+3. macOS `TestS7ObservedAQRegistrationAuthority` times out after 510.67s:
+   PIB-487 RUN=1/PASS=0 and PIB-498 never RUN. Linux observers pass.
+   Do not assume flakiness or change budgets without diagnosis.
+
+Full logs and the Windows comparison are retained under local ignored
+`bin/roc-s8-20261103/s8-cba4423-*`. The prepared cba4423 full gate remains
+unrun, with no cache/evidence started.
+
+**Decision**: return the ordinary lock-path regression and meaningful Windows
+fixture correction to the sole implementer; request bounded read-only AQ
+diagnosis before any extra scope. No ignore/land relaxation, lock deletion,
+blanket Windows skip, CI/timeout/partition change or memo-policy rewrite.
+Obtain independent re-approval and fresh native CI on a fix-forward checkpoint.
+Tracking is committed locally and will push with that checkpoint; no failed
+source-only rerun is dispatched merely by pushing bookkeeping.
+
 ## S8 cba4423 Published; Native CI Running and Full Gate Prepared — 2026-11-03
 
 Reviewed checkpoint `cba4423ecacc6caec7addc12641e228835072ee0` is pushed.
