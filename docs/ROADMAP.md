@@ -1689,6 +1689,9 @@ ACCEPTED; no S7 dispatch. An operator decision is required before any retry.
 Operator then selected one fresh full old-Mac retry on an idle machine, all guards
 unchanged, window 2026-11-02T22:28:21Z to 2026-11-03T10:28:21Z. The frozen
 checkpoint is tracking-only; a further resource stop is preserved and asked, not retried.
+That retry was launched 2026-11-03T00:32:56Z at pushed checkpoint ee96551 (native CI
+passed there) after the operator approved quitting the resident Chrome; it is
+RUNNING, not a result, and S6 remains NOT ACCEPTED.
 
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 

@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S6 NOT ACCEPTED: FOURTH COMPLETE GATE AUTHORIZED (ONE FRESH RETRY).**
+**S6 NOT ACCEPTED: FOURTH COMPLETE GATE RUNNING (ONE FRESH RETRY).**
 APPROVED denotes source review only. None of the three earlier full-gate
 attempts is counted as successful; S6 still requires one complete acceptance
 validation. The third attempt (budgeted old Mac, `b9d42f4`) stopped at command
@@ -18,6 +18,9 @@ retry on the old Mac, kept idle, every guard unchanged (including the advisory
 GOMEMLIMIT=3GiB budget the operator approved earlier), no partial-result reuse.
 The new #13-only window ends **2026-11-03T10:28:21Z**. A second resource stop
 means: preserve evidence and ask; never retry blindly or loosen a guard.
+The retry was launched 2026-11-03T00:32:56Z at the pushed tracking-only
+checkpoint `ee965514ee155bc74c383e53bb01cb4c8a83b06e` (see Session Summary);
+nothing else may be pushed until it and its exact-tip native CI finish.
 S5 closed at `62698be412fb7e9a3e723d2589d6091b8eae3e5f`; clean
 HEAD=origin/main was verified before the S6 dispatch. Its terminal handoff is
 archived byte-for-byte in HISTORY under 2026-10-31T04:19:05Z.
@@ -32,7 +35,7 @@ migration, coverage expansion, upstream-Git research or release work.
 - **Task ID**: `implement-operation-replay-candidate-s6`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
 - **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: NOT ACCEPTED. Fourth complete gate (fresh old-Mac retry) authorized 2026-11-02T22:28:21Z, window to 2026-11-03T10:28:21Z; frozen checkpoint then retry
+- **Status**: NOT ACCEPTED. Fourth complete gate (fresh old-Mac retry) RUNNING since 2026-11-03T00:32:56Z at ee96551; authorized 2026-11-02T22:28:21Z, window to 2026-11-03T10:28:21Z
 - **Assigned**: 2026-10-31
 - **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
@@ -42,6 +45,37 @@ migration, coverage expansion, upstream-Git research or release work.
 WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
 
 ## Session Summary
+
+**Fourth complete gate LAUNCHED 2026-11-03T00:32:56Z (not yet a result).**
+Frozen checkpoint `ee965514ee155bc74c383e53bb01cb4c8a83b06e` was pushed
+(origin/main verified equal; 31 commits in WAVE_BASE..HEAD, every one carrying
+the Copilot trailer; `git diff --name-only b9d42f4 HEAD` lists only docs, so
+production is byte-identical to the validated b9d42f4). Native CI run
+41537751705 at this exact tip completed with every job `success`; the Windows
+full suite is continue-on-error and owned by GH #17, so its actual log is
+still to be compared (known 223/224 failures) rather than called green.
+Deployment on the old Mac, all new paths under
+`/Users/jbencardino/tpatch-validation-s5-fBIN5H09`: full-history clone
+`s6-idle-source` from the real GitHub origin, detached at the checkpoint, clean,
+with an empty `bin/`; gate dir `s6-idle-full-gate` with a new empty evidence
+directory and fresh private caches. Harness bytes are unchanged from
+`bin/roc-s6-20261031/full-gate/` (run-gate.py b5c646b7, gate-tool.py and both
+wrappers 6b95024c, gate-tool-test.py aee2d174, wave-close-test-shards.sh
+ae228c32, profile-validation.py 6e7c43e8 all verified remotely) and the nine
+routing controls passed remotely. Only config.json (new repo paths, head and
+nonce `roc-s6-idle-full-ee96551-20261102`) and the informational
+environment.json differ; WAVE_BASE stays `62698be4`, GOMEMLIMIT=3GiB, no guard
+changed. The resident Chrome (pid 20134, 21 processes, ~2.7GiB) was a known
+risk, so the operator was asked and approved quitting it; at
+2026-11-03T00:31:46Z it received one SIGTERM (that pid only), exited in ~2s and
+all 21 related processes were gone. Readiness at 00:32:21Z: pressure 1, load1
+1.62, 78% diagnostic free (2.7GiB of free pages, up from 332MiB with Chrome),
+swap used unchanged at 632.75MiB, no Go processes, source clean, evidence
+absent. The harness (pid 18465, started in its own session via setsid so a
+local crash cannot signal it; output in `launcher.log`/`launcher.pid` beside
+the gate dir contents, outside the evidence directory) is the only gate. A
+local waiter and the 10:28:21Z deadline timer are attached. The local session
+then ran no Go and pushed nothing.
 
 Operator selected `retry-idle` with a 12-hour window (2026-11-02T22:28:21Z to
 2026-11-03T10:28:21Z). Plan: publish a tracking-only frozen checkpoint whose
@@ -402,12 +436,13 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 1. Implementation and independent source review (APPROVED at 2930204) are done.
    The only open S6 acceptance item is one complete resource-guarded gate
    (39 test commands/42 commands); native CI already passed at b9d42f4.
-2. Operator selected a fresh full old-Mac retry on an idle machine, every guard
-   unchanged (window to 2026-11-03T10:28:21Z). Publish the frozen tracking-only
-   checkpoint (wave-close [3/8] requires HEAD pushed), create new source/gate/
-   evidence directories with fresh caches, verify harness hashes and the nine
-   routing controls, run the gate and an exact-tip native CI watcher. Do not
-   push anything else until both finish. Never weaken a guard, timeout or shard.
+2. DONE: the frozen checkpoint ee96551 is pushed, its native CI passed and the
+   fresh old-Mac gate (harness pid 18465, started 2026-11-03T00:32:56Z) is
+   RUNNING with every guard unchanged (window to 2026-11-03T10:28:21Z; a full
+   run is expected to take about 4 to 4.5 hours). Wait for the harness to exit;
+   do not poll. Do not push anything else and run no local Go until it
+   finishes. Never weaken a guard, timeout or shard. Meanwhile compare the real
+   Windows log of CI run 41537751705 against the known 223/224 failures.
 3. If the gate passes completely (42/42 commands, 39/39 tests, exact parity,
    zero swap-outs, all owned identities gone): accept ADR-049, archive terminal
    CURRENT to HISTORY byte-for-byte, push the close and verify clean main. Only
@@ -425,8 +460,12 @@ none by a test failure. One fresh retry is authorized until
 
 ## Context for Next Agent
 
-The budgeted gate is NOT running: it ended 2026-10-31T20:37:29Z. Do not wait
-for it or launch a duplicate; its evidence is final. Remote evidence lives in
+The FOURTH gate is running: harness pid 18465 (started 2026-11-03T00:32:56Z,
+own session) with evidence in
+`/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s6-idle-full-gate/evidence`.
+Never launch a duplicate; after any disconnect inspect that pid and its
+`blocked.json`/`summary.json` first. The older budgeted gate is NOT running: it
+ended 2026-10-31T20:37:29Z. Do not wait for it; its evidence is final. Remote evidence lives in
 `/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s6-budget-full-gate/evidence`;
 never reuse that evidence root for a retry (the harness requires an empty one).
 Explicit file staging only, required Copilot trailer, no amend/reset/clean.

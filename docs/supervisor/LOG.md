@@ -1,3 +1,26 @@
+## S6 Fourth Complete Gate Launched (Fresh Retry, Idle Old Mac) — 2026-11-03
+
+Launched 2026-11-03T00:32:56Z; this is a launch record, NOT a result, and S6 is
+still NOT ACCEPTED. Checkpoint `ee965514ee155bc74c383e53bb01cb4c8a83b06e`
+(tracking-only over the validated b9d42f4; 31 commits in WAVE_BASE..HEAD all
+carry the trailer; native CI 41537751705 passed every job at this exact tip, the
+Windows suite being continue-on-error and owned by GH #17). Fresh full-history
+clone and a new empty evidence directory on the old Mac, unchanged harness bytes
+verified by SHA256, nine routing controls passed remotely, GOMEMLIMIT=3GiB, no
+guard changed, WAVE_BASE 62698be4. The harness (pid 18465) runs in its own
+session so a local crash cannot signal it.
+
+Decision recorded: the resident Chrome on the old Mac (pid 20134, 21
+processes, ~2.7GiB, same instance whose launch coincided with the previous
+swap-out stop) was a known risk, so the operator was asked and chose
+`quit-for-me`. One SIGTERM was sent to pid 20134 only at 2026-11-03T00:31:46Z;
+it exited in about 2s with all 21 related processes gone. Readiness at
+00:32:21Z: pressure 1, load1 1.62, 78% diagnostic free, swap used unchanged,
+no Go processes. Rules in force: a second resource stop is preserved and put to
+the operator (no blind retry, no guard change, no combining partial passes);
+deadline 2026-11-03T10:28:21Z; #13 only, never #9; nothing else is pushed while
+the gate and its tip are in flight.
+
 ## Operator Authorizes One Fresh S6 Retry on the Idle Old Mac — 2026-11-02
 
 After being told the budgeted gate stopped at command 28/42 (resource guard, not a
