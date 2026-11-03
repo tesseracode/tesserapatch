@@ -1667,6 +1667,11 @@ are running. No acceptance yet.
 Final rev-2 source verdict is APPROVED; the local fixture repair closes the
 remaining finding without weakening the Git-state oracle. Runtime/native
 Windows/full-gate validation still blocks acceptance.
+Rev-2 affected workflow validation stopped after 811.890s in the existing
+S7 pure-generator privacy guard: its source type-checker includes mutually
+exclusive S8 platform files. Rev-3 is bounded to the affected test-only
+platform selection and mutation controls, without weakening privacy or
+provenance checks. No resource stop; follow-on commands remain unrun.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

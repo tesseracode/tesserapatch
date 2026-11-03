@@ -4,7 +4,7 @@
 
 **Cluster state**: IN PROGRESS
 
-**S8 REV-2 SOURCE APPROVED — runtime validation in progress.**
+**S8 REV-3 IN PROGRESS — affected source-analyzer regression.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Validation — rev-2 source approved; guarded affected checks running
+- **Status**: In progress — repairing the affected workflow analyzer's platform-file selection
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -104,6 +104,14 @@ Final rev-2 verdict is **APPROVED — current source**. The reviewer verified
 the fixture repair, retained all four prior closures and reaffirmed that the
 raw live-Git oracle is stronger. This is source approval only: runtime,
 native Windows and complete-gate evidence remain required before acceptance.
+The rev-2 full workflow run reached an existing S7 privacy/source guard and
+failed after 811.890s. Its type-checker includes both sides of the new S8
+platform splits, producing duplicate declarations and undefined Windows
+syscalls on macOS. This is a directly coupled analyzer regression, not a
+production compiler or resource failure. Rev-3 may update the affected
+test-only source selection and mutation controls, preserving all actual
+privacy assertions and any frozen provenance fields. No production behavior
+change or platform skip is authorized by this diagnosis.
 
 ## Current State
 
@@ -197,6 +205,16 @@ Fresh full workflow, focused CLI S7/S8/reconcile, full candidate/lock, vet and
 build commands run serially with stop-first-failure in `s8-validation/rev2`,
 against a clean full-history base plus the exact frozen source overlay.
 No runtime result yet; previous partial results are not acceptance evidence.
+Rev-2 subsequently failed at
+`TestS7PIB420PureGeneratorRetryConstructionGuardAndWrongInput`
+(`s7_an_privacy_test.go:351`): duplicate `operationCandidateSyncDirectory`
+and `operationCandidateReadFlags` declarations plus undefined Windows syscalls
+show that the source type-check includes mutually exclusive platform files.
+The workflow command stopped after 811.890s; CLI/candidate/lock/vet/build
+remain unrun. Pressure was normal and new swap-outs zero. Failed evidence
+and marker remain in `s8-validation/rev2`, mirrored locally; matching
+`03-go.json` SHA256:
+`6c10d3e9b7c8f57a508d7d5d773de9fd9ef9ee029ccaa57774945d438dcd16aa`.
 
 ## Validation Policy
 
@@ -225,18 +243,20 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep source-approved rev-2 frozen while affected checks, vet and build run.
-2. If a runtime defect requires changes, return it to the sole implementer and
-   obtain explicit independent re-approval before acceptance.
+1. Repair the directly affected test-only platform-file selection without
+   weakening privacy/totality assertions or frozen provenance; freeze rev-3.
+2. Obtain explicit independent re-approval and fresh guarded affected checks,
+   vet and build before the complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-The generation-contract decision and final rev-2 source are approved.
-Affected runtime checks, native Windows verification and the fresh complete
-gate still block acceptance; no unresolved source-review finding remains.
+Rev-2 source approval did not establish runtime compatibility. The existing
+workflow analyzer must handle the new platform file splits correctly and
+receive fresh review. Remaining affected checks, native Windows verification
+and the complete gate still block acceptance.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

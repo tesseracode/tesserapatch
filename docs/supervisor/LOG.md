@@ -1,3 +1,26 @@
+## S8 Rev-2 Runtime Regression; Bounded rev-3 Dispatch — 2026-11-03
+
+The full affected workflow command stopped after 811.890s at
+`TestS7PIB420PureGeneratorRetryConstructionGuardAndWrongInput`
+(`s7_an_privacy_test.go:351`). The test-only source type-check includes both
+Windows/non-Windows sync helpers and Unix/other read-flag helpers, yielding
+duplicate declarations and undefined Windows syscalls on macOS. This is a
+direct dependency of S8's new platform files, not a Go compiler or resource
+failure. Pressure was normal, zero new swap-outs, and owned commands ended.
+No CLI/candidate/lock/vet/build followed.
+
+The full failed evidence is retained in remote `s8-validation/rev2` and its
+local mirror. Matching `03-go.json` SHA256:
+`6c10d3e9b7c8f57a508d7d5d773de9fd9ef9ee029ccaa57774945d438dcd16aa`.
+
+**Decision**: permit the sole implementer a narrowly scoped test-only analyzer
+repair plus mutation-sensitive controls. Keep the actual S7 privacy/totality
+assertions and source provenance binding; any necessary provenance amendment
+must use the existing CurrentSHA256 mechanism, never rewriting baseline
+SHA256/History/FreezeCurrent. Do not paper over this with skips, swallowed
+type errors or a production behavior change. Re-review the revision before
+acceptance. Rev-2's source-only approval remains historical, not runtime proof.
+
 ## Review — GH #13 S8 rev-2 — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
