@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Validation — rev-4 source and guarded affected checks pass; publishing checkpoint for CI/full gate
+- **Status**: Validation — reviewed checkpoint cba4423 pushed; native CI running, complete gate prepared but not started
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -161,6 +161,22 @@ packages, vet and CLI build. All stages retained normal pressure and zero
 new swap-outs; no failure marker or owned command remains. The exact 33
 reviewed source/ADR files are byte-unchanged. Publish this checkpoint with
 explicit staging, then verify exact-tip native CI before the complete gate.
+Reviewed checkpoint **`cba4423ecacc6caec7addc12641e228835072ee0`** is pushed.
+All 36 staged source/ADR/tracking paths were explicit and verified; the
+trailer parses, HEAD equaled origin/main, the tree was clean and v0.17.0
+unchanged. Exact-tip native CI is **41718498683**; Windows job
+**126205486285** has passed formatting/vet/build but runtime remains pending.
+Keep origin/main frozen at this checkpoint during CI/gate. Tracking-only
+progress commits may remain local until closure so they do not cancel the
+exact-tip CI or advance the gate's origin check; push them with the closure
+before any future wave. No production changes are authorized without review.
+
+The old Mac's fresh `s8-final-source` and `s8-full-gate` are prepared at this
+checkpoint, with byte-identical accepted harness/profile/shard scripts and
+empty evidence/caches. The nine Python routing controls initially had a
+wrong-CWD setup error before creating fixtures or running Go; rerunning the
+unchanged controls from the prepared source passed all nine. No full gate
+has started, and no guard was altered.
 
 ## Current State
 
@@ -324,10 +340,10 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Commit/push the exact reviewed and checked snapshot with explicit paths;
-   preserve v0.17.0, frozen surfaces and all failed-run evidence.
-2. Verify exact-tip native CI, including actual Windows S8 failures versus
-   the saved baseline, then freeze that tip for the fresh complete gate.
+1. Await native CI 41718498683 at frozen cba4423; compare Windows job
+   126205486285's actual failures/panics/native S8 behavior with the baseline.
+2. If native evidence is satisfactory, start the prepared fresh full gate
+   with unchanged guards and enough time before the deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

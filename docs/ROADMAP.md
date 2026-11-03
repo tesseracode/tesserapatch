@@ -1702,6 +1702,11 @@ Rev-4 guarded batch PASSED all seven commands: formatting, changed-probe
 workflow, affected CLI, full candidate/lock, vet and build. Normal pressure,
 zero new swap-outs, frozen source unchanged. Publish the reviewed checkpoint
 for exact-tip native CI and the fresh complete gate; S8/ADR-051 not accepted yet.
+Reviewed checkpoint `cba4423` is pushed and frozen. Native CI 41718498683 is
+running; Windows formatting/vet/build pass, runtime not yet verified.
+Fresh full-history source/harness and empty gate caches/evidence are ready.
+Tracking-only progress commits stay local while the tested origin tip is
+frozen, then push with closure before another wave. No S8 acceptance yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

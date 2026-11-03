@@ -1,3 +1,22 @@
+## S8 cba4423 Published; Native CI Running and Full Gate Prepared — 2026-11-03
+
+Reviewed checkpoint `cba4423ecacc6caec7addc12641e228835072ee0` is pushed.
+The exact 36 explicit paths, trailer, clean HEAD=origin/main and unchanged
+v0.17.0 were verified. Native CI **41718498683** is running at that SHA;
+Windows job **126205486285** has passed formatting/vet/build, not runtime yet.
+
+Fresh full-history `s8-final-source` and `s8-full-gate` use the unchanged
+accepted harness/profile/shard hashes. Nine routing controls initially failed
+setup because the parent invoked them from the remote home directory; no Go
+or fixture ran. The same controls pass all nine from the correct checkout.
+Source is clean and evidence/caches remain absent. The full gate is not started.
+
+**Freeze decision**: keep origin/main at cba4423 through exact-tip CI/gate.
+Commit tracking progress locally without pushing during this freeze, then
+push it with closure before another wave. Any native defect instead requires
+a reviewed fix-forward checkpoint and fresh acceptance evidence. No tag,
+S9, #9 or unrelated work is authorized.
+
 ## S8 Reviewed Checkpoint Ready for Native CI and Complete Gate — 2026-11-03
 
 The rev-4 batch passed all seven guarded commands: both formatter checks,
