@@ -1739,6 +1739,9 @@ markers with visible SKIPs. Guarded validation and re-review are next.
 Rev-6 guarded formatting/routing controls pass without changing source bytes.
 The fresh regression/soak/CI-guard batch and independent re-review are dispatched;
 native Windows runtime and complete-gate acceptance remain pending.
+Final rev-6 source verdict is APPROVED: real legacy fixture, native blocking
+lane, exact PASS/SKIP handling and mutation controls verified; existing CI
+contracts unchanged. Runtime/native/full-gate results still block acceptance.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

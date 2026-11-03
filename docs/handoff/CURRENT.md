@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-6 guarded checks and independent re-review dispatched
+- **Status**: In progress — rev-6 independently source-approved; guarded checks running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -238,6 +238,12 @@ all 35 frozen files remain byte-identical. The same reviewer is rechecking
 the fixture, new native lane and negative controls while the serial guarded
 batch runs. Neither static approval nor Windows cross-compilation is native
 runtime evidence.
+Final rev-6 source verdict is **APPROVED**. The reviewer verified all hashes,
+the real-record fixture's actual acceptance/publication assertions, all 26
+native test names, blocking pipeline behavior, exact PASS matching and
+mutation controls. Existing CI contracts remain unchanged; prior source
+closures stand. Guarded runtime, fresh native CI and the complete gate still
+block acceptance.
 
 ## Current State
 

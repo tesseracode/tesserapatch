@@ -1,3 +1,25 @@
+## Review — GH #13 S8 rev-6 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — current rev-6 source only
+
+All 35 hashes match; exactly three deltas from rev-5. The real-record fixture
+establishes complete input artifacts and still requires real resolver success,
+resolved bytes, applied state, refreshed bound E/C and absent candidate locks.
+Its expected incomplete output coverage reflects the unchanged old recipe.
+
+The Windows lane is genuinely blocking, preserves test/pipeline exit status
+and unfiltered SKIPs, overwrites its log and pins 26 distinct real test names.
+Anchored PASS matching rejects skips, prefixed/child names and diagnostic
+prefixes. Mutation controls exercise the shared validator against missing
+selection/packages/proofs, swallowed failures, stale logs, nonblocking runs
+and weakened matching. Existing CI commands/partitions/timeouts/AQ budgets
+and allowed-failure behavior remain unchanged (49 added lines, zero removed).
+
+**Action**: keep source frozen until guarded checks finish, then publish for
+fresh exact-tip native CI and the complete gate. Source approval, compilation,
+targeted checks and prior diagnostics are not native or final acceptance.
+
 ## S8 rev-6 Guarded Checks and Independent Re-review Dispatched — 2026-11-03
 
 The 35-file frozen manifest is unchanged by formatting. Nine unchanged routing
