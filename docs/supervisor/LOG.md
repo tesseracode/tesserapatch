@@ -1,3 +1,22 @@
+## S8 rev-7 Inventory Correction Frozen — 2026-11-03
+
+The implementer audited all six acquisitions and identified S8
+`openOperationCandidateDisk` in `operation_candidate_transaction.go:616`
+as the additional owner. The other five are prepare check/publish/pending
+evidence, candidate `openHeldRoot` and candidatelock `openLockParent`.
+Only `internal/cli/prepare_avp2_test.go` changed: exact count six, extra-site
+control seven, plus same-count replacement controls for both candidate owners.
+Scanner semantics and production are unchanged. No provenance amendment is
+needed because AVP2 FreezeCurrent is false; no provenance fields were edited.
+
+macOS job 126274474267 also fails only the same AVP-141 inventory/sensitivity
+assertions after the first partition. Both raw native logs are retained.
+Windows/observer evidence continues; neither complete gate has run.
+
+**Action**: guarded formatting, the full affected CLI AVP selector, vet/build,
+then independent re-review of the one-file correction and ownership controls.
+Do not treat pending Windows evidence or the failed native run as acceptance.
+
 ## S8 b133367 Native Linux Inventory Failure — 2026-11-03
 
 The early native observer stopped on Linux job **126274474309**. The first

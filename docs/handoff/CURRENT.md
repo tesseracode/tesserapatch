@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — b133367 native Linux AVP inventory failure; bounded correction required
+- **Status**: In progress — rev-7 one-file inventory correction frozen; native Windows evidence pending
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -273,6 +273,14 @@ versus six. Audit the legitimate S8 acquisition and update the directly coupled
 inventory/control without weakening its extra-call detection. Other native
 jobs continue; collect actual Windows evidence before replacing the checkpoint.
 No full S8 gate has started.
+Rev-7 returned frozen with one changed file, `prepare_avp2_test.go`.
+The audited sixth acquisition is S8 `openOperationCandidateDisk`
+(`operation_candidate_transaction.go:616`). The exact inventory is six,
+the extra-site control seven, and new same-count replacement controls cover
+both candidate owners. Scanner/production behavior is unchanged. AVP2
+FreezeCurrent is false, so no provenance field or scope amendment is needed.
+macOS native job 126274474267 independently reports the same inventory and
+sensitivity failures. Other native evidence continues to be collected.
 
 ## Current State
 
@@ -473,6 +481,10 @@ count 7 versus 6. Raw log:
 `bin/roc-s8-20261103/s8-b133367-linux-native.log`.
 The serial native Test step stops at that partition; later Linux partitions
 are unrun. Other native jobs and the Windows result remain pending.
+macOS job 126274474267 also fails the same AVP-141 assertions after its first
+partition; raw log `bin/roc-s8-20261103/s8-b133367-macos-native.log` is retained.
+Rev-7 will run the full CLI AVP selector under the unchanged guard rather than
+only the originally failing leaf. No new Go result is claimed yet.
 
 ## Validation Policy
 

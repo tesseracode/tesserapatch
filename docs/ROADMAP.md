@@ -1756,6 +1756,10 @@ Native b133367 Linux stops in AVP-141: the module-wide os.OpenRoot inventory
 expects five sites but sees six; its extra-call control sees seven versus six.
 Rev-7 is limited to the audited S8 inventory dependency and sensitivity repair.
 Other native jobs remain running; both prepared full gates are still unrun.
+Rev-7 is frozen in one test file: audited S8 root owner, exact six/seven
+inventory/control counts and same-count replacement controls. Production/
+scanner/provenance unchanged. macOS confirms the same AVP failure; guarded
+AVP validation and independent re-review are next.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
