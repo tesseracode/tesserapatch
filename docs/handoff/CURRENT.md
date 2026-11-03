@@ -26,6 +26,50 @@ WAVE_BASE = fe4b141ac32f384ce4a2229a8b980f1a2c97efa5
 
 ## Session Summary
 
+**S7 implementation drafted; resource-guarded validation pending.** The five
+terminal flags are registered with source-derived `cmd.Flags()` exclusivity,
+`Changed` semantics, explicit `help` exclusion, the 85-pair inventory guard,
+and exit 2/3/1 mapping through `ExitCodeError`. Candidate diff/reject/clear
+route to exported S5 lifecycle wrappers. Accept/recovery route to explicit S8
+workflow seams that return typed exit-3 "not yet available" refusals; no
+acceptance behavior or journal was fabricated. Resolver terminal actions remain
+resolver-only and now name `candidate-pending` remediation. ADR-050 records the
+decisions. The existing gate-on
+`TestUpstreamedConfirmationGateBlocksUnconfirmedOperationMatch` already pins
+the requested expectation beside the unchanged gate-off golden, so no duplicate
+was added. Remote old-Mac validation reports formatting, build, vet, CLI
+ROCS7/ROCS6/ROC tests passing. The one workflow failure identified the
+changed-path dispatcher still selecting the S6 validator; it now selects the
+S7 validator while S1-S6 retain their exact allowlists and S7-only files remain
+rejected by S6. Local runtime validation has not run: the first admission diagnostic was
+invalid due to a parser mistake, and the corrected diagnostic currently reports
+75% free memory, below the required 80%; a corrected 600-second admission wait
+never rose above that final 75% reading. After the operator explicitly allowed
+gofmt alone at pressure level 1 with no active Go process, the syntax defect in
+the new CLI test was repaired and all changed Go files were formatted.
+
+**Independent-review revisions implemented.** Resolver candidate-pending checks
+now use the same exported effective-slug resolver as `RunReconcile`, including
+empty-argument applied/active expansion, supersession filtering and DAG order,
+before provider loading. Reject/clear human output and terminal JSON output now
+propagate writer failures as exit 1. Focused command tests now build real S5
+candidate roots and cover diff bytes/read-only behavior, absent exit 2,
+rejection logging/state/pruning/pointer clearing, not-pending exit 3, rejection
+log-only clearing, real lock contention exit 3, empty-args resolver refusal and
+writer failures. Their distinct output and state assertions catch swapped
+dispatch branches.
+
+The resolver sweep check now sits after the shipped `--check-applied-only` and
+`--preflight` early returns and immediately before provider loading. A focused
+fixture proves plain empty-args `--resolve` still refuses the pending candidate,
+while `--resolve --preflight` and `--resolve --check-applied-only` do not route
+through candidate-pending refusal.
+
+The empty-args sweep fixture now passes `--allow-dirty`, so the intentionally
+uncommitted candidate artifacts do not stop at the shipped dirty-tree gate.
+The test still requires exit 3 with the candidate slug and rejects any provider
+diagnostic, proving refusal occurs after preflight but before provider loading.
+
 **S6 ACCEPTED. Fourth complete gate PASSED at 2026-11-03T03:55:34Z.**
 Old Mac, harness pid 18465, validated source `ee96551`, GOMEMLIMIT=3GiB, every
 guard unchanged: status `passed`, gate exit code 0, 42/42 top-level commands,
@@ -324,6 +368,10 @@ do not invent alternatives to the accepted contract to save time.
 
 ## Current State
 
+S7 production and focused tests are present in the working tree, uncommitted
+for independent review. Formatting, targeted tests, vet and build remain
+pending the mandated 60-second >=80% free-memory admission.
+
 S1 typed roots/borrowed locks, S2 eligibility, S3 derivation/alignment, S4 writer
 and S5 actual locked finalization are accepted. Reuse existing private workflow
 preparation and real S4 validation; never restore caller-asserted eligibility
@@ -333,6 +381,14 @@ worktree create/prune. Preserve exact private Git inspection/materialization
 policy and intent/status mirror parity.
 
 ## Files Changed
+
+- `internal/cli/cobra.go`
+- `internal/cli/operation_candidate.go`
+- `internal/cli/operation_candidate_s7_test.go`
+- `internal/workflow/operation_candidate_actions.go`
+- `internal/workflow/operation_candidate_s0_guards_test.go`
+- `docs/adrs/ADR-050-cli-terminal-candidate-actions.md`
+- `docs/handoff/CURRENT.md`
 
 Workflow phase/evidence/confirmation and shared summary integration; new
 operation_candidate_phase helpers/guards/runtime/fault tests; S5 caller-held
@@ -369,6 +425,26 @@ order, with positive/mutation controls. Added malformed staging, changed
 phase2 bindings and pending-pointer carry-forward regressions.
 
 ## Test Results
+
+S7 runtime validation pending. Corrected preflight diagnostic: 75% free memory,
+load1 3.24 initially and 2.92 after a 600-second wait, pressure level 1, no
+Go/compile/link/vet/test process. The machine never admitted 60 continuous
+seconds at >=80%, so no test, vet or build command has run. With the operator's
+explicit gofmt-only allowance, `gofmt -w` followed by `gofmt -l` on all five
+changed Go files passed; `gofmt -l` produced no output. A tracked-source check
+(`git ls-files '*.go' -z | xargs -0 gofmt -l`) also produced no output.
+`git diff --check` passes.
+
+Remote old-Mac partial validation: gofmt clean, build PASS, vet PASS, CLI
+ROCS7/ROCS6/ROC tests PASS. Workflow initially failed only
+`TestROCS0NoProductionChanges` because `rocS0AssertStageScope` still dispatched
+to `rocS6ValidateStageChangedPaths`; the dispatcher is corrected to
+`rocS7ValidateStageChangedPaths`. No runtime inventory list was affected:
+`TestROCS0RuntimeInventorySensitivity` guards runtime fixture names, not changed
+production paths.
+
+The independent-review revision has only been gofmt-checked locally; remote
+tests/vet/build must be rerun against the revised working tree.
 
 Third complete gate (b9d42f4, old Mac, GOMEMLIMIT=3GiB): resource-stopped at
 command 28/42; 27/42 commands and 24/39 tests passed with no assertion failure
@@ -427,13 +503,17 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Next Steps
 
-1. Archive and push this S6 closure (verify clean HEAD=origin/main).
-2. Record a fresh S7 WAVE_BASE (`git rev-parse origin/main` after the push)
-   before dispatching S7 (CLI flags, exclusivity, exit codes). S7 needs its own
-   implementation, independent review, full gate and CI; any extension of the
-   window needs operator approval. Never start #9.
+1. When the machine reaches the required resource threshold, hold 60 continuous
+   seconds and run only gofmt, focused S7/S0/S6 tests plus affected reconcile
+   flag tests, vet for CLI/workflow, and the CLI build.
+2. Resolve any validation finding without widening S7 scope.
+3. Leave the reviewed working tree uncommitted for the parent. Never start S8,
+   S9 or #9.
 
 ## Blockers
+
+Local S7 validation is temporarily blocked by 75% diagnostic free memory versus
+the required >=80% admission threshold. Do not loosen the threshold.
 
 None for S6. The earlier stopped gate attempts (local: pressure 1 to 2;
 old-Mac uncapped: 2,227 swap-out pages; old-Mac 3GiB budget: 132,210 swap-out

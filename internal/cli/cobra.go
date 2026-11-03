@@ -2388,13 +2388,23 @@ func reconcileCmd() *cobra.Command {
 			autoDrop, _ := cmd.Flags().GetBool("auto-drop-merged")
 			format, _ := cmd.Flags().GetString("format")
 
-			if err := validateReconcileFlags(acceptSlug, rejectSlug, shadowDiffSlug, resolve, apply); err != nil {
-				return err
+			candidateTerminal, hasCandidateTerminal := selectedOperationCandidateTerminal(cmd)
+			if hasCandidateTerminal {
+				if err := validateOperationCandidateTerminalFlags(cmd, args); err != nil {
+					return err
+				}
+			} else {
+				if err := validateReconcileFlags(acceptSlug, rejectSlug, shadowDiffSlug, resolve, apply); err != nil {
+					return err
+				}
 			}
 			if checkApplied && autoDrop {
 				return fmt.Errorf("reconcile: --check-applied-only and --auto-drop-merged are mutually exclusive")
 			}
 			if format != "human" && format != "json" {
+				if hasCandidateTerminal {
+					return validationError("reconcile: unsupported --format %q (expected human or json)", format)
+				}
 				return fmt.Errorf("reconcile: unsupported --format %q (expected human or json)", format)
 			}
 
@@ -2403,16 +2413,27 @@ func reconcileCmd() *cobra.Command {
 				return err
 			}
 
+			if hasCandidateTerminal {
+				return runOperationCandidateTerminal(cmd, s, candidateTerminal, format)
+			}
 			if acceptSlug != "" {
+				if err := workflow.RefuseResolverActionWhenCandidatePending(s, acceptSlug); err != nil {
+					return operationCandidateExitError(err)
+				}
 				return runReconcileAccept(cmd, s, acceptSlug)
 			}
 			if rejectSlug != "" {
+				if err := workflow.RefuseResolverActionWhenCandidatePending(s, rejectSlug); err != nil {
+					return operationCandidateExitError(err)
+				}
 				return runReconcileReject(cmd, s, rejectSlug)
 			}
 			if shadowDiffSlug != "" {
+				if err := workflow.RefuseResolverActionWhenCandidatePending(s, shadowDiffSlug); err != nil {
+					return operationCandidateExitError(err)
+				}
 				return runReconcileShadowDiff(cmd, s, shadowDiffSlug)
 			}
-
 			if err := checkParentGenerationStaleForReconcile(cmd, s, args); err != nil {
 				return err
 			}
@@ -2489,6 +2510,18 @@ func reconcileCmd() *cobra.Command {
 					fmt.Fprintln(cmd.OutOrStdout(), "Preflight: clean. Reconcile is safe to run.")
 				}
 				return nil
+			}
+
+			if resolve {
+				effectiveSlugs, err := workflow.EffectiveReconcileSlugs(s, args, cumulativeLegacy)
+				if err != nil {
+					return err
+				}
+				for _, slug := range effectiveSlugs {
+					if err := workflow.RefuseResolverActionWhenCandidatePending(s, slug); err != nil {
+						return operationCandidateExitError(err)
+					}
+				}
 			}
 
 			timeout, _ := cmd.Flags().GetDuration("timeout")
@@ -2591,6 +2624,7 @@ func reconcileCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.SetFlagErrorFunc(operationCandidateFlagParseError)
 	cmd.Flags().String("upstream-ref", "upstream/main", "Upstream ref to reconcile against")
 	cmd.Flags().Duration("timeout", 120*time.Second, "Reconciliation timeout")
 	cmd.Flags().Bool("preflight", false, "Only run the preflight checks and exit (does not reconcile)")
@@ -2607,6 +2641,11 @@ func reconcileCmd() *cobra.Command {
 	// PRD-patch-already-upstream-detector §3.2 / §3.3 (v0.8.1).
 	cmd.Flags().Bool("check-applied-only", false, "Read-only: run only phase 1 (reverse-apply) + phase 1.5 (patch-id sweep) for the given slug. Forces phase 1.5 even when patch_id_detector_enabled=false (per-invocation opt-in). Writes no artifacts. Exit 0 on phase-1.5 match, 2 on no match. Mutually exclusive with --auto-drop-merged.")
 	cmd.Flags().Bool("auto-drop-merged", false, "On a phase-1.5 patch-id match, remove the feature from the DAG (ADR-011 cascade rules) and create a removal commit that preserves Tpatch-CVE / Tpatch-Slug trailers. Off by default. No-op when phase 1.5 does not fire (including when patch_id_detector_enabled=false). Mutually exclusive with --check-applied-only.")
+	cmd.Flags().String("candidate-diff", "", "Print the pending operation candidate diff")
+	cmd.Flags().String("accept-candidate", "", "Accept a pending operation candidate")
+	cmd.Flags().String("reject-candidate", "", "Reject and prune a pending operation candidate")
+	cmd.Flags().String("clear-candidate-rejections", "", "Clear rejected operation candidate IDs for a feature")
+	cmd.Flags().String("resume-candidate-recovery", "", "Resume or roll back an interrupted operation candidate acceptance")
 	// PRD-multi-slug-reconcile-canonical-safety §4.2 / ADR-030 D2 (v0.12.1).
 	// Opt-in flag re-enabling the pre-v0.12.1 cumulative-derivation branch
 	// (deriveIncrementalPatches). Default OFF: multi-slug reconcile uses each

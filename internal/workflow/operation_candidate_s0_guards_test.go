@@ -197,6 +197,53 @@ func rocS6ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
+var rocS7AllowedPaths = map[string]bool{
+	"docs/adrs/ADR-050-cli-terminal-candidate-actions.md":     true,
+	"docs/handoff/CURRENT.md":                                 true,
+	"internal/cli/cobra.go":                                   true,
+	"internal/cli/operation_candidate.go":                     true,
+	"internal/cli/operation_candidate_s7_test.go":             true,
+	"internal/workflow/operation_candidate_actions.go":        true,
+	"internal/workflow/operation_candidate_s0_guards_test.go": true,
+}
+
+func rocS7ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS7AllowedPaths[path] {
+			continue
+		}
+		if err := rocS6ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS7ScopeTransition(t *testing.T) {
+	for path := range rocS7AllowedPaths {
+		if err := rocS7ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if !rocS6AllowedPaths[path] && !rocS5AllowedPaths[path] && !rocS4AllowedPaths[path] &&
+			!rocS3AllowedPaths[path] && !rocS2AllowedPaths[path] && !rocS1AllowedPaths[path] &&
+			!rocS0CaptureAllowedPaths[path] {
+			if err := rocS6ValidateStageChangedPaths([]string{path}); err == nil {
+				t.Fatalf("S6 accepted S7 surface %s", path)
+			}
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/operation_candidate_accept.go",
+		"internal/workflow/operation_candidate_recovery.go",
+		"assets/skills/SKILL.md", "SPEC.md",
+		"internal/cli/./operation_candidate.go",
+	} {
+		if err := rocS7ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S7 accepted later or unregistered surface %s", path)
+		}
+	}
+}
+
 func TestROCS6ScopeTransition(t *testing.T) {
 	for path := range rocS6AllowedPaths {
 		if err := rocS6ValidateStageChangedPaths([]string{path}); err != nil {
@@ -403,7 +450,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS6ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS7ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

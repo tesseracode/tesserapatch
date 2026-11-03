@@ -122,12 +122,9 @@ type ReconcileOptions struct {
 	CumulativeLegacy bool
 }
 
-// RunReconcile reconciles features against the upstream ref.
-//
-// Compatibility: the zero-value ReconcileOptions reproduces the
-// pre-M12 behavior, so existing callers that pass ReconcileOptions{}
-// see no change. Phase 3.5 is opt-in via Options.Resolve.
-func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) ([]ReconcileResult, error) {
+// effectiveReconcileSlugs expands and orders the exact feature set used by
+// both CLI preflight and RunReconcile.
+func effectiveReconcileSlugs(s *store.Store, slugs []string, cumulativeLegacy bool) ([]string, map[string]string, error) {
 	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §3.3):
 	// track which of the input slugs were explicitly named by the
 	// caller (so they receive a historical-feature warning if
@@ -139,7 +136,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	if len(slugs) == 0 {
 		features, err := s.ListFeatures()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, f := range features {
 			if f.State == store.StateApplied || f.State == store.StateActive {
@@ -148,7 +145,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		}
 	}
 	if len(slugs) == 0 {
-		return nil, fmt.Errorf("no features to reconcile (no applied or active features found)")
+		return nil, nil, fmt.Errorf("no features to reconcile (no applied or active features found)")
 	}
 
 	// v0.12.0 Wave α (ADR-028 D6, PRD-feature-supersession §3.3,
@@ -181,7 +178,7 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 		slugs = filtered
 	}
 	if len(slugs) == 0 {
-		return nil, fmt.Errorf("no features to reconcile (default effective set is empty after supersession filtering)")
+		return nil, nil, fmt.Errorf("no features to reconcile (default effective set is empty after supersession filtering)")
 	}
 
 	// M14.3 / ADR-011 D9: when the dependency-DAG flag is enabled,
@@ -195,22 +192,39 @@ func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamR
 	// so `deriveIncrementalPatches` sees the caller's exact ordering
 	// (cumulative subtraction depends on `prevCumulative` being the
 	// previous slug in caller order, not an inferred hard-parent).
-	if !opts.CumulativeLegacy {
+	if !cumulativeLegacy {
 		if cfg, cerr := s.LoadConfig(); cerr == nil && cfg.DAGEnabled() {
 			ordered, perr := PlanReconcile(s, slugs)
 			if perr != nil {
-				return nil, fmt.Errorf("reconcile planning failed: %w", perr)
+				return nil, nil, fmt.Errorf("reconcile planning failed: %w", perr)
 			}
 			slugs = ordered
 		}
 	}
 
-	// Resolve upstream commit
+	return slugs, supersededWarnings, nil
+}
+
+// EffectiveReconcileSlugs returns the exact feature set RunReconcile processes.
+func EffectiveReconcileSlugs(s *store.Store, slugs []string, cumulativeLegacy bool) ([]string, error) {
+	effective, _, err := effectiveReconcileSlugs(s, slugs, cumulativeLegacy)
+	return effective, err
+}
+
+// RunReconcile reconciles features against the upstream ref.
+//
+// Compatibility: the zero-value ReconcileOptions reproduces the
+// pre-M12 behavior, so existing callers that pass ReconcileOptions{}
+// see no change. Phase 3.5 is opt-in via Options.Resolve.
+func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) ([]ReconcileResult, error) {
+	slugs, supersededWarnings, err := effectiveReconcileSlugs(s, slugs, opts.CumulativeLegacy)
+	if err != nil {
+		return nil, err
+	}
 	upstreamCommit, err := gitutil.ResolveRef(s.Root, upstreamRef)
 	if err != nil {
 		return nil, fmt.Errorf("cannot resolve upstream ref %q: %w", upstreamRef, err)
 	}
-
 	results := make([]ReconcileResult, 0, len(slugs))
 	var publicationErrors []error
 	operationEnabled := false
