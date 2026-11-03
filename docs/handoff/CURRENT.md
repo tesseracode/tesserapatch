@@ -4,7 +4,7 @@
 
 **Cluster state**: IN PROGRESS
 
-**S8 REV-3 SOURCE APPROVED — guarded runtime validation in progress.**
+**S8 REV-4 IN PROGRESS — early journal-preflight clean-tree regression.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Validation — rev-3 source approved; guarded affected batch running
+- **Status**: In progress — repairing the early journal-preflight side effect exposed by existing CLI tests
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -129,6 +129,13 @@ selection propagates errors, negative controls reach the existing privacy
 validator (including an active-platform sink), and the S8 admission leaves
 earlier scope sets unchanged. Prior production/oracle closures stand.
 Runtime/native/full-gate validation still blocks acceptance.
+Rev-3 targeted analyzer checks and the entire workflow package now pass.
+The next CLI command failed `TestReconcileAutoDropMerged_Match`: its
+otherwise clean repository acquired untracked `.tpatch/locks/`, and the
+normal clean-tree gate refused reconciliation. Rev-4 is scoped to the
+early journal-preflight dependency and regression controls. Diagnose and
+remove the unintended mutation; do not relax the clean-tree gate, delete
+lock files to hide it, or let existing journals bypass early refusal.
 
 ## Current State
 
@@ -241,6 +248,14 @@ Rev-3: nine unchanged routing controls and guarded formatting pass.
 run first, followed by full workflow, focused CLI S7/S8/reconcile,
 candidate/lock, vet and build. The fresh serial batch in
 `s8-validation/rev3` stops at the first failure; previous evidence is retained.
+Rev-3 results: targeted analyzer/scope checks PASS (8.062s); full workflow
+PASS (1062.653s). CLI stops after 71.212s at
+`TestReconcileAutoDropMerged_Match` (`reconcile_check_applied_test.go:166`):
+untracked `.tpatch/locks/` causes the clean-tree refusal. Candidate/lock,
+vet and build remain unrun. Pressure normal, new swap-outs zero, owned
+commands ended. Evidence is mirrored locally and retained remotely; matching
+failed `05-go.json` SHA256:
+`4a60151615eeff9532928337a7240df73a431b2b4a6fbcfd6c4ac4019bd01cb9`.
 
 ## Validation Policy
 
@@ -269,18 +284,19 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the exact source-approved rev-3 snapshot frozen during affected checks.
-2. Complete guarded affected checks, vet and build; any further revision
-   requires fresh independent source approval before acceptance.
+1. Repair the early journal-preflight clean-tree regression with focused
+   controls; retain all journal refusal and lock-ownership invariants.
+2. Obtain fresh independent approval, run the affected regressions and
+   remaining checks, then the fresh complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-The rev-3 analyzer repair is independently source-approved. Remaining
-affected runtime checks, native Windows verification and the complete gate
-still block acceptance; source approval does not establish those results.
+The workflow package passes, but the early journal-preflight clean-tree
+regression blocks CLI compatibility. A source-approved fix, remaining
+affected checks, native Windows verification and the complete gate are required.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

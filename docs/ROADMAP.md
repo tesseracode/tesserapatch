@@ -1682,6 +1682,11 @@ the affected batch and same-reviewer re-review are running.
 Final rev-3 source verdict is APPROVED: error propagation, active privacy-sink
 controls and historical scope sets are preserved. Runtime/native/full-gate
 validation remains pending.
+Rev-3 analyzer regressions and full workflow pass. Existing CLI test
+`TestReconcileAutoDropMerged_Match` then fails because `.tpatch/locks/`
+appears untracked before the clean-tree gate. Rev-4 is bounded to the early
+journal-preflight side effect and focused controls, not dirty-gate relaxation
+or lock deletion. Candidate/lock/vet/build remain unrun; no resource stop.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

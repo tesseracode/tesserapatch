@@ -1,3 +1,23 @@
+## S8 Rev-3 Workflow Passed; CLI Regression and rev-4 Dispatch — 2026-11-03
+
+Guarded targeted analyzer/scope checks pass in 8.062s, and the full affected
+workflow package passes in 1062.653s. The next CLI command fails after
+71.212s at `TestReconcileAutoDropMerged_Match`
+(`reconcile_check_applied_test.go:166`): `.tpatch/locks/` appears untracked,
+so the existing clean-tree preflight refuses. No candidate/lock/vet/build
+command follows. Pressure normal, zero new swap-outs, owned commands ended.
+
+Evidence and the failure marker remain preserved remotely/locally; matching
+`05-go.json` SHA256:
+`4a60151615eeff9532928337a7240df73a431b2b4a6fbcfd6c4ac4019bd01cb9`.
+
+**Decision**: permit a bounded early-journal-preflight repair and focused
+regression controls. Preserve the ordinary clean-tree gate and early
+recovery-required behavior. Do not mask the defect with `--allow-dirty`,
+ignore-pattern changes, fixture weakening or lock-file deletion. Keep
+lock ownership/recovery invariants intact and independently re-review the
+fix. The final gate remains a fresh complete run, never stitched partials.
+
 ## Review — GH #13 S8 rev-3 — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
