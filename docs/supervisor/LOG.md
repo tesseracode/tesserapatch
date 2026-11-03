@@ -1,3 +1,26 @@
+## S8 rev-6 Reviewed Checkpoint Ready for Native CI and Complete Gate — 2026-11-03
+
+All seven guarded commands pass: both formatting checks, focused workflow
+(package 4.025s), affected CLI (111.581s), Windows workflow test-binary
+compilation, vet and build. The real cumulative soak passes (24.14s), as do
+the repaired resolver fixture, new native-evidence guards and existing CI
+partition/timeout controls. Every stage retains normal pressure and zero
+swap-outs; all 91 sampled owned identities have ended. Mirrored evidence
+hashes match, all 35 reviewed source hashes are unchanged, and no blocked
+marker remains. Windows PE compilation is not native execution.
+
+**Decision**: publish the reviewed fix-forward checkpoint, including queued
+tracking. Freeze that origin tip through exact-source native CI and the
+fresh full gate. First inspect the dedicated Windows runtime evidence and
+baseline log; then the old-Mac gate may run while remaining GitHub jobs finish
+on their separate hosts, as S7 did. Local/old-Mac Go remains strictly serial.
+An observed native failure blocks acceptance; all required native jobs and
+the complete 42-command/39-test gate must pass before closure. No shortened
+partition, partial-result stitching, release or S9 dispatch.
+
+CURRENT's APPROVED token denotes this reviewed validation checkpoint only.
+S8 and Proposed ADR-051 remain unaccepted until native/full-gate evidence.
+
 ## Review — GH #13 S8 rev-6 — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`

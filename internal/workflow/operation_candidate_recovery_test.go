@@ -39,39 +39,6 @@ func TestROCS8NativeDirectoryDurability(t *testing.T) {
 	}
 }
 
-func TestROCS8WindowsDirectoryFlushRejectsReplacedPath(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("exercises Windows CreateFile path reopening before FlushFileBuffers")
-	}
-	base := t.TempDir()
-	directory := filepath.Join(base, "held")
-	if err := os.Mkdir(directory, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	root, err := os.OpenRoot(directory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer root.Close()
-	if err := os.Rename(directory, filepath.Join(base, "original")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(directory, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	foreign := filepath.Join(directory, "foreign.txt")
-	if err := os.WriteFile(foreign, []byte("foreign\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	before := rocS8ReadImage(t, foreign)
-	if err := operationCandidateSyncDirectory(root); err == nil {
-		t.Fatal("Windows directory flush accepted a replacement of its held path")
-	}
-	if rocS8ReadImage(t, foreign) != before {
-		t.Fatal("failed directory flush changed foreign contents")
-	}
-}
-
 func TestROCS8CrashChild(t *testing.T) {
 	root := os.Getenv("TPATCH_ROC_S8_CRASH_ROOT")
 	if root == "" {
@@ -498,16 +465,6 @@ func TestROCS8JournalProbeDoesNotReplaceHeldRecheck(t *testing.T) {
 	if err := RefuseReconcileCandidateRecovery(s, []string{slug}); err != nil {
 		t.Fatal(err)
 	}
-	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
-	if err != nil || refusal.Reason != "" {
-		t.Fatalf("acquire held recheck capability: %+v %v", refusal, err)
-	}
-	defer lock.Release()
-	other, refusal, err := acquireOperationCandidateFeatureLock(s.Root, "other-probe")
-	if err != nil || refusal.Reason != "" {
-		t.Fatalf("acquire distinct capability: %+v %v", refusal, err)
-	}
-	defer other.Release()
 	directory, err := candidate.CandidateDirectoryRelative(slug, "rc_111111111111")
 	if err != nil {
 		t.Fatal(err)
@@ -519,7 +476,28 @@ func TestROCS8JournalProbeDoesNotReplaceHeldRecheck(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(base, candidate.CandidateJournalName), []byte("{appeared after the early probe"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	lockDirectory := filepath.Join(s.Root, ".tpatch", "locks", "reconcile")
+	if err := os.MkdirAll(lockDirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{slug, "other-probe"} {
+		if err := os.WriteFile(filepath.Join(lockDirectory, name+".lock"), []byte("retained "+name+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Windows LockFileEx excludes reads of the locked byte. Snapshot before
+	// acquisition and after release, retaining exact lock-file comparisons.
 	before := rocS8ProbeImages(t, s.Root)
+	lock, refusal, err := acquireOperationCandidateFeatureLock(s.Root, slug)
+	if err != nil || refusal.Reason != "" {
+		t.Fatalf("acquire held recheck capability: %+v %v", refusal, err)
+	}
+	defer lock.Release()
+	other, refusal, err := acquireOperationCandidateFeatureLock(s.Root, "other-probe")
+	if err != nil || refusal.Reason != "" {
+		t.Fatalf("acquire distinct capability: %+v %v", refusal, err)
+	}
+	defer other.Release()
 	rocS8Code(t, operationCandidateJournalPreflightHeld(s, slug, lock), "recovery-required")
 	for _, invalid := range []*candidatelock.Handle{nil, other} {
 		err := operationCandidateJournalPreflightHeld(s, slug, invalid)
@@ -530,8 +508,94 @@ func TestROCS8JournalProbeDoesNotReplaceHeldRecheck(t *testing.T) {
 	if err := RefuseReconcileCandidateRecovery(s, nil); !errors.Is(err, ErrOperationCandidateRecoveryRequired) {
 		t.Fatalf("held lock hid evidence from the default-slug read-only probe: %v", err)
 	}
+	for _, name := range []string{slug, "other-probe"} {
+		unexpected, err := candidatelock.TryAcquire(filepath.Join(lockDirectory, name+".lock"))
+		if unexpected != nil {
+			_ = unexpected.Release()
+		}
+		if !candidatelock.IsCode(err, candidatelock.CodeCandidateLockHeld) {
+			t.Fatalf("preflight released or replaced the active %s lock: %v", name, err)
+		}
+	}
+	if err := other.Release(); err != nil {
+		t.Fatal(err)
+	}
+	if err := lock.Release(); err != nil {
+		t.Fatal(err)
+	}
 	if !maps.Equal(before, rocS8ProbeImages(t, s.Root)) {
 		t.Fatal("presence probing or held recheck mutated recovery evidence/lock files")
+	}
+}
+
+func TestROCS8ResolverPreflightIsReadOnlyAndFailClosed(t *testing.T) {
+	for _, test := range []struct {
+		name                                    string
+		pending, shadow, journal, missingStatus bool
+		code                                    string
+	}{
+		{name: "ordinary"},
+		{name: "legacy-shadow", shadow: true},
+		{name: "pending-candidate", pending: true, code: "candidate-pending"},
+		{name: "journal-before-pending", pending: true, journal: true, code: "recovery-required"},
+		{name: "journal-without-status", journal: true, missingStatus: true, code: "recovery-required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s, err := store.Init(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := s.AddFeature(store.AddFeatureInput{Title: "Resolver probe", Slug: "resolver-probe"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			directory, err := candidate.CandidateDirectoryRelative(status.Slug, "rc_111111111111")
+			if err != nil {
+				t.Fatal(err)
+			}
+			status.State = store.StateApplied
+			if test.shadow {
+				status.State = store.StateReconcilingShadow
+				status.Reconcile.ShadowPath = filepath.Join(s.Root, ".tpatch", "shadows", status.Slug)
+			}
+			if test.pending {
+				status.Reconcile.OperationCandidate = &store.OperationCandidateSummary{
+					CandidateID: "rc_111111111111", Path: directory, Status: candidate.CandidateStatusPending,
+				}
+			}
+			if err := s.SaveFeatureStatus(status); err != nil {
+				t.Fatal(err)
+			}
+			if test.journal {
+				base := filepath.Join(s.Root, filepath.FromSlash(directory))
+				if err := os.MkdirAll(base, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(base, candidate.CandidateJournalName), []byte("{recovery evidence"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if test.missingStatus {
+				if err := os.Remove(filepath.Join(s.Root, ".tpatch", "features", status.Slug, "status.json")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := rocS8ProbeImages(t, s.Root)
+			err = RefuseResolverActionWhenCandidatePending(s, status.Slug)
+			if test.code == "" {
+				if err != nil {
+					t.Fatalf("ordinary resolver preflight refused: %v", err)
+				}
+			} else {
+				rocS8Code(t, err, test.code)
+			}
+			if _, err := os.Lstat(filepath.Join(s.Root, ".tpatch", "locks")); !os.IsNotExist(err) {
+				t.Fatalf("read-only resolver probe created persistent candidate locks: %v", err)
+			}
+			if !maps.Equal(before, rocS8ProbeImages(t, s.Root)) {
+				t.Fatal("resolver preflight changed bytes, modes or entries")
+			}
+		})
 	}
 }
 

@@ -2,11 +2,12 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S8 REV-6 IN PROGRESS — fixture correction and native Windows evidence.**
-The published cba4423 checkpoint is not accepted. The prepared complete
-gate has not run; fix forward and obtain fresh review/native evidence first.
+**S8 REV-6 SOURCE APPROVED — native CI and complete gate pending.**
+The APPROVED token identifies the reviewed validation checkpoint, not S8
+acceptance. The failed cba4423 checkpoint and its unrun gate remain preserved;
+use a fresh source/cache/evidence directory for the reviewed fix-forward tip.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -23,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-6 independently source-approved; guarded checks running
+- **Status**: Source-approved checkpoint — targeted checks passed; native CI and complete gate pending
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -244,6 +245,13 @@ native test names, blocking pipeline behavior, exact PASS matching and
 mutation controls. Existing CI contracts remain unchanged; prior source
 closures stand. Guarded runtime, fresh native CI and the complete gate still
 block acceptance.
+The rev-6 guarded batch now passes all seven commands, including the actual
+cumulative soak, repaired resolver fixture, new native-evidence controls,
+existing CI parity/timeouts, Windows compilation, vet and build. All stages
+retain normal pressure and zero swap-outs; all 91 sampled owned identities
+have ended. Mirrored evidence matches and the 35 reviewed source files remain
+unchanged. Publish the fix-forward checkpoint and freeze origin while its
+native CI and complete gate establish acceptance.
 
 ## Current State
 
@@ -429,6 +437,15 @@ normal pressure and zero swap-outs. Fresh targeted runtime evidence is in
 The failed rev-5 evidence remains preserved; matching remote/local
 `04-go.json` SHA256:
 `2e22ac24282784fcb621781e029c80518c8cd7074c80dd6285d2d91d12124644`.
+Rev-6 final results: workflow PASS (4.025s), affected CLI PASS (111.581s);
+the actual downstream soak PASS (24.14s), repaired resolver fixture and
+native-evidence/CI partition/timeout guards all PASS. Windows workflow
+test-binary compilation, vet and build PASS. Seven of seven guarded commands
+including formatting pass; pressure normal and new swap-outs zero throughout.
+Remote/local hashes match, all 91 sampled owned identities are gone, and
+`blocked.json` is absent. Evidence is retained in `s8-validation/rev6` and
+`bin/roc-s8-20261103/rev6-evidence/evidence`. This is not native Windows proof
+or a complete-gate result.
 
 ## Validation Policy
 
@@ -454,14 +471,18 @@ commands. No shard changes or partial-result stitching. Freeze the pushed
 reviewed tip during the gate and check exact-tip native CI, comparing actual
 Windows failures against the known baseline. A resource stop is recorded and
 put to the operator; no blind retry.
+After auditing the dedicated Windows runtime lane and baseline log, the fresh
+old-Mac gate may overlap remaining GitHub jobs on separate hosts, following
+S7's accepted sequencing. Local/old-Mac Go remains strictly serial. Observe
+native failures promptly; no acceptance until all required native jobs and
+the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Finish the authorized native Windows evidence lane, freeze it together
-   with the rev-6 fixture correction, then re-review and run fresh guarded
-   checks including the actual cumulative soak. Preserve failed evidence.
-2. Push a source-approved fix-forward checkpoint for fresh native CI.
-   No timeout/partition/memo-policy change is authorized to manufacture green.
+1. Push the reviewed fix-forward checkpoint with queued tracking, then freeze
+   origin for exact-tip native CI and the fresh complete gate.
+2. Audit actual Windows PASS/SKIP output and baseline failures; run the fresh
+   full gate with unchanged guards. No timeout/partition/memo-policy waiver.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

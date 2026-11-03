@@ -242,6 +242,13 @@ evidence nor grants mutation authority. Actions and acceptance still recheck
 under their existing caller-owned holds. No ignore rule or lock-file deletion
 is used to hide this side effect.
 
+The resolver-only coexistence preflight uses this same read-only scan, not the
+candidate-action helper that acquires a feature hold. Otherwise a legacy
+`reconcile --accept` creates a candidate lock even when no candidate exists,
+leaving an out-of-scope path that correctly blocks subsequent `land`. Actual
+candidate actions retain their authoritative held-lock checks; neither land's
+scope policy nor any producer's publication behavior is changed.
+
 A malformed or nonregular journal is still a blocker. Default-slug
 selection cannot hide a journal behind missing status; an occupied feature
 lock cannot hide one behind the normal nonterminal lock-refusal envelope.
@@ -345,7 +352,29 @@ test closes and reopens handles, serializes the capability, deletes children,
 and proves that the same validator rejects a replacement directory.
 `TestROCS8NativeDirectoryDurability` tests the real native flush;
 `TestROCS8WindowsDirectoryFlushRejectsReplacedPath` exercises its Windows
-path-reopen identity check. These tests are not claims of native validation.
+path-reopen identity check. Windows may prevent renaming the directory while
+`os.Root` is open. The native test distinguishes that sharing barrier from
+a flush failure, verifies rename succeeds after releasing it, and then passes
+the retained original identity and a real replacement directory through the
+same production reopen/check/flush helper. A matching replacement identity
+must still flush successfully. Thus rejection is not inferred from a failed
+fixture setup or a closed-root error. Lock-evidence comparisons likewise read
+complete images before acquisition and after release, never through an active
+Windows byte-range lock; contention checks prove both holds remain active
+through the recheck. These tests are not claims of native validation.
+
+On 2026-11-03 the operator approved a narrowly additive blocking S8 Windows CI
+lane. It runs `^TestROCS8` verbosely and uncached in `internal/candidate`,
+`internal/workflow`, and `internal/cli`, including persisted native identity,
+positive directory flushing and retained-identity rejection. Unfiltered output
+is retained under ignored `bin/`; conditional symlink SKIPs remain visible and
+are not claimed covered. Exact PASS lines are mandatory for the named native
+and acceptance/recovery controls. The existing CI partitions, timeouts, GH #17
+allowed-failure baseline, and local wave-close harness remain unchanged.
+`TestROCS8WindowsBlockingRuntimeCIGuard` rejects bypasses and missing runtime
+proof through mutations of the actual workflow; the companion matcher test
+uses the workflow's own PASS expression. Fresh native execution and independent
+review are still required.
 
 Source guards examine actual transaction calls/write sinks and include
 same-validator broken fixtures for ordering, bindings, legacy delegation,

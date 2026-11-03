@@ -224,6 +224,55 @@ jobs:
             fi
           done
 
+      # S8 needs actual native acceptance/recovery evidence, not the aggregate
+      # result of the allowed-failure baseline. Keep conditional SKIPs visible.
+      - name: "Test (Windows S8 acceptance/recovery runtime — blocking)"
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          BASH_ENV: /dev/null
+          GOFLAGS: ""
+          GOENV: "off"
+          GOMAXPROCS: "1"
+          GOMEMLIMIT: "3GiB"
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          log="bin/roc-s8-native-windows.log"
+          go test -v -p=1 -count=1 -timeout 20m -run '^TestROCS8' ./internal/candidate ./internal/workflow ./internal/cli 2>&1 | tee "$log"
+          for selector in \
+            TestROCS8DirectoryIdentitySurvivesRestartAndPartialDeletion \
+            TestROCS8NativeDirectoryDurability \
+            TestROCS8WindowsDirectoryFlushRejectsReplacedPath \
+            TestROCS8JournalProbeDoesNotReplaceHeldRecheck \
+            TestROCS8ResolverPreflightIsReadOnlyAndFailClosed \
+            TestROCS8AcceptAncestorDirtyTreeAndReeligibility \
+            TestROCS8ContentCASRecheckLeavesForeignEditAndJournal \
+            TestROCS8RollbackRestoresEveryRegisteredImage \
+            TestROCS8FailedRollbackRequiresExplicitRecovery \
+            TestROCS8CrashNoMarkerRestoresExactly \
+            TestROCS8CommittedCrashCleanupNeverRollsBack \
+            TestROCS8NoMarkerCleanupGapRetainsInlineSnapshots \
+            TestROCS8RecoveryRestoresIndependentEventCoverageAbsences \
+            TestROCS8FailedResumeRetainsEvidence \
+            TestROCS8ReservedPruneRefusesOrdinaryDirectoryReplacement \
+            TestROCS8RegistrationPruneRequiresOriginalDirectoryIdentity \
+            TestROCS8PartiallyDeletedOriginalRegistrationCanFinish \
+            TestROCS8AllSixShippedBaseReadersUseAcceptedBase \
+            TestROCS8ResidualPublicationExcludesAbsorbedEffects \
+            TestROCS8GenerationBindingTupleIsCandidateOnly \
+            TestROCS8CLIAcceptsRealCandidateHumanAndJSON \
+            TestROCS8CLIRealRefusalExitCodesHaveNoSuccessOutput \
+            TestROCS8CLIExplicitRecoverySuccessAndFailure \
+            TestROCS8CLIRealRecordSameByteGenerationRebasesAcceptance \
+            TestROCS8CLIResolverAcceptDoesNotCreateCandidateLocks \
+            TestROCS8CLIJournalPreflightPrecedesEveryEarlyReturn; do
+            if ! grep -Eq -- "^--- PASS: ${selector} [(][0-9]+[.][0-9]+s[)]$" "$log"; then
+              echo "::error::${selector} did not PASS on native Windows"
+              exit 1
+            fi
+          done
+
       # The rest of the repository has 200 pre-existing windows-latest
       # top-level test failures (283 counting subtests) across six packages —
       # internal/cli, internal/gitutil, internal/provider, internal/rescap,

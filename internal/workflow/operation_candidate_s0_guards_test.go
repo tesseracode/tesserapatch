@@ -243,6 +243,7 @@ var rocS8AllowedPaths = map[string]bool{
 	"internal/workflow/operation_candidate_readflags_unix.go":          true,
 	"internal/workflow/operation_candidate_readflags_other.go":         true,
 	"internal/workflow/operation_candidate_sync_windows.go":            true,
+	"internal/workflow/operation_candidate_sync_windows_test.go":       true,
 	"internal/workflow/operation_candidate_sync_other.go":              true,
 	"internal/workflow/operation_candidate_s8_guards_test.go":          true,
 	"internal/workflow/operation_candidate_lifecycle.go":               true,

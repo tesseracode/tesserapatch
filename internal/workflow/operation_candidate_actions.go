@@ -176,8 +176,8 @@ func ClearOperationCandidateRejections(s *store.Store, slug string) error {
 // RefuseResolverActionWhenCandidatePending preserves resolver-only terminal
 // actions instead of silently routing them to an operation candidate.
 func RefuseResolverActionWhenCandidatePending(s *store.Store, slug string) error {
-	if err := refuseOperationCandidateJournal(s, slug); err != nil {
-		return err
+	if err := refuseReconcileCandidateRecovery(s, []string{slug}); err != nil {
+		return candidateActionError(err)
 	}
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {

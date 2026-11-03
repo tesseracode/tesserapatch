@@ -1742,6 +1742,12 @@ native Windows runtime and complete-gate acceptance remain pending.
 Final rev-6 source verdict is APPROVED: real legacy fixture, native blocking
 lane, exact PASS/SKIP handling and mutation controls verified; existing CI
 contracts unchanged. Runtime/native/full-gate results still block acceptance.
+Rev-6 guarded checks PASS all seven commands, including the actual soak,
+repaired fixture, new native-evidence guards, existing CI parity/timeouts,
+Windows compilation, vet/build. Normal pressure, zero swap-outs, frozen
+source unchanged. Publish the reviewed fix-forward checkpoint; inspect native
+Windows evidence before the fresh full gate. Remaining GitHub jobs may finish
+concurrently on separate hosts, but all native/full-gate evidence must pass.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

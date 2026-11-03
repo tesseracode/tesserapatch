@@ -16,7 +16,11 @@ func operationCandidateSyncDirectory(root *os.Root) error {
 	if err != nil {
 		return err
 	}
-	directory, err := filepath.Abs(root.Name())
+	return operationCandidateFlushDirectory(root.Name(), identity)
+}
+
+func operationCandidateFlushDirectory(directoryName string, identity os.FileInfo) error {
+	directory, err := filepath.Abs(directoryName)
 	if err != nil {
 		return err
 	}
@@ -39,7 +43,7 @@ func operationCandidateSyncDirectory(root *os.Root) error {
 	if err != nil {
 		return err
 	}
-	dir := os.NewFile(uintptr(handle), root.Name())
+	dir := os.NewFile(uintptr(handle), directoryName)
 	actual, err := dir.Stat()
 	if err != nil || actual == nil || !os.SameFile(identity, actual) || actual.Mode()&os.ModeSymlink != 0 {
 		_ = dir.Close()
