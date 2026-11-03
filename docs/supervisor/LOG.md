@@ -1,3 +1,25 @@
+## S8 b133367 Native Linux Inventory Failure — 2026-11-03
+
+The early native observer stopped on Linux job **126274474309**. The first
+test partition completed, but the AVP partition fails
+`TestAVPRootLifetimeAndDifferential/AVP-141` at
+`prepare_avp2_test.go:1023`: six tracked production `os.OpenRoot` sites versus
+five expected. Its sensitivity fixture likewise observes seven versus six.
+This is not a resource stop or an AQ timing result.
+
+The completed job log is preserved at
+`bin/roc-s8-20261103/s8-b133367-linux-native.log`. GitHub CLI initially refused
+terminal escapes; the subsequent raw response was saved only to a file and
+escape/control characters were stripped before displaying failure context.
+Other native jobs are still running. Neither prepared S8 full gate has run.
+
+**Decision**: audit the extra S8 acquisition and repair the directly coupled
+inventory/negative-control expectation, not production behavior or the guard's
+ability to reject an extra tracked acquisition. Any necessary provenance
+amendment must use the existing CurrentSHA256 mechanism, never baseline
+SHA256/History/FreezeCurrent. Preserve native evidence and collect the Windows
+result while the bounded correction is prepared and independently reviewed.
+
 ## S8 b133367 Published; Native Evidence Running and Fresh Gate Prepared — 2026-11-03
 
 Reviewed fix-forward checkpoint **`b133367188a93cd53de20dcd758d8dfd1c077c5f`**

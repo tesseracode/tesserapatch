@@ -1752,6 +1752,10 @@ Reviewed fix-forward `b133367` is pushed; native CI 41738713514 is running.
 Fresh full-history source/harness, 35 reviewed hashes and nine routing
 controls are verified, with empty evidence/caches. Full gate not started.
 Origin stays frozen while native evidence is audited and the fresh gate runs.
+Native b133367 Linux stops in AVP-141: the module-wide os.OpenRoot inventory
+expects five sites but sees six; its extra-call control sees seven versus six.
+Rev-7 is limited to the audited S8 inventory dependency and sensitivity repair.
+Other native jobs remain running; both prepared full gates are still unrun.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

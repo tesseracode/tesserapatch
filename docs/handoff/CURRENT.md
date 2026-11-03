@@ -2,12 +2,12 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
-**S8 REV-6 SOURCE APPROVED — native CI and complete gate pending.**
-The APPROVED token identifies the reviewed validation checkpoint, not S8
-acceptance. The failed cba4423 checkpoint and its unrun gate remain preserved;
-use a fresh source/cache/evidence directory for the reviewed fix-forward tip.
+**S8 REV-7 IN PROGRESS — native CI exposed a stale root-call inventory.**
+The published b133367 checkpoint is not accepted. Both prepared full gates
+remain unrun; preserve them and repair the directly coupled inventory before
+publishing another reviewed validation checkpoint.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source-approved b133367 pushed — native CI running; fresh complete gate prepared but not started
+- **Status**: In progress — b133367 native Linux AVP inventory failure; bounded correction required
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -266,6 +266,13 @@ and runner identity are absent: **no complete S8 gate has started**.
 The old cba4423 preparation remains untouched. Keep origin frozen at b133367;
 progress tracking may be committed locally and pushed at closure or with
 another reviewed fix-forward, not by cancelling the exact-tip CI.
+Native Linux job 126274474309 fails the AVP-141 root-call inventory after
+the first test partition completes: six tracked production `os.OpenRoot`
+sites versus five expected; the extra-call sensitivity fixture sees seven
+versus six. Audit the legitimate S8 acquisition and update the directly coupled
+inventory/control without weakening its extra-call detection. Other native
+jobs continue; collect actual Windows evidence before replacing the checkpoint.
+No full S8 gate has started.
 
 ## Current State
 
@@ -460,6 +467,12 @@ Remote/local hashes match, all 91 sampled owned identities are gone, and
 `blocked.json` is absent. Evidence is retained in `s8-validation/rev6` and
 `bin/roc-s8-20261103/rev6-evidence/evidence`. This is not native Windows proof
 or a complete-gate result.
+At b133367, native Linux AVP-141 fails
+(`prepare_avp2_test.go:1023,1069`): production call count 6 versus 5, mutation
+count 7 versus 6. Raw log:
+`bin/roc-s8-20261103/s8-b133367-linux-native.log`.
+The serial native Test step stops at that partition; later Linux partitions
+are unrun. Other native jobs and the Windows result remain pending.
 
 ## Validation Policy
 
@@ -493,10 +506,10 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Keep b133367 frozen while native CI 41738713514 runs; inspect Windows job
-   126274474467 for the mandatory PASS markers, conditional SKIPs and baseline.
-2. Launch the prepared fresh full gate only after that native audit, with
-   unchanged guards. Remaining native jobs must also pass before acceptance.
+1. Audit and correct the S8-dependent AVP-141 inventory and its sensitivity
+   expectation; obtain guarded validation and independent re-review.
+2. Collect the remaining b133367 native evidence, then publish the reviewed
+   correction for fresh exact-tip CI and a newly prepared complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
