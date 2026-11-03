@@ -1679,6 +1679,9 @@ independent re-approval remain pending.
 The 33-file manifest confirms only the two authorized test deltas versus
 rev-2. Guarded formatting/routing controls pass; targeted analyzer checks,
 the affected batch and same-reviewer re-review are running.
+Final rev-3 source verdict is APPROVED: error propagation, active privacy-sink
+controls and historical scope sets are preserved. Runtime/native/full-gate
+validation remains pending.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

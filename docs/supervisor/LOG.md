@@ -1,3 +1,19 @@
+## Review — GH #13 S8 rev-3 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — rev-3 source only
+
+`build.Context.MatchFile` selection propagates errors. Negative controls
+exercise the existing privacy validator, including a reachable active-platform
+sink; the single S8 admission leaves earlier scope sets unchanged. No
+significant issue found. Prior production closures and the stronger raw
+live-Git oracle assessment stand.
+
+**Action**: keep the exact source frozen while the guarded runtime batch
+finishes. Native Windows and the fresh complete gate remain required.
+Rev-2's failed workflow run stays failed evidence, not a resource stop or
+runtime approval. No acceptance or deadline extension.
+
 ## S8 Rev-3 Guarded Checks and Independent Re-review Running — 2026-11-03
 
 Exact 33-file manifest comparison confirms only the two authorized test-file

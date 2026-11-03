@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-**S8 REV-3 UNDER REVIEW — guarded analyzer and affected checks running.**
+**S8 REV-3 SOURCE APPROVED — guarded runtime validation in progress.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Review — rev-3 frozen under independent re-review and guarded validation
+- **Status**: Validation — rev-3 source approved; guarded affected batch running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -124,6 +124,11 @@ files differ; production and ADR bytes are identical. Guarded formatting
 passed, with two formatter outputs mirrored after local frozen-hash checks.
 The same reviewer is checking the fix while targeted analyzer regressions
 precede the fresh full affected batch.
+Final rev-3 source verdict is **APPROVED**. The reviewer confirmed build
+selection propagates errors, negative controls reach the existing privacy
+validator (including an active-platform sink), and the S8 admission leaves
+earlier scope sets unchanged. Prior production/oracle closures stand.
+Runtime/native/full-gate validation still blocks acceptance.
 
 ## Current State
 
@@ -264,19 +269,18 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the exact formatted rev-3 source frozen during re-review and checks.
-2. Obtain explicit independent re-approval and fresh guarded affected checks,
-   vet and build before the complete gate.
+1. Keep the exact source-approved rev-3 snapshot frozen during affected checks.
+2. Complete guarded affected checks, vet and build; any further revision
+   requires fresh independent source approval before acceptance.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-Rev-2 source approval did not establish runtime compatibility. The existing
-workflow analyzer must handle the new platform file splits correctly and
-receive fresh review. Remaining affected checks, native Windows verification
-and the complete gate still block acceptance.
+The rev-3 analyzer repair is independently source-approved. Remaining
+affected runtime checks, native Windows verification and the complete gate
+still block acceptance; source approval does not establish those results.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent
