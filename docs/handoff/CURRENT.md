@@ -2,30 +2,28 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S7 SOURCE APPROVED; COMPLETE GATE RUNNING (S7 NOT ACCEPTED).**
-Gate launched 2026-11-03T09:37:47Z on the old Mac (harness pid 37438, own
-session, GOMEMLIMIT=3GiB, every guard unchanged, harness hashes identical to
-the S6 pass) at the pushed tip `8b84b33c0fc226437baf7e2ed8b1df481633fb1f`
-(WAVE_BASE `fe4b141…`); evidence in
-`/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s7-full-gate/evidence`.
-Nothing else may be pushed until it finishes. Native CI run 41612473590 queued
-at this tip. A resource stop means: preserve evidence and ask; never retry blindly.
-APPROVED denotes independent source review only (two review rounds, all
-findings fixed; targeted ROC tests, vet and build pass on the old Mac). S7
-implementation is pushed at `2e953e5`; the full resource-guarded gate and
-exact-tip native CI follow on the tracking-only tip. S6 closure `fe4b141`
-(archived in HISTORY under 2026-11-03T03:55:34Z; its chronology below is
-history). Window ends **2026-11-03T13:28:21Z** (operator +3h). Advance within
-#13 only; never #9, unrelated migrations, coverage, research or release work.
+**S7 ACCEPTED — two independent review rounds, complete full gate and native CI.**
+Validated checkpoint `8b84b33c0fc226437baf7e2ed8b1df481633fb1f` (S7 code at
+`2e953e5`; later commits are tracking only) passes 42/42 top-level commands and
+39/39 uncached test shards with exact CI parity (WAVE_BASE `fe4b141…`), zero
+owned survivors and zero new swap-outs: 12,200.85s, 5,917 samples, pressure 1
+throughout, min admission free 74%, peak owned RSS 4.60GiB, 1,111 owned
+identities exited with no cleanup signals, source clean, v0.17.0 unchanged, no
+`blocked.json`. Native CI 41612473590 passes all five jobs; the Windows
+allowed-failure suite log was NOT compared this time (GH #17 stays open; never
+claim it green). ADR-050 accepted. Archive and push this closure before S8
+dispatch; no release/tag. S7 final test-fixture fix was not independently
+re-reviewed beyond the gate. Window ends 2026-11-03T13:28:21Z; ask before any
+extension. #13 only; never #9.
 
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s7`
-- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-049
+- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: CLI — five terminal candidate flags, source-derived exclusivity, exit-code mapping
-- **Status**: In progress — dispatched 2026-11-03
+- **Status**: Complete — accepted after the complete gate passed at 8b84b33 (2026-11-03T13:01:09Z)
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`
 - **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, §6.12, §7.4, S7
@@ -512,17 +510,16 @@ Old Mac is an authorized isolated fallback; connection metadata stays private.
 
 ## Next Steps
 
-1. When the machine reaches the required resource threshold, hold 60 continuous
-   seconds and run only gofmt, focused S7/S0/S6 tests plus affected reconcile
-   flag tests, vet for CLI/workflow, and the CLI build.
-2. Resolve any validation finding without widening S7 scope.
-3. Leave the reviewed working tree uncommitted for the parent. Never start S8,
-   S9 or #9.
+1. Archive and push this S7 closure (verify clean HEAD=origin/main).
+2. Record a fresh S8 WAVE_BASE (`git rev-parse origin/main` after the push)
+   before dispatching S8 (acceptance transaction, CAS, journal, recovery). S8
+   replaces the explicit exit-3 seams for --accept-candidate and
+   --resume-candidate-recovery. S8 needs its own review, gate and CI; any window
+   extension needs operator approval. Never start #9.
 
 ## Blockers
 
-Local S7 validation is temporarily blocked by 75% diagnostic free memory versus
-the required >=80% admission threshold. Do not loosen the threshold.
+None. S7 is accepted.
 
 None for S6. The earlier stopped gate attempts (local: pressure 1 to 2;
 old-Mac uncapped: 2,227 swap-out pages; old-Mac 3GiB budget: 132,210 swap-out

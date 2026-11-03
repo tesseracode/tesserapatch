@@ -1,6 +1,6 @@
 # ADR-050: CLI terminal operation-candidate actions
 
-- **Status**: Proposed
+- **Status**: Accepted — 2026-11-03, after S7 independent review and full local/native validation at 8b84b33
 - **Date**: 2026-11-03
 - **Scope**: GH #13 slice S7 only
 

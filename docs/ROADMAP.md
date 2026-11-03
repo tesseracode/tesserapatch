@@ -1623,7 +1623,11 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S7 IN PROGRESS — CLI — 2026-11-03
+### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
+
+Complete gate PASSED at 2026-11-03T13:01:09Z at `8b84b33` (42/42 commands,
+39/39 tests, exact parity, zero swap-outs); native CI 41612473590 all five jobs
+success. ADR-050 accepted. S8 not yet dispatched; never #9.
 
 Dispatched after S6 closure fe4b141 was pushed (clean HEAD=origin/main). S7
 WAVE_BASE=`fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`. Operator extended the

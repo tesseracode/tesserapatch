@@ -1,3 +1,18 @@
+## S7 ACCEPTED — Complete Gate Passed — 2026-11-03
+
+Old-Mac gate (pid 37438, 2026-11-03T09:37:47Z–13:01:09Z) at `8b84b33`, status
+`passed`: 42/42 commands, 39/39 tests, exact parity vs WAVE_BASE `fe4b141`,
+12,200.85s, pressure 1, zero swap-outs, 1,111 owned identities exited, source
+clean, v0.17.0 unchanged. Native CI 41612473590 all five jobs success (Windows
+log not compared; GH #17 open). Review: two independent rounds; findings fixed
+(resolve-sweep refusal placement, write-error propagation, real-fixture tests,
+preflight/check-applied-only non-refusal). Decisions: S8 seams return an
+explicit exit-3 refusal (no fabricated acceptance); the effective-slug expansion
+was factored out of RunReconcile as a behavior-preserving refactor; the final
+test-fixture fix (--allow-dirty in the sweep case) had no separate re-review.
+ADR-050 accepted. Next: archive/push, then S8 only with a fresh WAVE_BASE and
+operator approval for any window extension (window ends 13:28:21Z).
+
 ## S6 ACCEPTED — Fourth Complete Gate Passed — 2026-11-03
 
 The fresh old-Mac retry (harness pid 18465, launched 2026-11-03T00:32:56Z)
