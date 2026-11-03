@@ -1733,6 +1733,9 @@ results, required PASS markers and regression guards; existing partitions/
 timeouts remain unchanged. The real-record legacy fixture correction has
 returned; the same implementer completes the authorized evidence lane before
 combined rev-6 freeze, guarded checks and independent re-review.
+Combined rev-6 is frozen: the 35-file manifest has only three new deltas,
+and existing CI lines are retained. The native lane requires 26 exact PASS
+markers with visible SKIPs. Guarded validation and re-review are next.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

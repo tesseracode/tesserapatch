@@ -1,3 +1,16 @@
+## S8 Combined rev-6 Frozen — 2026-11-03
+
+The 35-file source/ADR/CI manifest is verified: exactly three deltas from
+formatted rev-5 (`ci.yml`, CLI S8 tests, Proposed ADR-051). Existing CI lines
+are retained; the Windows-only addition runs uncached verbose S8 tests in
+candidate/workflow/CLI and checks 26 exact PASS markers. Conditional SKIPs
+remain visible. Negative controls cover routing/blocking/proof failures.
+
+The real-record legacy fixture correction is included. Parent proceeds with
+unchanged guarded formatting, the revised regression/soak batch, existing
+CI partition/timeout guards, Windows compilation, vet/build and independent
+re-review. Source remains frozen and no native/full-gate approval is inferred.
+
 ## S8 Native Windows Evidence Exception Authorized; rev-6 Fixture Returned — 2026-11-03
 
 The operator selected **`add-blocking-s8-windows-check`**: add a dedicated,

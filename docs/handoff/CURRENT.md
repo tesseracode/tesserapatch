@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-6 fixture returned; operator approved a dedicated blocking Windows S8 check
+- **Status**: In progress — combined rev-6 frozen for guarded validation and independent re-review
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -227,6 +227,12 @@ required PASS markers and mutation-sensitive regression guards. Preserve
 all existing partitions/timeouts/baseline coverage and the complete old-Mac
 gate. The same implementer owns this addition; conditional skips must remain
 visible and must not be reported as native coverage.
+Combined rev-6 is frozen and hash-verified: 35 files, 32 Go files, exactly
+three deltas from formatted rev-5 (CI, CLI S8 tests, Proposed ADR-051).
+The Windows-only addition runs verbose uncached S8 tests in candidate,
+workflow and CLI, requires 26 exact PASS markers and retains SKIP output.
+Existing CI lines remain unchanged. The parent will also run the existing
+CI partition/timeout guards alongside the repaired fixture and real soak.
 
 ## Current State
 
