@@ -1,3 +1,53 @@
+## S8 Generation Amendment Authorized; Rev-1 Dispatched — 2026-11-03
+
+The operator selected **candidate-only-generation-amendment** after the
+reachable normal-producer conflict was explained. Approved scope: the existing
+shared generation appender may append for proved operation-candidate acceptance
+when the normalized base/recipe/capture/upper binding tuple changes despite
+identical raw patch bytes. Existing historical entries are not rewritten;
+identical candidate tuples remain no-ops; no other producer skip semantics,
+generation kind or schema changes.
+
+The sole implementer is fixing all rev-0 findings and the runtime index/ref/
+reflog failure. Authorized scope now includes the early shared CLI journal
+preflight, platform-specific persisted directory ownership if needed, Proposed
+ADR-051's amendment rationale and a narrow ADR-024 D9 cross-reference. The
+record/B→U→H conflict fixture must demonstrate successful acceptance and
+base agreement through the normal producer flow. Independent final review and
+guarded validation still gate acceptance; no deadline extension was requested
+or implied (2026-11-04T04:55:00Z).
+
+## Review — GH #13 S8 rev-0 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: NEEDS REVISION
+
+1. HIGH — `operation_candidate_recovery.go:389–393,450–468`: after a
+   `worktree-relocated` crash, an ordinary replacement `.accept-prune`
+   directory is accepted by type alone and recursively deleted. Persist and
+   check the originally relocated directory/registration ownership.
+2. MEDIUM — `reconcile.go:220` / CLI early returns: journal preflight is too
+   late. Dirty-tree, preflight and check-only paths can bypass the required
+   early recovery-required/exit-3 refusal.
+3. MEDIUM — `patch_generations.go:91–95`: same-byte mismatch is reachable
+   using normal record history, ancestor upstream and HEAD deleting context.
+   The untyped preparation refusal adds an unapproved S8 precondition.
+   Explicitly adjudicate ADR-024's skip rule versus S8's matching-base rule.
+4. MEDIUM — `operation_candidate_s8_guards_test.go:44–50`: the new dispatch
+   weakens existing constant-expression evidence scanning; concatenated names
+   and constant aliases bypass the individual-literal check.
+
+Windows directory-flush behavior remains unverified, not statically declared
+broken. The first guarded workflow S8 command also failed after 501.989s:
+`TestROCS8AcceptAncestorDirtyTreeAndReeligibility` reports live index/refs/
+reflog mutation. The serial wrapper stopped before CLI or candidate/lock
+checks; this was not a resource stop. Preserve evidence and fix the underlying
+invariant without weakening the assertion.
+
+**Action**: record findings immediately; return in-scope defects to the sole
+implementer and request the bounded generation-contract decision before
+implementing that exception. No S8 approval or acceptance.
+
 ## S8 Rev-0 Review and Focused Validation Dispatched — 2026-11-03
 
 The explicit 26-file source snapshot was hashed before remote transfer.

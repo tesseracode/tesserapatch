@@ -1641,6 +1641,14 @@ and focused tests. Independent review is pending; same-byte generation/base
 compatibility and native Windows directory durability remain open questions.
 Guarded formatting is clean. Rev-0 is frozen for independent review and
 serial focused workflow/CLI/candidate/lock checks; S8 is not accepted.
+Rev-0 NEEDS REVISION: cleanup replacement ownership, early CLI journal refusal,
+reachable same-byte generation/base conflict and constant-expression guard
+coverage. Focused workflow tests also detected index/ref/reflog mutation; the
+serial batch stopped before CLI/candidate checks. No full gate yet.
+Operator approved the narrow candidate-only generation amendment: through the
+shared appender, changed base/recipe/capture/upper bindings may append despite
+identical patch bytes; history and all other producers remain unchanged.
+ADR-051 plus a bounded ADR-024 D9 note will record it. Revision is in progress.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
