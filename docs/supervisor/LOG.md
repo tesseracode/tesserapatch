@@ -1,3 +1,26 @@
+## S8 b133367 Published; Native Evidence Running and Fresh Gate Prepared — 2026-11-03
+
+Reviewed fix-forward checkpoint **`b133367188a93cd53de20dcd758d8dfd1c077c5f`**
+is pushed with all queued tracking. Eleven exact paths were staged, the
+trailer parses, all wave trailers/non-invalidation surfaces were verified,
+and clean HEAD=origin/main plus unchanged v0.17.0 were confirmed.
+
+Fresh native CI **41738713514** runs at that exact SHA. Windows job
+**126274474467** includes the new blocking S8 runtime lane. A bounded observer
+reports the first failed job or Windows completion; no native pass is claimed.
+The existing failed cba4423 run/evidence remains preserved.
+
+New `s8-final-b133367-source` / `s8-full-gate-b133367` are prepared: full history,
+real origin, 35 reviewed hashes, five unchanged harness/script hashes and nine
+routing controls verified. Evidence/caches/runner identity are absent.
+The full gate is **not started**. Its original unrun cba4423 preparation is
+untouched.
+
+**Action**: freeze origin at b133367; commit progress tracking locally until
+closure or a reviewed fix-forward. Audit actual Windows PASS/SKIP/baseline
+evidence before launching the fresh gate. All remaining native jobs must pass
+before acceptance; deadline 2026-11-04T04:55:00Z remains unchanged.
+
 ## S8 rev-6 Reviewed Checkpoint Ready for Native CI and Complete Gate — 2026-11-03
 
 All seven guarded commands pass: both formatting checks, focused workflow

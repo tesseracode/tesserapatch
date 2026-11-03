@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source-approved checkpoint — targeted checks passed; native CI and complete gate pending
+- **Status**: Source-approved b133367 pushed — native CI running; fresh complete gate prepared but not started
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -252,6 +252,20 @@ retain normal pressure and zero swap-outs; all 91 sampled owned identities
 have ended. Mirrored evidence matches and the 35 reviewed source files remain
 unchanged. Publish the fix-forward checkpoint and freeze origin while its
 native CI and complete gate establish acceptance.
+Reviewed fix-forward checkpoint **`b133367188a93cd53de20dcd758d8dfd1c077c5f`**
+is pushed, including queued tracking. Eleven staged paths and all wave
+trailers/protected surfaces were verified; clean HEAD=origin/main and
+unchanged v0.17.0 were confirmed. Fresh exact-tip CI is **41738713514**,
+Windows job **126274474467**. The first-failure/Windows-completion observer
+is responsive; no native result is claimed yet.
+
+Fresh `s8-final-b133367-source` and `s8-full-gate-b133367` are prepared at this
+checkpoint, with full history/real origin, all 35 source hashes, five unchanged
+harness/script hashes and nine routing controls verified. Evidence, caches
+and runner identity are absent: **no complete S8 gate has started**.
+The old cba4423 preparation remains untouched. Keep origin frozen at b133367;
+progress tracking may be committed locally and pushed at closure or with
+another reviewed fix-forward, not by cancelling the exact-tip CI.
 
 ## Current State
 
@@ -479,10 +493,10 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Push the reviewed fix-forward checkpoint with queued tracking, then freeze
-   origin for exact-tip native CI and the fresh complete gate.
-2. Audit actual Windows PASS/SKIP output and baseline failures; run the fresh
-   full gate with unchanged guards. No timeout/partition/memo-policy waiver.
+1. Keep b133367 frozen while native CI 41738713514 runs; inspect Windows job
+   126274474467 for the mandatory PASS markers, conditional SKIPs and baseline.
+2. Launch the prepared fresh full gate only after that native audit, with
+   unchanged guards. Remaining native jobs must also pass before acceptance.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

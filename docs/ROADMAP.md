@@ -1748,6 +1748,10 @@ Windows compilation, vet/build. Normal pressure, zero swap-outs, frozen
 source unchanged. Publish the reviewed fix-forward checkpoint; inspect native
 Windows evidence before the fresh full gate. Remaining GitHub jobs may finish
 concurrently on separate hosts, but all native/full-gate evidence must pass.
+Reviewed fix-forward `b133367` is pushed; native CI 41738713514 is running.
+Fresh full-history source/harness, 35 reviewed hashes and nine routing
+controls are verified, with empty evidence/caches. Full gate not started.
+Origin stays frozen while native evidence is audited and the fresh gate runs.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
