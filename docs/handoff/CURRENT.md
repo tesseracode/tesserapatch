@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-**S8 REV-3 IN PROGRESS — affected source-analyzer regression.**
+**S8 REV-3 UNDER REVIEW — guarded analyzer and affected checks running.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — repairing the affected workflow analyzer's platform-file selection
+- **Status**: Review — rev-3 frozen under independent re-review and guarded validation
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -112,6 +112,18 @@ production compiler or resource failure. Rev-3 may update the affected
 test-only source selection and mutation controls, preserving all actual
 privacy assertions and any frozen provenance fields. No production behavior
 change or platform skip is authorized by this diagnosis.
+Rev-3 returned frozen: `s7_an_privacy_test.go` now selects files with
+`build.Context.MatchFile`, following the existing CLI analyzer pattern.
+New controls exercise platform/tags, malformed constraints, wrong-platform
+inclusion, missing active backend/root and active privacy sinks through the
+existing validator. The only other delta is its S8 test-file allowlist
+admission in `operation_candidate_s0_guards_test.go`. No production, golden
+or provenance-byte changes are reported; validation and re-review are pending.
+The parent verified the 33-file manifest against rev-2: only those two test
+files differ; production and ADR bytes are identical. Guarded formatting
+passed, with two formatter outputs mirrored after local frozen-hash checks.
+The same reviewer is checking the fix while targeted analyzer regressions
+precede the fresh full affected batch.
 
 ## Current State
 
@@ -172,6 +184,9 @@ S8 requirements:
 - Authorized revision scope adds the shared early journal check in
   `internal/cli/cobra.go`, any necessary platform directory-identity helpers,
   and the narrowly approved ADR-024 D9 amendment. No S9 public-doc expansion.
+- Rev-3 adds `internal/workflow/s7_an_privacy_test.go` for platform-aware
+  source selection and mutation controls, plus its single S8 scope admission
+  in the already modified `operation_candidate_s0_guards_test.go`.
 
 ## Test Results
 
@@ -216,6 +231,12 @@ and marker remain in `s8-validation/rev2`, mirrored locally; matching
 `03-go.json` SHA256:
 `6c10d3e9b7c8f57a508d7d5d773de9fd9ef9ee029ccaa57774945d438dcd16aa`.
 
+Rev-3: nine unchanged routing controls and guarded formatting pass.
+`TestS7Workflow`, `TestS7PIB420/446` and `TestROCS8ScopeTransition`
+run first, followed by full workflow, focused CLI S7/S8/reconcile,
+candidate/lock, vet and build. The fresh serial batch in
+`s8-validation/rev3` stops at the first failure; previous evidence is retained.
+
 ## Validation Policy
 
 Reuse the accepted resource guard for EVERY Go/gofmt command, including
@@ -243,8 +264,7 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Repair the directly affected test-only platform-file selection without
-   weakening privacy/totality assertions or frozen provenance; freeze rev-3.
+1. Keep the exact formatted rev-3 source frozen during re-review and checks.
 2. Obtain explicit independent re-approval and fresh guarded affected checks,
    vet and build before the complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive

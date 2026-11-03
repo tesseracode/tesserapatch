@@ -1,3 +1,30 @@
+## S8 Rev-3 Guarded Checks and Independent Re-review Running — 2026-11-03
+
+Exact 33-file manifest comparison confirms only the two authorized test-file
+deltas from rev-2; production and ADR bytes are identical. Nine unchanged
+routing controls and guarded formatting pass. Two formatter outputs were
+mirrored only after frozen local-hash checks.
+
+The same reviewer is checking platform selection, fail-closed privacy/type
+analysis, mutation controls and the single S8 scope admission. Fresh guarded
+validation runs targeted S7 workflow/PIB420/446/S8 scope tests first, then
+full affected workflow, focused CLI, candidate/lock, vet and build, serially
+with stop-first-failure. No runtime or final source-approval claim yet.
+
+## S8 Rev-3 Returned; Test-only Scope Confirmed — 2026-11-03
+
+The implementer froze `internal/workflow/s7_an_privacy_test.go` changes:
+`build.Context.MatchFile` file selection follows the existing CLI analyzer
+pattern, with platform/tag, malformed-constraint, wrong-platform inclusion,
+missing active backend/root and active privacy-sink controls through the
+existing validator. The only additional delta is that test file's single
+S8 scope admission in `operation_candidate_s0_guards_test.go`.
+
+No production behavior, golden or provenance hash changes are reported.
+The parent will verify the exact delta, format under the unchanged guard,
+run the targeted analyzer regressions before the full affected workflow
+suite, and obtain independent re-approval. No Go command ran during revision.
+
 ## S8 Rev-2 Runtime Regression; Bounded rev-3 Dispatch — 2026-11-03
 
 The full affected workflow command stopped after 811.890s at

@@ -1672,6 +1672,13 @@ S7 pure-generator privacy guard: its source type-checker includes mutually
 exclusive S8 platform files. Rev-3 is bounded to the affected test-only
 platform selection and mutation controls, without weakening privacy or
 provenance checks. No resource stop; follow-on commands remain unrun.
+Rev-3 is frozen: `build.Context.MatchFile` selection and negative controls
+in the existing workflow privacy analyzer, with one dependent S8 scope
+admission. Production/goldens/provenance unchanged; guarded checks and
+independent re-approval remain pending.
+The 33-file manifest confirms only the two authorized test deltas versus
+rev-2. Guarded formatting/routing controls pass; targeted analyzer checks,
+the affected batch and same-reviewer re-review are running.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
