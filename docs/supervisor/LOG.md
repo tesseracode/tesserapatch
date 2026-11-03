@@ -1,3 +1,18 @@
+## S8 Implementation Started; Validation Infrastructure Prepared — 2026-11-03
+
+Dispatch tracking `6880b1f` is pushed. One OpenAI implementer owns S8 code and
+Proposed ADR-051; parent owns tracking and all guarded Go runs. The isolated
+old-Mac `s8-source` is clean at the dispatch commit; accepted wrapper/profiler
+hashes match (gate-tool `6b95024c`, controls `aee2d174`, profiler `6e7c43e8`).
+Preflight: pressure 1, load1 2.19, diagnostic free memory 76%, disk free 51GiB,
+private Go1.26.5, no active Go workload. No Go command has run for S8.
+
+Retrieved S7 Windows job 125837939993 (CI41612473590 at `8b84b33`), closing the
+comparison omission as baseline evidence, not changing its historical archive:
+224 top-level failures, exactly the validated S6 `ee96551` failure-name set,
+plus the known panic line. Preserve actual logs for S8 comparison; #17 remains
+open. No claim that the allowed-failure full suite passed.
+
 ## S8 Dispatch — Acceptance and Recovery — 2026-11-03
 
 **Operator authorization**: "lets start with S8 now, lets expand the window to

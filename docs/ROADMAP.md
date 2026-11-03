@@ -1633,6 +1633,9 @@ Implement the fourteen-step journaled transaction, two-pass per-path CAS,
 shared residual E/C publication and explicit marker-driven recovery. One
 implementer, independent review, unchanged guarded serial validation and
 fresh full gate/native CI before acceptance. S9/release not dispatched; never #9.
+Dispatch tracking `6880b1f` is pushed. One implementer is active; old-Mac
+targeted-validation source and unchanged guards are prepared. S7 Windows
+baseline is now compared: 224 failures, none new versus validated S6; #17 open.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

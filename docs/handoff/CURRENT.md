@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — contract review and single-implementer dispatch
+- **Status**: In progress — single implementer active; isolated validation checkout ready
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -33,18 +33,28 @@ WAVE_BASE = d65150ce02668d095a0f4dffce9571ba3fd7096b
 ## Session Summary
 
 Verified the pushed S7 closure and recorded the fresh wave base before code.
-S8 replaces S7's honest exit-3 acceptance/recovery placeholders with the
-accepted fourteen-step transaction. No S8 code or Go validation has run yet.
-The parent will preserve every review verdict and phase transition here and
-in LOG/ROADMAP, committing tracking as work advances.
+Dispatch tracking is pushed at `6880b1f`. A single OpenAI implementation agent
+(`09aaa781-2665-4fdc-a1c8-7619210a364e`) owns S8 code and Proposed ADR-051.
+Parent owns CURRENT/LOG/ROADMAP/HISTORY and every Go invocation, avoiding shared
+file overlap. S8 replaces the acceptance/recovery placeholders with the
+accepted fourteen-step transaction. No S8 Go validation has run yet.
+
+The old Mac's new `s8-source` is a clean full-history checkout at the dispatch
+commit; `s8-validation/rev0` uses the byte-identical accepted gate wrapper and
+profiler. Preflight: pressure 1, load1 2.19, 76% diagnostic free, 51GiB disk
+free, exact private Go1.26.5, no active Go workload. No user app was stopped.
 
 ## Current State
 
 S0–S7 are accepted. S7's complete gate at `8b84b33` passed 42/42 commands,
 39/39 uncached test commands, exact parity and zero swap-outs; native CI
 41612473590 completed successfully. Its allowed-failure Windows full-suite
-log was not compared at S7 close; do not call that suite green or close #17.
-The full S7 record remains in HISTORY, including its review limitations.
+log was not compared at S7 close. During S8 setup, the parent retrieved job
+125837939993: 224 top-level failures and one panic line, with no added or
+removed failure names versus the validated S6 `ee96551` log. This is the S8
+comparison baseline, retained in ignored `bin/roc-s8-20261103/`.
+Do not call that suite green or close #17. The full S7 record remains in
+HISTORY, including its review limitations.
 
 S8 requirements:
 
