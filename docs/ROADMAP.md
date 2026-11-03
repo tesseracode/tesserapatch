@@ -1736,6 +1736,9 @@ combined rev-6 freeze, guarded checks and independent re-review.
 Combined rev-6 is frozen: the 35-file manifest has only three new deltas,
 and existing CI lines are retained. The native lane requires 26 exact PASS
 markers with visible SKIPs. Guarded validation and re-review are next.
+Rev-6 guarded formatting/routing controls pass without changing source bytes.
+The fresh regression/soak/CI-guard batch and independent re-review are dispatched;
+native Windows runtime and complete-gate acceptance remain pending.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

@@ -1,3 +1,16 @@
+## S8 rev-6 Guarded Checks and Independent Re-review Dispatched — 2026-11-03
+
+The 35-file frozen manifest is unchanged by formatting. Nine unchanged routing
+controls, guarded formatting of 32 Go files and the empty repository formatting
+check pass with normal pressure and zero swap-outs.
+
+**Action**: the same independent reviewer examines the real-record fixture,
+blocking native Windows command/26 exact markers, honest SKIP handling and
+mutation controls. The parent runs workflow controls, affected CLI plus the
+actual cumulative soak and existing CI partition/timeout guards, Windows
+workflow test-binary compilation, vet and build in fresh serial evidence.
+Stop at first failure; native runtime and complete-gate acceptance remain pending.
+
 ## S8 Combined rev-6 Frozen — 2026-11-03
 
 The 35-file source/ADR/CI manifest is verified: exactly three deltas from

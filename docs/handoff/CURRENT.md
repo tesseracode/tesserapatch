@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — combined rev-6 frozen for guarded validation and independent re-review
+- **Status**: In progress — rev-6 guarded checks and independent re-review dispatched
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -233,6 +233,11 @@ The Windows-only addition runs verbose uncached S8 tests in candidate,
 workflow and CLI, requires 26 exact PASS markers and retains SKIP output.
 Existing CI lines remain unchanged. The parent will also run the existing
 CI partition/timeout guards alongside the repaired fixture and real soak.
+Nine unchanged routing controls and both guarded formatting commands pass;
+all 35 frozen files remain byte-identical. The same reviewer is rechecking
+the fixture, new native lane and negative controls while the serial guarded
+batch runs. Neither static approval nor Windows cross-compilation is native
+runtime evidence.
 
 ## Current State
 
@@ -412,6 +417,12 @@ Rev-5 workflow controls PASS (1.236s). CLI FAILS after 54.743s in
 (`operation_candidate_s8_test.go:253`), missing `artifacts/post-apply.patch`.
 The batch stops before Windows cross-compilation, vet or build. The actual
 cumulative soak is not established by this failed CLI invocation.
+Rev-6 formatting passes unchanged (32 Go files, empty repository listing),
+normal pressure and zero swap-outs. Fresh targeted runtime evidence is in
+`s8-validation/rev6`, including existing CI partition/timeout guards.
+The failed rev-5 evidence remains preserved; matching remote/local
+`04-go.json` SHA256:
+`2e22ac24282784fcb621781e029c80518c8cd7074c80dd6285d2d91d12124644`.
 
 ## Validation Policy
 
