@@ -1623,6 +1623,12 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S7 IN PROGRESS — CLI — 2026-11-03
+
+Dispatched after S6 closure fe4b141 was pushed (clean HEAD=origin/main). S7
+WAVE_BASE=`fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`. Operator extended the
+window by 3h to 2026-11-03T13:28:21Z. S8/S9 not started; never #9.
+
 ### GH #13 — ✅ S6 ACCEPTED — phase wiring and evidence — 2026-11-03
 
 Dispatched only after S5 closure62698be was pushed and clean HEAD=origin/main

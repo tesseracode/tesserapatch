@@ -2,34 +2,27 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IN PROGRESS
 
-**S6 ACCEPTED — independent review, complete full gate and native CI.**
-Validated checkpoint `ee965514ee155bc74c383e53bb01cb4c8a83b06e` (production
-byte-identical to the earlier-reviewed `b9d42f4`) passes all 42/42 top-level
-commands and 39/39 uncached test shards with exact CI parity, zero owned
-survivors and zero new swap-outs. Native CI 41537751705 passes all five jobs
-(Windows allowed-failure suite: 224 failures, 0 new, not a #17 closure).
-The three earlier stopped attempts remain preserved as history, not the result.
-ADR-049 accepted. Archive and push this closure before S7 dispatch; no
-release/tag is included. v0.17.0 is unchanged.
-
-Window: 2026-11-02T22:28:21Z through 2026-11-03T10:28:21Z. Advance within #13
-only; never start #9, unrelated migrations, coverage, research or release work.
+**S7 DISPATCHED (CLI) after S6 closure `fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`
+was pushed with clean HEAD=origin/main.** S6 is ACCEPTED and archived in HISTORY
+under 2026-11-03T03:55:34Z; the S6 chronology below is retained as history.
+Window extended by the operator (+3h): ends **2026-11-03T13:28:21Z**. Advance
+within #13 only; never start #9, unrelated migrations, coverage, research or
+release work. Any further extension needs approval.
 
 ## Active Task
 
-- **Task ID**: `implement-operation-replay-candidate-s6`
-- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-048
-- **Description**: Phase wiring, lifecycle preservation and evidence
-- **Status**: Complete — accepted after the fourth complete gate passed at ee96551 (2026-11-03T03:55:34Z)
-- **Assigned**: 2026-10-31
-- **WAVE_BASE**: `62698be412fb7e9a3e723d2589d6091b8eae3e5f`
-- **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, S6
+- **Task ID**: `implement-operation-replay-candidate-s7`
+- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-049
+- **Description**: CLI — five terminal candidate flags, source-derived exclusivity, exit-code mapping
+- **Status**: In progress — dispatched 2026-11-03
+- **Assigned**: 2026-11-03
+- **WAVE_BASE**: `fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`
+- **Contract**: accepted PRD-reconcile-operation-replay-candidate rev-7, §6.12, §7.4, S7
 - **Owner**: parent implementation; independent review required before acceptance
-- **Proposed decisions**: ADR-049-phase2-authority-integration.md
 
-WAVE_BASE = 62698be412fb7e9a3e723d2589d6091b8eae3e5f
+WAVE_BASE = fe4b141ac32f384ce4a2229a8b980f1a2c97efa5
 
 ## Session Summary
 
