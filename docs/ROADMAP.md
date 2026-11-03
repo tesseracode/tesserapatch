@@ -1712,6 +1712,9 @@ lock file later refused by land; Windows actual failures are 226 versus the
 224 baseline (two new S8 fixture assumptions), despite the green job;
 macOS AQ observer times out while Linux observers pass. Rev-5 is scoped to
 the lock-path/native controls and bounded AQ diagnosis. Full gate not started.
+Same-source Linux AQ passed 66.209s. A guarded isolated old-Mac AQ diagnostic
+is running without source/budget changes; rev-5 Go work waits for it, with
+no acceptance or flakiness inference from a different host.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

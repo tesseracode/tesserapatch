@@ -1,3 +1,16 @@
+## S8 Same-source AQ Diagnostic Started — 2026-11-03
+
+The same cba4423 Linux AQ observer passed in 66.209s, versus the macOS
+510.67s timeout. Parent started one unchanged-source diagnostic on a fresh
+old-Mac cba4423 checkout with the accepted admission/runtime guards,
+Go1.26.5, serial execution and the existing 3GiB soft budget. Routing controls
+pass; evidence is isolated at `s8-validation/ci-cba4423-aq`.
+
+This is not a rerun of the failed native CI and cannot by itself prove
+flakiness or waive native approval. The sole implementer continues the
+bounded ordinary-lock/Windows fixes and read-only AQ diagnosis. No local or
+rev-5 Go invocation may overlap; wait for diagnostic completion first.
+
 ## S8 Native CI Failed; rev-5 Required Before Full Gate — 2026-11-03
 
 CI **41718498683**, exact source **cba4423**, failed. All platform formatting/

@@ -337,6 +337,12 @@ All 224 baseline Windows failures and its known panic remain.
 macOS observer `TestS7ObservedAQRegistrationAuthority` times out at 510.67s:
 PIB-487 started without PASS, PIB-498 never ran. Preserve and diagnose.
 Logs/comparison live under ignored `bin/roc-s8-20261103/s8-cba4423-*`.
+The matching Linux AQ observer passed in 66.209s. A single diagnostic now
+runs the unchanged cba4423 AQ observer on a fresh isolated old-Mac clone
+under the accepted serial/resource policy. Evidence is separate at
+`s8-validation/ci-cba4423-aq`; shell `roc-s8-ci-aq-diagnostic`.
+This is not a native-CI retry or proof of flakiness. Rev-5 formatting/Go
+checks must wait for it to finish; no overlapping Go workload is permitted.
 
 ## Validation Policy
 
