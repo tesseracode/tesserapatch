@@ -4,7 +4,14 @@
 
 **Cluster state**: APPROVED
 
-**S7 SOURCE APPROVED; COMPLETE GATE NOT YET PASSED (S7 NOT ACCEPTED).**
+**S7 SOURCE APPROVED; COMPLETE GATE RUNNING (S7 NOT ACCEPTED).**
+Gate launched 2026-11-03T09:37:47Z on the old Mac (harness pid 37438, own
+session, GOMEMLIMIT=3GiB, every guard unchanged, harness hashes identical to
+the S6 pass) at the pushed tip `8b84b33c0fc226437baf7e2ed8b1df481633fb1f`
+(WAVE_BASE `fe4b141…`); evidence in
+`/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s7-full-gate/evidence`.
+Nothing else may be pushed until it finishes. Native CI run 41612473590 queued
+at this tip. A resource stop means: preserve evidence and ask; never retry blindly.
 APPROVED denotes independent source review only (two review rounds, all
 findings fixed; targeted ROC tests, vet and build pass on the old Mac). S7
 implementation is pushed at `2e953e5`; the full resource-guarded gate and
