@@ -1,3 +1,23 @@
+## S8 Native Windows Evidence Exception Authorized; rev-6 Fixture Returned — 2026-11-03
+
+The operator selected **`add-blocking-s8-windows-check`**: add a dedicated,
+blocking S8 Windows check with verbose results and required PASS markers.
+This is a narrow exception to the frozen CI scope, including mutation-sensitive
+regression guards. Existing CI partitions, timeouts, allowed-failure baseline
+coverage and the complete 42-command/39-test old-Mac gate remain unchanged.
+Report conditional native skips explicitly; do not turn hidden skips into
+claimed coverage.
+
+The implementer returned the bounded rev-6 CLI fixture correction: construct
+the feature through real record, retain its base, validate bound record E/C,
+and verify legacy acceptance republishes complete coverage. Successful
+acceptance, resolved bytes, lifecycle and no-candidate-lock assertions remain.
+Production/shared helpers are unchanged; formatting/runtime/re-review pending.
+
+**Action**: the same sole implementer adds the authorized native evidence
+lane and its focused negative controls, then freezes the combined rev-6 for
+guarded validation and independent re-review. No AQ/budget/partition change.
+
 ## S8 Rev-5 Runtime Fixture Failure — 2026-11-03
 
 The focused workflow controls pass (1.236s). The next CLI command fails after

@@ -1728,6 +1728,11 @@ no-blanket-skip audit. Runtime then fails in the new legacy-resolver fixture:
 missing `artifacts/post-apply.patch`. Workflow controls pass; the serial batch
 stops before Windows compilation/vet/build. A bounded fixture correction and
 re-review are required. Native verbose coverage evidence is still unresolved.
+The operator approved a dedicated blocking S8 Windows step with verbose
+results, required PASS markers and regression guards; existing partitions/
+timeouts remain unchanged. The real-record legacy fixture correction has
+returned; the same implementer completes the authorized evidence lane before
+combined rev-6 freeze, guarded checks and independent re-review.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

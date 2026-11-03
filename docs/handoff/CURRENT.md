@@ -4,7 +4,7 @@
 
 **Cluster state**: IN PROGRESS
 
-**S8 REV-5 IN PROGRESS — native CI exposed additional regressions.**
+**S8 REV-6 IN PROGRESS — fixture correction and native Windows evidence.**
 The published cba4423 checkpoint is not accepted. The prepared complete
 gate has not run; fix forward and obtain fresh review/native evidence first.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-5 CLI fixture failed after source approval; bounded correction required
+- **Status**: In progress — rev-6 fixture returned; operator approved a dedicated blocking Windows S8 check
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -218,6 +218,15 @@ Rev-5 runtime then stopped in the new legacy-resolver CLI regression:
 its fixture lacks `artifacts/post-apply.patch`, so acceptance exits before
 the intended success assertion. Correct the fixture using the real legacy
 artifact contract; do not make production accept missing artifacts.
+The bounded rev-6 fixture now records a real scoped feature, retains the
+recorded base, validates bound E/C and verifies refreshed legacy-accept
+publication. Production/shared helpers remain unchanged; validation pending.
+The operator selected `add-blocking-s8-windows-check`, authorizing a narrow
+CI exception: dedicated blocking S8 Windows execution, verbose results,
+required PASS markers and mutation-sensitive regression guards. Preserve
+all existing partitions/timeouts/baseline coverage and the complete old-Mac
+gate. The same implementer owns this addition; conditional skips must remain
+visible and must not be reported as native coverage.
 
 ## Current State
 
@@ -281,6 +290,9 @@ S8 requirements:
 - Rev-3 adds `internal/workflow/s7_an_privacy_test.go` for platform-aware
   source selection and mutation controls, plus its single S8 scope admission
   in the already modified `operation_candidate_s0_guards_test.go`.
+- The operator-approved rev-6 validation exception permits a dedicated S8
+  Windows step in `.github/workflows/ci.yml` and directly dependent S8 guards;
+  existing workflow commands/partitions/timeouts must remain unchanged.
 
 ## Test Results
 
@@ -422,7 +434,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Correct the rev-5 legacy-resolver fixture, re-review and run fresh guarded
+1. Finish the authorized native Windows evidence lane, freeze it together
+   with the rev-6 fixture correction, then re-review and run fresh guarded
    checks including the actual cumulative soak. Preserve failed evidence.
 2. Push a source-approved fix-forward checkpoint for fresh native CI.
    No timeout/partition/memo-policy change is authorized to manufacture green.
