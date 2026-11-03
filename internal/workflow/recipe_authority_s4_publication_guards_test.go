@@ -28,7 +28,7 @@ var rgaS4ProducerFunctions = map[string]map[string]bool{
 var rgaS4Registry = map[string][]string{
 	"record":              {"cli.recordCmd"},
 	"feature-patch-amend": {"cli.runFeaturePatchAmend"},
-	"reconcile-accept":    {"workflow.RefreshAfterAccept", "workflow.AcceptShadow", "cli.runReconcileAccept", "workflow.RunReconcile"},
+	"reconcile-accept":    {"workflow.RefreshAfterAccept", "workflow.AcceptShadow", "cli.runReconcileAccept", "workflow.RunReconcile", "workflow.AcceptOperationCandidate"},
 	"cycle":               {"cli.cycleCmd"},
 	"apply-done":          {"cli.runApplyDone"},
 	"implement":           {"workflow.RunImplement", "cli.runManualPhase"},
@@ -449,6 +449,22 @@ func TestRGAS4ProducerRegistryAndReachableSiteMapping(t *testing.T) {
 	if err := rgaS4ValidateMapping(sources, rgaS4Registry); err != nil {
 		t.Fatal(err)
 	}
+	t.Run("candidate-acceptance-needs-its-existing-p3-registration", func(t *testing.T) {
+		registry := map[string][]string{}
+		removed := false
+		for producer, roots := range rgaS4Registry {
+			for _, root := range roots {
+				if root == "workflow.AcceptOperationCandidate" {
+					removed = true
+					continue
+				}
+				registry[producer] = append(registry[producer], root)
+			}
+		}
+		if !removed || rgaS4ValidateMapping(sources, registry) == nil {
+			t.Fatal("same mapping validator accepted an unregistered candidate acceptance caller")
+		}
+	})
 	t.Run("publisher-feature-file-aliases", func(t *testing.T) {
 		const path = "internal/workflow/recipe_coverage_publish.go"
 		before := sources[path]

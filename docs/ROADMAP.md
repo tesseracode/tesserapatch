@@ -1698,6 +1698,10 @@ change to the final gate's full partition.
 Final rev-4 source verdict is APPROVED: no probe writes/locks, unsafe or
 present journals refused, CLI ordering and held-lock rechecks retained.
 Runtime/native/full-gate results still gate acceptance.
+Rev-4 guarded batch PASSED all seven commands: formatting, changed-probe
+workflow, affected CLI, full candidate/lock, vet and build. Normal pressure,
+zero new swap-outs, frozen source unchanged. Publish the reviewed checkpoint
+for exact-tip native CI and the fresh complete gate; S8/ADR-051 not accepted yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

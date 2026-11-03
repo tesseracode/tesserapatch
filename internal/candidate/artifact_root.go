@@ -108,16 +108,15 @@ func (r *ReferenceRoot) FindCandidateRecoveryJournal(slug string) (string, error
 			continue
 		}
 		relative := path.Join(entry.Name(), CandidateJournalName)
-		info, statErr := slugRoot.root.Lstat(relative)
+		_, statErr := slugRoot.root.Lstat(relative)
 		if statErr != nil {
 			if errors.Is(statErr, fs.ErrNotExist) {
 				continue
 			}
 			return "", statErr
 		}
-		if err := validateRegularFileMode(info.Mode(), relative); err != nil {
-			return "", err
-		}
+		// Even a nonregular journal is a recovery blocker. Only explicit
+		// recovery may diagnose its contents; ordinary actions must not proceed.
 		return path.Join(".tpatch", "reconcile-candidates", slug, relative), nil
 	}
 	return "", nil

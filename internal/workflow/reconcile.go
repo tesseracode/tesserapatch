@@ -217,6 +217,9 @@ func EffectiveReconcileSlugs(s *store.Store, slugs []string, cumulativeLegacy bo
 // pre-M12 behavior, so existing callers that pass ReconcileOptions{}
 // see no change. Phase 3.5 is opt-in via Options.Resolve.
 func RunReconcile(ctx context.Context, s *store.Store, slugs []string, upstreamRef string, prov provider.Provider, cfg provider.Config, opts ReconcileOptions) ([]ReconcileResult, error) {
+	if err := refuseReconcileCandidateRecovery(s, slugs); err != nil {
+		return nil, err
+	}
 	slugs, supersededWarnings, err := effectiveReconcileSlugs(s, slugs, opts.CumulativeLegacy)
 	if err != nil {
 		return nil, err

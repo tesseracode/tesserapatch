@@ -450,6 +450,13 @@ func rgaS0UnregisteredEvidenceLiteral(rel, src string) error {
 }
 
 func rgaS0CoveragePhaseSource(rel, src string) error {
+	switch rel {
+	case "internal/workflow/operation_candidate_acceptance.go",
+		"internal/workflow/operation_candidate_publication.go",
+		"internal/workflow/operation_candidate_transaction.go",
+		"internal/workflow/operation_candidate_recovery.go":
+		return rocS8CoverageSource(rel, src)
+	}
 	if _, registered := rgaS5ReadFunctions[rel]; registered {
 		return rgaS5ReadSource(rel, src)
 	}

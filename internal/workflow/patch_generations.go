@@ -1,10 +1,14 @@
 package workflow
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -23,13 +27,44 @@ type PatchGenerationInput struct {
 	Upper                  store.GenerationUpper
 	Capture                store.GenerationCapture
 	AllowMalformedManifest bool
+	candidateStage         *operationCandidateGenerationStage
+}
+
+// The acceptance variant uses the same appender, but retains its output for
+// the journaled publication rather than changing the canonical manifest early.
+type operationCandidateGenerationStage struct {
+	recipe        []byte
+	priorPresent  bool
+	priorManifest []byte
+	manifest      []byte
 }
 
 // AppendPatchGenerationForFeature appends ADR-024 patch identity metadata when
 // canonical patch bytes change. Missing manifests start at generation 1; latest
-// same-byte captures (including recipe-only record refreshes) are no-ops.
+// same-byte captures are no-ops except the operator-approved ADR-051 candidate
+// acceptance variant when its complete normalized binding tuple changes.
 func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenerationInput) (bool, error) {
-	manifest, err := store.LoadPatchGenerations(s, slug)
+	if in.candidateStage != nil && (in.Kind != "reconcile" || in.Intent != "") {
+		return false, fmt.Errorf("candidate generation staging requires the reconcile acceptance kind")
+	}
+	var manifest store.PatchGenerationsManifest
+	var err error
+	if in.candidateStage == nil {
+		manifest, err = store.LoadPatchGenerations(s, slug)
+	} else {
+		manifest = store.PatchGenerationsManifest{Version: store.PatchGenerationsManifestVersion, Feature: slug, Generations: []store.PatchGeneration{}}
+		if in.candidateStage.priorPresent {
+			decoder := json.NewDecoder(bytes.NewReader(in.candidateStage.priorManifest))
+			decoder.DisallowUnknownFields()
+			err = decoder.Decode(&manifest)
+			if err == nil && decoder.Decode(new(any)) != io.EOF {
+				err = fmt.Errorf("patch generation snapshot has trailing input")
+			}
+		}
+		if err == nil {
+			err = store.ValidatePatchGenerations(slug, manifest)
+		}
+	}
 	if err != nil {
 		if in.AllowMalformedManifest && errors.Is(err, store.ErrMalformedManifest) {
 			return false, nil
@@ -37,6 +72,7 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 		return false, err
 	}
 	patchSHA := store.SHA256HexString(in.Patch)
+	preserveHistory := false
 	kind := in.Kind
 	intent := in.Intent
 	if intent == "" {
@@ -59,9 +95,21 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 		}
 		kind = classification.Kind
 	} else if latest, ok := store.LatestPatchGeneration(manifest); ok && latest.PatchSHA256 == patchSHA {
-		return false, nil
+		if in.candidateStage == nil {
+			return false, nil
+		}
+		if operationCandidateGenerationBindingsMatch(latest, in) {
+			in.candidateStage.manifest = bytes.Clone(in.candidateStage.priorManifest)
+			return false, nil
+		}
+		preserveHistory = true
 	}
-	recipeSHA, err := recipeSHA256(s, slug)
+	var recipeSHA string
+	if in.candidateStage != nil {
+		recipeSHA = store.SHA256HexBytes(in.candidateStage.recipe)
+	} else {
+		recipeSHA, err = recipeSHA256(s, slug)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -113,14 +161,73 @@ func AppendPatchGenerationForFeature(s *store.Store, slug string, in PatchGenera
 		Dependencies: deps,
 		Refs:         &store.GenerationRefs{},
 	}
+	var previous []store.PatchGeneration
+	if preserveHistory {
+		previous = slices.Clone(manifest.Generations)
+	}
 	changed, err := store.AppendPatchGeneration(&manifest, g)
 	if err != nil || !changed {
 		return changed, err
+	}
+	if in.candidateStage != nil {
+		if preserveHistory {
+			// The canonical bytes still match the old generation. Preserve its
+			// truthful canonical pointer as well as every historical payload.
+			copy(manifest.Generations, previous)
+		}
+		data, err := encodeOperationCandidateGenerationManifest(manifest, in.candidateStage.priorManifest, preserveHistory)
+		if err != nil {
+			return false, err
+		}
+		in.candidateStage.manifest = data
+		return true, nil
 	}
 	if err := store.SavePatchGenerations(s, manifest); err != nil {
 		return false, err
 	}
 	return true, nil
+}
+
+func operationCandidateGenerationBindingsMatch(latest store.PatchGeneration, in PatchGenerationInput) bool {
+	return latest.BaseCommit == in.BaseCommit &&
+		latest.RecipeSHA256 == store.SHA256HexBytes(in.candidateStage.recipe) &&
+		latest.Upper == in.Upper && latest.Capture.Mode == in.Capture.Mode &&
+		slices.Equal(sortedCopy(latest.Capture.Pathspecs), sortedCopy(in.Capture.Pathspecs)) &&
+		slices.Equal(sortedCopy(latest.Capture.ClaimIDs), sortedCopy(in.Capture.ClaimIDs))
+}
+
+func encodeOperationCandidateGenerationManifest(manifest store.PatchGenerationsManifest, prior []byte, preserveHistory bool) ([]byte, error) {
+	if err := store.ValidatePatchGenerations(manifest.Feature, manifest); err != nil {
+		return nil, err
+	}
+	data, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if preserveHistory {
+		var original struct {
+			Generations []json.RawMessage `json:"generations"`
+		}
+		if err := json.Unmarshal(prior, &original); err != nil {
+			return nil, err
+		}
+		if len(original.Generations)+1 != len(manifest.Generations) {
+			return nil, fmt.Errorf("candidate generation append lost its prior entry inventory")
+		}
+		for i, raw := range original.Generations {
+			canonical, err := json.MarshalIndent(manifest.Generations[i], "    ", "  ")
+			if err != nil {
+				return nil, err
+			}
+			// Generation numbers make these complete object encodings unique.
+			// Preserve even a previously reformatted row, not just its values.
+			if bytes.Count(data, canonical) != 1 {
+				return nil, fmt.Errorf("candidate generation append cannot identify historical entry %d", i+1)
+			}
+			data = bytes.Replace(data, canonical, raw, 1)
+		}
+	}
+	return append(data, '\n'), nil
 }
 
 func recipeSHA256(s *store.Store, slug string) (string, error) {

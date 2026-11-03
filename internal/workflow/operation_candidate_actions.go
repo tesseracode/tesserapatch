@@ -109,6 +109,9 @@ func DiffOperationCandidate(s *store.Store, slug string) ([]byte, error) {
 	}
 	defer lock.Release()
 
+	if err := operationCandidateJournalPreflightHeld(s, slug, lock); err != nil {
+		return nil, err
+	}
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return nil, err
@@ -137,6 +140,9 @@ func DiffOperationCandidate(s *store.Store, slug string) ([]byte, error) {
 // RejectOperationCandidate records the rejection, prunes the worktree and
 // clears the live pointer.
 func RejectOperationCandidate(s *store.Store, slug string) (string, error) {
+	if err := refuseOperationCandidateJournal(s, slug); err != nil {
+		return "", err
+	}
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return "", err
@@ -170,6 +176,9 @@ func ClearOperationCandidateRejections(s *store.Store, slug string) error {
 // RefuseResolverActionWhenCandidatePending preserves resolver-only terminal
 // actions instead of silently routing them to an operation candidate.
 func RefuseResolverActionWhenCandidatePending(s *store.Store, slug string) error {
+	if err := refuseOperationCandidateJournal(s, slug); err != nil {
+		return err
+	}
 	status, err := s.LoadFeatureStatus(slug)
 	if err != nil {
 		return err
@@ -183,19 +192,12 @@ func RefuseResolverActionWhenCandidatePending(s *store.Store, slug string) error
 	}
 }
 
-// AcceptOperationCandidate is the S8 workflow seam. S7 registers and validates
-// the command but cannot perform the acceptance transaction.
-func AcceptOperationCandidate(_ *store.Store, _ string) error {
-	return &OperationCandidateActionError{
-		Code:   "candidate-acceptance-unavailable",
-		Detail: "operation candidate acceptance is not yet available",
-	}
+// AcceptOperationCandidate runs the explicit, journaled acceptance transaction.
+func AcceptOperationCandidate(s *store.Store, slug string) error {
+	return candidateActionErrorForSlug(acceptOperationCandidate(s, slug), slug)
 }
 
-// ResumeOperationCandidateRecovery is the S8 workflow seam.
-func ResumeOperationCandidateRecovery(_ *store.Store, _ string) error {
-	return &OperationCandidateActionError{
-		Code:   "candidate-acceptance-unavailable",
-		Detail: "operation candidate acceptance recovery is not yet available",
-	}
+// ResumeOperationCandidateRecovery is the only marker-driven recovery entry.
+func ResumeOperationCandidateRecovery(s *store.Store, slug string) error {
+	return candidateActionError(resumeOperationCandidateRecovery(s, slug))
 }

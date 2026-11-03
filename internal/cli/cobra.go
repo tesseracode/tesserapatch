@@ -2413,6 +2413,26 @@ func reconcileCmd() *cobra.Command {
 				return err
 			}
 
+			if !hasCandidateTerminal || candidateTerminal.Name != "resume-candidate-recovery" {
+				recoverySlugs := args
+				if hasCandidateTerminal {
+					recoverySlugs = []string{candidateTerminal.Slug}
+				} else {
+					for _, slug := range []string{acceptSlug, rejectSlug, shadowDiffSlug} {
+						if slug != "" {
+							recoverySlugs = []string{slug}
+							break
+						}
+					}
+				}
+				if err := workflow.RefuseReconcileCandidateRecovery(s, recoverySlugs); err != nil {
+					if errors.Is(err, workflow.ErrOperationCandidateRecoveryRequired) {
+						return &ExitCodeError{Code: 3, Message: err.Error()}
+					}
+					return operationCandidateExitError(err)
+				}
+			}
+
 			if hasCandidateTerminal {
 				return runOperationCandidateTerminal(cmd, s, candidateTerminal, format)
 			}

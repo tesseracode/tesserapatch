@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/importer"
 	"go/parser"
 	"go/token"
@@ -902,16 +903,179 @@ func persistAliasedTemp(value string) {
 	}
 }
 
+func TestS7WorkflowProductionSourcesBuildSelectionAndWrongInput(t *testing.T) {
+	dir := t.TempDir()
+	fixtures := map[string]string{
+		"always.go":               "package workflow\n",
+		"variant_linux.go":        "package workflow\n",
+		"variant_darwin.go":       "package workflow\n",
+		"variant_windows.go":      "package workflow\n",
+		"variant_amd64.go":        "package workflow\n",
+		"variant_arm64.go":        "package workflow\n",
+		"variant_darwin_arm64.go": "package workflow\n",
+		"variant_unix.go":         "//go:build linux || darwin\n\npackage workflow\n",
+		"variant_other.go":        "//go:build !linux && !darwin\n\npackage workflow\n",
+		"variant_tagged.go":       "//go:build s7_privacy_probe\n\npackage workflow\n",
+		"variant_legacy.go":       "// +build s7_privacy_probe\n\npackage workflow\n",
+		"ignored_test.go":         "not production Go\n",
+		"_ignored.go":             "not production Go\n",
+		".ignored.go":             "not production Go\n",
+		"ignored.txt":             "not production Go\n",
+	}
+	for name, source := range fixtures {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, test := range []struct {
+		goos, goarch string
+		tags, want   []string
+	}{
+		{"linux", "amd64", nil, []string{"always.go", "variant_amd64.go", "variant_linux.go", "variant_unix.go"}},
+		{"darwin", "arm64", nil, []string{"always.go", "variant_arm64.go", "variant_darwin.go", "variant_darwin_arm64.go", "variant_unix.go"}},
+		{"windows", "amd64", nil, []string{"always.go", "variant_amd64.go", "variant_other.go", "variant_windows.go"}},
+		{"linux", "arm64", []string{"s7_privacy_probe"}, []string{"always.go", "variant_arm64.go", "variant_legacy.go", "variant_linux.go", "variant_tagged.go", "variant_unix.go"}},
+	} {
+		t.Run(test.goos+"-"+test.goarch, func(t *testing.T) {
+			buildContext := build.Default
+			buildContext.GOOS, buildContext.GOARCH, buildContext.BuildTags = test.goos, test.goarch, test.tags
+			sources, err := s7LoadWorkflowProductionSources(dir, buildContext)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for name, source := range sources {
+				got = append(got, name)
+				if source != fixtures[name] {
+					t.Fatalf("loader changed active source bytes: %s", name)
+				}
+			}
+			sort.Strings(got)
+			if strings.Join(got, "\n") != strings.Join(test.want, "\n") {
+				t.Fatalf("active production inventory=%v, want %v", got, test.want)
+			}
+		})
+	}
+	t.Run("malformed-build-constraint-fails-closed", func(t *testing.T) {
+		broken := t.TempDir()
+		if err := os.WriteFile(filepath.Join(broken, "broken.go"), []byte("//go:build (\n\npackage workflow\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s7LoadWorkflowProductionSources(broken, build.Default); err == nil ||
+			!strings.Contains(err.Error(), "match S7 workflow source broken.go") {
+			t.Fatalf("source loader silently ignored an invalid build constraint: %v", err)
+		}
+	})
+}
+
+func TestS7WorkflowPrivacyBuildSelectionRemainsFailClosed(t *testing.T) {
+	sources := s7WorkflowProductionSources(t)
+	if err := validateS7PureGeneratorPackage(sources); err != nil {
+		t.Fatal(err)
+	}
+	active, inactive := "operation_candidate_sync_other.go", "operation_candidate_sync_windows.go"
+	if build.Default.GOOS == "windows" {
+		active, inactive = inactive, active
+	}
+	if _, ok := sources[active]; !ok {
+		t.Fatalf("loader omitted active production source %s", active)
+	}
+	if _, ok := sources[inactive]; ok {
+		t.Fatalf("loader included inactive production source %s", inactive)
+	}
+	root, err := s7WorkflowRepositoryRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	inactiveSource, err := os.ReadFile(filepath.Join(root, "internal", "workflow", inactive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(map[string]string)
+		want   []string
+	}{
+		{
+			name:   "wrong-platform-source-included",
+			mutate: func(wrong map[string]string) { wrong[inactive] = string(inactiveSource) },
+			want:   []string{"type check failed closed", "operationCandidateSyncDirectory redeclared"},
+		},
+		{
+			name:   "active-platform-source-missing",
+			mutate: func(wrong map[string]string) { delete(wrong, active) },
+			want:   []string{"type check failed closed", "undefined: operationCandidateSyncDirectory"},
+		},
+		{
+			name:   "analysis-root-missing",
+			mutate: func(wrong map[string]string) { delete(wrong, "generate_analysis.go") },
+			want:   []string{"GenerateAnalysis"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			wrong := s7CloneWorkflowSources(sources)
+			test.mutate(wrong)
+			err := validateS7PureGeneratorPackage(wrong)
+			if err == nil {
+				t.Fatal("same privacy validator accepted an incomplete or mixed-platform package")
+			}
+			for _, fragment := range test.want {
+				if !strings.Contains(err.Error(), fragment) {
+					t.Fatalf("privacy validator did not report %q: %v", fragment, err)
+				}
+			}
+		})
+	}
+	t.Run("active-tagged-privacy-sink-is-analyzed", func(t *testing.T) {
+		dir := t.TempDir()
+		source := "//go:build " + build.Default.GOOS + "\n\n" + `package workflow
+import (
+	"fmt"
+	"os"
+)
+func persistSelectedPlatformRaw(value string) { fmt.Fprintln(os.Stderr, value) }
+`
+		if err := os.WriteFile(filepath.Join(dir, "privacy_selected.go"), []byte(source), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		selected, err := s7LoadWorkflowProductionSources(dir, build.Default)
+		if err != nil || selected["privacy_selected.go"] != source {
+			t.Fatalf("active tagged privacy source was not loaded: %v", err)
+		}
+		wrong := s7CloneWorkflowSources(sources)
+		for name, body := range selected {
+			wrong[name] = body
+		}
+		wrong["generate_analysis.go"] = strings.Replace(wrong["generate_analysis.go"],
+			"return result, GenNote{", "persistSelectedPlatformRaw(result.Summary)\n\treturn result, GenNote{", 1)
+		if wrong["generate_analysis.go"] == sources["generate_analysis.go"] {
+			t.Fatal("privacy mutation did not reach the active generator")
+		}
+		if err := validateS7PureGeneratorPackage(wrong); err == nil ||
+			!strings.Contains(err.Error(), "pure generator call graph reaches sinks") ||
+			!strings.Contains(err.Error(), "persistSelectedPlatformRaw") {
+			t.Fatalf("same privacy validator missed an active platform sink: %v", err)
+		}
+	})
+}
+
 func s7WorkflowProductionSources(t *testing.T) map[string]string {
 	t.Helper()
 	_, current, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	dir := filepath.Dir(current)
-	entries, err := os.ReadDir(dir)
+	sources, err := s7LoadWorkflowProductionSources(filepath.Dir(current), build.Default)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return sources
+}
+
+func s7LoadWorkflowProductionSources(dir string, buildContext build.Context) (map[string]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
 	}
 	sources := map[string]string{}
 	for _, entry := range entries {
@@ -919,13 +1083,20 @@ func s7WorkflowProductionSources(t *testing.T) map[string]string {
 			strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
+		matched, err := buildContext.MatchFile(dir, entry.Name())
+		if err != nil {
+			return nil, fmt.Errorf("match S7 workflow source %s: %w", entry.Name(), err)
+		}
+		if !matched {
+			continue
+		}
 		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
 		sources[entry.Name()] = string(data)
 	}
-	return sources
+	return sources, nil
 }
 
 func s7CloneWorkflowSources(sources map[string]string) map[string]string {

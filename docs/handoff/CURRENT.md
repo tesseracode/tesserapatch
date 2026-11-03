@@ -2,9 +2,12 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S8 REV-4 SOURCE APPROVED — guarded runtime validation in progress.**
+**S8 REVIEWED CHECKPOINT — native CI and complete gate pending.**
+The canonical APPROVED token refers to the source-reviewed validation
+checkpoint, not S8 acceptance. Do not close the wave or accept ADR-051 until
+native evidence and the fresh complete gate pass.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Validation — rev-4 source approved; guarded affected batch running
+- **Status**: Validation — rev-4 source and guarded affected checks pass; publishing checkpoint for CI/full gate
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -152,6 +155,12 @@ probe neither acquires locks nor writes files, rejects unsafe namespaces
 and present journals without trusting their contents, preserves early CLI
 ordering, and retains authoritative held-lock rechecks. Earlier closures
 stand. Runtime/native/full-gate validation still blocks acceptance.
+The rev-4 guarded batch has now passed all seven commands: both formatting
+steps, changed-probe workflow regressions, affected CLI, full candidate/lock
+packages, vet and CLI build. All stages retained normal pressure and zero
+new swap-outs; no failure marker or owned command remains. The exact 33
+reviewed source/ADR files are byte-unchanged. Publish this checkpoint with
+explicit staging, then verify exact-tip native CI before the complete gate.
 
 ## Current State
 
@@ -279,6 +288,14 @@ regressions, then the full existing CLI S7/S8/reconcile selector,
 candidate/lock packages, vet and build, stopping at the first failure.
 Unchanged workflow cases will all run again in the complete fresh gate;
 rev-3's partial evidence will never be stitched into acceptance.
+Rev-4 final results: workflow probe/inventory checks PASS (6.375s), affected
+CLI PASS (83.927s), candidate PASS (25.413s), candidatelock PASS (0.290s),
+`go vet ./...` PASS and CLI build PASS. Seven of seven guarded commands
+(including formatting) passed, normal pressure and zero new swap-outs each.
+All remote/local stage hashes match; `blocked.json` is absent and owned
+commands are gone. Evidence remains under `s8-validation/rev4` and
+`bin/roc-s8-20261103/rev4-evidence/evidence`.
+No native Windows result or complete S8 gate result exists yet.
 
 ## Validation Policy
 
@@ -307,18 +324,18 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the exact source-approved rev-4 snapshot frozen during remaining checks.
-2. Finish the affected regressions, candidate/lock, vet and build; then push
-   the reviewed checkpoint for exact-tip native CI and the fresh complete gate.
+1. Commit/push the exact reviewed and checked snapshot with explicit paths;
+   preserve v0.17.0, frozen surfaces and all failed-run evidence.
+2. Verify exact-tip native CI, including actual Windows S8 failures versus
+   the saved baseline, then freeze that tip for the fresh complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-Rev-4's clean-tree fix is independently source-approved. Runtime confirmation,
-remaining affected checks, native Windows verification and the complete gate
-still block acceptance.
+Source review and affected checks pass. Native Windows verification and the
+fresh complete gate still block acceptance; ADR-051 remains Proposed.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

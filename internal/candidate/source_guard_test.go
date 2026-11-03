@@ -23,6 +23,94 @@ func TestConstructorSignatures(t *testing.T) {
 	var _ func(*CandidateRoot, *candidatelock.Handle, *candidatelock.Handle) error = (*CandidateRoot).Prune
 	var _ func(*ReferenceRoot, *ReferenceRoot, string, []gitutil.PatchEffect, string, string, *candidatelock.Handle) (ExecutionResult, error) = Execute
 	var _ func(*ReferenceRoot, *ReferenceRoot, string, []gitutil.PatchEffect, Plan, string, string, *candidatelock.Handle) (ExecutionResult, error) = executeWithPlan
+	var _ func(*ReferenceRoot, *ReferenceRoot, *CandidateRoot, string, []gitutil.PatchEffect, string, string, *candidatelock.Handle, *candidatelock.Handle) (ExecutionResult, error) = RematerializeForAcceptance
+	var _ func(*ReferenceRoot, string, string, *candidatelock.Handle, *candidatelock.Handle, AcceptanceOwnership, func(*os.Root) error) error = (*ReferenceRoot).PruneAcceptanceWorktree
+}
+
+func TestAcceptanceCallerHeldBoundaryAndSensitivity(t *testing.T) {
+	source := mustReadCandidateSource(t, "acceptance.go")
+	if err := checkAcceptanceMutationBoundary(mustParseCandidateSource(t, "acceptance.go", source)); err != nil {
+		t.Fatal(err)
+	}
+	for _, extra := range []string{
+		"\nfunc unregistered() { candidatelock.TryAcquire(\"other.lock\") }\n",
+		"\nfunc unregistered(lock *candidatelock.Handle) { lock.Release() }\n",
+		"\nfunc unregistered(r *ReferenceRoot) { r.runGit(\"update-ref\", \"refs/heads/main\", r.commit) }\n",
+		"\nfunc unregistered(root *os.Root) { root.RemoveAll(\"foreign\") }\n",
+	} {
+		if err := checkAcceptanceMutationBoundary(mustParseCandidateSource(t, "acceptance.go", source+extra)); err == nil {
+			t.Fatal("acceptance borrowed-lock validator accepted acquisition/release")
+		}
+	}
+	for _, mutation := range []struct{ from, to string }{
+		{"ownership.Registration.CheckRoot(registration.root)", "trustObservedDirectory(registration.root)"},
+		{"ownership.Validate(r.repo.path, slug, candidateID, r.commit)", "trustJournalPath()"},
+		{"registry.root.RemoveAll(ownership.RegistrationName)", `registry.root.RemoveAll(".")`},
+		{"syncDirectory(registry.root)", "skipDirectorySync(registry.root)"},
+	} {
+		mutant := strings.Replace(source, mutation.from, mutation.to, 1)
+		if mutant == source {
+			t.Fatal("ownership mutation fixture did not change the actual prune implementation")
+		}
+		if err := checkAcceptanceMutationBoundary(mustParseCandidateSource(t, "acceptance.go", mutant)); err == nil {
+			t.Fatal("acceptance validator accepted an unowned/undurable registration removal")
+		}
+	}
+}
+
+func checkAcceptanceMutationBoundary(file *ast.File) error {
+	if err := checkNoInternalLockAcquireRelease(file); err != nil {
+		return err
+	}
+	var calls []string
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		var refusal error
+		ast.Inspect(fn.Body, func(node ast.Node) bool {
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			callee := candidateAcceptanceNodeName(call.Fun)
+			if selector, ok := call.Fun.(*ast.SelectorExpr); ok {
+				if selector.Sel.Name == "runGit" {
+					refusal = fmt.Errorf("acceptance introduced a direct Git mutation")
+				}
+				if selector.Sel.Name == "RemoveAll" &&
+					(fn.Name.Name != "PruneAcceptanceWorktree" || callee != "registry.root.RemoveAll" ||
+						len(call.Args) != 1 || candidateAcceptanceNodeName(call.Args[0]) != "ownership.RegistrationName") {
+					refusal = fmt.Errorf("acceptance prune lost its identity-bound registry entry")
+				}
+			}
+			if fn.Name.Name == "PruneAcceptanceWorktree" {
+				switch callee {
+				case "ownership.Validate", "ownership.Registration.CheckRoot", "registry.root.RemoveAll", "syncDirectory":
+					calls = append(calls, callee)
+				}
+			}
+			return true
+		})
+		if refusal != nil {
+			return refusal
+		}
+	}
+	if strings.Join(calls, ",") != "ownership.Validate,ownership.Registration.CheckRoot,registry.root.RemoveAll,syncDirectory" {
+		return fmt.Errorf("acceptance registration prune lost original identity or durable ordered removal")
+	}
+	return nil
+}
+
+func candidateAcceptanceNodeName(expression ast.Expr) string {
+	switch node := expression.(type) {
+	case *ast.Ident:
+		return node.Name
+	case *ast.SelectorExpr:
+		return candidateAcceptanceNodeName(node.X) + "." + node.Sel.Name
+	}
+	return ""
 }
 
 func TestCandidateProductionSourceInventory(t *testing.T) {
@@ -51,6 +139,10 @@ func TestCandidateProductionSourceInventory(t *testing.T) {
 
 func checkCandidateProductionInventory(names []string) error {
 	want := []string{
+		"acceptance.go",
+		"acceptance_identity_other.go",
+		"acceptance_identity_unix.go",
+		"acceptance_identity_windows.go",
 		"alignment.go",
 		"artifact.go",
 		"artifact_root.go",

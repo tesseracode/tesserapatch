@@ -219,6 +219,76 @@ func rocS7ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
+var rocS8AllowedPaths = map[string]bool{
+	"docs/adrs/ADR-024-patch-generation-manifest-boundary.md":          true,
+	"docs/adrs/ADR-051-operation-candidate-acceptance-recovery.md":     true,
+	"internal/candidate/acceptance.go":                                 true,
+	"internal/candidate/acceptance_identity_unix.go":                   true,
+	"internal/candidate/acceptance_identity_windows.go":                true,
+	"internal/candidate/acceptance_identity_other.go":                  true,
+	"internal/candidate/acceptance_identity_test.go":                   true,
+	"internal/candidate/artifact_root.go":                              true,
+	"internal/candidate/source_guard_test.go":                          true,
+	"internal/cli/cobra.go":                                            true,
+	"internal/cli/operation_candidate.go":                              true,
+	"internal/cli/operation_candidate_s7_test.go":                      true,
+	"internal/cli/operation_candidate_s8_test.go":                      true,
+	"internal/workflow/operation_candidate_actions.go":                 true,
+	"internal/workflow/operation_candidate_acceptance.go":              true,
+	"internal/workflow/operation_candidate_acceptance_test.go":         true,
+	"internal/workflow/operation_candidate_publication.go":             true,
+	"internal/workflow/operation_candidate_recovery.go":                true,
+	"internal/workflow/operation_candidate_recovery_test.go":           true,
+	"internal/workflow/operation_candidate_transaction.go":             true,
+	"internal/workflow/operation_candidate_readflags_unix.go":          true,
+	"internal/workflow/operation_candidate_readflags_other.go":         true,
+	"internal/workflow/operation_candidate_sync_windows.go":            true,
+	"internal/workflow/operation_candidate_sync_other.go":              true,
+	"internal/workflow/operation_candidate_s8_guards_test.go":          true,
+	"internal/workflow/operation_candidate_lifecycle.go":               true,
+	"internal/workflow/operation_candidate_s0_guards_test.go":          true,
+	"internal/workflow/patch_generations.go":                           true,
+	"internal/workflow/recipe_coverage_publish.go":                     true,
+	"internal/workflow/recipe_authority_s0_source_guards_test.go":      true,
+	"internal/workflow/recipe_authority_s4_publication_guards_test.go": true,
+	"internal/workflow/reconcile.go":                                   true,
+	"internal/workflow/s7_an_privacy_test.go":                          true,
+}
+
+func rocS8ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS8AllowedPaths[path] {
+			continue
+		}
+		if err := rocS7ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS8ScopeTransition(t *testing.T) {
+	for path := range rocS8AllowedPaths {
+		if err := rocS8ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if !rocS7AllowedPaths[path] && !rocS6AllowedPaths[path] && !rocS5AllowedPaths[path] &&
+			!rocS4AllowedPaths[path] && !rocS3AllowedPaths[path] && !rocS2AllowedPaths[path] &&
+			!rocS1AllowedPaths[path] && !rocS0CaptureAllowedPaths[path] {
+			if err := rocS7ValidateStageChangedPaths([]string{path}); err == nil {
+				t.Fatalf("S7 accepted S8 path %s", path)
+			}
+		}
+	}
+	for _, path := range []string{"assets/skills/SKILL.md", "SPEC.md",
+		"internal/workflow/operation_candidate_s9.go", "internal/workflow/./operation_candidate_acceptance.go",
+		"docs/adrs/ADR-051-unreviewed-extra.md", "internal/workflow/unrelated_repair.go"} {
+		if err := rocS8ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S8 accepted unregistered surface %s", path)
+		}
+	}
+}
+
 func TestROCS7ScopeTransition(t *testing.T) {
 	for path := range rocS7AllowedPaths {
 		if err := rocS7ValidateStageChangedPaths([]string{path}); err != nil {
@@ -450,7 +520,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS7ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS8ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

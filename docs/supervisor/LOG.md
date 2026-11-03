@@ -1,3 +1,20 @@
+## S8 Reviewed Checkpoint Ready for Native CI and Complete Gate — 2026-11-03
+
+The rev-4 batch passed all seven guarded commands: both formatter checks,
+changed-probe workflow regressions (6.375s), affected CLI (83.927s), full
+candidate (25.413s)/candidatelock (0.290s), vet and CLI build. Every stage
+reports normal pressure and zero new swap-outs. No failure marker or owned
+command remains; mirrored stage hashes match. The exact 33 reviewed source/
+ADR files remain byte-identical to the frozen formatted manifest.
+
+**Decision**: commit/push this source-reviewed checkpoint using explicit paths
+and the required trailer. CURRENT's APPROVED token identifies the validation
+checkpoint only; S8 and Proposed ADR-051 remain unaccepted. Native CI must be
+checked at the published tip, including actual Windows S8 behavior versus
+the saved baseline, before spending the full-gate window. The final gate is
+fresh, complete and pinned to the same frozen published source; never combine
+partial runs. No release/tag or S9 dispatch is authorized.
+
 ## Review — GH #13 S8 rev-4 — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`

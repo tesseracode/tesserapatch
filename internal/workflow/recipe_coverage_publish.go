@@ -18,20 +18,21 @@ import (
 // and exact final recipe bytes. Events describe successful writes/checkpoints,
 // not intended writes or producer labels.
 type CoveragePublicationInput struct {
-	Observation       patchobs.Observation
-	Recipe            CoverageArtifact
-	Provenance        CoverageArtifact
-	Events            CoverageEvents
-	Autogen           *AutogenOutcome
-	Generation        *PatchGenerationInput
-	DeferRecipeWrites bool
-	priorCoverage     []byte
-	priorCaptureEvent []byte
-	priorPatch        CoverageArtifact
-	priorRecipe       CoverageArtifact
-	priorObservation  *patchobs.Observation
-	observationErr    error
-	beforePairWrite   func(string) error
+	Observation         patchobs.Observation
+	Recipe              CoverageArtifact
+	Provenance          CoverageArtifact
+	Events              CoverageEvents
+	Autogen             *AutogenOutcome
+	Generation          *PatchGenerationInput
+	DeferRecipeWrites   bool
+	priorCoverage       []byte
+	priorCaptureEvent   []byte
+	priorPatch          CoverageArtifact
+	priorRecipe         CoverageArtifact
+	priorObservation    *patchobs.Observation
+	observationErr      error
+	beforePairWrite     func(string) error
+	candidateAcceptance *operationCandidateTransaction
 }
 
 // ErrCoveragePublication distinguishes an owed publication failure from
@@ -141,10 +142,10 @@ func ReconstructEditedCoverage(s *store.Store, in CoveragePublicationInput) Cove
 	return in
 }
 
-// PublishCoverage is the single publication boundary for P1-P7. Call it last,
-// after the producer's writes and state attempt. Recipe, provenance, generation
-// and paired evidence outputs are planned from immutable inputs before this
-// function publishes them, with coverage last. Atomicity is single-file.
+// PublishCoverage is the single publication boundary for P1-P7. Ordinary
+// producers call it after their writes and state attempt; candidate acceptance
+// uses the private staging/journaled variant. Outputs are planned from immutable
+// inputs, with E before C and coverage last. Atomicity is single-file.
 func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage RecipeCoverage, retErr error) {
 	defer func() {
 		if retErr != nil {
@@ -211,6 +212,18 @@ func PublishCoverage(s *store.Store, in CoveragePublicationInput) (coverage Reci
 	eventData, err := EncodeRecipeCaptureEvent(captureEvent)
 	if err != nil {
 		return RecipeCoverage{}, fmt.Errorf("publish capture event: encode: %w", err)
+	}
+	if transaction := in.candidateAcceptance; transaction != nil {
+		if err := transaction.publishInputs(s, in, c); err != nil {
+			return RecipeCoverage{}, err
+		}
+		if err := transaction.writePublicationFile("artifacts/recipe-capture-event.json", eventData); err != nil {
+			return RecipeCoverage{}, fmt.Errorf("publish recipe-capture-event.json: %w", err)
+		}
+		if err := transaction.writePublicationFile("artifacts/recipe-coverage.json", data); err != nil {
+			return RecipeCoverage{}, fmt.Errorf("publish recipe-coverage.json: %w", err)
+		}
+		return c, nil
 	}
 	if in.Autogen != nil && in.Autogen.plan != nil {
 		if err := publishRecordRecipePlan(s, in.Observation.Slug, in.Autogen); err != nil {

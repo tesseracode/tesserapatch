@@ -329,7 +329,7 @@ func TestROCS7ExistingValidationMessagesUnchanged(t *testing.T) {
 	}
 }
 
-func TestROCS7TerminalSlugArityAndUnavailableSeams(t *testing.T) {
+func TestROCS7TerminalSlugArityAndAbsentTransactions(t *testing.T) {
 	for _, name := range operationCandidateTerminalFlagNames {
 		_, _, code := runCmdExit("reconcile", "--"+name)
 		if code != 2 {
@@ -347,7 +347,7 @@ func TestROCS7TerminalSlugArityAndUnavailableSeams(t *testing.T) {
 	}
 	for _, name := range []string{"accept-candidate", "resume-candidate-recovery"} {
 		_, stderr, code := runCmdExit("reconcile", "--path", root, "--"+name, "fixture")
-		if code != 3 || !strings.Contains(stderr, "not yet available") {
+		if code != 2 || !strings.Contains(stderr, "candidate-absent") {
 			t.Fatalf("--%s got exit=%d stderr=%q", name, code, stderr)
 		}
 	}

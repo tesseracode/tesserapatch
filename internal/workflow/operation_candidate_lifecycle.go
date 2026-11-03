@@ -69,6 +69,19 @@ func runOperationCandidatePreflightHeld(s *store.Store, slug string, current can
 	}
 	defer release()
 	operationCandidateLifecycleInspectHook()
+	disk, err := openOperationCandidateDisk(s.Root)
+	if err != nil {
+		return operationCandidatePreflightResult{}, err
+	}
+	ids, scanErr := operationCandidateRecoveryIDs(disk, slug)
+	_ = disk.root.Close()
+	if scanErr != nil || len(ids) != 0 {
+		detail := slug
+		if scanErr != nil {
+			detail += ": " + scanErr.Error()
+		}
+		return operationCandidatePreflightResult{Reason: "recovery-required", RecoveryPath: detail}, nil
+	}
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return operationCandidatePreflightResult{}, err
@@ -76,7 +89,7 @@ func runOperationCandidatePreflightHeld(s *store.Store, slug string, current can
 	defer reference.Close()
 	recovery, err := findOperationCandidateRecoveryJournal(reference, slug)
 	if err != nil {
-		return operationCandidatePreflightResult{}, err
+		return operationCandidatePreflightResult{Reason: "recovery-required", RecoveryPath: err.Error()}, nil
 	}
 	if recovery != "" {
 		return operationCandidatePreflightResult{Reason: "recovery-required", RecoveryPath: recovery}, nil
@@ -393,6 +406,9 @@ func clearOperationCandidateRejectionsLocked(s *store.Store, slug string) error 
 		return fmt.Errorf("%s", refusal.Reason)
 	}
 	defer lock.Release()
+	if err := operationCandidateJournalPreflightHeld(s, slug, lock); err != nil {
+		return err
+	}
 	reference, err := openOperationCandidateReference(s.Root, "")
 	if err != nil {
 		return err

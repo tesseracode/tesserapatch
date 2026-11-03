@@ -110,7 +110,7 @@ func operationCandidateExitError(err error) error {
 		"candidate-already-accepted", "candidate-feature-state-changed",
 		"candidate-lock-held", "lock-unsupported", "lock-filesystem-unsupported",
 		"recovery-required", "coverage-publication-failed",
-		"acceptance-rolled-back", "candidate-acceptance-unavailable":
+		"acceptance-rolled-back":
 		exitCode = 3
 	case "acceptance-rollback-failed":
 		exitCode = 1
@@ -153,9 +153,23 @@ func runOperationCandidateTerminal(cmd *cobra.Command, s *store.Store, selection
 		_, err := fmt.Fprintf(cmd.OutOrStdout(), "Cleared operation candidate rejections for %s\n", slug)
 		return operationCandidateExitError(err)
 	case "accept-candidate":
-		return operationCandidateExitError(workflow.AcceptOperationCandidate(s, slug))
+		if err := workflow.AcceptOperationCandidate(s, slug); err != nil {
+			return operationCandidateExitError(err)
+		}
+		if format == "json" {
+			return writeOperationCandidateJSON(cmd, map[string]any{"slug": slug, "status": "accepted"})
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "Accepted operation candidate for %s\n", slug)
+		return operationCandidateExitError(err)
 	case "resume-candidate-recovery":
-		return operationCandidateExitError(workflow.ResumeOperationCandidateRecovery(s, slug))
+		if err := workflow.ResumeOperationCandidateRecovery(s, slug); err != nil {
+			return operationCandidateExitError(err)
+		}
+		if format == "json" {
+			return writeOperationCandidateJSON(cmd, map[string]any{"slug": slug, "candidate_recovery": "complete"})
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "Completed operation candidate recovery for %s\n", slug)
+		return operationCandidateExitError(err)
 	default:
 		return fmt.Errorf("unknown operation candidate terminal --%s", selection.Name)
 	}

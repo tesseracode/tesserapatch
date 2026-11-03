@@ -291,6 +291,14 @@ duplicate records (PRD §5.1, inheriting ADR-018 /
 `PRD-record-collision-detection` §3.2) do not append; a separate
 metadata-revision history is a future PRD's concern.
 
+**Narrow operator-approved exception (2026-11-03):** GH #13 S8 operation-candidate
+acceptance may append through the existing shared appender when identical patch
+bytes have different required base, recipe, normalized capture (including
+selectors), or upper bindings. An identical complete tuple remains a no-op;
+other producers retain their existing skip semantics. Earlier entries remain
+byte-for-byte unchanged. See [ADR-051](ADR-051-operation-candidate-acceptance-recovery.md)
+for the candidate-only staging boundary and review status.
+
 **Decision drivers**.
 
 - **Strict reads are the cheap path to forward compatibility** —
