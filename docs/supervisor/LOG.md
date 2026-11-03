@@ -1,3 +1,33 @@
+## S8 Rev-0 Review and Focused Validation Dispatched — 2026-11-03
+
+The explicit 26-file source snapshot was hashed before remote transfer.
+Unchanged pressure-admitted wrappers ran `gofmt -w` for the 25 Go files and
+then empty `gofmt -l .`; ten formatter outputs were mirrored locally only
+after a frozen-source hash check. All nine routing controls pass.
+Focused workflow S8, CLI S7/S8, candidate and lock tests now run serially,
+stopping at the first failure without piped exit-code masking.
+
+Independent OpenAI reviewer `1eadd48b-81a1-448c-b7b2-9c38d9c4518b` owns
+the full rev-0 source review. The implementer is frozen. Known questions:
+same-patch generation/base consistency, Windows directory flushing, and
+constant/concatenation sensitivity in new evidence-write guards. No approval
+or acceptance is inferred from dispatch or the existence of tests.
+
+## S8 Initial Implementation Returned — 2026-11-03
+
+At 17:58Z the single implementer returned transaction/recovery code, real
+runtime/crash fixtures, mutation-sensitive guards and Proposed ADR-051.
+`git diff --check` passes; no Go/gofmt/build/vet command ran during
+implementation. Parent is freezing and transferring the exact source for
+guarded formatting and focused validation before independent review.
+
+Open design evidence, not accepted exceptions: the shared generation appender
+skips identical patch bytes, so a conflicting new base currently fails closed
+before live writes; native Windows directory durability is unverified.
+Both require explicit review/adjudication. Caller-inventory amendments in
+recipe-authority guards are in scope only as dependencies of the existing
+shared publication/generation APIs; frozen goldens/assets/SPEC/CI remain intact.
+
 ## S8 Implementation Started; Validation Infrastructure Prepared — 2026-11-03
 
 Dispatch tracking `6880b1f` is pushed. One OpenAI implementer owns S8 code and

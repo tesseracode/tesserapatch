@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **S8 DISPATCHED — acceptance transaction and explicit recovery.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — single implementer active; isolated validation checkout ready
+- **Status**: Review — frozen rev-0 under independent review and guarded focused tests
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -43,6 +43,19 @@ The old Mac's new `s8-source` is a clean full-history checkout at the dispatch
 commit; `s8-validation/rev0` uses the byte-identical accepted gate wrapper and
 profiler. Preflight: pressure 1, load1 2.19, 76% diagnostic free, 51GiB disk
 free, exact private Go1.26.5, no active Go workload. No user app was stopped.
+
+Initial implementation returned at 2026-11-03T17:58Z: acceptance/recovery,
+rooted transaction I/O, shared generation/publication staging, CLI wiring,
+runtime/crash tests and mutation-sensitive guards are written. No Go command
+has run yet; `git diff --check` passes. Files are frozen while the parent
+formats and validates the exact snapshot remotely. Proposed ADR-051 records
+the design. Two review questions remain explicit: same-byte generation/base
+conflicts currently fail closed, and native Windows directory-sync durability
+is not yet established. Neither is silently accepted as a contract change.
+Independent OpenAI reviewer `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+is examining the full frozen change, including these questions and possible
+constant-folding gaps in the new evidence-literal guards. The implementer is
+idle/read-only until review and validation results return.
 
 ## Current State
 
@@ -87,11 +100,28 @@ S8 requirements:
 - `docs/handoff/CURRENT.md`: fresh S8 scope, deadline and validation discipline.
 - `docs/ROADMAP.md`: S8 in-flight row, S7 closure retained.
 - `docs/supervisor/LOG.md`: operator authorization and S8 dispatch.
+- `docs/adrs/ADR-051-operation-candidate-acceptance-recovery.md`: Proposed
+  transaction, journal, publication and recovery implementation decisions.
+- `internal/candidate/acceptance.go`, `artifact_root.go`, `source_guard_test.go`:
+  held-capability rematerialization/cleanup and corresponding boundary guards.
+- `internal/cli/operation_candidate.go`, `operation_candidate_s7_test.go`,
+  `operation_candidate_s8_test.go`: terminal acceptance/recovery integration.
+- `internal/workflow/operation_candidate_*`: acceptance, transaction,
+  publication, recovery, platform file/sync boundaries and focused tests.
+- `internal/workflow/patch_generations.go`, `recipe_coverage_publish.go`:
+  private staged inputs to the existing shared APIs.
+- `internal/workflow/recipe_authority_s0_source_guards_test.go`,
+  `recipe_authority_s4_publication_guards_test.go`, `reconcile.go`: dependent
+  caller inventories and early recovery refusal.
 
 ## Test Results
 
-No S8 validation yet. Documentation-only dispatch does not run Go.
-No prior partial gate result will be reused as S8 acceptance evidence.
+Guarded rev-0 formatting passed on the old Mac: `gofmt -w` on the explicit
+25-file Go list, followed by empty `gofmt -l .`. Both commands used unchanged
+60-second admission/runtime guards. The 26-file source snapshot was hashed
+before transfer; ten formatted files were mirrored back only after verifying
+that the local snapshot remained unchanged. Focused runtime checks and
+independent review are next. No prior partial gate result is reused.
 
 ## Validation Policy
 

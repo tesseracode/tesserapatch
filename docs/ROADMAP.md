@@ -1636,6 +1636,11 @@ fresh full gate/native CI before acceptance. S9/release not dispatched; never #9
 Dispatch tracking `6880b1f` is pushed. One implementer is active; old-Mac
 targeted-validation source and unchanged guards are prepared. S7 Windows
 baseline is now compared: 224 failures, none new versus validated S6; #17 open.
+Initial S8 code/guards/ADR-051 are drafted and frozen for guarded formatting
+and focused tests. Independent review is pending; same-byte generation/base
+compatibility and native Windows directory durability remain open questions.
+Guarded formatting is clean. Rev-0 is frozen for independent review and
+serial focused workflow/CLI/candidate/lock checks; S8 is not accepted.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
