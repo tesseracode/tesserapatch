@@ -1,3 +1,25 @@
+## S8 Dispatch — Acceptance and Recovery — 2026-11-03
+
+**Operator authorization**: "lets start with S8 now, lets expand the window to
+be 12 hours from now" at 2026-11-03T16:55:00Z. Deadline:
+2026-11-04T04:55:00Z (20:55 PST). Scope: GH #13 S8 only, never #9.
+
+Fetch verified HEAD=origin/main=`d65150ce02668d095a0f4dffce9571ba3fd7096b`,
+clean tracked/untracked status, empty stash and one main worktree. S7's
+terminal CURRENT is byte-identical to its HISTORY archive at
+2026-11-03T13:01:09Z; v0.17.0 tag object remains
+`e7c748ada40988fe72f47b638cb37d07e24f0ac3`.
+Record that exact main checkpoint as S8 WAVE_BASE before implementation.
+
+Plan: one implementation owner for the accepted fourteen-step transaction and
+explicit recovery, parent-owned guarded validation/tracking, then independent
+review and fix/review cycles to an explicit final approval. Every Go/gofmt run
+uses the unchanged admitted resource harness; stop at the first failure and
+preserve real exit status. The complete gate uses fresh caches/evidence,
+42 commands/39 test commands and exact-tip native CI. Compare Windows
+allowed-failure residuals instead of treating a green job as a green suite.
+No S9, public assets/SPEC, release/tag, unrelated coverage or migration work.
+
 ## S7 ACCEPTED — Complete Gate Passed — 2026-11-03
 
 Old-Mac gate (pid 37438, 2026-11-03T09:37:47Z–13:01:09Z) at `8b84b33`, status

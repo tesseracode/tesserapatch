@@ -1623,6 +1623,17 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S8 IN PROGRESS — acceptance and recovery — 2026-11-03
+
+Operator authorized twelve hours from 2026-11-03T16:55:00Z through
+2026-11-04T04:55:00Z. S7 closure `d65150c` is pushed and its terminal handoff
+was verified byte-exact in HISTORY. Fresh S8
+WAVE_BASE=`d65150ce02668d095a0f4dffce9571ba3fd7096b`.
+Implement the fourteen-step journaled transaction, two-pass per-path CAS,
+shared residual E/C publication and explicit marker-driven recovery. One
+implementer, independent review, unchanged guarded serial validation and
+fresh full gate/native CI before acceptance. S9/release not dispatched; never #9.
+
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
 Complete gate PASSED at 2026-11-03T13:01:09Z at `8b84b33` (42/42 commands,
