@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-**S8 REV-2 UNDER REVIEW — acceptance transaction and explicit recovery.**
+**S8 REV-2 SOURCE APPROVED — runtime validation in progress.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Review — rev-2 frozen under guarded affected checks and final source re-review
+- **Status**: Validation — rev-2 source approved; guarded affected checks running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -100,6 +100,10 @@ compared all 32 frozen source/ADR files to formatted rev-1 and verified that
 single-line delta. Guarded formatting passed without changing any bytes.
 The same reviewer is checking the repair for a final source verdict while
 the fresh rev-2 affected batch runs; no prior failure evidence is overwritten.
+Final rev-2 verdict is **APPROVED — current source**. The reviewer verified
+the fixture repair, retained all four prior closures and reaffirmed that the
+raw live-Git oracle is stronger. This is source approval only: runtime,
+native Windows and complete-gate evidence remain required before acceptance.
 
 ## Current State
 
@@ -221,17 +225,18 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep rev-2 frozen while affected checks and final source re-review run.
-2. Complete guarded affected checks, independent review and fix/review cycles until
-   the final code has an explicit approval.
+1. Keep source-approved rev-2 frozen while affected checks, vet and build run.
+2. If a runtime defect requires changes, return it to the sole implementer and
+   obtain explicit independent re-approval before acceptance.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-The generation-contract decision is now approved, but its implementation and
-the other rev-0 defects still require validation and independent re-review.
+The generation-contract decision and final rev-2 source are approved.
+Affected runtime checks, native Windows verification and the fresh complete
+gate still block acceptance; no unresolved source-review finding remains.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

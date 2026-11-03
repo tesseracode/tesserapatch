@@ -1,3 +1,18 @@
+## Review — GH #13 S8 rev-2 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — current source only
+
+The local `strings.TrimSpace` repair closes the remaining fixture finding
+without changing shared raw-output semantics. The four previous finding
+closures stand, and the raw live-Git identity oracle remains stronger.
+The reviewer ran no Go commands and makes no runtime/native/full-gate claim.
+
+**Action**: keep the exact source frozen and complete the guarded affected
+batch, then exact-tip native CI and the fresh complete gate. Any code change
+from new runtime findings requires independent re-approval. S8 and Proposed
+ADR-051 are not yet accepted.
+
 ## S8 Rev-2 Frozen for Guarded Checks and Final Source Re-review — 2026-11-03
 
 The parent verified all 32 source/ADR files against the frozen formatted

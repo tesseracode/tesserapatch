@@ -1664,6 +1664,9 @@ runtime/native/full-gate results and final re-review remain required.
 Rev-2's single-line fixture repair is hash/delta verified; guarded formatting
 and routing controls pass. Fresh affected checks and final source re-review
 are running. No acceptance yet.
+Final rev-2 source verdict is APPROVED; the local fixture repair closes the
+remaining finding without weakening the Git-state oracle. Runtime/native
+Windows/full-gate validation still blocks acceptance.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
