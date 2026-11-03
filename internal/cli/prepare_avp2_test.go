@@ -971,7 +971,7 @@ func firstLifecycleLine(rendered string) string {
 // ---------------------------------------------------------------------------
 
 func TestAVPRootLifetimeAndDifferential(t *testing.T) {
-	const moduleOpenRootCallSites = 5
+	const moduleOpenRootCallSites = 6
 
 	t.Run("AVP-141", func(t *testing.T) {
 		fset := token.NewFileSet()
@@ -1007,7 +1007,9 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if closes != 1 {
 			t.Fatalf("root.Close has %d call sites, want exactly 1", closes)
 		}
-		// S1 adds two explicit candidate/lock roots; the three prepare sites stay.
+		// S1 adds two explicit candidate/lock roots. S8 adds
+		// openOperationCandidateDisk for confined acceptance/recovery I/O in
+		// operation_candidate_transaction.go; the three prepare sites stay.
 		// The population is the set of **tracked** non-test Go files, taken
 		// from `git ls-files`; walking the working tree instead made this row
 		// depend on whatever happens to exist on disk (a nested `git
@@ -1043,7 +1045,7 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 	t.Run("AVP-141/sensitivity", func(t *testing.T) {
 		const opener = "package workflow\n\nimport \"os\"\n\nfunc probe(dir string) { root, _ := os.OpenRoot(dir); _ = root }\n"
 
-		// A second *tracked* production call site must fail the row.
+		// An additional *tracked* production call site must fail the row.
 		extra := map[string]string{}
 		for path, source := range trackedProductionGoSources(t) {
 			extra[path] = source
@@ -1052,14 +1054,23 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if err := validateModuleOpenRootInventory(extra); err == nil {
 			t.Fatal("unregistered module-wide root opener was accepted")
 		}
-		moved := map[string]string{}
-		for path, source := range trackedProductionGoSources(t) {
-			moved[path] = source
-		}
-		delete(moved, filepath.Join("internal", "candidate", "root.go"))
-		moved[filepath.Join("internal", "workflow", "root_probe.go")] = opener
-		if err := validateModuleOpenRootInventory(moved); err == nil {
-			t.Fatal("same-count replacement of a permitted root opener was accepted")
+		for _, owner := range []string{
+			filepath.Join("internal", "candidate", "root.go"),
+			filepath.Join("internal", "workflow", "operation_candidate_transaction.go"),
+		} {
+			moved := map[string]string{}
+			for path, source := range trackedProductionGoSources(t) {
+				moved[path] = source
+			}
+			delete(moved, owner)
+			moved[filepath.Join("internal", "workflow", "root_probe.go")] = opener
+			count, err := countOpenRootCallSites(moved)
+			if err != nil || count != moduleOpenRootCallSites {
+				t.Fatalf("replacement of %s is not a same-count fixture: count=%d err=%v", owner, count, err)
+			}
+			if err := validateModuleOpenRootInventory(moved); err == nil {
+				t.Fatalf("same-count replacement of permitted root opener %s was accepted", owner)
+			}
 		}
 		count, err := countOpenRootCallSites(extra)
 		if err != nil {
@@ -1544,10 +1555,11 @@ func trackedProductionGoSources(t *testing.T) map[string]string {
 // site without touching the working tree.
 func validateModuleOpenRootInventory(sources map[string]string) error {
 	expected := map[string]int{
-		filepath.Join("internal", "cli", "prepare.go"):               1,
-		filepath.Join("internal", "cli", "prepare_publish.go"):       2,
-		filepath.Join("internal", "candidate", "root.go"):            1,
-		filepath.Join("internal", "candidatelock", "lock_common.go"): 1,
+		filepath.Join("internal", "cli", "prepare.go"):                              1,
+		filepath.Join("internal", "cli", "prepare_publish.go"):                      2,
+		filepath.Join("internal", "candidate", "root.go"):                           1,
+		filepath.Join("internal", "candidatelock", "lock_common.go"):                1,
+		filepath.Join("internal", "workflow", "operation_candidate_transaction.go"): 1,
 	}
 	for path, source := range sources {
 		count, err := countOpenRootCallSites(map[string]string{path: source})

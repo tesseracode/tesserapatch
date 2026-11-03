@@ -1766,6 +1766,12 @@ dispatched. Windows evidence collection continues; no full gate yet.
 Final rev-7 source verdict is APPROVED: closed exact inventory, extra-call
 and same-count replacement rejection controls, unchanged scanner/provenance.
 Guarded runtime and native/full-gate evidence still block acceptance.
+Rev-7 guarded checks PASS all five commands, including full CLI AVP, vet/build;
+48 owned identities ended, pressure normal, swap-outs zero, source unchanged.
+Native b133367 Windows proves all 26 required markers, 52 S8 passes and zero
+S8 skips; its 224-failure baseline and known panic are unchanged. Linux observers
+pass. Keep the correction local until macOS observer/AQ evidence finishes,
+then require fresh exact-tip CI and a complete fresh gate before acceptance.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

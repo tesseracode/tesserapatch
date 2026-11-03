@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-7 independently source-approved; guarded AVP checks/native evidence pending
+- **Status**: In progress — rev-7 source/targeted checks passed; native Windows proof verified; macOS observers pending
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -292,6 +292,19 @@ verified through the same validator. Scanner semantics are unchanged.
 The reviewer confirmed AVP2 FreezeCurrent=false and historical SHA256/History
 immutability; no provenance amendment is required. Runtime/native/full-gate
 evidence still blocks acceptance.
+The rev-7 guarded batch passes all five commands: formatting, full CLI AVP
+selector (49.247s), vet and build, including AVP-141/sensitivity. Pressure
+normal, new swap-outs zero; all 48 sampled owned identities ended. Source
+and mirrored evidence hashes are unchanged. Persist this reviewed correction
+locally without cancelling the remaining b133367 macOS observer/AQ evidence.
+
+Native b133367 Windows job 126274474467 passes the dedicated blocking lane:
+26/26 exact required markers, 52 top-level S8 passes, zero S8 skips, including
+the conditional symlink/dangling-link cases. The full-suite failure inventory
+exactly matches 224 baseline names with no additions/removals and the same
+known panic. GH #17 is not closed. Linux observers pass; macOS observers are
+still running. Overall b133367 CI remains failed on AVP-141, and a fresh
+published revision still needs exact-tip CI and the complete fresh gate.
 
 ## Current State
 
@@ -499,6 +512,18 @@ only the originally failing leaf. No new Go result is claimed yet.
 Rev-7 guarded formatting passes (33 Go files, empty repository listing),
 normal pressure and zero swap-outs. Routing controls pass nine of nine.
 Runtime results remain pending in `s8-validation/rev7`.
+Rev-7 final results: full CLI AVP selector PASS (49.247s), vet/build PASS,
+both formatting commands PASS. Five of five guarded commands passed, pressure
+normal and swap-outs zero. All 48 sampled owned identities are gone, no blocked
+marker remains, all 36 source hashes match, and remote/local evidence hashes
+match under `bin/roc-s8-20261103/rev7-evidence/evidence`.
+
+Native Windows b133367 audit: 26/26 required PASS markers, 52 top-level S8
+passes, zero S8 skips; all 224 baseline failures and the known panic match
+exactly. Raw log SHA256:
+`a432100d0a787132a8ffb94fbe05bb095712f1e1b286d8db60a90abb09c5c89f`.
+Audit JSON: `bin/roc-s8-20261103/s8-b133367-windows-audit.json`.
+This is native evidence for b133367, not acceptance of the corrected revision.
 
 ## Validation Policy
 
@@ -532,10 +557,10 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Audit and correct the S8-dependent AVP-141 inventory and its sensitivity
-   expectation; obtain guarded validation and independent re-review.
-2. Collect the remaining b133367 native evidence, then publish the reviewed
-   correction for fresh exact-tip CI and a newly prepared complete gate.
+1. Retain the reviewed/tested rev-7 correction locally while the remaining
+   b133367 macOS observer job finishes; do not cancel the needed AQ evidence.
+2. Then publish the reviewed correction for fresh exact-tip CI and a newly
+   prepared complete gate, preserving every prior result and deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

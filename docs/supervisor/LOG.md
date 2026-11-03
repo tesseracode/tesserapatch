@@ -1,3 +1,27 @@
+## S8 rev-7 Guarded Checks Passed; Native Windows Evidence Verified — 2026-11-03
+
+All five rev-7 guarded commands pass: both formatting checks, the full CLI
+AVP selector (49.247s), vet and build. AVP-141 and its sensitivity controls
+pass. Pressure remains normal, new swap-outs zero; all 48 sampled owned
+identities ended. Mirrored hashes match and all 36 reviewed files are unchanged.
+
+At b133367, native Windows job 126274474467 completed successfully. The new
+blocking lane has **26/26 exact required markers, 52 top-level S8 PASS lines
+and zero S8 SKIPs**, including actual symlink/dangling-link controls. Its
+allowed-failure full suite returns to the exact 224-failure baseline: no added
+or removed names and the identical known panic. GH #17 remains open.
+Raw log SHA256:
+`a432100d0a787132a8ffb94fbe05bb095712f1e1b286d8db60a90abb09c5c89f`.
+The machine-readable audit is retained in
+`bin/roc-s8-20261103/s8-b133367-windows-audit.json`.
+
+**Decision**: persist the reviewed one-file correction locally. Do not push
+yet and cancel the remaining native macOS observer job: its AQ result is
+still needed. Linux observers passed. Overall b133367 CI remains failed by
+the Linux/macOS inventory assertions; this Windows evidence is not overall
+acceptance. A new pushed checkpoint still requires fresh exact-tip CI and
+the complete fresh gate. Neither prepared full gate has run.
+
 ## Review — GH #13 S8 rev-7 — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
