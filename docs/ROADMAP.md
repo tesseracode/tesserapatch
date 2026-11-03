@@ -1760,6 +1760,9 @@ Rev-7 is frozen in one test file: audited S8 root owner, exact six/seven
 inventory/control counts and same-count replacement controls. Production/
 scanner/provenance unchanged. macOS confirms the same AVP failure; guarded
 AVP validation and independent re-review are next.
+The 36-file manifest verifies the one-file delta. Guarded formatting/routing
+controls pass; full CLI AVP checks, vet/build and independent re-review are
+dispatched. Windows evidence collection continues; no full gate yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

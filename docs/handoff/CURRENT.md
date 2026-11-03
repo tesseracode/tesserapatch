@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-7 one-file inventory correction frozen; native Windows evidence pending
+- **Status**: In progress — rev-7 guarded AVP checks and independent re-review dispatched
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -281,6 +281,11 @@ both candidate owners. Scanner/production behavior is unchanged. AVP2
 FreezeCurrent is false, so no provenance field or scope amendment is needed.
 macOS native job 126274474267 independently reports the same inventory and
 sensitivity failures. Other native evidence continues to be collected.
+The 36-file manifest confirms that one-file delta, with all prior 35 files
+unchanged. Guarded formatting/routing controls pass; one formatter output
+was mirrored after frozen-hash checks. The same reviewer is rechecking exact
+ownership/count/control behavior while the full CLI AVP selector, vet and
+build run serially in fresh rev-7 evidence.
 
 ## Current State
 
@@ -485,6 +490,9 @@ macOS job 126274474267 also fails the same AVP-141 assertions after its first
 partition; raw log `bin/roc-s8-20261103/s8-b133367-macos-native.log` is retained.
 Rev-7 will run the full CLI AVP selector under the unchanged guard rather than
 only the originally failing leaf. No new Go result is claimed yet.
+Rev-7 guarded formatting passes (33 Go files, empty repository listing),
+normal pressure and zero swap-outs. Routing controls pass nine of nine.
+Runtime results remain pending in `s8-validation/rev7`.
 
 ## Validation Policy
 

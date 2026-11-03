@@ -1,3 +1,16 @@
+## S8 rev-7 Guarded AVP Checks and Independent Re-review Dispatched — 2026-11-03
+
+The 36-file manifest verifies the one-file inventory delta; all 35 prior files
+are unchanged. Nine unchanged routing controls and both guarded formatting
+commands pass, normal pressure and zero swap-outs. One formatter output was
+mirrored after frozen local-hash checks.
+
+**Action**: same-reviewer audit of the six legitimate owners, exact extra-site
+detection and same-count replacement controls. Parent runs the full CLI AVP
+selector, vet and build in fresh serial rev-7 evidence, stopping at failure.
+Native Windows collection continues independently on GitHub; no complete gate
+has started and no previous partial result substitutes for acceptance.
+
 ## S8 rev-7 Inventory Correction Frozen — 2026-11-03
 
 The implementer audited all six acquisitions and identified S8
