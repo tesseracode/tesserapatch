@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-**S8 REV-4 UNDER REVIEW — non-mutating early journal probe.**
+**S8 REV-4 SOURCE APPROVED — guarded runtime validation in progress.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Review — rev-4 frozen under independent re-review and guarded affected checks
+- **Status**: Validation — rev-4 source approved; guarded affected batch running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -147,6 +147,11 @@ Guarded formatting/routing controls pass; one formatter output was mirrored
 after local frozen-hash checks. The same reviewer is checking probe authority,
 fail-closed paths and the unchanged held-lock recheck while guarded probe,
 CLI, candidate/lock, vet and build commands run serially.
+Final rev-4 source verdict is **APPROVED**. The reviewer confirmed the
+probe neither acquires locks nor writes files, rejects unsafe namespaces
+and present journals without trusting their contents, preserves early CLI
+ordering, and retains authoritative held-lock rechecks. Earlier closures
+stand. Runtime/native/full-gate validation still blocks acceptance.
 
 ## Current State
 
@@ -302,19 +307,18 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the formatted rev-4 snapshot frozen while probe/affected checks and
-   independent re-review run.
-2. Obtain fresh independent approval, run the affected regressions and
-   remaining checks, then the fresh complete gate.
+1. Keep the exact source-approved rev-4 snapshot frozen during remaining checks.
+2. Finish the affected regressions, candidate/lock, vet and build; then push
+   the reviewed checkpoint for exact-tip native CI and the fresh complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-The workflow package passes, but the early journal-preflight clean-tree
-regression blocks CLI compatibility. A source-approved fix, remaining
-affected checks, native Windows verification and the complete gate are required.
+Rev-4's clean-tree fix is independently source-approved. Runtime confirmation,
+remaining affected checks, native Windows verification and the complete gate
+still block acceptance.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent

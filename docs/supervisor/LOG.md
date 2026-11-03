@@ -1,3 +1,19 @@
+## Review — GH #13 S8 rev-4 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — current rev-4 source only
+
+The early probe performs no lock acquisition or filesystem writes, refuses
+unsafe namespaces and present journals without trusting contents, and
+preserves early CLI ordering. Authoritative held-lock rechecks remain intact.
+Controls cover exact filesystem preservation, unsafe evidence, post-probe
+creation, invalid capabilities and clean CLI behavior. Earlier closures stand;
+no significant source issue remains.
+
+**Action**: keep the exact source frozen while the guarded runtime batch
+finishes, then publish the reviewed checkpoint for native CI and the fresh
+complete gate. Source approval alone does not accept S8 or ADR-051.
+
 ## S8 Rev-4 Guarded Checks and Independent Re-review Running — 2026-11-03
 
 The 33-file manifest confirms exactly the four reported deltas. Guarded

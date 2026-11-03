@@ -1695,6 +1695,9 @@ will validate the revision; independent re-approval is still required.
 Rev-4's exact four-file delta is verified; guarded formatting/routing controls
 pass. The affected batch and independent re-review are running, with no
 change to the final gate's full partition.
+Final rev-4 source verdict is APPROVED: no probe writes/locks, unsafe or
+present journals refused, CLI ordering and held-lock rechecks retained.
+Runtime/native/full-gate results still gate acceptance.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
