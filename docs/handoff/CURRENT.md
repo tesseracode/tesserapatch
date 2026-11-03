@@ -23,7 +23,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — repairing native CI lock-path/fixture failures and investigating the AQ observer timeout
+- **Status**: In progress — rev-5 formatted; guarded checks and independent re-review dispatched
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -190,6 +190,19 @@ Rev-5 is bounded to the remaining ordinary-path lock side effect and genuine
 Windows controls, with read-only AQ diagnosis before any extra scope. Keep
 lock/journal/land guards intact, preserve all logs, and obtain new independent
 approval. The old prepared cba4423 gate/source remain untouched and unrun.
+Rev-5 returned frozen. Legacy resolver acceptance no longer creates candidate
+locks; actual candidate-action holds remain. Windows fixtures distinguish
+the OS-held-directory barrier and test real identity mismatches without
+reading mandatory-locked files. The bounded delta includes actions.go,
+recovery/CLI tests, Windows sync/helper tests, the single S8 scope admission
+and Proposed ADR-051. AQ/CI/budgets/memo insertions remain untouched.
+The parent verified all 34 source/ADR files against the frozen baseline:
+exactly the seven authorized rev-5 paths differ. Nine unchanged routing
+controls and guarded formatting pass; one formatter output was mirrored
+after local frozen-hash checks. The same reviewer is rechecking those deltas
+and auditing actual Windows runtime coverage. The serial targeted batch
+includes the real downstream soak, Windows test-binary compilation, vet and
+build. Cross-compilation is not native runtime proof.
 
 ## Current State
 
@@ -343,6 +356,24 @@ under the accepted serial/resource policy. Evidence is separate at
 `s8-validation/ci-cba4423-aq`; shell `roc-s8-ci-aq-diagnostic`.
 This is not a native-CI retry or proof of flakiness. Rev-5 formatting/Go
 checks must wait for it to finish; no overlapping Go workload is permitted.
+That diagnostic now PASSED: `TestS7ObservedAQRegistrationAuthority` took
+458.20s (package 458.737s; measured invocation 496.267s), after 61.281s
+admission. Pressure stayed normal, no new swap-outs, no owned commands remain.
+Aggregate sampled owned RSS peaked at 4,638,429,184 bytes; the 3GiB setting
+remains an advisory per-process budget, not an aggregate RSS cap.
+Remote/local `01-go.json` SHA256 matches
+`bddd4c9e9e8d627c4d168fca873a33e862256607c14fcfc5ddd4a86c3092fb3b`.
+This verifies the unchanged observer on the controlled old Mac only; it
+does not explain or waive the native macOS timeout. Fresh native CI is required.
+
+Rev-5: nine unchanged routing controls pass; guarded formatting of 32 Go
+files and empty `gofmt -l .` pass with normal pressure and zero swap-outs.
+Fresh `s8-validation/rev5` evidence now covers targeted resolver/journal
+workflow controls, the CLI S7/S8/reconcile selector plus the cumulative
+downstream soak, Windows workflow test-binary compilation, vet and build.
+Stop at the first failure. Native Windows execution and the complete fresh
+gate remain required; no unchanged package is rerun merely to duplicate
+the prior diagnostic batch.
 
 ## Validation Policy
 
@@ -371,10 +402,10 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Fix the remaining ordinary reconcile lock-path regression and Windows
-   fixture assumptions without weakening production guards or native proof.
-2. Diagnose the AQ observer timeout; no timeout/partition/memo-policy change
-   is authorized merely to manufacture green. Review and validate rev-5.
+1. Finish guarded rev-5 checks, including the actual cumulative soak, and
+   independent re-review with an explicit native-runtime coverage audit.
+2. Push a source-approved fix-forward checkpoint for fresh native CI.
+   No timeout/partition/memo-policy change is authorized to manufacture green.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

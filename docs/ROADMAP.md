@@ -1715,6 +1715,14 @@ the lock-path/native controls and bounded AQ diagnosis. Full gate not started.
 Same-source Linux AQ passed 66.209s. A guarded isolated old-Mac AQ diagnostic
 is running without source/budget changes; rev-5 Go work waits for it, with
 no acceptance or flakiness inference from a different host.
+The unchanged AQ diagnostic passes on the guarded old Mac in 458.20s,
+normal pressure and zero swap-outs; native timeout cause still unproven.
+Rev-5 is frozen with the legacy resolver lock fix and meaningful Windows
+fixture/identity controls, awaiting guarded checks and independent re-review.
+The 34-file snapshot has exactly seven authorized deltas. Guarded formatting
+and routing controls pass; targeted soak/regressions, Windows cross-compilation
+and independent re-review/runtime-coverage audit are dispatched. Cross-
+compilation cannot replace native Windows execution.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

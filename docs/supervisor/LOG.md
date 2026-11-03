@@ -1,3 +1,38 @@
+## S8 Rev-5 Guarded Checks and Independent Re-review Dispatched — 2026-11-03
+
+The 34-file source/ADR snapshot contains exactly seven authorized deltas
+against formatted rev-4. Nine unchanged routing controls and both guarded
+formatting commands pass, normal pressure and zero swap-outs. One formatter
+output was mirrored only after local frozen-hash checks.
+
+**Action**: same-reviewer source re-review, including candidate-lock authority,
+native sync/helper sensitivity and which S8 tests actually execute on Windows.
+Parent runs the focused workflow controls, CLI S7/S8/reconcile plus the actual
+cumulative downstream soak, Windows test-binary compilation, vet and build,
+serially and stopping at first failure. Compilation is not native runtime
+proof. No CI/timeout/memo-policy change or full-gate waiver is authorized.
+
+## S8 Same-source AQ Passed; rev-5 Returned Frozen — 2026-11-03
+
+The unchanged cba4423 AQ observer passed on the guarded old Mac in 458.20s
+(package 458.737s; invocation 496.267s), after 61.281s admission. Normal
+pressure, zero swap-outs, no remaining owned command. Sampled aggregate owned
+RSS reached 4,638,429,184 bytes; the existing 3GiB setting is explicitly a
+soft per-process budget, not an aggregate cap. Mirrored result SHA256:
+`bddd4c9e9e8d627c4d168fca873a33e862256607c14fcfc5ddd4a86c3092fb3b`.
+This is controlled-host evidence, not proof the native macOS timeout was flaky.
+
+Rev-5 is frozen: legacy resolver acceptance avoids candidate lock creation;
+candidate actions retain holds. Windows controls respect mandatory locks and
+the held-directory barrier while retaining real identity-mismatch proof.
+Changed paths: actions.go, recovery tests, Windows sync implementation and
+new Windows-only tests, S8 scope guard, CLI S8 tests, Proposed ADR-051.
+AQ/CI/budgets and the nineteen AR memo insertions are untouched.
+
+**Action**: guarded formatting and targeted changed-path/soak checks, independent
+re-review, then a reviewed fix-forward checkpoint with fresh native CI.
+The full gate is still unrun and its exact partition remains unchanged.
+
 ## S8 Same-source AQ Diagnostic Started — 2026-11-03
 
 The same cba4423 Linux AQ observer passed in 66.209s, versus the macOS
