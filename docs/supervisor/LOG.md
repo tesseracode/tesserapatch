@@ -1,3 +1,18 @@
+## S8 Rev-1 Affected Batch Stopped on Fixture Failure — 2026-11-03
+
+The full workflow command failed after 36.573s at
+`TestROCS8LiveGitIdentityDetectsIndexRefsAndReflogChanges:225`: its restore
+`git update-ref` receives a newline-terminated SHA and exits 128. No CLI,
+candidate/lock, vet or build command followed. Pressure stayed normal and
+new swap-outs were zero; this is a fixture failure, not a resource stop or
+evidence that acceptance works. Owned command processes are gone.
+
+The entire evidence directory is preserved locally and remotely; the
+`03-go.json` hashes match
+`a59ad5d0afb49c383f030b008e3422f753dfb0696f254d68198ebfab281bf6b7`.
+The same reviewer was notified. Source remains frozen until that verdict
+returns; the next revision will address the complete finding set together.
+
 ## S8 Rev-1 Guarded Checks and Independent Re-review Running — 2026-11-03
 
 The 32-file snapshot passed hash verification and guarded formatting

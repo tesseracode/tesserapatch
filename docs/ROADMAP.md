@@ -1654,7 +1654,10 @@ CLI ordering, constant-expression scanning and normal-producer generation
 coverage are revised; the Git assertion now targets raw live repository state,
 pending validation of the implementer's detached-worktree-log diagnosis.
 Rev-1 guarded formatting and routing controls pass; affected tests/vet/build
-and same-reviewer re-review are in progress. No source approval yet.
+were stopped by the first workflow command's malformed restore-SHA fixture
+(`TestROCS8LiveGitIdentityDetectsIndexRefsAndReflogChanges`). No resource stop;
+remaining commands unrun. Source stays frozen for the same-reviewer verdict.
+No source approval yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

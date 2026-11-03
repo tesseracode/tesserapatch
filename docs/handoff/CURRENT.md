@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Review — rev-1 frozen under same-reviewer re-review and guarded affected checks
+- **Status**: Review — rev-1 fixture failure preserved; source frozen pending the independent verdict
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -85,6 +85,11 @@ Rev-1 guarded formatting passed for the exact 32-file snapshot: 30 Go files
 formatted, empty repository formatting check, eight formatter outputs mirrored
 after local frozen-hash checks. The unchanged nine routing controls pass.
 The same reviewer is rechecking the full revision, not just the prior list.
+Rev-1 affected validation stopped on its first command: the new live-Git
+mutation-control fixture passes a newline-terminated SHA to `git update-ref`,
+which rejects it. This does not establish that the revised acceptance path
+passes. Source remains frozen until the ongoing review finishes so the next
+revision can address the full findings set together.
 
 ## Current State
 
@@ -161,13 +166,17 @@ candidate/lock commands did not run. This is a test assertion failure, not a
 resource stop. Preserve rev-0 evidence and diagnose which invariant changed;
 do not weaken the assertion to manufacture a pass.
 
-Rev-1 formatting passed under the same guards. Full affected workflow tests,
-focused CLI S7/S8/reconcile tests, full candidate/lock tests, vet and build
-are running in that order. Each command has its own unchanged admission/runtime
-guard; the batch stops at the first failure. `-failfast` is used only for this
-diagnostic batch, not the final CI-equivalent gate. No local Go runs overlap.
+Rev-1 formatting passed under the same guards. The first affected command
+(`workflow -count=1 -timeout 40m -failfast`) failed after 36.573s in
+`TestROCS8LiveGitIdentityDetectsIndexRefsAndReflogChanges` at line 225:
+`git update-ref` rejects its newline-terminated restore SHA. CLI, candidate/
+lock, vet and build did not run. Pressure remained normal, new swap-outs zero;
+this is not a resource stop. Owned command processes are gone.
+`-failfast` is diagnostic only; the final CI-equivalent gate remains unchanged.
 Source, manifests, scripts and evidence are retained under local ignored
 `bin/roc-s8-20261103/` and remote `s8-rev1-source`/`s8-validation/rev1`.
+The preserved remote/local `03-go.json` SHA256 matches:
+`a59ad5d0afb49c383f030b008e3422f753dfb0696f254d68198ebfab281bf6b7`.
 
 ## Validation Policy
 
@@ -196,7 +205,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the formatted rev-1 source frozen while checks and review run.
+1. Keep the formatted rev-1 source frozen until the independent verdict returns;
+   include the fixture failure in the next bounded revision.
 2. Complete guarded affected checks, independent review and fix/review cycles until
    the final code has an explicit approval.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
