@@ -1,6 +1,6 @@
 # ADR-049 — Phase-2 authority and lifecycle integration
 
-**Status**: Proposed — S6 implementation decisions, independent review pending
+**Status**: Accepted — 2026-11-03, after S6 independent review and full local/native validation at ee96551
 **Date**: 2026-10-31
 **Related**: ADR-037, ADR-043, ADR-044, ADR-048
 

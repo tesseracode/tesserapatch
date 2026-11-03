@@ -1,3 +1,19 @@
+## S6 ACCEPTED — Fourth Complete Gate Passed — 2026-11-03
+
+The fresh old-Mac retry (harness pid 18465, launched 2026-11-03T00:32:56Z)
+finished at 2026-11-03T03:55:34Z with status `passed` at checkpoint
+`ee965514ee155bc74c383e53bb01cb4c8a83b06e`: exit code 0, 42/42 top-level
+commands, 39/39 test commands, exact command parity, 12,156.76s, 5,896 samples,
+pressure 1 throughout, min admission free memory 76%, peak owned RSS 4.82GiB,
+swap-out delta 0, 1,123 owned identities exited with no cleanup signals, source
+clean afterwards, v0.17.0 unchanged, no `blocked.json`. Evidence copied locally
+and verified by SHA256. Combined with the independent source approval (29302048…),
+native CI 41537751705 (all five jobs; Windows 224 failures, 0 new, GH #17 stays
+open), ADR-049 is Accepted and S6 is ACCEPTED. The three earlier stopped attempts
+remain history only. Decision: no guard, threshold or shard was changed at any
+point. Next: archive/push this closure, record a fresh S7 WAVE_BASE, and only
+then dispatch S7 (never #9; extension approval needed if S7's gate won't fit).
+
 ## S6 Fourth Complete Gate Launched (Fresh Retry, Idle Old Mac) — 2026-11-03
 
 Launched 2026-11-03T00:32:56Z; this is a launch record, NOT a result, and S6 is

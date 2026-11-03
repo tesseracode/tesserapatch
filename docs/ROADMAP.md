@@ -1623,7 +1623,7 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S6 IN PROGRESS — phase wiring and evidence — 2026-10-31
+### GH #13 — ✅ S6 ACCEPTED — phase wiring and evidence — 2026-11-03
 
 Dispatched only after S5 closure62698be was pushed and clean HEAD=origin/main
 verified. S6 WAVE_BASE=`62698be412fb7e9a3e723d2589d6091b8eae3e5f`.
@@ -1692,7 +1692,9 @@ checkpoint is tracking-only; a further resource stop is preserved and asked, not
 That retry was launched 2026-11-03T00:32:56Z at pushed checkpoint ee96551 (native CI
 passed there) after the operator approved quitting the resident Chrome; it is
 RUNNING, not a result, and S6 remains NOT ACCEPTED.
-
+**Result: that retry PASSED** at 2026-11-03T03:55:34Z (42/42 commands, 39/39 tests,
+exact parity, zero swap-outs, all owned identities exited). S6 is ✅ ACCEPTED at
+validated `ee96551`; ADR-049 accepted. S7 is not yet dispatched.
 ### GH #13 — ✅ S5 ACCEPTED — artifacts, identity and lifecycle — 2026-10-31
 
 **Validated range**: `f9d5501f45e00365789eb24c53620a76513d52d5..c42fc65a376b136976d85f3352ca336a6d249a5b`.
