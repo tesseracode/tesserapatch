@@ -1657,7 +1657,10 @@ Rev-1 guarded formatting and routing controls pass; affected tests/vet/build
 were stopped by the first workflow command's malformed restore-SHA fixture
 (`TestROCS8LiveGitIdentityDetectsIndexRefsAndReflogChanges`). No resource stop;
 remaining commands unrun. Source stays frozen for the same-reviewer verdict.
-No source approval yet.
+The reviewer confirmed the four original findings resolved and the new live-Git
+oracle valid, but superseded initial source approval with NEEDS REVISION for
+the malformed restore-SHA fixture. Rev-2 is bounded to that local fixture fix;
+runtime/native/full-gate results and final re-review remain required.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

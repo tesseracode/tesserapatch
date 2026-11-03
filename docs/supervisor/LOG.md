@@ -1,3 +1,22 @@
+## Review — GH #13 S8 rev-1; Bounded rev-2 Dispatch — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Final verdict**: NEEDS REVISION
+
+The initial source-only APPROVED confirmed all four rev-0 findings resolved
+and the detached-worktree reflog diagnosis valid: the raw live-index/HEAD/
+refs/reflog oracle strengthens the intended invariant. After receiving and
+inspecting the runtime failure, the reviewer explicitly superseded that
+approval. The remaining medium finding is
+`operation_candidate_acceptance_test.go:223-225`: `gitOutput` returns raw
+stdout, so the restore commit ID retains a newline.
+
+**Action**: dispatch a bounded rev-2 local `strings.TrimSpace` repair without
+changing shared raw-output semantics or reducing mutation controls. Preserve
+rev-0/rev-1 evidence. The final source must receive explicit re-approval;
+native Windows behavior and all remaining runtime/full-gate evidence remain
+unverified. No acceptance or deadline extension.
+
 ## S8 Rev-1 Affected Batch Stopped on Fixture Failure — 2026-11-03
 
 The full workflow command failed after 36.573s at

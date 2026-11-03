@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-**S8 REV-1 UNDER REVIEW — acceptance transaction and explicit recovery.**
+**S8 REV-2 IN PROGRESS — acceptance transaction and explicit recovery.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Review — rev-1 fixture failure preserved; source frozen pending the independent verdict
+- **Status**: In progress — rev-2 scoped to the malformed restore-SHA fixture
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -90,6 +90,11 @@ mutation-control fixture passes a newline-terminated SHA to `git update-ref`,
 which rejects it. This does not establish that the revised acceptance path
 passes. Source remains frozen until the ongoing review finishes so the next
 revision can address the full findings set together.
+The reviewer initially approved rev-1 source, confirming all four original
+findings closed and the raw live-Git oracle stronger. That approval was
+explicitly superseded by **NEEDS REVISION** after inspecting the runtime
+failure: trim the captured commit ID locally, not the shared raw-output
+helper. Rev-2 is limited to that fixture repair; final re-review still required.
 
 ## Current State
 
@@ -205,8 +210,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Keep the formatted rev-1 source frozen until the independent verdict returns;
-   include the fixture failure in the next bounded revision.
+1. Repair the local restore-SHA fixture without weakening its mutation controls
+   or changing the shared raw-output helper; freeze rev-2 for guarded checks.
 2. Complete guarded affected checks, independent review and fix/review cycles until
    the final code has an explicit approval.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
