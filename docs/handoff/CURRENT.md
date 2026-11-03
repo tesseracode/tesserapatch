@@ -2,14 +2,16 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S7 DISPATCHED (CLI) after S6 closure `fe4b141ac32f384ce4a2229a8b980f1a2c97efa5`
-was pushed with clean HEAD=origin/main.** S6 is ACCEPTED and archived in HISTORY
-under 2026-11-03T03:55:34Z; the S6 chronology below is retained as history.
-Window extended by the operator (+3h): ends **2026-11-03T13:28:21Z**. Advance
-within #13 only; never start #9, unrelated migrations, coverage, research or
-release work. Any further extension needs approval.
+**S7 SOURCE APPROVED; COMPLETE GATE NOT YET PASSED (S7 NOT ACCEPTED).**
+APPROVED denotes independent source review only (two review rounds, all
+findings fixed; targeted ROC tests, vet and build pass on the old Mac). S7
+implementation is pushed at `2e953e5`; the full resource-guarded gate and
+exact-tip native CI follow on the tracking-only tip. S6 closure `fe4b141`
+(archived in HISTORY under 2026-11-03T03:55:34Z; its chronology below is
+history). Window ends **2026-11-03T13:28:21Z** (operator +3h). Advance within
+#13 only; never #9, unrelated migrations, coverage, research or release work.
 
 ## Active Task
 
