@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-**S8 REV-4 IN PROGRESS — early journal-preflight clean-tree regression.**
+**S8 REV-4 UNDER REVIEW — non-mutating early journal probe.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — repairing the early journal-preflight side effect exposed by existing CLI tests
+- **Status**: Review — rev-4 frozen under independent re-review and guarded affected checks
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -136,6 +136,17 @@ normal clean-tree gate refused reconciliation. Rev-4 is scoped to the
 early journal-preflight dependency and regression controls. Diagnose and
 remove the unintended mutation; do not relax the clean-tree gate, delete
 lock files to hide it, or let existing journals bypass early refusal.
+Rev-4 returned frozen. The implementer confirmed early `TryAcquire` created
+the persistent lock files; the preflight now scans read-only, while held-lock
+transaction rechecks remain unchanged. The bounded delta is recovery.go,
+its tests, CLI S8 tests and a minimal Proposed ADR-051 explanation. Controls
+cover filesystem preservation, unsafe/present journals, post-probe journal
+creation, invalid handles and clean CLI preflight. No Go tools ran in revision.
+The parent verified exactly those four deltas in the 33-file manifest.
+Guarded formatting/routing controls pass; one formatter output was mirrored
+after local frozen-hash checks. The same reviewer is checking probe authority,
+fail-closed paths and the unchanged held-lock recheck while guarded probe,
+CLI, candidate/lock, vet and build commands run serially.
 
 ## Current State
 
@@ -257,6 +268,13 @@ commands ended. Evidence is mirrored locally and retained remotely; matching
 failed `05-go.json` SHA256:
 `4a60151615eeff9532928337a7240df73a431b2b4a6fbcfd6c4ac4019bd01cb9`.
 
+Rev-4: nine unchanged routing controls and guarded formatting pass.
+The fresh `s8-validation/rev4` batch starts with changed-probe workflow
+regressions, then the full existing CLI S7/S8/reconcile selector,
+candidate/lock packages, vet and build, stopping at the first failure.
+Unchanged workflow cases will all run again in the complete fresh gate;
+rev-3's partial evidence will never be stitched into acceptance.
+
 ## Validation Policy
 
 Reuse the accepted resource guard for EVERY Go/gofmt command, including
@@ -284,8 +302,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Repair the early journal-preflight clean-tree regression with focused
-   controls; retain all journal refusal and lock-ownership invariants.
+1. Keep the formatted rev-4 snapshot frozen while probe/affected checks and
+   independent re-review run.
 2. Obtain fresh independent approval, run the affected regressions and
    remaining checks, then the fresh complete gate.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive

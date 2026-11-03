@@ -1687,6 +1687,14 @@ Rev-3 analyzer regressions and full workflow pass. Existing CLI test
 appears untracked before the clean-tree gate. Rev-4 is bounded to the early
 journal-preflight side effect and focused controls, not dirty-gate relaxation
 or lock deletion. Candidate/lock/vet/build remain unrun; no resource stop.
+Rev-4 is frozen: remove the early probe's lock-creating `TryAcquire`, retain
+held-lock rechecks, and cover exact filesystem preservation plus unsafe,
+present and post-probe-created journals. Focused workflow probe checks,
+the affected CLI selector, remaining package checks and fresh full gate
+will validate the revision; independent re-approval is still required.
+Rev-4's exact four-file delta is verified; guarded formatting/routing controls
+pass. The affected batch and independent re-review are running, with no
+change to the final gate's full partition.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

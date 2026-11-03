@@ -1,3 +1,33 @@
+## S8 Rev-4 Guarded Checks and Independent Re-review Running — 2026-11-03
+
+The 33-file manifest confirms exactly the four reported deltas. Guarded
+formatting and nine unchanged routing controls pass; one formatter output
+was mirrored after frozen local-hash checks. The same reviewer is examining
+read-only probe authority, unsafe/journal fail-closed paths, no-write behavior
+and the retained held-lock recheck for post-probe journal creation.
+
+Changed-probe workflow tests, the existing affected CLI selector, full
+candidate/lock packages, vet and build run serially in fresh rev-4 evidence
+under unchanged guards. No runtime or source approval is inferred. The
+final gate remains the complete fresh 42-command/39-test partition.
+
+## S8 Rev-4 Returned; Non-mutating Journal Probe — 2026-11-03
+
+The implementer confirmed early `TryAcquire` created persistent lock files
+before the ordinary clean-tree check. Rev-4 replaces only that early probe
+with read-only scanning; transaction held-lock rechecks remain unchanged.
+Exact reported delta: `operation_candidate_recovery.go`, its tests,
+`internal/cli/operation_candidate_s8_test.go` and Proposed ADR-051.
+Controls cover exact filesystem preservation, unsafe/present journals,
+post-probe creation, invalid handles and clean CLI preflight.
+
+Parent will run focused changed-probe workflow regressions, the affected CLI
+selector, full candidate/lock packages, vet and build. The already successful
+rev-3 full workflow run remains historical; it will not substitute for the
+fresh complete acceptance gate. This avoids repeating unchanged workflow
+cases during diagnosis without reducing the final gate's exact test partition.
+Independent source re-approval is required. No Go/gofmt ran during revision.
+
 ## S8 Rev-3 Workflow Passed; CLI Regression and rev-4 Dispatch — 2026-11-03
 
 Guarded targeted analyzer/scope checks pass in 8.062s, and the full affected
