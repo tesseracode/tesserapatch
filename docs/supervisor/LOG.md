@@ -1,3 +1,23 @@
+## Review — GH #13 S8 rev-7 — 2026-11-03
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+**Verdict**: APPROVED — current rev-7 source only
+
+All 36 hashes match; the prior 35 entries are identical. The inventory stays
+closed at exactly six calls with exact per-file counts, including the existing
+S8 owner. The extra-site control requires seven and rejection. Both replacement
+controls preserve six calls while requiring rejection by the same validator.
+Scanner semantics and existing checks remain unchanged.
+
+AVP2 FreezeCurrent defaults to false; pinned SHA256/History validate historical
+baseline bytes, not current working bytes. Those fields and the validator are
+unchanged, so no current-hash amendment is needed. Prior production/CI closures
+stand.
+
+**Action**: keep source frozen for guarded AVP/vet/build results, remaining
+native evidence and fresh complete acceptance validation. No runtime/native
+or full-gate success is inferred from this source approval.
+
 ## S8 rev-7 Guarded AVP Checks and Independent Re-review Dispatched — 2026-11-03
 
 The 36-file manifest verifies the one-file inventory delta; all 35 prior files

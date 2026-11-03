@@ -24,7 +24,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-7 guarded AVP checks and independent re-review dispatched
+- **Status**: In progress — rev-7 independently source-approved; guarded AVP checks/native evidence pending
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -286,6 +286,12 @@ unchanged. Guarded formatting/routing controls pass; one formatter output
 was mirrored after frozen-hash checks. The same reviewer is rechecking exact
 ownership/count/control behavior while the full CLI AVP selector, vet and
 build run serially in fresh rev-7 evidence.
+Final rev-7 source verdict is **APPROVED**. Exact per-file/six-call ownership,
+seven-call rejection and both six-call replacement rejection controls are
+verified through the same validator. Scanner semantics are unchanged.
+The reviewer confirmed AVP2 FreezeCurrent=false and historical SHA256/History
+immutability; no provenance amendment is required. Runtime/native/full-gate
+evidence still blocks acceptance.
 
 ## Current State
 

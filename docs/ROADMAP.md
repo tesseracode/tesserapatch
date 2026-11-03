@@ -1763,6 +1763,9 @@ AVP validation and independent re-review are next.
 The 36-file manifest verifies the one-file delta. Guarded formatting/routing
 controls pass; full CLI AVP checks, vet/build and independent re-review are
 dispatched. Windows evidence collection continues; no full gate yet.
+Final rev-7 source verdict is APPROVED: closed exact inventory, extra-call
+and same-count replacement rejection controls, unchanged scanner/provenance.
+Guarded runtime and native/full-gate evidence still block acceptance.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
