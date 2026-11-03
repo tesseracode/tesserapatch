@@ -1649,6 +1649,12 @@ Operator approved the narrow candidate-only generation amendment: through the
 shared appender, changed base/recipe/capture/upper bindings may append despite
 identical patch bytes; history and all other producers remain unchanged.
 ADR-051 plus a bounded ADR-024 D9 note will record it. Revision is in progress.
+Rev-1 is frozen for guarded checks and same-reviewer re-review. Cleanup identity,
+CLI ordering, constant-expression scanning and normal-producer generation
+coverage are revised; the Git assertion now targets raw live repository state,
+pending validation of the implementer's detached-worktree-log diagnosis.
+Rev-1 guarded formatting and routing controls pass; affected tests/vet/build
+and same-reviewer re-review are in progress. No source approval yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

@@ -1,3 +1,37 @@
+## S8 Rev-1 Guarded Checks and Independent Re-review Running — 2026-11-03
+
+The 32-file snapshot passed hash verification and guarded formatting
+(30 Go files, then empty `gofmt -l .`); eight formatter outputs were mirrored
+only after checking the local files had not changed. The accepted routing
+wrapper/profiler hashes and all nine controls remain unchanged.
+
+Affected workflow tests, focused CLI S7/S8/reconcile checks, candidate/lock
+packages, vet and build are running serially under the original guard. The
+same independent reviewer is checking the entire revision, including the
+operator-approved generation exception and the no-live-Git-state oracle.
+The final full gate will still use its unchanged exact CI partition; diagnostic
+`-failfast` does not replace that acceptance evidence. No approval yet.
+
+## S8 Rev-1 Returned for Guarded Validation and Re-review — 2026-11-03
+
+At 19:24Z the implementer froze 30 Go files and two ADRs. Reported fixes:
+persist original worktree/registration ownership in the initial journal;
+detect journals before CLI early returns; reuse the existing constant-folding
+guard in all four dispatches; implement the operator-approved normalized
+candidate binding tuple exception without changing ordinary producers.
+The normal B→U→H producer case and unchanged-tuple/history controls are added.
+
+The reported Git invariant failure is attributed to the test's ordering of
+`reflog --all --single-worktree`, which included disposable detached HEAD
+logs. The new assertion covers raw live index/HEAD/refs/reflogs with real
+mutations. This is a proposed test diagnosis, not permission to weaken the
+no-live-history/index guarantee; runtime checks and the same independent
+reviewer must validate it. Windows directory identity/durability now has
+explicit native test coverage but no native result yet.
+
+No Go/gofmt ran during revision. Parent owns admitted formatting, regression
+checks and final re-review; new evidence directory, unchanged resource guards.
+
 ## S8 Generation Amendment Authorized; Rev-1 Dispatched — 2026-11-03
 
 The operator selected **candidate-only-generation-amendment** after the

@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-**S8 DISPATCHED — acceptance transaction and explicit recovery.**
+**S8 REV-1 UNDER REVIEW — acceptance transaction and explicit recovery.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Needs revision — four independent findings and one focused runtime failure
+- **Status**: Review — rev-1 frozen under same-reviewer re-review and guarded affected checks
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -37,7 +37,7 @@ Dispatch tracking is pushed at `6880b1f`. A single OpenAI implementation agent
 (`09aaa781-2665-4fdc-a1c8-7619210a364e`) owns S8 code and Proposed ADR-051.
 Parent owns CURRENT/LOG/ROADMAP/HISTORY and every Go invocation, avoiding shared
 file overlap. S8 replaces the acceptance/recovery placeholders with the
-accepted fourteen-step transaction. No S8 Go validation has run yet.
+accepted fourteen-step transaction. Validation had not started at dispatch.
 
 The old Mac's new `s8-source` is a clean full-history checkout at the dispatch
 commit; `s8-validation/rev0` uses the byte-identical accepted gate wrapper and
@@ -72,6 +72,19 @@ other producer's same-patch skip. The shared appender remains the only writer;
 an identical candidate binding tuple is still a no-op. ADR-051 and a narrow
 ADR-024 D9 cross-reference will document this approved contract exception.
 The real record/ancestor/conflict reproduction must pass after implementation.
+Rev-1 returned at 2026-11-03T19:24Z, frozen without Go execution. It adds
+persisted pre-relocation directory/registration identities, early shared CLI
+journal refusal, the existing constant-folding scanner and the approved
+candidate-only generation exception with normal-flow tests. The implementer
+diagnosed rev-0's Git assertion as `reflog --all --single-worktree` including
+disposable detached-worktree logs; its replacement snapshots raw live
+index/HEAD/refs/reflogs with real mutation controls. This diagnosis/assertion
+change still requires runtime confirmation and independent review, not waiver.
+Native Windows identity/directory-sync tests are now explicit.
+Rev-1 guarded formatting passed for the exact 32-file snapshot: 30 Go files
+formatted, empty repository formatting check, eight formatter outputs mirrored
+after local frozen-hash checks. The unchanged nine routing controls pass.
+The same reviewer is rechecking the full revision, not just the prior list.
 
 ## Current State
 
@@ -148,6 +161,14 @@ candidate/lock commands did not run. This is a test assertion failure, not a
 resource stop. Preserve rev-0 evidence and diagnose which invariant changed;
 do not weaken the assertion to manufacture a pass.
 
+Rev-1 formatting passed under the same guards. Full affected workflow tests,
+focused CLI S7/S8/reconcile tests, full candidate/lock tests, vet and build
+are running in that order. Each command has its own unchanged admission/runtime
+guard; the batch stops at the first failure. `-failfast` is used only for this
+diagnostic batch, not the final CI-equivalent gate. No local Go runs overlap.
+Source, manifests, scripts and evidence are retained under local ignored
+`bin/roc-s8-20261103/` and remote `s8-rev1-source`/`s8-validation/rev1`.
+
 ## Validation Policy
 
 Reuse the accepted resource guard for EVERY Go/gofmt command, including
@@ -175,9 +196,8 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Commit/push the dispatch record; implement S8 with one code owner and a
-   Proposed ADR-051 for transaction/recovery implementation decisions.
-2. Run guarded focused checks, independent review and fix/review cycles until
+1. Keep the formatted rev-1 source frozen while checks and review run.
+2. Complete guarded affected checks, independent review and fix/review cycles until
    the final code has an explicit approval.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
