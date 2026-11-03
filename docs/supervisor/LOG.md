@@ -1,3 +1,17 @@
+## S8 Rev-2 Frozen for Guarded Checks and Final Source Re-review — 2026-11-03
+
+The parent verified all 32 source/ADR files against the frozen formatted
+rev-1: the only delta is the local restore-SHA `strings.TrimSpace` at
+`operation_candidate_acceptance_test.go:223`. Shared helper semantics and
+mutation assertions are unchanged. Guarded formatting changed zero bytes;
+the unchanged nine routing controls pass.
+
+The fresh `s8-validation/rev2` batch now runs affected workflow, focused
+CLI, candidate/lock, vet and build serially with stop-first-failure. The
+same independent reviewer is checking the final repair. Rev-0/rev-1 source,
+evidence and failure markers remain preserved; no approval or gate result
+is inferred from the bounded delta.
+
 ## Review — GH #13 S8 rev-1; Bounded rev-2 Dispatch — 2026-11-03
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`

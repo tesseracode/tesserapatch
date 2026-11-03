@@ -1661,6 +1661,9 @@ The reviewer confirmed the four original findings resolved and the new live-Git
 oracle valid, but superseded initial source approval with NEEDS REVISION for
 the malformed restore-SHA fixture. Rev-2 is bounded to that local fixture fix;
 runtime/native/full-gate results and final re-review remain required.
+Rev-2's single-line fixture repair is hash/delta verified; guarded formatting
+and routing controls pass. Fresh affected checks and final source re-review
+are running. No acceptance yet.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

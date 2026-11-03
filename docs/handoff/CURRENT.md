@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-**S8 REV-2 IN PROGRESS — acceptance transaction and explicit recovery.**
+**S8 REV-2 UNDER REVIEW — acceptance transaction and explicit recovery.**
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -21,7 +21,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-2 scoped to the malformed restore-SHA fixture
+- **Status**: Review — rev-2 frozen under guarded affected checks and final source re-review
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -95,6 +95,11 @@ findings closed and the raw live-Git oracle stronger. That approval was
 explicitly superseded by **NEEDS REVISION** after inspecting the runtime
 failure: trim the captured commit ID locally, not the shared raw-output
 helper. Rev-2 is limited to that fixture repair; final re-review still required.
+Rev-2 returned with exactly the local `strings.TrimSpace` repair. The parent
+compared all 32 frozen source/ADR files to formatted rev-1 and verified that
+single-line delta. Guarded formatting passed without changing any bytes.
+The same reviewer is checking the repair for a final source verdict while
+the fresh rev-2 affected batch runs; no prior failure evidence is overwritten.
 
 ## Current State
 
@@ -183,6 +188,12 @@ Source, manifests, scripts and evidence are retained under local ignored
 The preserved remote/local `03-go.json` SHA256 matches:
 `a59ad5d0afb49c383f030b008e3422f753dfb0696f254d68198ebfab281bf6b7`.
 
+Rev-2: nine unchanged routing controls pass; guarded formatting passes.
+Fresh full workflow, focused CLI S7/S8/reconcile, full candidate/lock, vet and
+build commands run serially with stop-first-failure in `s8-validation/rev2`,
+against a clean full-history base plus the exact frozen source overlay.
+No runtime result yet; previous partial results are not acceptance evidence.
+
 ## Validation Policy
 
 Reuse the accepted resource guard for EVERY Go/gofmt command, including
@@ -210,8 +221,7 @@ put to the operator; no blind retry.
 
 ## Next Steps
 
-1. Repair the local restore-SHA fixture without weakening its mutation controls
-   or changing the shared raw-output helper; freeze rev-2 for guarded checks.
+1. Keep rev-2 frozen while affected checks and final source re-review run.
 2. Complete guarded affected checks, independent review and fix/review cycles until
    the final code has an explicit approval.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
