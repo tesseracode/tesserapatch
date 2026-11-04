@@ -1696,6 +1696,11 @@ acceptance. No tag/release/issue closure or GH #9 advancement on rev-0.
 macOS reproduced the same RGA/AP body-hash failure, and the Ubuntu AP observer
 reported PIB-459 RUN=1/PASS=0. Expanded focused validation must exercise that
 workflow and observer, not only the new S9 selector.
+At **08:14Z** rev-1 returned and was frozen: three-file amendment, 19 total
+source files, historical S6/provenance/HISTORY and all other reviewed bytes
+unchanged. AP has no historical provenance-registry entry, so none was
+invented; the registry remains unchanged. Guarded formatting, independent
+review and expanded RGA/AP/provenance/observer validation are next.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

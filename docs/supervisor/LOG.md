@@ -1,3 +1,24 @@
+## S9 Rev-1 Handback Frozen for Formatting / Re-review — 2026-11-04
+
+At **08:14:28Z** parent verified the same OpenAI implementer's bounded
+three-file amendment: S9 CLI projection/sensitivity, four-line AP-validator
+hook and narrow S0 path admission. Total source manifest: 19 files.
+All 16 other reviewed files, historical S6 oracle, provenance registry and
+HISTORY remain unchanged. No Go/gofmt/runtime work by the implementer.
+Pre-format archive SHA256:
+`956d39e5b2491efa334573b683e72b5c98882c0e7b3a6cf5989bd3dcb55c62c7`.
+
+**S9-D12**: the implementer found AP absent from the provenance registry and
+its derived historical range. The conditional CurrentSHA256 authorization
+was therefore unused; inventing a registry entry would break its closed set.
+Independent re-review must verify this, along with preserved historical
+hashes, six-body-only projection and real rejecting controls.
+
+**Action**: keep source read-only, guarded-format the three files, re-review
+the exact resulting manifest and run expanded S9/RGA/AP/provenance/observer
+checks. Rev-0's failed/interrupted evidence remains preserved and no full
+acceptance or release is claimed.
+
 ## S9 Native Regression — Rev-0 NEEDS REVISION — 2026-11-04
 
 **Finding S9-R1**: Ubuntu job **126458448586**, CI **41795299460** at

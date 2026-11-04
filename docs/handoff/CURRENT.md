@@ -2,17 +2,17 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-The revised 18-file S9 implementation is frozen, independent rev-0 source
-review is APPROVED and all six guarded formatting/focused commands passed.
-This is the reviewed-source checkpoint for the fresh full gate, not final
-S9 acceptance. Complete full-gate/native CI and release remain pending.
+Rev-0 had independent source approval and six guarded formatting/focused
+passes, but did not pass complete acceptance. The bounded rev-1 handback is
+now frozen (19 total source files), awaiting guarded formatting, independent
+re-review and expanded validation. No S9 acceptance or release is claimed.
 The exact reviewed source was pushed at
 `c18f02545ec11ac7e8653ab8e8814ce9e0758a68`, but native CI **41795299460**
 exposed a directly coupled AP prose-hash regression. Acceptance is reopened.
@@ -42,7 +42,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Rev-1 in progress - native AP prose-hash regression; acceptance reopened
+- **Status**: Rev-1 source frozen - guarded formatting, independent re-review and expanded validation pending
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -216,6 +216,25 @@ if necessary, the narrowly bounded S0 scope guard. Additional authorized files:
 Do not edit `recipe_authority_s6_doc_delta_test.go` or historical registry
 SHA256/History/FreezeCurrent. Report any further required scope before editing.
 
+The same OpenAI `gpt-6-astra` implementer returned rev-1; parent froze it at
+**08:14:28Z**, verifying exactly three changed paths:
+`operation_candidate_s9_test.go`, `prepare_s7_ap_dangling_test.go` and
+`operation_candidate_s0_guards_test.go`. The complete manifest has 19 files;
+all 16 other previously reviewed files, historical S6 oracle, provenance
+registry and HISTORY are unchanged. The AP hook adds only the S9 projection;
+the S0 scope guard admits only the AP test path. New regression:
+`TestROCS9DanglingDocProjectionAndSensitivity`, with same-validator controls
+for invalid inputs, current-body mutations and nonmutation.
+
+The implementer found **no AP entry or membership in the provenance registry's
+derived historical range**. Therefore the conditional CurrentSHA256 amendment
+was unnecessary and `prepare_pib_golden_test.go` is unchanged; inventing an
+entry would violate the closed set. Independent review must verify this
+reasoning, the preserved historical hashes and the exact hook/scope delta.
+No Go/gofmt or runtime claim from the implementer. Pre-format archive SHA256:
+`956d39e5b2491efa334573b683e72b5c98882c0e7b3a6cf5989bd3dcb55c62c7`.
+Source is read-only while parent formats the three files through the wrapper.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -231,6 +250,7 @@ SHA256/History/FreezeCurrent. Report any further required scope before editing.
 | S9-D9 | Fix the confirmed malformed candidate terminal instructions in the pending-resolver error. This is a narrow CLI-text correction to match existing parsing, with real-command regression coverage; no acceptance/state semantics change. |
 | S9-D10 | Native CI exposed a preserved AP guard still selecting S6 prose hashes. Add an explicit pinned S9 projection and reviewed current-hash amendment, rather than weakening the guard, overwriting historical oracles or blessing live docs dynamically. |
 | S9-D11 | Expand rev-1 focused checks to the actual RGA/AP dependency and provenance/observer guards. Preserve rev-0 failure/interruption evidence and rerun complete acceptance from fresh source/cache/evidence; no partial-pass stitching. |
+| S9-D12 | Do not invent a provenance entry for AP: the implementer found it absent from the closed historical registry/range. Leave the registry unchanged and independently verify that finding; CurrentSHA256 amendments apply only to existing frozen entries. |
 
 No new architecture choice has been made. Any later architecture change
 requires an ADR and explicit recorded rationale before implementation.
@@ -334,6 +354,9 @@ fixture path changed.
 - **S9 fresh full gate and exact-tip native CI 41795299460: dispatched,
   not accepted.** Ubuntu's first Test command failed the RGA S6/AP prose-body
   guard. Old-Mac gate interrupted safely before source revision; no full pass.
+- Rev-1 structural freeze: exact three-file amendment, 19 total source hashes,
+  unchanged historical S6/provenance/HISTORY. Guarded formatting and runtime
+  checks have not started; source handback is not acceptance evidence.
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -358,7 +381,7 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Implement only the bounded rev-1 AP prose-projection/provenance correction.
+1. Guardedly format the frozen rev-1 amendment, then independently re-review.
 2. Independently re-review, run expanded guarded focused checks, then publish
    a new checkpoint and run fresh complete gate/exact-tip native CI.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
@@ -367,10 +390,10 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Blockers
 
-Rev-0 acceptance is blocked by the coupled AP prose-hash regression above.
-All previous passes remain historical evidence only. Rev-1 needs scoped
-implementation, independent review, expanded focused validation and fresh
-complete/native acceptance. GH #17 remains known separate debt.
+Rev-0 acceptance failed the coupled AP prose-hash dependency above. Rev-1's
+implementation has returned with no reported blocker, but still needs guarded
+formatting, independent review, expanded focused validation and fresh complete/
+native acceptance. GH #17 remains known separate debt.
 
 ## Context for Next Agent
 
