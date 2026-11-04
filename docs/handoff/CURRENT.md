@@ -4,15 +4,15 @@
 
 **Cluster state**: APPROVED
 
-**S8 REV-7 SOURCE APPROVED — complete-gate launch blocked by VPN/DNS.**
+**S8 REV-7 SOURCE APPROVED — access restored; fresh complete-gate launch resumes.**
 APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
 The inventory correction is committed at `15f071e` and its guarded checks pass.
 The published b133367 checkpoint is not accepted; both older full-gate
 preparations remain unrun and preserved. The correction and queued
 tracking are now published at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
 Fresh exact-tip CI is running; the new complete gate is prepared but unrun.
-SSH hostname resolution failed before any remote command started. NetBird
-reports disconnected management/signal connections; network settings are unchanged.
+The failed SSH launch never reached the old Mac. Operator-restored access
+and pristine preparation were verified at 00:51Z; no agent network changes.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -29,7 +29,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Blocked — complete gate never started because old-Mac SSH hostname cannot resolve; native CI continues
+- **Status**: Source approved — old-Mac access restored; pristine complete-gate launch resumes, native CI continues
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -353,6 +353,11 @@ The operator selected **manual-reconnect**. Do not change NetBird or network
 settings. A bounded read-only SSH observer waits for restored access; it does
 not run Go. Recheck pristine preparation and sufficient remaining time before
 launch, otherwise request an extension. Native CI continues independently.
+Manual restoration was observed at 00:50:08Z. At 00:51Z, a separate host-key-
+checked connection verified clean ffb0323 source and no runner, evidence or
+cache in the preparation. Resume launch under a new shell identifier: no Go
+or resource validation ran in the failed DNS attempt. The remaining window
+is just over four hours; keep every guard and the 04:55Z deadline unchanged.
 
 ## Current State
 
@@ -621,20 +626,19 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Wait for the operator's selected manual VPN reconnection;
-   verify no runner/evidence/cache exists before retrying the never-started gate.
-2. Keep origin frozen at ffb0323, launch the unchanged complete gate if the
-   remaining window permits, and observe it plus the remaining native jobs.
+1. Launch the verified-pristine complete gate at ffb0323 and verify its
+   owned runner and live guarded evidence.
+2. Keep origin frozen and observe the full gate plus remaining native jobs;
+   stop safely for failure, resource limits or the 04:55Z deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-The complete gate could not start: SSH cannot resolve the old Mac and NetBird
-reports both control connections disconnected. The operator chose manual
-reconnection; do not change VPN/DNS settings on their behalf.
-The launch/readiness attempts exited 255 before running any remote command.
+The earlier DNS blocker is cleared by operator-restored access. The failed
+launch/readiness attempts exited 255 before any remote command, and pristine
+preparation was reverified at 00:51Z. No agent network changes were made.
 
 Fresh exact-tip native CI and the complete fresh gate still block acceptance;
 ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have

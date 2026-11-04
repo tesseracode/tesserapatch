@@ -1794,6 +1794,10 @@ approval/manual VPN restoration before retrying the pristine preparation.
 The operator chose manual reconnection. Observe restored access read-only,
 then verify the pristine preparation and enough remaining window before
 launching; do not change network settings or shorten the full gate.
+Manual restoration was detected at 00:50:08Z; host-key-checked access, clean
+ffb0323 source and absent runner/evidence/cache were verified at 00:51Z.
+Resume the unchanged fresh gate; the failed DNS attempt ran no Go. Native
+CI and the 04:55Z deadline remain unchanged.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

@@ -1,3 +1,17 @@
+## S8 Manual Access Restoration Verified; Fresh Gate Launch Resumes — 2026-11-04
+
+The read-only observer detected restored access at 00:50:08Z. A separate
+00:51Z check verified the existing SSH host key, clean ffb0323 source and
+**no runner identity, evidence or cache** in the prepared gate. Thus the
+failed DNS launch did not run any remote command or consume this fresh
+preparation. The agent changed no VPN/network settings.
+
+**Action**: launch the same pristine preparation under a new shell identifier.
+This is not a retry of failed Go/resource validation. All guards, the full
+partition, exact checkpoint and 04:55Z deadline remain unchanged. The remaining
+window is just over four hours, still exceeding the prior measured 3h23m gate;
+do not truncate validation if the new workload reaches the deadline.
+
 ## S8 Operator Chose Manual VPN Restoration — 2026-11-04
 
 The operator selected **manual-reconnect**. Do not reconnect NetBird or
