@@ -1,3 +1,24 @@
+## S9 Rev-1 Expanded Checks Passed; New Checkpoint Authorized — 2026-11-04
+
+At **08:42:56Z** parent audited all six guarded formatting/test/observer/
+vet/build commands: passed with exact argument parity and 19 unchanged
+reviewed source hashes. Verified 45 top-level PASS records, 18 required
+exact markers and 29 new projection leaves. The original RGA S6/AP body
+regression, PIB-459, actual AP observer, pre-change/provenance guards and
+S9 soak/suggestion regressions pass.
+
+Each command had >=61 seconds admission; all samples show pressure 1,
+zero new swap-outs and maximum within-stage gap 2.154 seconds. All 143
+sampled owned identities and launcher ended; no blocked marker.
+Evidence archive SHA256:
+`0d21938c2a66de3b2bdcfca9b0d469581e2ddc7f29a1f3146d992807046d2893`.
+
+**Decision**: rev-1 source APPROVED for a new published checkpoint and fresh
+complete gate/native CI. The R1 dependency correction is proven by focused
+runtime evidence, but final S9 acceptance still needs all 42 fresh commands /
+39 uncached test commands plus required exact-tip native jobs. No reuse of
+rev-0 partial gate or Windows results, no early tag/release/issue closure.
+
 ## S9 Rev-0 Native Failure Inventory Finalized — 2026-11-04
 
 CI **41795299460** at c18f025 completed **failure**. Ubuntu/macOS main jobs

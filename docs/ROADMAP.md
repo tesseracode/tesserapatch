@@ -1715,6 +1715,12 @@ same RGA/AP dependency. Windows blocking lanes passed with 26 exact S8
 markers/52 passes/no skips, while the separate legacy full suite retains
 224 known failures and its known panic under GH #17. This qualified evidence
 does not replace a new complete native run for rev-1.
+**08:42Z rev-1 focused close**: all six guarded commands pass, including the
+original RGA S6/AP/PIB-459 failure and actual AP observer. Verified 45 top-level
+PASS records, 18 required exact markers and 29 new projection leaves, with
+19 reviewed hashes unchanged, normal pressure, no swap-outs and no owned
+leftovers. Rev-1 is APPROVED for a new published checkpoint/fresh complete
+acceptance run; no source or partial-pass reuse from rev-0 is implied.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

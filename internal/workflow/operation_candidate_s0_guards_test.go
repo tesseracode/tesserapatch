@@ -285,6 +285,7 @@ var rocS9AllowedPaths = map[string]bool{
 	"assets/prompts/copilot/tessera-patch-apply.prompt.md":        true,
 	"assets/workflows/tessera-patch-generic.md":                   true,
 	"internal/cli/operation_candidate_s9_test.go":                 true,
+	"internal/cli/prepare_s7_ap_dangling_test.go":                 true,
 }
 
 func rocS9ValidateStageChangedPaths(paths []string) error {

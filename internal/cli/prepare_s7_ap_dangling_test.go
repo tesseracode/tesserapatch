@@ -566,6 +566,10 @@ func validateS7APDanglingOwnedSurfaces(surfaces map[string]string) error {
 	if err != nil {
 		return err
 	}
+	expectedSurfaces, err = rocS9ExpectedDanglingSurfaces(expectedSurfaces)
+	if err != nil {
+		return err
+	}
 	if !reflect.DeepEqual(surfaceHashes, expectedSurfaces) {
 		return fmt.Errorf("dangling prose surface content drift:\ngot  %#v\nwant %#v",
 			surfaceHashes, expectedSurfaces)

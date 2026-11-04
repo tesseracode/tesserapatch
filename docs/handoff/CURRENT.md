@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
@@ -12,14 +12,14 @@ in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
 Rev-0 had independent source approval and six guarded formatting/focused
 passes, but did not pass complete acceptance. The bounded rev-1 handback is
 now frozen (19 total source files), guarded formatting passed and independent
-rev-1 source re-review is APPROVED. Expanded guarded validation is active;
-no S9 acceptance or release is claimed.
+rev-1 source re-review is APPROVED and expanded guarded validation passed.
+Fresh complete/native acceptance is pending; no S9 release is claimed.
 The exact reviewed source was pushed at
 `c18f02545ec11ac7e8653ab8e8814ce9e0758a68`, but native CI **41795299460**
 exposed a directly coupled AP prose-hash regression. Acceptance is reopened.
 The incomplete old-Mac gate was identity-safely interrupted at 08:03Z with
 no owned leftovers. Preserve both failed/interrupted evidence sets; rev-1
-must pass independent review and a new complete gate.
+must now pass a new complete gate and exact-tip native CI.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -43,7 +43,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Rev-1 source APPROVED - expanded guarded validation active
+- **Status**: Rev-1 source APPROVED and expanded checks passed - fresh full-gate/native acceptance pending
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -269,6 +269,24 @@ At **08:23:16Z**, PID 42251/start identity and the guarded `03-go` runtime
 stage were verified. Source stays frozen; runtime, fresh full gate and
 exact-tip native CI remain separate pending requirements.
 
+At **08:42:56Z** parent audited rev-1's completed expanded batch: all six
+formatting/test/observer/vet/build commands pass with exact argument parity.
+Verified 45 top-level PASS records, 18 required exact markers and all 29
+new projection sensitivity leaves. The previously failing RGA S6 doc delta,
+PIB-459 public workflow and actual AP registration observer all pass, as do
+pre-change/provenance checks and both S9 adjacent-argument/suggestion cases.
+All 19 local/remote source hashes remain identical to the reviewed snapshot.
+
+Every command had a separate >=61-second admission; every sample had normal
+pressure and zero new swap-outs. Maximum within-stage gap is 2.154 seconds;
+all 143 sampled owned identities and the launcher ended. No blocked marker.
+Evidence: `rev1-focused-audit.json`, `rev1-checks-evidence.tar.gz` (SHA256
+`0d21938c2a66de3b2bdcfca9b0d469581e2ddc7f29a1f3146d992807046d2893`).
+The canonical APPROVED field again describes the reviewed/focused-tested
+checkpoint, not completed full acceptance. Publish the exact revision and
+run a new clean full-history gate with fresh cache/evidence and exact-tip CI;
+do not reuse any rev-0 partial command or Windows result.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -355,13 +373,17 @@ Never set `TPATCH_UPDATE_ROC_S0_GOLDENS`. Approved provenance amendments use
 - `docs/supervisor/LOG.md`: authorization, bounds and dispatch decision.
 
 Ignored operational evidence starts at `bin/roc-s9-20261104-0620/`.
-The final source handback changes SPEC, CHANGELOG, both named ADRs, both
+The rev-0 source handback changes SPEC, CHANGELOG, both named ADRs, both
 confirmation PRDs, `assets/assets_test.go`, the new asset parity test, all six
 named shipped formats, the S0 scope guard and the new CLI S9 soak test
 plus `assets/recipe_authority_parity_test.go` and
 `internal/workflow/operation_candidate_actions.go` (18 files; exact paths in
 `rev0-source-sha256.json`). No other production Go, dependency, CI or frozen
 fixture path changed.
+Rev-1 additionally amends `internal/cli/prepare_s7_ap_dangling_test.go`,
+plus the already-listed S9 CLI test and S0 scope guard. The complete current
+19-file manifest is `rev1-formatted-sha256.json`; the provenance registry
+remains unchanged.
 
 ## Test Results
 
@@ -385,7 +407,7 @@ fixture path changed.
 - Fresh full-gate preparation: clean full history, reviewed hashes, pinned
   harness, 9/9 routing controls and exact 42/39 inventory verified; isolated
   cache/evidence absent before launch.
-- **S9 fresh full gate and exact-tip native CI 41795299460: dispatched,
+- **Rev-0 full gate interrupted / native CI 41795299460 failed,
   not accepted.** Ubuntu's first Test command failed the RGA S6/AP prose-body
   guard. Old-Mac gate interrupted safely before source revision; no full pass.
 - Rev-0 final native inventory: four Unix jobs failed the RGA/AP dependency;
@@ -399,7 +421,14 @@ fixture path changed.
   local/remote hashes match.
 - Independent rev-1 source re-review: **APPROVED**, no significant findings;
   AP's exclusion from the historical provenance set independently verified.
-- Rev-1 expanded guarded runtime validation: **active**, readiness verified.
+- Rev-1 expanded guarded validation: **4/4 commands passed**, **6/6 including
+  formatting**; 45 top-level PASS records, 18 exact required markers and
+  29 new projection leaves. Original RGA/AP/observer failure and provenance
+  dependencies pass; all 19 source hashes unchanged.
+- Rev-1 resource audit: pressure 1, zero new swap-outs, separate >=61-second
+  admissions, maximum sample gap 2.154 seconds, all 143 owned identities and
+  launcher ended; no blocked marker.
+- **New complete full-gate / exact-tip native acceptance: pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -424,9 +453,9 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Keep all 19 formatted source hashes frozen during re-review/validation.
-2. Obtain independent re-approval and expanded guarded focused passes, then publish
-   a new checkpoint and run fresh complete gate/exact-tip native CI.
+1. Publish the exact 19-file reviewed/focused-tested revision.
+2. Keep the new checkpoint frozen during a fresh complete gate and exact-tip
+   native CI; preserve first failure and reopen review if necessary.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
    fully budgeted wave or explicitly defer it. Stop before any unrelated issue.
@@ -434,9 +463,9 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 ## Blockers
 
 Rev-0 acceptance failed the coupled AP prose-hash dependency above. Rev-1's
-implementation has returned with no reported blocker, but still needs guarded
-runtime validation and fresh complete/native acceptance. Guarded formatting
-and independent source re-review pass. GH #17 remains known separate debt.
+implementation, independent source review and expanded guarded checks now
+pass with no known implementation blocker. Fresh complete/native acceptance
+is still required. GH #17 remains known separate debt.
 
 ## Context for Next Agent
 
