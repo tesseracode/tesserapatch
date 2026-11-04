@@ -1,3 +1,51 @@
+## Review and Closure — GH #13 S8 — 2026-11-04
+
+**Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`
+(final source verdict: rev-7 APPROVED); supervisor verified runtime and closure.
+**Task**: journaled acceptance, per-path CAS, residual publication and explicit recovery.
+**Validated range**:
+`d65150ce02668d095a0f4dffce9571ba3fd7096b..ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
+
+### Checklist
+- [x] Compiles, vet and formatting pass.
+- [x] Complete fresh gate: 42/42 commands, 39/39 uncached test commands, exact parity.
+- [x] Native CI 41744068167: all five required jobs pass at the exact checkpoint.
+- [x] Native Windows S8: 26 required markers, 52 passes, no skips.
+- [x] Normal pressure, zero new swap-outs; all 1,316 sampled owned identities ended.
+- [x] Shared deterministic publication, authority and secret boundaries retain source approval.
+- [x] Handoff terminal, ROADMAP accepted, ADR-051 accepted; terminal body archived exactly.
+- [x] Protected source/assets/partitions/goldens/dependencies/research/tag unchanged.
+
+### Verdict: APPROVED
+
+The complete gate passed at **04:29:38Z**, elapsed **13,046.031s** (3h37m26s).
+At 04:34:05Z the supervisor independently rechecked all 1,316 sampled identities,
+clean source, 36 reviewed hashes and absent failure marker. The guard had
+terminated one identity-verified owned git-daemon; no owned process remains.
+All 174 mirrored evidence files match their remote hashes.
+Summary SHA256:
+`5789e4d7347d13f72d92a0809340be8104790fa4fe5328fff7622b42681fa22f`.
+Native audit SHA256:
+`8c25a0a809cdb6493d5282e5b7993d00c7f2653aad3826955935490f6f5ab4aa`.
+
+The known-red Windows full suite still has 223 failures and its known panic,
+with no new failures; GH #17 remains open. The earlier AQ timeout is not
+assigned an unproven cause. No budget, existing partition or guard was weakened.
+The transient DNS failure ran no remote command; the operator restored access
+manually and the pristine preparation was reverified before the only full run.
+
+### Action Taken
+
+Accept S8 and ADR-051, flip terminal CURRENT/ROADMAP, archive the terminal
+handoff byte-for-byte and include these records in the closure push. The
+pre-archive HISTORY prefix is unchanged from WAVE_BASE (1,055,715 bytes,
+SHA256 `2f00869441ca78dadf3686d8b03143fc5efe1759b9a0f3e587b8b9c6fa933eab`).
+Only tracking and ADR acceptance evidence change after the validated source;
+decisions D1–D6 and all tested code remain unchanged. Verify trailers,
+protected surfaces, the archive, clean HEAD=origin/main and unchanged v0.17.0
+at the closure commit. Stop the deadline timer after durable closure.
+**Stop before S9, release/tag work and #9; GH #13 remains open for S9.**
+
 ## S8 Exact-Tip Native CI Passed; Complete Gate Still Running — 2026-11-04
 
 Native CI **41744068167** completed **successfully** at exact checkpoint

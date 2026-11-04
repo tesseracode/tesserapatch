@@ -1623,7 +1623,24 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S8 IN PROGRESS — acceptance and recovery — 2026-11-03
+### GH #13 — ✅ S8 ACCEPTED — acceptance and recovery — 2026-11-04
+
+Validated range:
+`d65150ce02668d095a0f4dffce9571ba3fd7096b..ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
+Final independent rev-7 source verdict APPROVED. Native CI 41744068167 passes
+all five required jobs; Windows S8 proves 26 required markers, 52 passes and
+zero skips. The complete fresh gate passed at 04:29:38Z: 42/42 commands,
+39/39 uncached test commands, exact parity, normal pressure and zero swap-outs.
+All 1,316 sampled owned identities ended; 174 mirrored evidence files verify.
+ADR-051 Accepted; terminal handoff archived byte-for-byte with prior HISTORY
+preserved. Only tracking/acceptance evidence changes after the validated source.
+No release/tag, S9 or #9 work; **GH #13 remains open for S9**.
+
+The separate Windows full suite remains known-red under #17 (223 failures,
+none added, known panic). The earlier AQ timeout's cause remains unproven;
+subsequent native/full-gate passes did not change its budget or partition.
+
+#### Dispatch and validation chronology
 
 Operator authorized twelve hours from 2026-11-03T16:55:00Z through
 2026-11-04T04:55:00Z. S7 closure `d65150c` is pushed and its terminal handoff

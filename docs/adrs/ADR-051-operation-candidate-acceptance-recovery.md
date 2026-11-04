@@ -1,10 +1,12 @@
 # ADR-051 — Operation-candidate acceptance and explicit recovery
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Date**: 2026-11-03
+- **Accepted**: 2026-11-04
 - **Scope**: GH #13, slice S8
 - **Policy authorization**: operator approved `candidate-only-generation-amendment`
-  on 2026-11-03; implementation validation and independent review remain pending.
+  on 2026-11-03; independent rev-7 review and exact-checkpoint native/full-gate
+  validation completed before acceptance on 2026-11-04.
 
 ## Context and authority
 
@@ -334,8 +336,9 @@ adopt a replacement; the initial step-9 journal closes that window.
   `GENERIC_READ | GENERIC_WRITE`, read/write/delete sharing,
   `FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT`, then calls
   `FlushFileBuffers`.
-  Native Windows durability behavior requires validation; cross-compilation
-  alone is not evidence that the filesystem accepts those operations.
+  Native Windows durability behavior requires runtime validation;
+  cross-compilation alone is not evidence that the filesystem accepts those
+  operations. The acceptance evidence below satisfies that requirement.
 - The journal is not a cryptographic defense against an operator rewriting all
   owned recovery evidence. It does not authorize arbitrary paths or repair an
   ambiguous namespace.
@@ -361,7 +364,8 @@ must still flush successfully. Thus rejection is not inferred from a failed
 fixture setup or a closed-root error. Lock-evidence comparisons likewise read
 complete images before acquisition and after release, never through an active
 Windows byte-range lock; contention checks prove both holds remain active
-through the recheck. These tests are not claims of native validation.
+through the recheck. Test definitions alone are not native validation; the
+observed acceptance run is recorded below.
 
 On 2026-11-03 the operator approved a narrowly additive blocking S8 Windows CI
 lane. It runs `^TestROCS8` verbosely and uncached in `internal/candidate`,
@@ -374,7 +378,7 @@ allowed-failure baseline, and local wave-close harness remain unchanged.
 `TestROCS8WindowsBlockingRuntimeCIGuard` rejects bypasses and missing runtime
 proof through mutations of the actual workflow; the companion matcher test
 uses the workflow's own PASS expression. Fresh native execution and independent
-review are still required.
+review are required; their acceptance evidence is recorded below.
 
 Source guards examine actual transaction calls/write sinks and include
 same-validator broken fixtures for ordering, bindings, legacy delegation,
@@ -398,5 +402,23 @@ history mutation. Source: Git `revision.c`, `handle_revision_pseudo_opt`
 and `setup_revisions`; local `rocS8GitIdentity` and
 `TestROCS8LiveGitIdentityDetectsIndexRefsAndReflogChanges`.
 
-Validation and acceptance of this Proposed ADR belong to the supervisor's
-guarded S8 review; no validation result is asserted here.
+## Acceptance evidence — 2026-11-04
+
+The independent reviewer approved rev-7 source. Native CI
+[41744068167](https://github.com/tesseracode/tesserapatch/actions/runs/41744068167)
+passed all five required jobs at
+`ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`. Its blocking Windows S8 lane
+recorded all 26 required exact PASS markers, 52 top-level S8 passes and no S8
+skips, including native directory durability and retained-identity rejection.
+The separate allowed-failure full suite remains owned by GH #17: 223 failures
+and its known panic, with no added failures; it is not claimed green.
+
+The fresh isolated old-Mac gate passed at the same checkpoint at
+2026-11-04T04:29:38Z: 42/42 commands, 39/39 uncached test commands, exact
+partition parity, normal pressure and zero new swap-outs. Final reconciliation
+confirmed all 1,316 sampled owned process identities ended, source unchanged
+and no failure marker. No earlier partial result was reused.
+
+The supervisor's terminal handoff and HISTORY archive retain the review
+decisions, native audit, full-gate summary hashes and non-invalidation checks.
+This acceptance changes documentation status/evidence, not decisions D1–D6.

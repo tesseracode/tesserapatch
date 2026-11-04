@@ -2,18 +2,17 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: ACCEPTED
 
-**S8 REV-7 SOURCE APPROVED — fresh complete gate running at ffb0323.**
-APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
-The inventory correction is committed at `15f071e` and its guarded checks pass.
-The published b133367 checkpoint is not accepted; both older full-gate
-preparations remain unrun and preserved. The correction and queued
-tracking are now published at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
-Fresh exact-tip CI 41744068167 has passed; the complete gate began at 00:52:11Z
-and remains running.
-The failed SSH launch never reached the old Mac. Operator-restored access
-and pristine preparation were verified at 00:51Z; no agent network changes.
+**S8 ACCEPTED — journaled acceptance and explicit recovery.**
+Independent rev-7 source review, native CI 41744068167 and the complete fresh
+gate all pass at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
+The gate completed at **2026-11-04T04:29:38Z**: 42/42 commands, 39/39 uncached
+test commands, exact parity and zero new swap-outs. Final reconciliation
+confirmed all 1,316 sampled owned identities ended and source is unchanged.
+ADR-051 is Accepted. Closure changes only tracking and ADR acceptance evidence;
+no code changed after the validated checkpoint.
+S9, release/tag work and #9 were not started; GH #13 remains open for S9.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -28,9 +27,9 @@ coverage expansion or upstream-Git research; never start #9.
 ## Active Task
 
 - **Task ID**: `implement-operation-replay-candidate-s8`
-- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
+- **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-051
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source approved — all required exact-tip native CI jobs passed; complete fresh gate still running
+- **Status**: Complete — independently reviewed, native/full-gate validated; terminal tracking and ADR acceptance recorded
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -40,6 +39,40 @@ coverage expansion or upstream-Git research; never start #9.
 WAVE_BASE = d65150ce02668d095a0f4dffce9571ba3fd7096b
 
 ## Session Summary
+
+S8 is accepted over validated commit range
+`d65150ce02668d095a0f4dffce9571ba3fd7096b..ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
+The implementation supplies the fourteen-step transaction, twice-checked
+per-path CAS, staged shared publication, durable ownership and explicit
+marker-driven rollback/cleanup. Final review scoreboard: **rev-7 APPROVED**;
+all four rev-0 findings and subsequent directly coupled runtime/inventory
+revisions are closed at the validated source.
+
+Acceptance evidence: all five required native CI jobs pass; Windows S8 has
+26/26 required exact markers, 52 top-level passes and zero skips. The fresh
+old-Mac gate passes 42/42 commands and 39/39 test commands in 13,046.031 seconds
+(3h37m26s), with exact parity, pressure level 1 and zero new swap-outs.
+Its measured peak aggregate owned RSS is 5,189,328,896 bytes (about 4.83GiB);
+GOMEMLIMIT remains a per-process advisory budget, not an aggregate limit.
+The guard terminated one identity-verified owned git-daemon; independent
+reconciliation found none of the 1,316 sampled identities remaining.
+All 174 mirrored evidence files match their remote hashes.
+
+Pattern catches: persist cleanup ownership before commitment; keep early
+journal/resolver probes read-only; compare full generation bindings rather
+than patch bytes alone; exercise native Windows barriers instead of skipping
+them; update the closed root-call inventory without weakening its controls.
+The operator-approved candidate-only generation exception and additive Windows
+lane are documented in ADR-024/ADR-051. The brief DNS failure started no Go;
+the operator restored VPN access manually and all original guards stayed intact.
+
+Protected files, S0 goldens, nineteen AR memo insertions, dependencies, existing
+CI partitions/timeouts, research, the frozen ADR index and v0.17.0 remain
+unchanged. The terminal handoff is archived byte-for-byte in HISTORY with
+the prior archive prefix preserved. Closure records are the only changes
+after the validated source; stop this dispatch before S9 and #9.
+
+### Implementation and validation chronology
 
 Verified the pushed S7 closure and recorded the fresh wave base before code.
 Dispatch tracking is pushed at `6880b1f`. A single OpenAI implementation agent
@@ -381,7 +414,9 @@ Native evidence is satisfied; await the complete gate and final reconciliation.
 
 ## Current State
 
-S0–S7 are accepted. S7's complete gate at `8b84b33` passed 42/42 commands,
+S0–S8 are accepted. S8's final native/full-gate evidence is recorded above
+and in Test Results; ADR-051 is Accepted. No validation workload is running.
+S7's complete gate at `8b84b33` passed 42/42 commands,
 39/39 uncached test commands, exact parity and zero swap-outs; native CI
 41612473590 completed successfully. Its allowed-failure Windows full-suite
 log was not compared at S7 close. During S8 setup, the parent retrieved job
@@ -422,7 +457,7 @@ S8 requirements:
 - `docs/handoff/CURRENT.md`: fresh S8 scope, deadline and validation discipline.
 - `docs/ROADMAP.md`: S8 in-flight row, S7 closure retained.
 - `docs/supervisor/LOG.md`: operator authorization and S8 dispatch.
-- `docs/adrs/ADR-051-operation-candidate-acceptance-recovery.md`: Proposed
+- `docs/adrs/ADR-051-operation-candidate-acceptance-recovery.md`: Accepted
   transaction, journal, publication and recovery implementation decisions.
 - `internal/candidate/acceptance.go`, `artifact_root.go`, `source_guard_test.go`:
   held-capability rematerialization/cleanup and corresponding boundary guards.
@@ -448,6 +483,35 @@ S8 requirements:
   acquisition and extra-call/same-count replacement rejection controls.
 
 ## Test Results
+
+### Final acceptance evidence
+
+The complete fresh gate at **ffb0323** passed at **2026-11-04T04:29:38Z**:
+exit 0, mechanical PASS, 42/42 commands, 39/39 uncached test commands and exact
+command parity. All sampled pressure levels are normal; new swap-outs are zero.
+Source and v0.17.0 are unchanged, and `blocked.json` is absent. The guard's
+one identity-verified git-daemon cleanup left zero processes; an independent
+04:34:05Z check confirmed all 1,316 sampled identities are gone.
+
+All 174 evidence files are mirrored and hash-verified under
+`bin/roc-s8-20261103/full-gate-ffb0323-evidence/`.
+Full-gate summary SHA256:
+`5789e4d7347d13f72d92a0809340be8104790fa4fe5328fff7622b42681fa22f`.
+The remote evidence remains at
+`/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s8-full-gate-ffb0323/evidence`.
+
+Native CI **41744068167** passed all five required jobs at the same checkpoint.
+Its final audit SHA256 is
+`8c25a0a809cdb6493d5282e5b7993d00c7f2653aad3826955935490f6f5ab4aa`.
+Windows S8 proof is 26/26 required markers, 52 passes and zero skips. The
+separate allowed-failure full suite still has 223 failures/known panic, none
+added; one previously intermittent failure is absent, not individually proven
+PASS by the nonverbose log. GH #17 remains open.
+
+No partial gate was stitched into acceptance, no guard/timeout was weakened,
+and no source code changed after this complete fresh validation.
+
+### Validation chronology
 
 Guarded rev-0 formatting passed on the old Mac: `gofmt -w` on the explicit
 25-file Go list, followed by empty `gofmt -l .`. Both commands used unchanged
@@ -660,30 +724,22 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Await `roc-s8-full-gate-ffb0323-restored`; native CI is complete and passed.
-   Do not launch another gate.
-2. Keep origin frozen and observe the full gate;
-   stop safely for failure, resource limits or the 04:55Z deadline.
-3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
-   the terminal handoff, update ROADMAP/LOG and push a clean closure.
-4. Do not start S9 or #9 in this S8 dispatch.
+1. Stop this completed S8 dispatch; preserve the native, revision and full-gate evidence.
+2. S9 documentation/assets and eventual GH #13 closure require a new authorization.
+   No release/tag or #9 work is included here.
 
 ## Blockers
 
-The earlier DNS blocker is cleared by operator-restored access. The failed
-launch/readiness attempts exited 255 before any remote command, and pristine
-preparation was reverified at 00:51Z. No agent network changes were made.
-
-The complete fresh gate and final reconciliation still block acceptance;
-native CI has passed and ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have
-native evidence, and b133367's macOS observers pass without changing AQ.
-Its root-inventory failure is corrected in reviewed/tested commit `15f071e`,
-published within ffb0323; this tip still requires complete acceptance evidence.
-The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
+None for S8. The earlier DNS blocker was resolved manually before gate launch.
+The earlier AQ timeout's cause remains unproven, but both subsequent native
+observer runs and the final complete gate passed without changing its budget.
+GH #17's known Windows full-suite failures are not claimed fixed.
+The accepted run completed within the authorized 04:55Z deadline.
 
 ## Context for Next Agent
 
-The previous S6/S7 gates are finished. Preserve their local ignored evidence
+S8 is complete; no gate is running. Preserve its evidence and both older unrun
+gate preparations. The previous S6/S7 gates are also finished; preserve their local ignored evidence
 under `bin/roc-s6-20261031/` and remote evidence under the authorized
 `tpatch-validation-s5-fBIN5H09` validation root; never overwrite/reuse an old
 evidence directory or remove unrelated remote processes/data.
