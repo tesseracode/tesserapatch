@@ -1728,6 +1728,12 @@ cache/evidence paths. Complete acceptance and exact-tip native CI
 **41801886005** are dispatched, not passed; origin is frozen until they end.
 Gate start 08:47Z; runner/make/guarded-stage readiness verified at08:48Z.
 The native observer confirms all five required jobs active at the same SHA.
+**09:57Z native acceptance**: CI **41801886005** passed all five required
+jobs at exact5133c95, including the repaired AP dependency and both observer
+lanes. Blocking steps/toolchain evidence verified; Windows proves26 exact
+markers/52 native passes/no skips, with224 unchanged legacy failures/panic
+still under GH #17. The fresh complete old-Mac gate remains active; no
+tag/release/issue closure before its final evidence passes.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

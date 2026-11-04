@@ -13,11 +13,12 @@ Rev-0 had independent source approval and six guarded formatting/focused
 passes, but did not pass complete acceptance. The bounded rev-1 handback is
 now frozen (19 total source files), guarded formatting passed and independent
 rev-1 source re-review is APPROVED and expanded guarded validation passed.
-Fresh complete/native acceptance is pending; no S9 release is claimed.
+Exact-tip native CI passed; the fresh complete old-Mac gate remains active.
+No S9 release is claimed.
 The corrected reviewed checkpoint
 **5133c950161efd6d4ba2ace1f51fb78f8d54832e** is pushed. Fresh full-gate
-acceptance and exact-tip native CI **41801886005** are being dispatched;
-keep origin frozen at this checkpoint until acceptance ends.
+acceptance is active and exact-tip native CI **41801886005** passed all five
+required jobs. Keep origin frozen at this checkpoint until the full gate ends.
 The exact reviewed source was pushed at
 `c18f02545ec11ac7e8653ab8e8814ce9e0758a68`, but native CI **41795299460**
 exposed a directly coupled AP prose-hash regression. Acceptance is reopened.
@@ -47,7 +48,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Rev-1 source APPROVED and expanded checks passed - fresh full-gate/native acceptance dispatched
+- **Status**: Rev-1 source/expanded checks/native CI passed - fresh full gate active
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -307,6 +308,21 @@ admission. Native observation is responsive with all five required jobs in
 progress at the same SHA. Attached executions: `roc-s9-rev1-full-gate` and
 `roc-s9-rev1-native-ci`; do not launch duplicate work.
 
+Native CI **41801886005** completed successfully; at **09:57:04Z** parent
+audited all five required jobs and their blocking steps at exact 5133c95.
+Linux/macOS full tests, both AP-inclusive observer lanes, formatting/vet/build,
+BSD cross-compiles and install smoke checks pass. The actual Linux log
+confirms **Go1.26.1**, distinct from the guarded old-Mac Go1.26.5 toolchain.
+
+Windows job **126479394570** is metadata-bound to the same run/SHA and proves
+all 26 required S8 markers, 52 native top-level passes and zero skips.
+Its separate legacy full suite has the known 224 failures, no new/missing
+fixed baseline identities and the unchanged panic. GH #17 remains open;
+that suite is not green. All 19 local source hashes remain frozen.
+Evidence: `5133c95-native-final-audit.json`, `5133c95-windows-audit.json`
+and the associated raw logs/metadata. The complete old-Mac gate still must
+finish before acceptance/tag/release; native success does not replace it.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -451,8 +467,10 @@ remains unchanged.
 - New complete-gate preparation: clean full history, 19 reviewed hashes,
   pinned harness, 9/9 controls, exact 42/39 inventory and absent fresh
   cache/evidence verified at 5133c95.
-- **New complete full-gate / exact-tip native CI 41801886005: dispatched,
-  results pending.**
+- Exact-tip native CI **41801886005: all five required jobs passed**;
+  blocking steps and Go1.26.1 Linux log verified. Windows native 26/52/0
+  markers/passes/skips; legacy 224 failures/panic match GH #17 baseline.
+- **Fresh complete old-Mac full gate: active, result pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -478,8 +496,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 ## Next Steps
 
 1. Keep pushed checkpoint 5133c95 and all 19 reviewed source hashes frozen.
-2. Audit the fresh complete gate and exact-tip
-   native CI; preserve first failure and reopen review if necessary.
+2. Audit the remaining fresh complete gate; preserve first failure and
+   reopen review if necessary. Required exact-tip native CI already passes.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
    fully budgeted wave or explicitly defer it. Stop before any unrelated issue.
@@ -488,8 +506,9 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 Rev-0 acceptance failed the coupled AP prose-hash dependency above. Rev-1's
 implementation, independent source review and expanded guarded checks now
-pass with no known implementation blocker. Fresh complete/native acceptance
-is still required. GH #17 remains known separate debt.
+pass with no known implementation blocker. Required exact-tip native CI also
+passes; the fresh complete old-Mac gate remains mandatory before acceptance.
+GH #17 remains known separate debt.
 
 ## Context for Next Agent
 

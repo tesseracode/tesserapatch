@@ -1,3 +1,23 @@
+## S9 Rev-1 Exact-Tip Native CI Accepted — 2026-11-04
+
+At **09:57:04Z** parent audited completed successful CI **41801886005**
+at **5133c950161efd6d4ba2ace1f51fb78f8d54832e**. All five required jobs
+and their blocking steps pass: Linux/macOS full suites, both S7 observer
+lanes, formatting/vet/build, BSD cross-compiles and install smoke checks.
+Actual Linux log verifies Go1.26.1, not the old-Mac private Go1.26.5.
+
+Windows job **126479394570** is bound to the same run/SHA and proves26
+required exact S8 markers,52 native top-level passes and zero skips.
+Its separate legacy full suite retains224 known failures, no new/missing
+fixed failure identities and the unchanged panic. GH #17 remains open;
+the full Windows suite is not green. All19 reviewed source hashes match.
+Evidence: ignored `5133c95-native-final-audit.json`, Windows audit and raw
+logs/metadata.
+
+**Decision**: accept the native lane, not the whole wave yet. Keep origin
+frozen while the fresh complete old-Mac gate runs; no tag, release, GH #13
+closure or GH #9 dispatch until the remaining mandatory evidence passes.
+
 ## S9 Rev-1 Fresh Complete Acceptance Dispatched — 2026-11-04
 
 Corrected reviewed checkpoint **5133c950161efd6d4ba2ace1f51fb78f8d54832e**
