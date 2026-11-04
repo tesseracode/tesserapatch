@@ -1623,7 +1623,7 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — ✅ S9 ACCEPTED — v0.18.0 release verification pending — 2026-11-04
+### GH #13 — ✅ v0.18.0 SHIPPED — issue closure pending — 2026-11-04
 
 **Validated S9 range**:
 `faeedd38a7b1056945864b1964bc55632eae7416..5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
@@ -1638,10 +1638,12 @@ S9's terminal implementation handoff is archived at release consolidation.
 Annotated **v0.18.0** and main were atomically pushed at12:35Z to
 tracking-only consolidation `a14de672141dd243729805d6442a0577bea1383b`.
 Main CI41830644336 passed and was independently audited at13:50Z.
-Tag/release CI41830644313 remains active at that exact SHA; its Windows lane
-also passes the qualified native/baseline audit. Automatic publication,
-GH #13 issue closure and final tracking remain pending.
-Do not label the release shipped before those outcomes.
+Tag/release CI41830644313 passed all five required jobs plus release.
+Both tagged Unix installs print exactly `tpatch v0.18.0`; its Windows lane
+also passes the qualified native/baseline audit (full-suite debt stays GH #17).
+The existing workflow published source release433986008 at13:50:13Z,
+non-draft/non-prerelease; parent verified publication, versions and protected
+tags at13:54:47Z. GH #13 issue closure and final tracking remain next.
 Historical dispatch/revision evidence follows.
 
 The operator authorized a ten-hour window from **2026-11-04T06:20:23Z** through

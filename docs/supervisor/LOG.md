@@ -1,3 +1,28 @@
+## v0.18.0 Publication Accepted / GH #13 Closure Authorized — 2026-11-04
+
+### Verdict: APPROVED — v0.18.0 SHIPPED
+
+At13:54:47Z, parent accepted tag CI **41830644313** at
+`a14de672141dd243729805d6442a0577bea1383b`: all five required jobs and
+release job **126614675038** passed. Required step maps retain the accepted
+baseline, with both tagged Unix version checks additionally successful.
+Raw Linux/macOS logs each prove exact `tpatch v0.18.0` output and Go1.26.1.
+Windows native/baseline evidence is separately bound and qualified; its
+legacy full suite remains known-red under GH #17.
+
+The existing workflow automatically published release **433986008** at
+**13:50:13Z**, non-draft/non-prerelease and source-only, as authorized.
+The annotated tag resolves to the expected consolidation commit; protected
+v0.17.0 objects are unchanged. All19 reviewed hashes match both tag tree
+and worktree. Main CI41830644336 already passed independently.
+Evidence: `v018-release-final-audit.json`, tagged-version proofs/raw logs
+and release/ref metadata.
+
+**Action**: mark publication SHIPPED and authorize GH #13 closure with the
+accepted S0-S9 contract and full source/gate/native/release evidence. Do not
+claim the issue closed before the API action is verified. Complete final
+tracking/CI, then assess/defer GH #9 without extending16:20:23Z.
+
 ## v0.18.0 Consolidation Main CI Accepted — 2026-11-04
 
 At13:50:18Z, main CI **41830644336** at

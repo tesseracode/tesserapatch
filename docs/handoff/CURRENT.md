@@ -2,20 +2,21 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: SHIPPED
 
-**GH #13 S0-S9 implementation accepted; v0.18.0 publication is pending.**
+**v0.18.0 SHIPPED; GH #13 issue closure and final tracking follow.**
 The corrected, independently reviewed source at
 `5133c950161efd6d4ba2ace1f51fb78f8d54832e` passed the complete fresh old-Mac
-gate and all required exact-tip native CI jobs. Release consolidation changes
-tracking only; do not claim shipment or close GH #13 before tag CI and the
-existing automatic release succeed.
+gate and all required exact-tip native CI jobs. The tracking-only release
+consolidation passed both main/tag CI, both tagged Unix version checks and
+the existing automatic release workflow.
 
 Annotated **v0.18.0** and main were atomically pushed at **12:35Z** to
 `a14de672141dd243729805d6442a0577bea1383b`. Main CI **41830644336** passed
-and was audited at **13:50Z**. Tag/release CI **41830644313** remains active
-at that exact commit. Keep the tag immutable and origin/main frozen until
-release verification completes.
+and was audited at **13:50Z**. Tag/release CI **41830644313** also passed.
+The source-only release was published at **13:50:13Z** and independently
+verified at **13:54:47Z**. Keep the tag immutable; only final tracking will
+advance main.
 
 The operator's fixed overnight window ends **2026-11-04T16:20:23Z**
 (08:20 PST). It began at 06:20:23Z and must not be restarted or extended
@@ -28,7 +29,7 @@ profile if needed. No credential, account or configuration changes.
 - **Task ID**: `release-operation-replay-candidate-v0-18-0`
 - **Milestone**: GH #13 / v0.18.0
 - **Description**: Publish the accepted S0-S9 implementation, verify tag/main/release CI, close GH #13 and finish durable tracking
-- **Status**: Main CI accepted - tag CI, tagged-version proof and publication pending
+- **Status**: v0.18.0 publication verified - GH #13 closure and final tracking next
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Validated source**: `5133c950161efd6d4ba2ace1f51fb78f8d54832e`
@@ -61,8 +62,17 @@ Main CI acceptance independently confirms all five required jobs/step maps,
 actual Linux Go1.26.1, the 19 unchanged reviewed hashes and tracking-only
 consolidation. Both completed Windows lanes were separately audited:
 26 required markers, 52 native passes, zero skips and the unchanged 224-failure
-legacy baseline/panic. This is not a full Windows-suite pass or tag-release
-acceptance. Tag macOS/publication remained pending at the 13:50Z audit.
+legacy baseline/panic. This is not a full Windows-suite pass. Tag acceptance
+was not inferred from the main audit; it was independently verified next.
+
+At **13:54:47Z**, tag CI's five required jobs and release job were verified
+successful, including actual **`tpatch v0.18.0`** output from both Linux and
+macOS tagged installs. Both native logs confirm Go1.26.1. Release
+**433986008** was automatically published by the existing workflow at
+**13:50:13Z**, non-draft/non-prerelease with no binary assets, as planned.
+The annotated tag and protected v0.17.0 objects match exactly, and all 19
+reviewed hashes match both the tag tree and worktree. No early/manual
+publication, tag rewriting or packaging changes occurred.
 
 The terminal S9 implementation handoff was archived **byte-for-byte** in
 `docs/handoff/HISTORY.md` under
@@ -103,9 +113,9 @@ needed for these bounded corrections.
 
 ## Current State
 
-All S0-S9 implementation work is accepted. The only remaining work for GH #13
-is release/issue closure and its tracking. GH #13 remains open; the annotated
-v0.18.0 tag is pushed, but its CI/publication has not yet completed.
+All S0-S9 implementation work is accepted and v0.18.0 is published. The only
+remaining work for GH #13 is issue closure and final tracking/CI.
+GH #13 remains open pending the now-authorized closure action.
 Protected v0.17.0 tag objects and all reviewed source hashes are unchanged.
 
 The existing workflow runs five required jobs
@@ -154,10 +164,12 @@ oracle or protected tag change is permitted during release closeout.
   identities, unchanged panic. It is **not** a green full Windows suite.
 - Consolidation main CI **41830644336**: PASS, exact required step outcomes
   and raw Windows/runtime evidence audited at 13:50Z.
-- Tag/release CI **41830644313** remains active at
-  `a14de672141dd243729805d6442a0577bea1383b`; its completed Windows lane
-  matches the accepted baseline. Tagged-version proof and publication remain
-  **pending**.
+- Tag/release CI **41830644313**: PASS at
+  `a14de672141dd243729805d6442a0577bea1383b`, all five required jobs plus
+  automatic release job. Both actual tagged Unix installs print exactly
+  `tpatch v0.18.0`; its Windows lane matches the accepted qualified baseline.
+- Publication: non-draft/non-prerelease source release **433986008**,
+  published 13:50:13Z, independently accepted 13:54:47Z.
 
 No new local/old-Mac Go is needed for tracking-only release work. If a real
 source correction becomes necessary, reopen review and use the unchanged
@@ -169,33 +181,33 @@ TPATCH_UPDATE_ROC_S0_GOLDENS or manually set TPATCH_MAINTENANCE_GATE_ACTIVE.
 
 ## Next Steps
 
-1. Finish exact-SHA tag CI, both tagged Linux/macOS version checks and
-   automatic release verification; main CI already passes. Keep main frozen
-   until publication is verified.
-2. Close GH #13 with accurate evidence; keep GH #17 open. Update/archive
-   release tracking and verify the final tracking commit's CI.
-3. Assess GH #9 only after GH #13 closure and passing CI. A separate full gate
+1. Close GH #13 with the now-verified release evidence; keep GH #17 open.
+2. Assess GH #9 only after GH #13 closure and passing CI. A separate full gate
    alone costs about 3h38m; defer rather than shorten it or exceed 16:20:23Z.
+3. Archive terminal release tracking, commit/push the final tracking-only
+   closure and verify its CI without a self-referential documentation loop.
 4. Stop the deadline timer when all authorized work is durably closed or
    safely handed off. Do not start another unrelated issue.
 
 ## Blockers
 
-No implementation blocker. Release verification is mandatory and pending.
-Do not confuse accepted source or a pushed tag with a published release.
+No implementation or publication blocker. GH #13 issue closure and final
+tracking remain; neither has yet been inferred from publication alone.
 
 ## Context for Next Agent
 
 The fixed deadline timer is `roc-s9-overnight-deadline`; its identity and
 cutoff are in `bin/roc-s9-20261104-0620/deadline.json`. Full-gate and native
 source-checkpoint observer executions completed; do not restart them.
-Release observer `roc-s9-release-main-ci` completed successfully;
-`roc-s9-release-tag-ci` remains active for the exact tag run above.
+Release observers `roc-s9-release-main-ci` and `roc-s9-release-tag-ci`
+completed successfully; do not restart them.
 
 Evidence is preserved under `bin/roc-s9-20261104-0620/`, notably:
 `full-gate-5133c95-final-audit.json`, `full-gate-5133c95-evidence.tar.gz`,
 `5133c95-native-final-audit.json`, `5133c95-windows-audit.json` and
-`s9-implementation-archive-audit.json`. The complete gate archive SHA256 is
+`s9-implementation-archive-audit.json`. Release proof is in
+`v018-release-final-audit.json`, both tagged-version audits and raw logs.
+The complete gate archive SHA256 is
 `e889e129e53d1ba0879b989ed63a6fd0147b05e4ed211d02f1d6dd486fb87403`.
 Old-Mac evidence remains at
 `/Users/jbencardino/tpatch-validation-s5-fBIN5H09/s9-full-gate-5133c95`.
