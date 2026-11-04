@@ -20,7 +20,8 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Description**: Measured experiment, then an opt-in tracked change. Bring
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
-- **Status**: In progress — dispatched; E1 audit and E2 harness starting
+- **Status**: In progress — E1 audit running; E2 harness deployed on the old
+  Mac; negative control C1 running (2026-11-04T23:00Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -56,7 +57,53 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 
 ## Decisions (for operator review)
 
-(none yet)
+- **GT-D1, experiment checkpoint `85a6763`.** The scratch clone is the
+  dispatch commit `85a6763`, which only changes docs over WAVE_BASE
+  `7e0d63f`. Every test input is identical.
+- **GT-D2, admission semantics in the scratch harness.**
+  - One 60 s `PressureWindow` admission at start (pressure normal, no new
+    swap-outs, load1 ≤ 5, external Go allowed).
+  - A continuous monitor then samples every 1.5 s. Each launch needs a fresh
+    healthy sample and an unbroken healthy record since the last admission,
+    so every launch is still preceded by at least 60 continuous healthy
+    seconds. The measurement is continuous rather than taken in an idle gap.
+  - Any breach forces a fresh 60 s qualifying window before the next launch.
+  - Load above 5 while commands run is recorded and blocks new launches until
+    requalified, but does not stop running commands. The serial gate itself
+    peaked at 5.63 during execution.
+  - The accepted runtime stops are unchanged: pressure ≠ normal, new
+    swap-outs, sample gap > 5 s, telemetry failure, and the deadline.
+- **GT-D3, static two-lane partition.** A tracked shell change must be
+  deterministic and reviewable, so it gets a fixed partition, not a runtime
+  scheduler.
+  - **Lane A:** shards 1, 13, 17, 21, 22, 26, 29. About 5,220 s, with a peak
+    of 2.16 GiB.
+  - **Lane B:** the other 32 shards. About 5,218 s, and it holds all five
+    shards ≥ 2.5 GiB, so heavy shards never overlap. The estimated combined
+    peak is about 7 GiB.
+  - Each lane runs its shards in script order. The preflight (gofmt, vet,
+    build) runs alone first.
+  - E2 measures this exact plan through the harness `--plan` option, not the
+    dynamic scheduler.
+- **GT-D4, timing scope.** The harness calls the pinned toolchain directly,
+  with the gate's environment and fresh caches per run. Make and the non-Go
+  checks `[1/8]`–`[5/8]` are excluded; they take seconds.
+- **GT-D5, checkout integrity after every command.** Any non-ignored change
+  fails the run. Changes to ignored files are recorded only.
+- **GT-D6, negative controls.** They run on local-only control commits that
+  are never pushed.
+  - **C1:** a rendezvous collision pair in shards 17 and 18. It must fail
+    with attribution and overlapping intervals.
+  - **C2:** a stray write into `internal/cli`. It must fail as a checkout
+    mutation even though the test exits 0.
+- **GT-D7, E2 acceptance.** Each run must meet all of these:
+  - PASS, with wall time ≤ 6,540 s including admission waits;
+  - the same 42 argv;
+  - per-package `ok` sets equal to the serial baseline;
+  - pressure always normal and no new swap-outs;
+  - load1 ≤ 5 at every launch.
+
+  Two consecutive passing runs are required.
 
 ## Session Summary
 
