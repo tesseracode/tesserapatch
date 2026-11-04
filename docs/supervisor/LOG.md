@@ -1,3 +1,39 @@
+## S9 Implementation Acceptance / Release Consolidation — 2026-11-04
+
+### Verdict: APPROVED — S9 implementation ACCEPTED
+
+Validated range:
+`faeedd38a7b1056945864b1964bc55632eae7416..5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
+Independent rev-1 source review, expanded RGA/AP/observer/provenance checks
+and exact-tip native CI41801886005 all pass. At12:25:30Z the fresh full gate
+passed42/42 commands and39/39 uncached test commands in3h38m1s; parent audit
+at12:28:27Z confirmed exact parity and mechanical PASS.
+
+All6,336 samples show pressure1/zero new swap-outs; minimum admission61.121s,
+maximum within-stage gap2.280s. All1,346 owned identities reconciled; the
+wrapper identity-safely terminated one leftover fixture git-daemon. No owned
+process or runner remains, source is clean, all19 reviewed hashes and protected
+v0.17.0 tags match, and no blocked marker remains. Evidence archive SHA256:
+`e889e129e53d1ba0879b989ed63a6fd0147b05e4ed211d02f1d6dd486fb87403`.
+Windows native lanes pass; its separate224-failure legacy baseline/panic
+remains explicitly under GH #17, not declared green.
+
+**S9-D13 / Action**: close and exactly archive the terminal implementation
+handoff now; flip ROADMAP to S9 ACCEPTED. Continue release-only tracking in a
+fresh handoff. Authorize the already operator-approved annotated v0.18.0 tag
+on the tracking-only consolidation commit, created before main/tag pushes.
+Require both CI runs, tag-version proof and automatic release publication
+before claiming shipment/closing GH #13. No new source work or early GH #9.
+Fixed deadline16:20:23Z remains unchanged.
+
+**Archive completed 12:32:43Z**: accepted S9 CURRENT copied exactly into
+HISTORY (35,869 bytes, SHA256
+`2506e683d6c96c17282d74e98679ab65c2c2a6440e5ff037dbb00988e3130b16`).
+The full prior1,105,048-byte prefix is unchanged. HISTORY is now1,140,980
+bytes, SHA256 `0210f59ee7c6aede57337d638e81c125ccfac5d67118c2b3f553c689862deb7b`.
+CURRENT now scopes release-only task `release-operation-replay-candidate-v0-18-0`;
+the source manifest remains frozen and tag/publication are still pending.
+
 ## S9 Rev-1 Exact-Tip Native CI Accepted — 2026-11-04
 
 At **09:57:04Z** parent audited completed successful CI **41801886005**

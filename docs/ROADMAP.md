@@ -1623,7 +1623,22 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
-### GH #13 — 🚧 S9 IN PROGRESS — docs, parity, soak and v0.18.0 closeout — 2026-11-04
+### GH #13 — ✅ S9 ACCEPTED — v0.18.0 release verification pending — 2026-11-04
+
+**Validated S9 range**:
+`faeedd38a7b1056945864b1964bc55632eae7416..5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
+Rev-1 is independently approved; expanded dependency regressions pass.
+Exact-tip native CI41801886005 passes all five required jobs, and the fresh
+old-Mac gate passed42/42 commands and39/39 uncached test commands at12:25Z
+in3h38m1s with exact parity, clean source, normal pressure and no new swap-outs.
+All1,346 owned identities reconciled (one fixture daemon safely terminated).
+The nineteen reviewed source files and protected tags remain unchanged.
+
+S9's terminal implementation handoff is archived at release consolidation.
+The planned **v0.18.0** tag is the tracking-only consolidation reference;
+tag/main CI, automatic publication, GH #13 issue closure and final tracking
+remain pending. Do not label the release shipped before those outcomes.
+Historical dispatch/revision evidence follows.
 
 The operator authorized a ten-hour window from **2026-11-04T06:20:23Z** through
 **2026-11-04T16:20:23Z**, including S9, directly coupled GH #13 closeout and
