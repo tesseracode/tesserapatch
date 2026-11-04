@@ -1,3 +1,17 @@
+## S9 Rev-1 Formatting Passed; Re-review / Expanded Checks — 2026-11-04
+
+At **08:19:34Z** both guarded formatter commands passed: empty repository
+findings, separate >=61-second admissions, normal pressure, no new swap-outs
+and all four sampled owned identities gone. Only the S9 CLI test changed
+under gofmt. Parent checked all 19 local pre-format hashes before mirroring
+generated output and verified the complete final manifest afterward.
+
+**Action**: same independent OpenAI reviewer rechecks the exact19-file
+snapshot and three-file revision. Parent runs S0/S9, RGA S6 doc delta,
+all S7 AP cases, pre-change/provenance checks, the actual AP registration
+observer, vet and build serially through unchanged guards. Source remains
+read-only until review/runtime feedback returns; no revised acceptance claim.
+
 ## S9 Rev-1 Handback Frozen for Formatting / Re-review — 2026-11-04
 
 At **08:14:28Z** parent verified the same OpenAI implementer's bounded

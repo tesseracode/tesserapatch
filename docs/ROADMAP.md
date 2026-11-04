@@ -1701,6 +1701,10 @@ source files, historical S6/provenance/HISTORY and all other reviewed bytes
 unchanged. AP has no historical provenance-registry entry, so none was
 invented; the registry remains unchanged. Guarded formatting, independent
 review and expanded RGA/AP/provenance/observer validation are next.
+At 08:19Z both guarded formatter commands passed, with 19 local/remote final
+hashes matching, normal pressure and zero swap-outs/leftovers. Independent
+re-review and expanded S0/S9/RGA/AP/provenance/observer checks are dispatched
+against that frozen snapshot; no revised runtime or acceptance result yet.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

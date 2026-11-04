@@ -42,7 +42,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Rev-1 source frozen - guarded formatting, independent re-review and expanded validation pending
+- **Status**: Rev-1 formatted and frozen - independent re-review and expanded guarded validation dispatched
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -235,6 +235,16 @@ No Go/gofmt or runtime claim from the implementer. Pre-format archive SHA256:
 `956d39e5b2491efa334573b683e72b5c98882c0e7b3a6cf5989bd3dcb55c62c7`.
 Source is read-only while parent formats the three files through the wrapper.
 
+At **08:19:34Z** both guarded formatter commands passed with empty repository
+output, separate >=61-second admissions, pressure 1, zero new swap-outs and
+all four sampled owned identities ended. Only the S9 CLI test changed under
+gofmt. Parent verified all 19 pre-format local hashes, mirrored that generated
+file and verified all 19 final hashes against `rev1-formatted-sha256.json`.
+Independent re-review and the expanded guarded checks now use those exact
+bytes. The batch covers S0/S9, the failed RGA S6 doc delta, all S7 AP cases,
+pre-change/provenance checks, the AP registration observer, vet and build.
+No runtime or source re-approval is implied by formatting.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -355,8 +365,11 @@ fixture path changed.
   not accepted.** Ubuntu's first Test command failed the RGA S6/AP prose-body
   guard. Old-Mac gate interrupted safely before source revision; no full pass.
 - Rev-1 structural freeze: exact three-file amendment, 19 total source hashes,
-  unchanged historical S6/provenance/HISTORY. Guarded formatting and runtime
-  checks have not started; source handback is not acceptance evidence.
+  unchanged historical S6/provenance/HISTORY.
+- Rev-1 guarded formatting: **2/2 passed**, empty repository output,
+  pressure 1, zero new swap-outs and four owned identities ended; 19 final
+  local/remote hashes match. Independent re-review and expanded runtime
+  validation are dispatched, not yet passed.
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -381,8 +394,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Guardedly format the frozen rev-1 amendment, then independently re-review.
-2. Independently re-review, run expanded guarded focused checks, then publish
+1. Keep all 19 formatted source hashes frozen during re-review/validation.
+2. Obtain independent re-approval and expanded guarded focused passes, then publish
    a new checkpoint and run fresh complete gate/exact-tip native CI.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
