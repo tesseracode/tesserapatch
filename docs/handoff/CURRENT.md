@@ -236,6 +236,15 @@ No Go/gofmt or runtime claim from the implementer. Pre-format archive SHA256:
 `956d39e5b2491efa334573b683e72b5c98882c0e7b3a6cf5989bd3dcb55c62c7`.
 Source is read-only while parent formats the three files through the wrapper.
 
+Rev-0 native run **41795299460** is now fully completed **failure**: both
+Unix main jobs failed the RGA S6/AP body guard and both Unix observer jobs
+failed the same PIB-459 missing-PASS dependency. Windows job **126458448494**
+passed its blocking lanes: exact 26 required S8 markers, 52 top-level passes,
+zero S8 skips. Its separate legacy full suite had the known 224 failures,
+no new/missing fixed identities and the unchanged panic. This is qualified
+Windows evidence only, not a green full Windows suite or overall acceptance.
+The release job was skipped. All five job logs/metadata are preserved.
+
 At **08:19:34Z** both guarded formatter commands passed with empty repository
 output, separate >=61-second admissions, pressure 1, zero new swap-outs and
 all four sampled owned identities ended. Only the S9 CLI test changed under
@@ -379,6 +388,10 @@ fixture path changed.
 - **S9 fresh full gate and exact-tip native CI 41795299460: dispatched,
   not accepted.** Ubuntu's first Test command failed the RGA S6/AP prose-body
   guard. Old-Mac gate interrupted safely before source revision; no full pass.
+- Rev-0 final native inventory: four Unix jobs failed the RGA/AP dependency;
+  Windows blocking lanes passed with 26 exact markers/52 passes/no skips.
+  Its 224 legacy failures and panic match the accepted GH #17 baseline;
+  no new failure waived. Overall CI is failed, release skipped.
 - Rev-1 structural freeze: exact three-file amendment, 19 total source hashes,
   unchanged historical S6/provenance/HISTORY.
 - Rev-1 guarded formatting: **2/2 passed**, empty repository output,

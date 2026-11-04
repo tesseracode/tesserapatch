@@ -1,3 +1,20 @@
+## S9 Rev-0 Native Failure Inventory Finalized — 2026-11-04
+
+CI **41795299460** at c18f025 completed **failure**. Ubuntu/macOS main jobs
+failed the RGA S6/AP body guard; both observer jobs failed
+`TestS7ObservedAPRegistrationAuthority` with PIB-459 RUN=1/PASS=0.
+No additional failure class was found in the four preserved Unix logs.
+
+Windows job **126458448494** passed; metadata is bound to the exact run/SHA.
+The audited native lane has 26 required exact markers, 52 top-level PASSes
+and no skips. Its separate allowed-failure full suite has 224 known failures,
+no unexpected/missing fixed baseline identities and the unchanged panic.
+GH #17 remains open; that full suite is not green. Release was skipped.
+
+**Action**: retain the complete failed inventory alongside interrupted gate
+evidence. Continue the already-reviewed rev-1 expanded guarded checks; none
+of these rev-0 results substitute for a fresh complete/native acceptance run.
+
 ## Review — GH #13 S9 rev-1 — 2026-11-04
 
 **Reviewer**: independent OpenAI `gpt-6-astra`
