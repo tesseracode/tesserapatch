@@ -1802,6 +1802,11 @@ The first complete S8 gate started at **00:52:11Z** at ffb0323. Pristine state,
 36 source hashes and five harness/script hashes were reverified; independent
 runner/live-admission readiness passed at 00:52:53Z. The single guarded gate
 and remaining native jobs are running; no acceptance or duplicate launch.
+Exact-tip native CI **41744068167 PASSED** all five required jobs; Linux/
+macOS main Test steps pass. The known-red Windows full suite remains owned
+by #17 (223 failures, none added), distinct from passed blocking S8 proof.
+At 01:21:57Z the full gate has 3/42 commands passed and stage 04 running,
+normal pressure/verified runner. Await its complete result and reconciliation.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

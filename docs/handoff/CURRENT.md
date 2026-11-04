@@ -10,7 +10,8 @@ The inventory correction is committed at `15f071e` and its guarded checks pass.
 The published b133367 checkpoint is not accepted; both older full-gate
 preparations remain unrun and preserved. The correction and queued
 tracking are now published at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
-Fresh exact-tip CI is running; the complete gate began at 00:52:11Z.
+Fresh exact-tip CI 41744068167 has passed; the complete gate began at 00:52:11Z
+and remains running.
 The failed SSH launch never reached the old Mac. Operator-restored access
 and pristine preparation were verified at 00:51Z; no agent network changes.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
@@ -29,7 +30,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source approved — complete fresh gate running since 00:52:11Z; native Windows/observers passed, main jobs pending
+- **Status**: Source approved — all required exact-tip native CI jobs passed; complete fresh gate still running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -366,6 +367,17 @@ At 00:52:53Z the parent verified runner **73086**, start identity
 **Tue Nov  3 16:52:10 2026**, exact command and live guarded evidence.
 The first formatting stage was in admission, pressure 1 and load1 1.37.
 Do not launch a duplicate; no gate completion is claimed.
+Exact-tip native CI **41744068167** subsequently completed successfully:
+all five required jobs pass, including the Linux/macOS main Test steps.
+The macOS main job completed at 01:18:23Z. All 36 reviewed hashes are unchanged.
+Windows retains its explicit qualification: dedicated S8 proof passes, but
+the allowed-failure full suite still has 223 failures/known panic, none added;
+GH #17 remains open.
+
+At the native-completion transition, a single 01:21:57Z old-Mac checkpoint
+verified the same runner. Three of 42 commands (formatting/vet/build) have
+passed; stage 04's broad test command is running, pressure 1 and load1 1.68.
+Native evidence is satisfied; await the complete gate and final reconciliation.
 
 ## Current State
 
@@ -607,6 +619,14 @@ The fresh gate is now running, not passed. Its owned runner/live admission
 were independently verified at 00:52:53Z; readiness is mirrored in
 `bin/roc-s8-20261103/full-gate-ffb0323-readiness.json`. The complete 42-command/
 39-test result, exact parity and final process/source reconciliation are pending.
+Native CI 41744068167 PASS: all five required jobs at exact ffb0323; Linux/
+macOS main Test steps explicitly pass. Final audit:
+`bin/roc-s8-20261103/s8-ffb0323-native-final-audit.json`, SHA256
+`8c25a0a809cdb6493d5282e5b7993d00c7f2653aad3826955935490f6f5ab4aa`.
+The 01:21:57Z gate checkpoint reports 3/42 commands passed, stage 04 running,
+normal pressure and verified owned runner; it is not acceptance evidence
+for an incomplete test command. Checkpoint JSON is mirrored as
+`full-gate-ffb0323-native-completion-checkpoint.json`.
 
 ## Validation Policy
 
@@ -640,9 +660,9 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Await `roc-s8-full-gate-ffb0323-restored` and native CI observer
-   `roc-s8-ffb0323-native-all`; do not launch another gate.
-2. Keep origin frozen and observe the full gate plus remaining native jobs;
+1. Await `roc-s8-full-gate-ffb0323-restored`; native CI is complete and passed.
+   Do not launch another gate.
+2. Keep origin frozen and observe the full gate;
    stop safely for failure, resource limits or the 04:55Z deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
@@ -654,8 +674,8 @@ The earlier DNS blocker is cleared by operator-restored access. The failed
 launch/readiness attempts exited 255 before any remote command, and pristine
 preparation was reverified at 00:51Z. No agent network changes were made.
 
-Fresh exact-tip native CI and the complete fresh gate still block acceptance;
-ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have
+The complete fresh gate and final reconciliation still block acceptance;
+native CI has passed and ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have
 native evidence, and b133367's macOS observers pass without changing AQ.
 Its root-inventory failure is corrected in reviewed/tested commit `15f071e`,
 published within ffb0323; this tip still requires complete acceptance evidence.

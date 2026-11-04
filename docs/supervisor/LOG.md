@@ -1,3 +1,27 @@
+## S8 Exact-Tip Native CI Passed; Complete Gate Still Running — 2026-11-04
+
+Native CI **41744068167** completed **successfully** at exact checkpoint
+`ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`. All five required jobs passed:
+Linux/macOS main, Linux/macOS observers and Windows. The latest main job
+(macOS 126292546479) completed at 01:18:23Z. Both main Test steps explicitly
+passed. All 36 reviewed source hashes remain unchanged.
+
+The Windows qualification remains explicit: the dedicated S8 lane has
+26/26 required markers, 52 passes and no S8 skips; the allowed-failure full
+suite still has 223 baseline failures and its known panic, with none added.
+Do not call that suite green or close GH #17.
+Audit: `bin/roc-s8-20261103/s8-ffb0323-native-final-audit.json`, SHA256
+`8c25a0a809cdb6493d5282e5b7993d00c7f2653aad3826955935490f6f5ab4aa`.
+
+At this phase transition, one read-only old-Mac checkpoint verified the same
+owned runner. At 01:21:57Z, formatting/vet/build are passed (3/42 commands);
+the first broad test command, stage 04, is running. Pressure is normal (1),
+load1 1.68. No complete test-command or gate success is inferred.
+
+**Action**: await the existing complete gate, preserving the frozen origin
+and 04:55Z deadline. Native evidence is now satisfied; full fresh gate,
+final reconciliation, ADR acceptance and durable closure remain outstanding.
+
 ## S8 Complete Fresh Gate Running at ffb0323 — 2026-11-04
 
 The complete gate actually started at **00:52:11Z** in
