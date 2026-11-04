@@ -1,3 +1,25 @@
+## Dispatch — gate-time-reduction — 2026-11-04
+
+**Supervisor**: implementation-agent dispatch (operator-approved 12 h window,
+2026-11-04T22:51:49Z → 2026-11-05T10:51:49Z).
+**Task**: Bring the guarded old-Mac full gate from 3h38m to ≤ 6,540 s with
+identical coverage (WAVE_BASE `7e0d63f`).
+
+### Operator approvals
+- **Scope:** full. E1 audit and E2 scratch trials, then E3 tracked opt-in
+  lane mode if E2 meets the target.
+- **Admission:** amortized — one 60 s admission, re-admit only on a sampled
+  breach. Scratch harness only; the accepted protocol is unchanged until a
+  reviewed change lands.
+- **Lanes:** two, probing three only if there is headroom.
+- **Load:** load1 ≤ 5.
+
+### Action Taken
+- Baseline verified at `7e0d63f`.
+- CURRENT.md set to IN PROGRESS and the ROADMAP row flipped to 🚧.
+
+---
+
 ## Wave Close — gh9-nested-repo-sentinel — 2026-11-04
 
 **Reviewer**: supervisor (implementation-agent close; Go validation under
