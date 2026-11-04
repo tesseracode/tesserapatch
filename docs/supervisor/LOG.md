@@ -1,3 +1,31 @@
+## Review — GH #13 S9 rev-0 — 2026-11-04
+
+**Reviewer**: independent OpenAI `gpt-6-astra` agent
+`739406f9-1709-4f8e-a899-c48d8568eb03`; returned metadata confirms selection.
+**Scope**: exact 18-file formatted manifest, including both new untracked tests.
+
+### Verdict: APPROVED — source only, validation pending
+
+No significant issue found. The reviewer verified exact-byte nine-region
+parity with meaningful same-validator controls; existing S8 step guards;
+both real adjacent-argument soaks with deletion preservation, refusal
+nonmutation, residual publication and safe repeat-acceptance refusal; and
+execution of the actual printed command suggestions on fresh fixtures.
+RGA359 selects v0.18.0 without relaxing its parser/authority/disclosure
+predicates, and future-version controls remain genuinely newer.
+
+The sole production Go delta is the authorized guidance string. Previous
+scope controls, provenance, frozen fixtures/goldens, nineteen AR memo
+insertions, dependencies, ADR index, CI, resource guards and allowlist remain
+unchanged. Historical changelog bytes are preserved. Public guidance retains
+default-off behavior, CG qualification, provider fallback, explicit acceptance /
+recovery and the Windows full-suite qualification.
+
+The reviewer ran no Go or runtime checks and claims no native/full-gate pass.
+**Action**: record source approval immediately, keep all 18 source hashes
+frozen, await the parent's active guarded focused batch, then publish the
+reviewed checkpoint for fresh full-gate/native validation only if it passes.
+
 ## S9 Reviewer and Focused Runner Dispatched — 2026-11-04
 
 Independent code reviewer `739406f9-1709-4f8e-a899-c48d8568eb03` was explicitly

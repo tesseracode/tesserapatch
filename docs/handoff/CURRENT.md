@@ -2,16 +2,16 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-The revised 18-file S9 implementation is frozen and guarded formatting has
-passed. Both bounded amendments are implemented. Independent source review
-and guarded focused validation are next; no runtime/full-gate pass is implied.
+The revised 18-file S9 implementation is frozen, guarded formatting passed
+and independent rev-0 source review is APPROVED. The parent-only focused
+batch remains active; no runtime/full-gate/native pass or release is implied.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -35,7 +35,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Formatted source frozen - independent review and guarded focused validation
+- **Status**: Independent source review APPROVED - guarded focused validation active
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -127,6 +127,14 @@ selected with OpenAI `gpt-6-astra`. The parent-only focused batch
 live guarded asset-test stage were verified. The batch runs assets, ROC0-9
 workflow/CLI regressions, vet and build serially, stopping at its first
 failed command. No source edits while either review or validation is active.
+
+The independent rev-0 verdict is **APPROVED - source only**. The reviewer
+verified all 18 hashes, exact-byte/same-validator parity controls, both real
+adjacent-argument soaks, actual suggested-command execution, preserved release
+parser/predicates with genuinely newer-version controls, and unchanged
+protected boundaries. No significant finding. Returned metadata confirms
+the selected OpenAI model. Runtime, native CI and the fresh complete gate
+remain separate requirements, not implied by this verdict.
 
 ### Decisions for morning review
 
@@ -231,7 +239,8 @@ fixture path changed.
   and the documented 223/224 failure variant pass; no native run is claimed.
 - Guarded S9 formatting: **2/2 commands passed**, whole-repository output empty;
   normal pressure, zero new swap-outs and zero owned leftovers.
-- **S9 runtime tests, independent review, full gate and native CI: pending.**
+- Independent rev-0 source review: **APPROVED**, no significant findings.
+- **S9 focused runtime tests: active; full gate and native CI: pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -256,8 +265,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Complete independent review and the guarded focused batch against the
-   reconciled formatted snapshot; adjudicate any findings/failures together.
+1. Complete the guarded focused batch against the independently approved
+   frozen snapshot; any failure requires a scoped fix and re-review.
 2. Push the reviewed checkpoint, then run a fresh full gate and exact-tip native CI.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
