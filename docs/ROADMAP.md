@@ -1637,8 +1637,10 @@ The nineteen reviewed source files and protected tags remain unchanged.
 S9's terminal implementation handoff is archived at release consolidation.
 Annotated **v0.18.0** and main were atomically pushed at12:35Z to
 tracking-only consolidation `a14de672141dd243729805d6442a0577bea1383b`.
-Main CI41830644336 and tag/release CI41830644313 are active at that exact SHA;
-automatic publication, GH #13 issue closure and final tracking remain pending.
+Main CI41830644336 passed and was independently audited at13:50Z.
+Tag/release CI41830644313 remains active at that exact SHA; its Windows lane
+also passes the qualified native/baseline audit. Automatic publication,
+GH #13 issue closure and final tracking remain pending.
 Do not label the release shipped before those outcomes.
 Historical dispatch/revision evidence follows.
 

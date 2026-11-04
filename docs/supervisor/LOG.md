@@ -1,3 +1,22 @@
+## v0.18.0 Consolidation Main CI Accepted — 2026-11-04
+
+At13:50:18Z, main CI **41830644336** at
+`a14de672141dd243729805d6442a0577bea1383b` is independently accepted:
+all five required jobs and complete step maps match the accepted native
+baseline; Linux runtime is actually Go1.26.1. All19 reviewed source hashes
+match, and consolidation changes only the four declared tracking paths.
+
+Both completed main/tag Windows jobs are bound to their actual run/SHA and
+prove26 required markers,52 native passes and zero skips. Their separate
+legacy full suites retain224 fixed/known-variable failures and the unchanged
+panic; GH #17 remains explicitly open. Evidence is preserved in
+`a14de67-main-native-final-audit.json` and both qualified Windows audits.
+
+**Action**: continue tag CI **41830644313**, then verify both tagged Unix
+version checks and automatic publication. Main success does not imply a
+published release; GH #13 stays open. Keep origin/main and tag frozen,
+with the unchanged16:20:23Z deadline.
+
 ## v0.18.0 Annotated Tag Pushed / Release CI Dispatched — 2026-11-04
 
 At12:35Z, tracking-only consolidation
