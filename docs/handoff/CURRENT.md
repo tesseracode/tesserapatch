@@ -134,6 +134,18 @@ latest release. Out of scope: GH #17, migration/coverage contracts
   It is small but needs its own review and CI cycle. A push while source CI
   runs would also cancel it (GH9-D12). It is listed as an unfiled backlog
   candidate in ROADMAP.
+- **GH9-D16 — Only a plan for gate-time reduction, no experiment.** The
+  operator asked for this follow-up to come after GH #9, so this window
+  analyzes the accepted S9 gate evidence and writes a proposal. It runs no
+  experiment and changes no protocol, script or guard.
+  - The proposal is `bin/gh9-20261104/gate-time-analysis/PLAN.md`.
+  - Of the 13,081 s, 2,570 s (20%) is the 61 s admission repeated before
+    all 42 commands, and 10,507 s is serial execution on 1 of 4 physical
+    cores, with a peak of 4.7 GiB owned memory per command.
+  - A single 60 s admission plus two memory-capped lanes running identical
+    commands models at about 5,360 s (1h29m), against the ≤ 6,540 s target.
+  - It needs an interference audit, negative controls and operator
+    acceptance before anything changes.
 
 ## Session Summary
 
