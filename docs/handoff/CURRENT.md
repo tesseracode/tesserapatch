@@ -29,7 +29,7 @@ profile if needed. No credential, account or configuration changes.
 - **Task ID**: `release-operation-replay-candidate-v0-18-0`
 - **Milestone**: GH #13 / v0.18.0
 - **Description**: Publish the accepted S0-S9 implementation, verify tag/main/release CI, close GH #13 and finish durable tracking
-- **Status**: v0.18.0 publication verified - GH #13 closure and final tracking next
+- **Status**: Release verified - optional issue comment denied; issue-state closure not yet performed
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Validated source**: `5133c950161efd6d4ba2ace1f51fb78f8d54832e`
@@ -74,6 +74,15 @@ The annotated tag and protected v0.17.0 objects match exactly, and all 19
 reviewed hashes match both the tag tree and worktree. No early/manual
 publication, tag rewriting or packaging changes occurred.
 
+The first GH #13 closure command stopped at its optional release-comment
+mutation: `Unauthorized: As an Enterprise Managed User, you cannot access
+this content (addComment)`. Read-only verification at **13:58:08Z** confirms
+the issue remains open and no new comment was posted. Do not retry the denied
+comment, switch identity, change credentials or route around that restriction.
+The separately authorized issue-state close may be requested once through
+the same client/account without a comment; any denial of that operation is
+a hard closure blocker. Release evidence is already in tracked docs.
+
 The terminal S9 implementation handoff was archived **byte-for-byte** in
 `docs/handoff/HISTORY.md` under
 **2026-11-04T12:32:43Z - GH #13 S9 implementation accepted**:
@@ -106,6 +115,7 @@ handoff may be appended separately after actual publication/issue closure.
 | S9-D11 | Expand focused checks to the actual RGA/AP/provenance/observer dependency and rerun complete acceptance afresh. |
 | S9-D12 | AP is absent from the historical provenance closed set, so leave that registry unchanged rather than inventing an entry. |
 | S9-D13 | Archive the fully accepted implementation at consolidation, then separately verify publication/issue closure; source acceptance is not shipment. |
+| S9-D14 | Respect the managed-account comment denial: no comment retry or authentication changes. Request only the separately authorized issue-state close using the same client/account; stop if that is also denied. |
 
 Detailed rationale, failed-run evidence and the review record remain in the
 accepted S9 archive and `docs/supervisor/LOG.md`. No new architecture ADR was
@@ -115,7 +125,8 @@ needed for these bounded corrections.
 
 All S0-S9 implementation work is accepted and v0.18.0 is published. The only
 remaining work for GH #13 is issue closure and final tracking/CI.
-GH #13 remains open pending the now-authorized closure action.
+GH #13 remains open after the optional comment was denied; issue-state closure
+has not yet been performed. Publication is unaffected.
 Protected v0.17.0 tag objects and all reviewed source hashes are unchanged.
 
 The existing workflow runs five required jobs
@@ -181,7 +192,8 @@ TPATCH_UPDATE_ROC_S0_GOLDENS or manually set TPATCH_MAINTENANCE_GATE_ACTIVE.
 
 ## Next Steps
 
-1. Close GH #13 with the now-verified release evidence; keep GH #17 open.
+1. Request only GH #13's authorized state closure, without the denied comment
+   or authentication changes; stop if denied. Keep GH #17 open.
 2. Assess GH #9 only after GH #13 closure and passing CI. A separate full gate
    alone costs about 3h38m; defer rather than shorten it or exceed 16:20:23Z.
 3. Archive terminal release tracking, commit/push the final tracking-only
@@ -191,8 +203,10 @@ TPATCH_UPDATE_ROC_S0_GOLDENS or manually set TPATCH_MAINTENANCE_GATE_ACTIVE.
 
 ## Blockers
 
-No implementation or publication blocker. GH #13 issue closure and final
-tracking remain; neither has yet been inferred from publication alone.
+No implementation or publication blocker. GitHub denied the optional release
+comment under its managed-account policy; that comment must not be retried
+through another identity/API. GH #13 still needs its separate authorized
+state-close outcome and final tracking.
 
 ## Context for Next Agent
 

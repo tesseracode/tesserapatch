@@ -1644,6 +1644,10 @@ also passes the qualified native/baseline audit (full-suite debt stays GH #17).
 The existing workflow published source release433986008 at13:50:13Z,
 non-draft/non-prerelease; parent verified publication, versions and protected
 tags at13:54:47Z. GH #13 issue closure and final tracking remain next.
+Its optional release comment was denied by GitHub's managed-account policy;
+13:58Z read-only verification confirms the issue is still open and no new
+comment exists. No authentication changes or comment-permission bypass;
+request only the separately authorized state close using the same account.
 Historical dispatch/revision evidence follows.
 
 The operator authorized a ten-hour window from **2026-11-04T06:20:23Z** through

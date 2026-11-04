@@ -1,3 +1,19 @@
+## GH #13 Optional Comment Denied / State Closure Still Pending — 2026-11-04
+
+The authorized closure command stopped at its optional `addComment`
+mutation: **Unauthorized: As an Enterprise Managed User, you cannot access
+this content**. Read-only verification at13:58:08Z confirms GH #13 remains
+open, its last update/comment is still October9 and no release comment was
+posted. The release itself is already verified and unaffected.
+
+**S9-D14 / Action**: do not retry the denied comment, use another API/identity
+to post it, or change credentials/accounts/permissions. The user's core
+request also separately authorizes an issue-state close: request that once
+through the same client/account, omitting the optional comment, and let the
+server enforce its permission. If denied, stop that operation and record the
+unclosed issue plainly. Full release evidence remains in tracked handoff/log
+records; no comment is claimed.
+
 ## v0.18.0 Publication Accepted / GH #13 Closure Authorized — 2026-11-04
 
 ### Verdict: APPROVED — v0.18.0 SHIPPED
