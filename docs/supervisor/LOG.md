@@ -1,3 +1,23 @@
+## S8 ffb0323 Published; Fresh Native CI Running and Gate Prepared — 2026-11-04
+
+Reviewed checkpoint **`ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`** is pushed.
+All 36 reviewed hashes, bounded wave paths, 33 commit trailers, clean
+HEAD=origin/main and unchanged v0.17.0 were verified. Native CI
+**41744068167** is pinned to that tip; the first-failure/Windows observer
+`roc-s8-ffb0323-native-windows` is responsive.
+
+At 00:07:00Z the old Mac's new `s8-final-ffb0323-source` and
+`s8-full-gate-ffb0323` were prepared: clean full-history source with real
+origin, 36 reviewed hashes, five unchanged harness/script hashes and all
+nine unchanged routing controls. Evidence, compiler/module caches and runner
+identity are absent. **The complete gate has not started.**
+
+**Action**: freeze origin at ffb0323, audit its native Windows result and
+baseline, then launch the fresh complete gate with the recorded WAVE_BASE.
+Remaining GitHub jobs may overlap on separate hosts. Tracking-only progress
+commits stay local until closure or another reviewed correction, preserving
+exact-tip CI and gate evidence. No prior pass substitutes for this run.
+
 ## S8 rev-7 Ready for Fresh Acceptance Validation — 2026-11-04
 
 The remaining b133367 macOS observer job **126274474424** completed

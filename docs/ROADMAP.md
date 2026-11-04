@@ -1777,6 +1777,11 @@ unchanged AQ; its earlier timeout cause remains unproven. The reviewed
 correction is committed at `15f071e`. Publish it with queued tracking for
 fresh exact-tip native CI and a new complete gate; both older preparations
 remain unrun. Source approval is not S8 acceptance; the deadline is unchanged.
+Reviewed checkpoint `ffb0323` is pushed; exact-tip native CI 41744068167 runs.
+Its new full-history source/gate preparation verifies 36 reviewed hashes,
+five unchanged harness/script hashes and nine routing controls, with no
+evidence/caches/runner identity. Full gate remains unrun pending native
+Windows audit. Freeze origin; tracking-only progress commits stay local.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
