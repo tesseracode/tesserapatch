@@ -1,3 +1,51 @@
+## Wave Close — gh9-nested-repo-sentinel — 2026-11-04
+
+**Reviewer**: supervisor (implementation-agent close; Go validation under
+the guarded old-Mac protocol; independent review recorded below).
+**Task**: GH #9 — wave-close `[2/8]` sees source inside untracked nested Git
+repositories (WAVE_BASE `064bc38`; source `b8a5f37`).
+
+### Checklist
+- [x] Compiles — `go vet ./...` and `go build ./cmd/tpatch` OK (full gate `[7/8]`)
+- [x] Tests pass — 39 CI-equivalent uncached shards OK (full gate `[8/8]`);
+  native CI 41873614423 all five required jobs
+- [x] Formatted — full gate `[6/8]` OK
+- [x] Artifacts deterministic — no `.tpatch/` change
+- [x] Secrets safe
+- [x] Matches SPEC — process tooling only; no CLI contract change
+- [x] Handoff accurate — decisions GH9-D1…D18; archived to HISTORY
+
+### Verdict: APPROVED — SHIPPED; GH #9 CLOSED/completed
+
+### Notes
+**Old-Mac full gate** at `b8a5f37`: `=== Mechanical gate: PASS ===`.
+- 42/42 commands, 39 test commands, exact command parity; 13,093 s.
+- Pressure `[1]`, 0 new swap-outs, 0 owned processes remaining.
+- Source clean afterwards; v0.17.0 tag unchanged.
+- Final audit sha256 `b992a6c1…`.
+
+**Native CI.**
+- Source run 41873614423 passed. The Windows full suite (known-red, GH #17)
+  audit was accepted: 26/26 S8 markers, the same 224 legacy failures, no new
+  failures.
+- Tracking run 41885082226 at `afa01db` passed on attempt 2, after rerunning
+  only a macOS observer job that never got a runner (GH9-D17).
+- Tracking pushes were held while source CI ran, because the workflow
+  cancels in-progress runs (GH9-D12).
+
+**Window side work (no source change).**
+- Read-only v0.18 reproduction: GH #25 and GH #26 both still reproduce.
+- New unfiled finding F-V18-1: the authoritative recipe example's
+  `"version": 1` is rejected by the strict decoder.
+- Gate-time reduction: a proposal only (GH9-D16).
+- Nothing was posted externally beyond the GH #9 closing comment (GH9-D14).
+
+### Action Taken
+- Closed GH #9 as completed at 2026-11-04T20:47:37Z (GH9-D18).
+- ROADMAP GH #9 → ✅.
+- Handoff archived to HISTORY; CURRENT left IDLE pending operator decisions
+  on D1–D18, F-V18-1, the GH #25/#26 drafts and the gate-time plan.
+
 ## Review — gh9-nested-repo-sentinel — 2026-11-04
 
 **Reviewer**: independent code-review agent (OpenAI `gpt-6.1-sol`), read-only;

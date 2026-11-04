@@ -13,7 +13,9 @@
 
 ## Current Backlog — Post-v0.18.0 (2026-11-04)
 
-**Live inventory**: 12 open GitHub issues, 14 closed issues, zero open PRs.
+**Live inventory** (refreshed 2026-11-04T20:50Z): 11 open GitHub issues,
+15 closed issues, zero open PRs. GH #9 is CLOSED/completed as of
+**2026-11-04T20:47:37Z**.
 GH #13 is CLOSED/completed as of **2026-11-04T15:15:52Z**; v0.18.0 is
 published. The operator-authorized account retry resolved the external
 closure blocker without new roles/scopes or agent authentication changes.
@@ -23,16 +25,17 @@ GH #13 operation replay are shipped, not pending backlog.
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.
 **Update 2026-11-04T16:16:08Z**: the operator authorized a 12-hour GH #9
-window (deadline 2026-11-05T04:16:08Z, WAVE_BASE `064bc38`); GH #9 is 🚧
-in flight. The optional read-only GH #25/#26 v0.18 reproduction ran during
-GH #9's validation wait (GH9-D13), and both issues still reproduce.
-Nothing else in this snapshot is dispatched.
+window (deadline 2026-11-05T04:16:08Z, WAVE_BASE `064bc38`). GH #9 is ✅
+shipped (`b8a5f37`) and closed. The optional read-only GH #25/#26 v0.18
+reproduction ran during GH #9's validation wait (GH9-D13), and both issues
+still reproduce. Nothing else in this snapshot is dispatched; the next
+window needs a fresh operator assignment.
 
 ### Open GitHub issues
 
 | Issue | What remains | Readiness / required next step |
 |---|---|---|
-| GH #9 🚧 | The wave-close untracked-source sentinel can miss source inside nested Git repositories while recursive formatting still sees it. | **In flight** (12-hour window from 2026-11-04T16:16:08Z; see `docs/handoff/CURRENT.md`). Implemented as `scripts/wave-close-untracked-sentinel.sh` (`[2/8]`): files inside untracked nested repositories are classified with the parent's ignore and allowlist rules, `.git` is never traversed, Git failures fail closed; 20 fixtures plus 18 mutation guards. Independent review APPROVED (one MEDIUM finding fixed forward); guarded old-Mac focused checks `rev1` PASS. Source `b8a5f37` pushed; native CI run 41873614423 passed (Windows full suite audited against GH #17, no new failures); the fresh old-Mac full gate is running. |
+| GH #9 ✅ | The wave-close untracked-source sentinel could miss source inside nested Git repositories while recursive formatting still saw it. | **CLOSED/completed 2026-11-04T20:47:37Z** (12-hour window from 16:16:08Z; record in `docs/handoff/HISTORY.md`). Shipped in `b8a5f37` (dispatch `aa98763`; range `064bc38..b8a5f37`, tracking through the closeout commit) as `scripts/wave-close-untracked-sentinel.sh` (`[2/8]`): files inside untracked nested repositories are classified with the parent's ignore and allowlist rules, `.git` is never traversed, and Git failures fail closed; 20 fixtures plus 18 mutation guards. Independent review APPROVED (one MEDIUM finding fixed forward); native CI 41873614423 passed (Windows full suite audited against GH #17, no new failures); fresh guarded old-Mac full gate PASS (42/42 commands, 13,093 s). |
 | GH #17 | Make the full Windows repository suite pass, including path, permissions, symlink/junction and shell/process assumptions. | Separate, broad portability effort. Preserve all blocking native checks; remove the full-suite exception only after genuine success. Latest accepted audits retain 224 known legacy top-level failures, not the issue body's older inventory. |
 | GH #25 | Define truthful current-anchor verification/consolidation when independently landed features touch the same file and the child changes the parent's exact postimage. | **Still reproduces on v0.18.0** (2026-11-04, read-only; GH9-D13). Minimal case: parent exit 0 before the child lands; after the child lands, the parent exits 2 at `landed-content-absent` (`post_apply_patch_replay_clean`) although both features record complete coverage. The Fusion fixture still blocks on `parent-landing-drift`. Historical landing evidence alone does not establish current-tree equality, and a metadata-only consolidation is not a new source landing. Separate from GH #18 and #22. |
 | GH #26 | Correct obsolete hard-parent historical-anchor selection after a genuine re-landing, even when patch/recipe bytes are unchanged. | **Still reproduces on v0.18.0** (2026-11-04, read-only; GH9-D13). At t3code `5ce5d79`, four roots fail at `parent-landing-drift`; `attention-notifications` still selects historical base `75bfc26`. The v0.1.4 port case gives the same result as v0.16.0 for all 11 roots. Next: define generation-bound anchor selection or actionable truthful refusal/migration; no fake patch changes, forged generations or history rewriting. Distinct from GH #25. |
