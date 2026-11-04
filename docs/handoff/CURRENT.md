@@ -4,13 +4,15 @@
 
 **Cluster state**: APPROVED
 
-**S8 REV-7 SOURCE APPROVED — native Windows audited; complete gate launch queued.**
+**S8 REV-7 SOURCE APPROVED — complete-gate launch blocked by VPN/DNS.**
 APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
 The inventory correction is committed at `15f071e` and its guarded checks pass.
 The published b133367 checkpoint is not accepted; both older full-gate
 preparations remain unrun and preserved. The correction and queued
 tracking are now published at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
 Fresh exact-tip CI is running; the new complete gate is prepared but unrun.
+SSH hostname resolution failed before any remote command started. NetBird
+reports disconnected management/signal connections; network settings are unchanged.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -27,7 +29,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source approved — ffb0323 Windows/observers passed; fresh complete gate launch queued, main native jobs running
+- **Status**: Blocked — complete gate never started because old-Mac SSH hostname cannot resolve; native CI continues
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -341,6 +343,12 @@ The fresh complete gate is now authorized to launch, unchanged, while
 `roc-s8-ffb0323-native-all` watches remaining native jobs. The deadline leaves
 over four hours versus S7's measured 3h23m; no truncation/waiver is authorized
 if it runs longer. This transition queues launch, not completion.
+The attempted launch then exited 255 before connection: the old-Mac hostname
+cannot resolve. The readiness connection failed identically. No remote
+command or Go run started; this is not a resource/test failure. Read-only
+NetBird status reports management and signal disconnected and no peer details.
+No network settings were changed. Ask the operator before reconnecting the
+existing VPN, then verify the preparation remains pristine before any launch.
 
 ## Current State
 
@@ -609,15 +617,20 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Keep origin frozen at ffb0323; launch the prepared `s8-full-gate-ffb0323`
-   complete gate and verify its owned runner/readiness.
-2. Observe remaining native jobs and the complete gate, stopping safely on
-   a new failure, resource stop or deadline; preserve all evidence.
+1. Restore old-Mac access with operator approval or manual VPN reconnection;
+   verify no runner/evidence/cache exists before retrying the never-started gate.
+2. Keep origin frozen at ffb0323, launch the unchanged complete gate if the
+   remaining window permits, and observe it plus the remaining native jobs.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
+
+The complete gate could not start: SSH cannot resolve the old Mac and NetBird
+reports both control connections disconnected. Operator approval/manual
+reconnection is needed; do not change VPN/DNS settings without approval.
+The launch/readiness attempts exited 255 before running any remote command.
 
 Fresh exact-tip native CI and the complete fresh gate still block acceptance;
 ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have

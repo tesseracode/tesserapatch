@@ -1,3 +1,21 @@
+## S8 Complete-Gate Launch Blocked Before SSH Connection — 2026-11-04
+
+The launch session `roc-s8-full-gate-ffb0323` exited 255 because
+`macbook-pro.netbird.selfhosted` could not be resolved. The independent
+readiness connection failed for the same reason. **No remote command or
+Go validation started**; this is a transport blocker, not a resource stop
+or a failed test. The complete gate remains unrun.
+
+Read-only diagnosis finds NetBird management and signal connections both
+disconnected, with no available target-peer details. No VPN, DNS, daemon or
+other operating-system setting has been changed. Native GitHub CI continues.
+
+**Action**: obtain operator approval before attempting to reconnect the
+existing VPN, or wait for the operator to restore it. Before any launch retry,
+verify the prepared gate still has no runner, evidence or cache. Keep the
+same reviewed tip, full partition and deadline; do not substitute partial
+results or run unguarded local Go.
+
 ## S8 ffb0323 Native Windows Audited; Complete Gate Launch Approved — 2026-11-04
 
 Native Windows job **126292546580** completed successfully at 00:35:56Z.

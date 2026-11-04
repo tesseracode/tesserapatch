@@ -1787,6 +1787,10 @@ zero skips. Baseline has 223 failures, none added; one previously intermittent
 failure is absent, not a claim that the known-red suite passed. Both native
 observer jobs pass. Launch the unchanged complete gate while main GitHub jobs
 continue separately; preserve the 04:55Z deadline and every resource guard.
+The full-gate launch was blocked before SSH connection: old-Mac hostname
+resolution fails and NetBird reports disconnected control connections.
+No remote command/Go run started. Native CI continues; request operator
+approval/manual VPN restoration before retrying the pristine preparation.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
