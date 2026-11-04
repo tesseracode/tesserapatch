@@ -1674,6 +1674,13 @@ S9's source checkpoint is APPROVED for publication and fresh full-gate/native
 validation, not yet accepted or released. Origin remains frozen during that
 acceptance run; no GH #9 dispatch on partial evidence.
 
+Reviewed checkpoint **c18f02545ec11ac7e8653ab8e8814ce9e0758a68** is pushed.
+At 07:53Z its fresh clean full-history gate preparation passed all nine routing
+controls, pinned hashes, 18 source hashes and exact 42/39 command parity, with
+fresh cache/evidence paths. Complete acceptance and exact-tip native CI
+**41795299460** are dispatched, not yet passed. Keep origin frozen until the
+run completes; tracking-only progress can remain local.
+
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
 time for a separate implementation/review/full-gate cycle. The last full gate

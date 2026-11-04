@@ -1,3 +1,19 @@
+## S9 Fresh Full-Gate / Native Acceptance Dispatch — 2026-11-04
+
+Reviewed checkpoint **c18f02545ec11ac7e8653ab8e8814ce9e0758a68** is pushed;
+native CI **41795299460** is bound to that exact SHA. At **07:53:45Z** fresh
+old-Mac preparation verified a separate clean full-history source, all 18
+reviewed hashes, protected tags, the five pinned harness/profiler/shard hashes,
+nine unchanged routing controls and exact 42-command/39-test inventory.
+Cache, evidence and runner identity paths were absent before launch.
+
+**Action**: dispatch the complete guarded gate from `s9-full-gate-c18f025`,
+using source `s9-final-c18f025-source`, and observe the exact-tip native run.
+Use WAVE_BASE=faeedd38a7b1056945864b1964bc55632eae7416. No partial-pass
+stitching or early release; preserve the first failure. Keep origin frozen,
+commit progress tracking locally, and retain the fixed 16:20:23Z deadline.
+Readiness and results are still to be verified, not implied by preparation.
+
 ## S9 Focused Validation Passed; Reviewed Checkpoint Authorized — 2026-11-04
 
 At **07:51:37Z** parent audited six guarded commands (formatting twice, assets,

@@ -13,6 +13,10 @@ The revised 18-file S9 implementation is frozen, independent rev-0 source
 review is APPROVED and all six guarded formatting/focused commands passed.
 This is the reviewed-source checkpoint for the fresh full gate, not final
 S9 acceptance. Complete full-gate/native CI and release remain pending.
+The exact reviewed source is pushed at
+`c18f02545ec11ac7e8653ab8e8814ce9e0758a68`; native CI is **41795299460**.
+The fresh isolated full-gate checkout/harness is prepared and acceptance
+execution is being dispatched. Keep origin at that checkpoint until it ends.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -36,7 +40,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Source APPROVED and focused validation passed - fresh full-gate/native acceptance pending
+- **Status**: Source APPROVED and focused validation passed - fresh full-gate/native acceptance dispatched
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -157,6 +161,18 @@ Publish this checkpoint, then keep origin frozen while the fresh 42-command
 gate and exact-tip native CI run. Any failure reopens review; do not tag,
 close GH #13 or dispatch GH #9 on focused evidence alone.
 
+At **07:53:45Z** the fresh full-gate preparation passed at pushed checkpoint
+`c18f02545ec11ac7e8653ab8e8814ce9e0758a68`. The separate full-history checkout
+is clean, all 18 reviewed hashes and the protected v0.17.0 tag match, all five
+pinned harness/profiler/shard hashes match, and all nine unchanged fake-backend
+routing controls pass. Its command inventory is exactly 42 commands /39 tests.
+Evidence, caches and runner identity are absent before launch. Bundle SHA256:
+`920f641a03e483ed91023b4fed6841a4356030c63413932a2418168600623b10`.
+Remote source: `s9-final-c18f025-source`; gate: `s9-full-gate-c18f025`, under
+the existing approved old-Mac validation root. Native run **41795299460** is
+bound to the same SHA. Both acceptance lanes are now dispatched; results
+remain pending. Subsequent progress tracking stays local to freeze origin.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -267,7 +283,11 @@ fixture path changed.
 - Resource/process audit: pressure 1, zero new swap-outs, separate >=60-second
   admissions, maximum sample gap 2.134 seconds, all 312 sampled identities
   and launcher ended; no blocked marker.
-- **S9 fresh full gate and exact-tip native CI: pending.**
+- Fresh full-gate preparation: clean full history, reviewed hashes, pinned
+  harness, 9/9 routing controls and exact 42/39 inventory verified; isolated
+  cache/evidence absent before launch.
+- **S9 fresh full gate and exact-tip native CI 41795299460: dispatched,
+  results pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -292,8 +312,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Commit and push the exact independently approved, focused-tested checkpoint.
-2. Run a fresh full gate and exact-tip native CI; preserve first failure and
+1. Keep pushed checkpoint c18f025 frozen while acceptance runs.
+2. Audit the fresh full gate and exact-tip native CI; preserve first failure and
    reopen review if a source correction is required.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
