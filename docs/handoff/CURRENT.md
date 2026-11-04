@@ -147,6 +147,38 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   two-run streak. Run 1 hit this at 23:20Z: the Microsoft AutoUpdate helper
   used about 315% CPU and pushed load1 to 8.8 while the gate's own test
   binary used under 10%.
+- **GT-D13, how the lane-mode old-Mac gate runs.** Private tooling under
+  `bin/gt-20261104/lane-gate/`; the accepted serial gate tools are not
+  modified.
+  - `run-gate-lanes.py` runs
+    `make wave-close-check WAVE_BASE=… WAVE_CLOSE_TEST_LANES=2` with the
+    serial gate's environment plus `GOMEMLIMIT=3GiB`, which matches E2 and
+    the serial `run-full-gate` launcher. It scrubs the seven variables the
+    lane script refuses, as well as GOOS, GOARCH and the gate nonce.
+  - `gate-tool-lanes.py` is the `go`/`gofmt` wrapper. It allows at most two
+    concurrent commands and applies the GT-D2 amortized admission against
+    the runner's single 1.5 s monitor. Any failure stops the other lane at
+    its next command.
+  - The runner passes only if:
+    - the gate passes, announcing lane mode;
+    - the 42 commands match the expected multiset, and the three
+      preflight commands match in order;
+    - lanes actually overlapped;
+    - stage clocks are consistent;
+    - no runtime stop, block marker or leftover process occurred;
+    - the source is clean afterwards and the v0.17.0 tag is unchanged.
+  - Amortized admission is a proposed protocol change, so a lane-gate PASS
+    is evidence only. The serial gate under the accepted per-command
+    protocol remains the authority for the E3 commit.
+- **GT-D14, cross-process clock.** On both Macs, `/usr/bin/python3` 3.9.6
+  starts `time.monotonic()` near zero in every process. A freshness check
+  comparing a wrapper's clock with the monitor's therefore always passed.
+  The local end-to-end smoke test exposed this; in-process unit controls
+  could not. Every cross-process timestamp now uses the boot-relative
+  `CLOCK_MONOTONIC`. A control fails if the wrapper's clock disagrees with a
+  child process, and the runner fails if any stage interval falls outside
+  its own gate interval. The E2 harness is unaffected because it times
+  everything within one process.
 
 ## Session Summary
 
@@ -158,7 +190,17 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     `?? internal/cli/gt-stray.txt` as a checkout mutation.
   - Both control leftovers were removed; the control clone is clean.
 - **E2 run 1:** launched 23:10:07Z on the scratch clone at `85a6763` with the
-  GT-D8 plan.
+  GT-D8 plan. External load (XprotectService, syspolicyd, Microsoft
+  AutoUpdate; load1 peaked at 21.9) held lane B from 23:20:53Z to 23:28:11Z,
+  a 438 s hold. Lane A's shard 01 kept running but was starved of CPU.
+- **Lane-gate tooling (GT-D13):**
+  - 16 wrapper controls PASS, and each of 8 mutations fails at least one
+    control.
+  - Local end-to-end smoke with a fake toolchain and the real profiler,
+    lane script and admission:
+    - pass case: PASS, 42/42 parity, 4.7 s of lane overlap;
+    - shard 3 failing: FAIL, and the other lane stopped after 9 stages.
+  - The smoke test found the GT-D14 clock defect, which is now fixed.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
