@@ -1,3 +1,28 @@
+## GH #13 Closed After Operator-Authorized Account Retry — 2026-11-04
+
+The operator changed the active GitHub CLI account and explicitly authorized
+one retry. Effective identity matched the selected account. At
+**15:15:52Z**, `gh issue close 13 --reason completed` succeeded; API read-back
+confirmed CLOSED with reason completed. No new scopes/roles, agent-side
+authentication changes or optional-comment retry were needed.
+
+**Verdict**: GH #13's external blocker is resolved; S0-S9, v0.18.0 publication
+and issue closure are complete. Final source-preserving tracking CI
+**41844293141** at `0fc232d6e4f454f422dee5fd11533f3c85964b21` was already
+independently accepted at15:05:57Z with all five required jobs/step maps,
+unchanged19 source hashes and qualified Windows evidence.
+
+**Action**: archive this completed external-closure follow-up once, then
+reconcile the current documentation/GitHub backlog and propose a GH #9
+window as requested. No GH #9 implementation is authorized or started.
+Source, release tag and prior exact archives remain unchanged.
+
+**Archive/transition completed 15:17:52Z**: the terminal external-closure
+follow-up is copied exactly (8,536 bytes, SHA256
+`c96ee8ed68359beebf3ff758d30822fee6fb92ed4a0b85416322f742a5c6a5e8`);
+the prior1,155,403-byte prefix is unchanged. CURRENT now scopes analysis-only
+task `backlog-review-2026-11-04`. The fresh GitHub inventory has12 open issues.
+
 ## v0.18.0 Release Handoff Archived / Final Tracking Closeout — 2026-11-04
 
 At14:02:20Z, the published-release handoff was archived exactly with GH #13's

@@ -1623,7 +1623,7 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ IMPLEMENTATION SHIPPED
 
-### GH #13 — ✅ v0.18.0 SHIPPED — external issue closure BLOCKED — 2026-11-04
+### GH #13 — ✅ v0.18.0 SHIPPED / ISSUE CLOSED — 2026-11-04
 
 **Validated S9 range**:
 `faeedd38a7b1056945864b1964bc55632eae7416..5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
@@ -1645,16 +1645,18 @@ The existing workflow published source release433986008 at13:50:13Z,
 non-draft/non-prerelease; parent verified publication, versions and protected
 tags at13:54:47Z.
 
-**External blocker**: GitHub's managed-account policy denied both the optional
-release comment (`addComment`) and separately authorized state close
-(`closeIssue`) through the same unchanged client/account. Read-only verification
-at13:59:59Z confirms GH #13 remains OPEN with no new comment/state update.
-An authorized operator must close it; no authentication change or permission
-bypass was attempted. Source/release are shipped, not the external issue closure.
+**External closure resolved**: the operator changed the active CLI account
+and authorized one retry. At **2026-11-04T15:15:52Z**, the effective identity
+was verified, `closeIssue` succeeded and read-back confirmed CLOSED/completed.
+No new scopes/roles, agent authentication changes or comment retry were needed.
+The earlier managed-account denials remain historical evidence, not an active
+blocker. Source, accepted release and protected tags are unchanged.
 
-**GH #9 deferred, not started**: the closure prerequisite is unmet and only
-2h20m24s remains before16:20:23Z, less than its observed3h38m1s fresh gate
-alone. No partial cycle, shortened checks or window extension.
+**GH #9 deferred, not started**: GH #13's closure prerequisite is now satisfied,
+but a new complete-cycle window is still required. The earlier overnight
+budget was shorter than the observed3h38m1s fresh gate alone; no partial cycle,
+shortened checks or silent extension. The operator has requested a window
+proposal and backlog analysis, not implementation.
 The release-closeout handoff was archived exactly at14:02:20Z with the
 external blocker intact, preserving every prior HISTORY byte. Final tracking
 contains no source changes; its normal main CI evidence belongs to that
