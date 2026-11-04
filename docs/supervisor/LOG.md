@@ -1,3 +1,30 @@
+## Review — gate-time-reduction E3 draft (rev-0) — 2026-11-04
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: Uncommitted E3 draft: `scripts/wave-close-test-lanes.sh`, the
+Makefile opt-in, `internal/cli/wave_close_lanes_test.go` and the
+shard-parity changes in `prepare_s7_ci_timeout_guard_test.go`.
+
+### Findings
+1. **MEDIUM — shard-01 isolation depends on timing.** Nothing stops a
+   `./...` shard from starting while shard 01's in-tree scratch directory
+   exists. Accepted; fixed by a barrier (GT-D15).
+2. **MEDIUM — cancellation leaves tests running.** The trap kills only the
+   lane shells. Accepted; fixed by stopping the whole process tree
+   (GT-D16).
+3. **MEDIUM — recording-switch discovery is incomplete.** Raw strings and
+   concatenations are missed, and the new-switch fixture skips discovery.
+   Accepted; fixed by Go AST discovery (GT-D17).
+
+### Verdict: NEEDS REVISION
+
+### Action Taken
+- All three findings accepted. Fixes are in progress on the uncommitted
+  draft. A re-review follows before E3 is committed.
+
+---
+
 ## Progress — gate-time-reduction E1 audit and E2 controls — 2026-11-04
 
 **Reviewer**: implementation agent (autonomous window; decisions GT-D8–D12

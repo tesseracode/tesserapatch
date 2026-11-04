@@ -179,6 +179,35 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   child process, and the runner fails if any stage interval falls outside
   its own gate interval. The E2 harness is unaffected because it times
   everything within one process.
+- **GT-D15, shard-01 isolation becomes a barrier (review finding 1).**
+  Shard 01 creates and removes an `intent-archive-shell-*` scratch
+  directory under `internal/store/` while the `./...` shards walk the tree.
+  The E3 draft kept them apart only by timing: lane B's CLI prefix was
+  expected to outlast shard 01 by about 934 s. The lane runner now
+  enforces it. Lane A records shard 01's status atomically, then continues
+  only if it passed. Lane B runs its CLI prefix, then waits for that record
+  before any `./...` shard. If shard 01 failed, or lane A exits without a
+  record, lane B stops and the run fails.
+  - Rejected: a three-phase schedule with a global wait, because lane A
+    would idle for about 934 s.
+  - E2 keeps the run-1 plan so that both runs measure the same schedule.
+    `analyze-e2.py` reports how many seconds the barrier would have held
+    lane B and adds them to the projected wall time.
+- **GT-D16, cancellation stops the whole process tree (review finding 2).**
+  The draft's trap killed only the two lane shells. `go test` and its test
+  binaries survived an interrupted gate. The trap now lists every
+  descendant of the runner with `ps -A -o pid= -o ppid=` before signalling
+  any, sends TERM to all of them, waits, and removes the temporary
+  directory. A behavioural fixture checks that grandchild processes are
+  gone after SIGTERM.
+- **GT-D17, recording-switch discovery parses Go (review finding 3).** The
+  draft matched only double-quoted names, so a raw string or a
+  concatenation hid a new `TPATCH_RECORD_*`/`TPATCH_UPDATE_*` switch from
+  the refusal-list guard. Discovery now parses every `.go` file under
+  `cmd/`, `internal/` and `tests/` and folds string constants: raw and
+  interpreted literals, `+` concatenation, parentheses and package-level
+  constants. It fails closed on any constant fragment that contains a
+  switch prefix but is not a complete name.
 
 ## Session Summary
 
