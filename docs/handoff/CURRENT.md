@@ -7,11 +7,12 @@
 **GH #9 implemented and review-APPROVED; validation running.** The
 independent review (OpenAI model) approved the change after one MEDIUM
 finding was fixed forward, and the guarded old-Mac focused checks (`rev1`)
-passed. Source commit `b8a5f37` is pushed; native CI run 41873614423 and the
-fresh guarded old-Mac full gate (launched 17:04:35Z) are running against it.
-GH #9 stays OPEN until both pass. The operator approved a
-12-hour window on 2026-11-04, with an optional read-only v0.18 reproduction
-of GH #25/#26 only if GH #9 is complete and time remains. GH #13 is
+passed. Source commit `b8a5f37` is pushed. Native CI run 41873614423
+**passed** (all five required jobs). The fresh guarded old-Mac full gate,
+launched at 17:04:35Z, is still running. GH #9 stays OPEN until the gate
+passes. The operator approved a 12-hour window on 2026-11-04. The optional
+read-only v0.18 reproduction of GH #25/#26 ran during the validation wait
+(GH9-D13); both issues still reproduce. GH #13 is
 CLOSED/completed and v0.18.0 is published; neither is reopened by this window.
 
 ## Active Task
@@ -235,7 +236,20 @@ parity verified before launch; fresh caches;
 `WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`). Early gate steps on
 the committed tree: `[1/8]` OK, `[2/8]` OK (the new sentinel on a real
 checkout), `[3/8]` OK, `[4/8]` OK (2 commits), `[5/8]` OK (`APPROVED`).
-Native CI run 41873614423 at `b8a5f37` in progress.
+Native CI run 41873614423 at `b8a5f37`: **success**, all five required jobs
+(17:03:54Z–18:11:00Z):
+- `test (ubuntu-latest)`, `test (macos-latest)` and `test (windows-latest)`
+- `S7 observers (ubuntu-latest)` and `S7 observers (macos-latest)`
+
+The Windows full suite is still known-red under GH #17. The audit used the
+raw job log via the API (sha256 `bb3a9880…ebd1`) against the GH #17 baseline
+(sha256 `ee7d9635…dc03`), and accepted it:
+- 26/26 required S8 native markers, with 52 S8 top-level passes and 0 skips;
+- the 224 legacy top-level failures match the baseline exactly, with no new
+  failures and none missing;
+- the panic signature matches the baseline.
+
+Evidence is in `bin/gh9-20261104/ci-41873614423-windows-audit.json`.
 
 ### GH #25/#26 reproduction on v0.18.0 (GH9-D13)
 
@@ -292,8 +306,8 @@ local Git 2.55.0. All evidence is hashed in
 
 ## Next Steps
 
-1. Observe native CI run 41873614423 (five required jobs; audit the
-   known-red Windows full suite against the GH #17 baseline).
+1. Done: native CI run 41873614423 passed, and the Windows audit was
+   accepted.
 2. Observe the old-Mac full gate (`[6/8]`-`[8/8]`; ~3h40m from launch).
 3. Close GH #9 only after native CI and the gate both pass. Then do the
    closeout tracking: LOG, ROADMAP ✅, HISTORY archive, and Cluster state
