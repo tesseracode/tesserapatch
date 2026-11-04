@@ -1646,6 +1646,13 @@ unchanged pinned guard bytes; its nine fake-backend routing controls pass.
 No Go result is claimed yet. Release follows the existing tag-triggered CI
 job and v0.17.0's source-only publication convention, without new packaging.
 
+Initial 16-file implementation returned and is preserved, still unvalidated.
+Two bounded amendments precede review: advance the current-release parity
+selection to v0.18.0 without relaxing its authority/disclosure checks, and
+correct malformed candidate action instructions in the pending-resolver error.
+The latter changes guidance only and requires execution of the printed
+commands through the real CLI. No new architecture or unrelated issue scope.
+
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
 time for a separate implementation/review/full-gate cycle. The last full gate

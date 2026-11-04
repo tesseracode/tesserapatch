@@ -9,7 +9,9 @@ S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-S9 has no implementation, review or validation result yet.
+The initial 16-file S9 implementation is frozen and preserved, but remains
+unformatted/unvalidated and unreviewed. Two directly coupled amendments are
+authorized before the guarded validation handback.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -33,7 +35,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: In progress - scope and ownership recorded before source edits
+- **Status**: In progress - initial source returned; bounded release-parity and CLI-guidance amendments
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -72,6 +74,32 @@ directories are still absent and no Go has run. Preflight found normal
 pressure, load1 1.49, 76% diagnostic free memory and no active Go process.
 No VPN reconnection, setting change or application termination was needed.
 
+### Initial handback and bounded amendments
+
+The implementer returned 16 frozen source files with docs/assets, exact-byte
+nine-region parity and wrong-input controls, S9 scope admission and the real
+record/reconcile/review/accept adjacent-argument soak. It ran structural Python
+checks and `git diff --check`, but no Go or gofmt. The initial bytes and hash
+manifest are preserved in ignored `initial-handback.tar.gz` / JSON.
+
+Parent inspection confirmed two directly coupled closeout gaps:
+
+- `assets/recipe_authority_parity_test.go` selects v0.17.0 as current and
+  deliberately rejects any newer heading. Advance the active-contract
+  selection to v0.18.0, retaining strict heading selection and all authority /
+  editor-failure disclosure validators and wrong-input controls. Do not solve
+  this by exempting the new release or relaxing the parser. Historical
+  v0.17.0 bytes remain unchanged; add needed current-release disclosure.
+- `RefuseResolverActionWhenCandidatePending` prints
+  `tpatch reconcile <slug> --reject-candidate` and a bare acceptance flag,
+  while the shipped terminal parser requires `--reject-candidate <slug>` /
+  `--accept-candidate <slug>` with no positional args. Correct only this
+  guidance, preserve the error/state behavior, and exercise both printed
+  commands through the real CLI on fresh pending-candidate fixtures.
+
+These are not new architecture or extra backlog work. The same implementer
+may edit the two additional paths below; parent still owns all validation.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -83,6 +111,8 @@ No VPN reconnection, setting change or application termination was needed.
 | S9-D5 | Keep one source writer and parent-controlled guarded validation. Use fresh OpenAI/MAI agents; do not repurpose idle S8 agents or run unguarded Go locally. |
 | S9-D6 | Preserve all S5-S8 evidence and use fresh S9 source/cache/evidence paths. Network recovery may reconnect only the existing profile, within the operator's explicit bounds. |
 | S9-D7 | Use the existing tag-triggered CI release job, not a new packaging pipeline or early manual publication. Like v0.17.0, this is a source release without binary assets; the existing job publishes only after all required test and observer jobs pass. |
+| S9-D8 | Advance the recipe-authority guard's selected current release to v0.18.0, rather than weakening its heading parser or silently treating current guidance as historical. Retain the authority/disclosure rules, hostile controls and all v0.17.0 release bytes. |
+| S9-D9 | Fix the confirmed malformed candidate terminal instructions in the pending-resolver error. This is a narrow CLI-text correction to match existing parsing, with real-command regression coverage; no acceptance/state semantics change. |
 
 No new architecture choice has been made. Any later architecture change
 requires an ADR and explicit recorded rationale before implementation.
@@ -118,6 +148,8 @@ The implementation agent may edit:
 - `docs/prds/PRD-upstreamed-confirmation-gate.md`.
 - `docs/prds/PRD-confirm-upstreamed-human-review-path.md`.
 - `assets/assets_test.go`, optional new `assets/operation_candidate_parity_test.go`.
+- `assets/recipe_authority_parity_test.go`, solely for the current-release
+  selector and corresponding non-weakened controls/disclosure coverage.
 - `assets/skills/claude/tessera-patch/SKILL.md`.
 - `assets/skills/copilot/tessera-patch/SKILL.md`.
 - `assets/skills/cursor/tessera-patch.mdc`.
@@ -128,6 +160,8 @@ The implementation agent may edit:
   `internal/cli/operation_candidate_s9_test.go`, if needed.
 - `internal/workflow/operation_candidate_s0_guards_test.go`, solely for a
   justified S9 test-file scope admission with its negative control preserved.
+- `internal/workflow/operation_candidate_actions.go`, solely the corrected
+  terminal-command guidance in `RefuseResolverActionWhenCandidatePending`.
 
 Parent exclusively owns CURRENT/LOG/ROADMAP/HISTORY, validation artifacts,
 commits/pushes/tags/releases and issue state. No same-file parallel writers.
@@ -149,8 +183,11 @@ Never set `TPATCH_UPDATE_ROC_S0_GOLDENS`. Approved provenance amendments use
 - `docs/supervisor/LOG.md`: authorization, bounds and dispatch decision.
 
 Ignored operational evidence starts at `bin/roc-s9-20261104-0620/`.
-The implementation is in progress; its exact changed-file list and results
-will be recorded at the frozen handback rather than inferred mid-edit.
+The initial source handback changes SPEC, CHANGELOG, both named ADRs, both
+confirmation PRDs, `assets/assets_test.go`, the new asset parity test, all six
+named shipped formats, the S0 scope guard and the new CLI S9 soak test
+(16 files; exact paths in `initial-handback-sha256.json`). Two additional
+paths above are authorized for the bounded amendment, not yet validated.
 
 ## Test Results
 
@@ -158,6 +195,10 @@ will be recorded at the frozen handback rather than inferred mid-edit.
 - Baseline/source/archive/deadline readiness checks: passed before dispatch.
 - Isolated old-Mac guard-routing controls: 9/9 passed using fake Python
   backends; source clean, fresh evidence/cache paths absent, no Go executed.
+- Initial implementation structural checks and `git diff --check`: passed;
+  these do not establish compilation, runtime behavior or acceptance.
+- Private native-evidence parser: archived positive, eight rejecting controls
+  and the documented 223/224 failure variant pass; no native run is claimed.
 - **S9 formatting, tests, independent review, full gate and native CI: not run.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
@@ -192,7 +233,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Blockers
 
-None at dispatch. GH #17 is known separate debt, not silently part of this run.
+The current-release parity pin and malformed CLI guidance must be amended
+before source validation. GH #17 remains known separate debt.
 
 ## Context for Next Agent
 

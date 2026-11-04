@@ -1,3 +1,28 @@
+## S9 Initial Handback and Coupled Amendment Dispatch — 2026-11-04
+
+The OpenAI implementer returned 16 frozen source files; exact paths/hashes
+and an archive were preserved at 07:07Z. Structural checks pass, but no Go,
+gofmt, independent review or runtime acceptance has occurred.
+
+**S9-D8**: parent verified `assets/recipe_authority_parity_test.go` deliberately
+selects v0.17.0 as current and rejects newer releases. Authorize only the
+active-selection advancement to v0.18.0 and associated non-weakened controls /
+disclosure coverage. Keep the strict heading grammar, authority predicates,
+editor-failure disclosure and historical v0.17.0 bytes; do not make current
+v0.18.0 guidance an exempt historical section.
+
+**S9-D9**: parent verified `RefuseResolverActionWhenCandidatePending` recommends
+positional-slug / argumentless candidate flags, but the shipped CLI accepts
+exactly `--accept-candidate <slug>` or `--reject-candidate <slug>` and no
+positional arguments. Authorize a surgical guidance-string correction in
+`internal/workflow/operation_candidate_actions.go`, preserving error/state
+semantics, with tests executing both suggested commands on real fixtures.
+
+The same source owner may edit these two additional paths plus its previously
+owned test/scope files. No further production changes or guard relaxations
+are authorized. Source returns frozen again before guarded formatting and
+independent review. CURRENT and ROADMAP record both decisions immediately.
+
 ## S9 Implementation Active; Guarded Harness Prepared — 2026-11-04
 
 Dispatch `ce1d962a62091355ac1addda67552466564b8426` is pushed. Source owner
