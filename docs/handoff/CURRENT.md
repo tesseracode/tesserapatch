@@ -59,6 +59,19 @@ expired no-S9/no-release/no-#9 dispatch limits; they do not authorize unrelated
 migration, coverage expansion, upstream-Git/rebase research or GH #17 repair.
 A fixed-deadline timer is active, with PID/start-identity readiness verified.
 
+Dispatch tracking is pushed at `ce1d962a62091355ac1addda67552466564b8426`.
+The single source implementer is `da7756ac-c9cb-4bdc-b037-65a1c88a7a71`,
+explicitly selected as OpenAI `gpt-6-astra`. It owns only the paths below and
+will return frozen source before any parent-run Go validation or review.
+
+At 2026-11-04T06:50Z the parent prepared a fresh full-history old-Mac
+checkout at the dispatch commit and an isolated targeted-validation harness.
+All five pinned guard/profiler/shard hashes match the accepted S8 harness;
+all nine unchanged fake-backend routing controls pass. Evidence/cache
+directories are still absent and no Go has run. Preflight found normal
+pressure, load1 1.49, 76% diagnostic free memory and no active Go process.
+No VPN reconnection, setting change or application termination was needed.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -69,6 +82,7 @@ A fixed-deadline timer is active, with PID/start-identity readiness verified.
 | S9-D4 | Conditional GH #9 needs a new recorded wave base and a separate review/full-gate cycle. The preceding full gate took 3h37m26s, before implementation/review/closure overhead; do not spend the remaining window on an unfinishable second wave. |
 | S9-D5 | Keep one source writer and parent-controlled guarded validation. Use fresh OpenAI/MAI agents; do not repurpose idle S8 agents or run unguarded Go locally. |
 | S9-D6 | Preserve all S5-S8 evidence and use fresh S9 source/cache/evidence paths. Network recovery may reconnect only the existing profile, within the operator's explicit bounds. |
+| S9-D7 | Use the existing tag-triggered CI release job, not a new packaging pipeline or early manual publication. Like v0.17.0, this is a source release without binary assets; the existing job publishes only after all required test and observer jobs pass. |
 
 No new architecture choice has been made. Any later architecture change
 requires an ADR and explicit recorded rationale before implementation.
@@ -135,12 +149,15 @@ Never set `TPATCH_UPDATE_ROC_S0_GOLDENS`. Approved provenance amendments use
 - `docs/supervisor/LOG.md`: authorization, bounds and dispatch decision.
 
 Ignored operational evidence starts at `bin/roc-s9-20261104-0620/`.
-No S9 source file has been changed yet.
+The implementation is in progress; its exact changed-file list and results
+will be recorded at the frozen handback rather than inferred mid-edit.
 
 ## Test Results
 
 - Baseline closure CI **41774958353**: successful at exact faeedd3.
 - Baseline/source/archive/deadline readiness checks: passed before dispatch.
+- Isolated old-Mac guard-routing controls: 9/9 passed using fake Python
+  backends; source clean, fresh evidence/cache paths absent, no Go executed.
 - **S9 formatting, tests, independent review, full gate and native CI: not run.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:

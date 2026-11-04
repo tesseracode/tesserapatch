@@ -1640,6 +1640,12 @@ runtime semantics, frozen evidence, existing CI/resource guards and unrelated
 research. One source writer, independent review, parent-owned guarded Go.
 No S9 source/validation result exists at dispatch.
 
+Dispatch `ce1d962` is pushed and one explicitly selected OpenAI implementer
+is active. The fresh full-history old-Mac targeted harness is prepared with
+unchanged pinned guard bytes; its nine fake-backend routing controls pass.
+No Go result is claimed yet. Release follows the existing tag-triggered CI
+job and v0.17.0's source-only publication convention, without new packaging.
+
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
 time for a separate implementation/review/full-gate cycle. The last full gate

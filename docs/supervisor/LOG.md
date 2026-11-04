@@ -1,3 +1,20 @@
+## S9 Implementation Active; Guarded Harness Prepared — 2026-11-04
+
+Dispatch `ce1d962a62091355ac1addda67552466564b8426` is pushed. Source owner
+`da7756ac-c9cb-4bdc-b037-65a1c88a7a71` was explicitly selected with OpenAI
+`gpt-6-astra`; it runs no Go, makes no commits and does not touch tracking.
+Parent prepared fresh full-history targeted source and a new isolated harness
+at 06:50Z. All five accepted guard/profiler/shard hashes match; nine unchanged
+fake-backend routing controls pass. Source is clean, evidence/cache are absent
+and no Go validation has started. Normal-pressure preflight observed load1
+1.49, 76% diagnostic free memory and no Go process. No network or app changes.
+
+**Decision S9-D7**: retain the existing CI release job. A v0.18.0 tag triggers
+the normal platform and observer jobs, including native tag-version checks;
+only then does the existing release job publish. v0.17.0 is a source-only
+release with no binaries, so no unrelated packaging work is introduced.
+The operator's release authorization is not permission to bypass those needs.
+
 ## Authorization and Dispatch — GH #13 S9 / v0.18.0 — 2026-11-04
 
 **Decision**: start S9 and complete GH #13, with autonomous decisions recorded.
