@@ -188,6 +188,11 @@ bodies differ from the still-pinned S6 expected prose hashes used by
 `validateS7APDanglingOwnedSurfaces`. This is a real coupled regression,
 not Windows GH #17 debt or an infrastructure waiver. The original focused
 ROC0-9 selector did not run this RGA/AP dependency.
+macOS job **126458448638** reproduced the same RGA/AP hash failure at
+08:05Z. Ubuntu observer job **126458448193** also failed
+`TestS7ObservedAPRegistrationAuthority`, reporting
+`TestS7APDanglingPublicWorkflows/PIB-459` RUN=1/PASS=0. Preserve these logs
+and include the actual AP workflow/observer dependency in rev-1 validation.
 
 Parent preserved the raw Ubuntu log and job/run/SHA metadata, stopped the
 incomplete gate at **08:03:15Z** by its freshly verified PID/start identity,
@@ -200,6 +205,10 @@ current-source provenance. Preserve all historical AP/S6 hashes, semantic
 validators and negative controls. Prove missing/extra/drifted/already-projected
 inputs fail and that unapproved current body changes still fail through the
 actual AP validator. Do not derive expected hashes from live docs at test time.
+The separate rev-1 targeted checkout/harness was prepared at 08:07:33Z:
+all nine unchanged routing controls pass; no Go has run or revision overlay
+been applied. Targeted caches may be reused, but the next full gate requires
+new source/cache/evidence paths.
 The existing 18-file handback stays frozen except the S9 CLI tests and, only
 if necessary, the narrowly bounded S0 scope guard. Additional authorized files:
 `internal/cli/prepare_s7_ap_dangling_test.go` (projection hook only) and

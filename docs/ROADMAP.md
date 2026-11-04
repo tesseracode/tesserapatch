@@ -1693,6 +1693,9 @@ S9 prose projection, minimal AP-validator hook and CurrentSHA256 amendment,
 retaining historical AP/S6 oracles and fail-closed sensitivity. Re-review,
 expand focused coverage to the RGA/AP dependency, then run fresh complete
 acceptance. No tag/release/issue closure or GH #9 advancement on rev-0.
+macOS reproduced the same RGA/AP body-hash failure, and the Ubuntu AP observer
+reported PIB-459 RUN=1/PASS=0. Expanded focused validation must exercise that
+workflow and observer, not only the new S9 selector.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

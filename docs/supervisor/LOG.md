@@ -5,6 +5,10 @@ c18f025, failed `TestRGAS6DanglingDocDeltaAndSensitivity` at **08:00:24Z**.
 The AP validator's expected prose-body hashes still select S6, while S9
 intentionally updates all six skill bodies. The ROC-focused checks missed
 this RGA/AP dependency. This is not baseline Windows debt.
+macOS job 126458448638 reproduced the same hash failure; Ubuntu observer
+126458448193 failed `TestS7ObservedAPRegistrationAuthority` with
+`TestS7APDanglingPublicWorkflows/PIB-459` RUN=1/PASS=0. All raw logs and
+metadata are preserved; include these direct dependencies in focused checks.
 
 Raw log and exact job/run/SHA metadata are preserved. At **08:03:15Z** parent
 reverified the old-Mac runner identity and sent SIGTERM only to that owned
@@ -25,6 +29,8 @@ coverage before a new fresh complete gate and exact-tip CI.
 
 No tag, release, GH #13 closure or GH #9 dispatch. The fixed 16:20:23Z
 deadline is unchanged; preserve all failed evidence.
+Rev-1's separate targeted checkout/harness was prepared at 08:07:33Z with
+all nine unchanged routing controls passing, no Go and no source overlay yet.
 
 ## S9 Fresh Full-Gate / Native Acceptance Dispatch — 2026-11-04
 
