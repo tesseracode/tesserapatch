@@ -1,3 +1,41 @@
+## Authorization and Dispatch — GH #13 S9 / v0.18.0 — 2026-11-04
+
+**Decision**: start S9 and complete GH #13, with autonomous decisions recorded.
+The operator's single clarification set approves conditional GH #9 follow-up,
+tagging/publishing v0.18.0 after review/full validation/native CI, and bounded
+reconnection of the existing NetBird profile if needed. No credentials,
+accounts or configuration may change; login/elevation requires a safe pause.
+
+**Window**: 2026-11-04T06:20:23Z through **2026-11-04T16:20:23Z**, anchored
+to the original request rather than the end of preparation. A fixed-deadline
+timer is running and its process identity was verified.
+**WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`.
+Fetch verified clean HEAD=origin/main, empty stash, one main worktree and no
+Git operation/lock markers. Baseline closure CI 41774958353 is successful.
+S8's terminal CURRENT is already archived exactly; HISTORY's existing
+1,105,048-byte prefix (SHA256
+`bcfbdb0581112bb70190efdc9e1d3713143068e7d76c0d6f795b9cc6d1009adc`)
+will be preserved, not re-archived during retargeting.
+
+**Scope/ownership**: accepted PRD S9 only plus directly coupled closeout:
+SPEC's three phase-2 rows, ADR/confirmation notes, nine-region parity, six
+shipped formats and frozen/adjacent-argument soaks. One fresh OpenAI/MAI
+implementer owns the explicit source paths in CURRENT; parent owns tracking,
+every guarded Go invocation and release actions. Independent source review
+and a fresh complete 42-command/39-test gate precede acceptance. Preserve
+production semantics, goldens, provenance history, dependencies, existing
+CI partitions/timeouts and unrelated research.
+
+**Sequencing**: publish/close GH #13 and verify required CI before GH #9.
+GH #9 is the nested-repository sentinel bug, not upstream-history research.
+Start it only if its separate full review/validation/closure cycle can
+reasonably fit; otherwise document deferral. No reduced gate or extra window
+is implied. GH #17's legacy Windows debt remains explicitly separate.
+
+**Action taken**: retarget CURRENT's single canonical field to IN PROGRESS,
+mark S9 in-flight in ROADMAP and record decisions S9-D1 through S9-D6 before
+source edits. Commit/push this dispatch before implementation.
+
 ## Review and Closure — GH #13 S8 — 2026-11-04
 
 **Reviewer**: independent OpenAI agent `1eadd48b-81a1-448c-b7b2-9c38d9c4518b`

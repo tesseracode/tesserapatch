@@ -1623,6 +1623,29 @@ lose this backlog item when S1 starts.
 
 ## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
 
+### GH #13 — 🚧 S9 IN PROGRESS — docs, parity, soak and v0.18.0 closeout — 2026-11-04
+
+The operator authorized a ten-hour window from **2026-11-04T06:20:23Z** through
+**2026-11-04T16:20:23Z**, including S9, directly coupled GH #13 closeout and
+publication of v0.18.0 after independent review, fresh complete guarded
+validation and required native CI. Baseline S8 closure
+`faeedd38a7b1056945864b1964bc55632eae7416` is clean and pushed; its CI
+41774958353 passes and its terminal handoff is already archived exactly.
+S9 WAVE_BASE=`faeedd38a7b1056945864b1964bc55632eae7416`.
+
+Scope: all three SPEC phase-2 rows; ADR-036 P3 and ADR-025 evidence notes;
+confirmation authority-class notes; nine-region parity; all shipped skill
+formats; frozen-fixture and both adjacent-argument soaks. Preserve accepted
+runtime semantics, frozen evidence, existing CI/resource guards and unrelated
+research. One source writer, independent review, parent-owned guarded Go.
+No S9 source/validation result exists at dispatch.
+
+**Conditional next issue**: the operator approved GH #9, the nested-repository
+wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
+time for a separate implementation/review/full-gate cycle. The last full gate
+alone took 3h37m26s. Defer rather than shorten checks or overrun the deadline.
+Unrelated migration, coverage, upstream-Git research and GH #17 remain excluded.
+
 ### GH #13 — ✅ S8 ACCEPTED — acceptance and recovery — 2026-11-04
 
 Validated range:
