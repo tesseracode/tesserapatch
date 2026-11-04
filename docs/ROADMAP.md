@@ -1621,9 +1621,9 @@ Earlier Copilot CLI intake precedent, the requested pause and the subsequent
 backlog-only selection are recorded in the supervisor log. CURRENT must not
 lose this backlog item when S1 starts.
 
-## Recipe authority and semantic replay — GH #15 → GH #13 ✅ PLANNING ACCEPTED
+## Recipe authority and semantic replay — GH #15 → GH #13 ✅ IMPLEMENTATION SHIPPED
 
-### GH #13 — ✅ v0.18.0 SHIPPED — issue closure pending — 2026-11-04
+### GH #13 — ✅ v0.18.0 SHIPPED — external issue closure BLOCKED — 2026-11-04
 
 **Validated S9 range**:
 `faeedd38a7b1056945864b1964bc55632eae7416..5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
@@ -1643,11 +1643,22 @@ Both tagged Unix installs print exactly `tpatch v0.18.0`; its Windows lane
 also passes the qualified native/baseline audit (full-suite debt stays GH #17).
 The existing workflow published source release433986008 at13:50:13Z,
 non-draft/non-prerelease; parent verified publication, versions and protected
-tags at13:54:47Z. GH #13 issue closure and final tracking remain next.
-Its optional release comment was denied by GitHub's managed-account policy;
-13:58Z read-only verification confirms the issue is still open and no new
-comment exists. No authentication changes or comment-permission bypass;
-request only the separately authorized state close using the same account.
+tags at13:54:47Z.
+
+**External blocker**: GitHub's managed-account policy denied both the optional
+release comment (`addComment`) and separately authorized state close
+(`closeIssue`) through the same unchanged client/account. Read-only verification
+at13:59:59Z confirms GH #13 remains OPEN with no new comment/state update.
+An authorized operator must close it; no authentication change or permission
+bypass was attempted. Source/release are shipped, not the external issue closure.
+
+**GH #9 deferred, not started**: the closure prerequisite is unmet and only
+2h20m24s remains before16:20:23Z, less than its observed3h38m1s fresh gate
+alone. No partial cycle, shortened checks or window extension.
+The release-closeout handoff was archived exactly at14:02:20Z with the
+external blocker intact, preserving every prior HISTORY byte. Final tracking
+contains no source changes; its normal main CI evidence belongs to that
+published tracking commit's Actions run, not another self-referential commit.
 Historical dispatch/revision evidence follows.
 
 The operator authorized a ten-hour window from **2026-11-04T06:20:23Z** through

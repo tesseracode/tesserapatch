@@ -1,3 +1,48 @@
+## v0.18.0 Release Handoff Archived / Final Tracking Closeout — 2026-11-04
+
+At14:02:20Z, the published-release handoff was archived exactly with GH #13's
+external closure blocker intact:14,343 bytes, SHA256
+`2cf81decbf9804fd12061f34ba6b3d19fe1466d2f4ed8606fa4ab72fbdf03afd`.
+Its full prior1,140,980-byte HISTORY prefix is unchanged; the resulting
+1,155,403-byte file hashes to
+`7a450ad3a3e6a19916b57abf2ac039bc4129ec58748225f9c0c3edd01dfdef20`.
+Neither S8 nor the accepted S9 implementation was archived again.
+
+CURRENT now presents the durable result: v0.18.0 SHIPPED, GH #13 external
+closure BLOCKED, GH #9 deferred/not started, GH #17 separate known debt.
+All decisions S9-D1 through D15 remain archived. Do not claim a posted
+release comment or a closed issue; both GitHub write operations were denied.
+
+**Action**: publish only the four declared tracking paths and observe the
+resulting main CI before the final handoff, retaining the original16:20:23Z
+deadline. Bind that tracking-only CI result to its Actions run/private audit
+rather than another documentation commit that creates an endless CI loop.
+The authoritative reviewed source, release tag and source/tag acceptance
+remain unchanged. No new source work or authentication repair.
+
+## GH #13 External Closure Blocked / GH #9 Deferred — 2026-11-04
+
+The separately authorized state-only close, through the unchanged client and
+account, was also denied: **Unauthorized: As an Enterprise Managed User,
+you cannot access this content (closeIssue)**. Read-only verification at
+13:59:59Z confirms GH #13 is still OPEN, with no new comment or state update.
+No account/credential/permission change, alternate write API or identity
+was used. Stop issue writes; an appropriately authorized operator must close
+the issue. v0.18.0 publication and accepted S0-S9 source are unaffected.
+
+**S9-D14 outcome**: external issue closure is BLOCKED, not completed.
+Preserve both denial outcomes and do not claim a posted release comment.
+
+**S9-D15 / GH #9 disposition**: defer without starting. Only2h20m24s remains
+before the original16:20:23Z deadline, less than the observed3h38m1s fresh
+gate alone, even before implementation/review/final CI. The GH #13 closure
+prerequisite is also unmet. No shortened checks or silent extension.
+
+**Action**: archive this release-closeout handoff with its truthful external
+blocker, publish only final tracking, and observe that main CI before handoff.
+Keep the published tag/source immutable and GH #17 open. No further source
+work or account repair is authorized/attempted in this window.
+
 ## GH #13 Optional Comment Denied / State Closure Still Pending — 2026-11-04
 
 The authorized closure command stopped at its optional `addComment`
