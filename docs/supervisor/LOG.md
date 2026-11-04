@@ -1,3 +1,23 @@
+## S9 Revised Source Frozen for Guarded Formatting and Review — 2026-11-04
+
+The same explicitly selected OpenAI implementer returned the completed bounded
+amendments. Parent froze 18 files / six Go files at **07:17:38Z** and verified
+the exact authorized path set. The sole production Go change is the pending
+resolver's one-line command-guidance correction; state/error behavior does
+not change. Both actually printed commands have real CLI regression cases.
+The current-release selector is v0.18.0; strict parser/predicate preservation
+and new disclosure controls still require independent review/runtime proof.
+
+HISTORY and all v0.17.0-and-earlier release bytes are unchanged. Frozen archive
+SHA256: `470c778f53b711e3491f5e2ffe8604a53ca5208a450877ba139728413f1ff207`.
+The 18-file manifest is `bin/roc-s9-20261104-0620/rev0-source-sha256.json`.
+No Go or gofmt has run; structural checks are not acceptance evidence.
+
+**Action**: switch CURRENT to AWAITING REVIEW, keep the implementer read-only,
+guardedly format the exact snapshot and dispatch an independent approved-model
+reviewer only after formatter reconciliation. Parent retains serial Go
+ownership, first-failure stopping and the fixed 16:20:23Z deadline.
+
 ## S9 Initial Handback and Coupled Amendment Dispatch — 2026-11-04
 
 The OpenAI implementer returned 16 frozen source files; exact paths/hashes

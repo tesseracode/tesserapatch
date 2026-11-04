@@ -2,16 +2,16 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-The initial 16-file S9 implementation is frozen and preserved, but remains
-unformatted/unvalidated and unreviewed. Two directly coupled amendments are
-authorized before the guarded validation handback.
+The revised 18-file S9 implementation is frozen and preserved. Both bounded
+amendments are implemented, but source remains unformatted/unvalidated and
+unreviewed. Guarded formatting precedes independent review of exact bytes.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -35,7 +35,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: In progress - initial source returned; bounded release-parity and CLI-guidance amendments
+- **Status**: Frozen implementation complete - guarded formatting and independent review pending
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -99,6 +99,17 @@ Parent inspection confirmed two directly coupled closeout gaps:
 
 These are not new architecture or extra backlog work. The same implementer
 may edit the two additional paths below; parent still owns all validation.
+
+The revised handback is frozen at **2026-11-04T07:17:38Z**: 18 files, six Go
+files, no implementation blocker reported. Parent verified the complete path
+set against the authorized scope, unchanged HISTORY and all historical
+v0.17.0-and-earlier changelog bytes. The sole production Go delta is the
+confirmed one-line command-guidance correction; error/state logic is unchanged.
+The strict release parser/predicates are reported unchanged, with the current
+selection and disclosure controls advanced to v0.18.0. Actual runtime proof
+and independent review remain outstanding. The implementer is idle/read-only.
+Frozen source/archive: `rev0-source-sha256.json`, `rev0-source.tar.gz` and
+`rev0-freeze.json` under the ignored S9 evidence directory.
 
 ### Decisions for morning review
 
@@ -183,11 +194,13 @@ Never set `TPATCH_UPDATE_ROC_S0_GOLDENS`. Approved provenance amendments use
 - `docs/supervisor/LOG.md`: authorization, bounds and dispatch decision.
 
 Ignored operational evidence starts at `bin/roc-s9-20261104-0620/`.
-The initial source handback changes SPEC, CHANGELOG, both named ADRs, both
+The final source handback changes SPEC, CHANGELOG, both named ADRs, both
 confirmation PRDs, `assets/assets_test.go`, the new asset parity test, all six
 named shipped formats, the S0 scope guard and the new CLI S9 soak test
-(16 files; exact paths in `initial-handback-sha256.json`). Two additional
-paths above are authorized for the bounded amendment, not yet validated.
+plus `assets/recipe_authority_parity_test.go` and
+`internal/workflow/operation_candidate_actions.go` (18 files; exact paths in
+`rev0-source-sha256.json`). No other production Go, dependency, CI or frozen
+fixture path changed.
 
 ## Test Results
 
@@ -224,17 +237,20 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Commit/push dispatch tracking, then implement the bounded S9 surface.
-2. Freeze source; guarded format/check and independent review, revising findings.
-3. Complete focused/affected checks and a fresh full gate plus exact-tip native CI.
+1. Guardedly format the six Go files, check repository formatting and reconcile
+   the formatter output against the frozen manifest.
+2. Independently review the formatted snapshot while parent runs guarded
+   focused/affected checks; revise any findings before publication.
+3. Push the reviewed checkpoint, then run a fresh full gate and exact-tip native CI.
 4. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 5. Reassess GH #9 against the remaining fixed window; either dispatch a separate
    fully budgeted wave or explicitly defer it. Stop before any unrelated issue.
 
 ## Blockers
 
-The current-release parity pin and malformed CLI guidance must be amended
-before source validation. GH #17 remains known separate debt.
+No known implementation blocker after the revised handback. Formatting,
+independent review, runtime/full-gate/native CI remain mandatory before
+acceptance. GH #17 remains known separate debt.
 
 ## Context for Next Agent
 

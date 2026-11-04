@@ -1652,6 +1652,10 @@ selection to v0.18.0 without relaxing its authority/disclosure checks, and
 correct malformed candidate action instructions in the pending-resolver error.
 The latter changes guidance only and requires execution of the printed
 commands through the real CLI. No new architecture or unrelated issue scope.
+Both amendments returned in the revised **18-file frozen handback at 07:17Z**.
+Parent verified the exact edit scope, the sole one-line production guidance
+delta and unchanged HISTORY / historical release bytes. Six Go files await
+guarded formatting, independent review and runtime validation; no pass implied.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
