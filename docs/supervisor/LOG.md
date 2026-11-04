@@ -1,3 +1,18 @@
+## S9 Rev-1 Fresh Complete Acceptance Dispatched — 2026-11-04
+
+Corrected reviewed checkpoint **5133c950161efd6d4ba2ace1f51fb78f8d54832e**
+is pushed; native CI **41801886005** is bound to that SHA.
+At **08:46:38Z**, fresh preparation verified clean complete history, all19
+reviewed hashes, protected tags, all five pinned harness/profiler/shard hashes,
+nine unchanged routing controls and exact42-command/39-test inventory.
+New cache/evidence/runner-identity paths were absent.
+
+**Action**: dispatch `s9-full-gate-5133c95` against
+`s9-final-5133c95-source` with unchanged WAVE_BASE=faeedd38a7b1056945864b1964bc55632eae7416,
+and observe exact-tip native CI. Freeze origin; keep tracking-only progress
+commits local. No reuse of rev-0 evidence or early tag/release/issue closure.
+Readiness/results remain to be verified; fixed deadline16:20:23Z unchanged.
+
 ## S9 Rev-1 Expanded Checks Passed; New Checkpoint Authorized — 2026-11-04
 
 At **08:42:56Z** parent audited all six guarded formatting/test/observer/
