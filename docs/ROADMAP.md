@@ -1659,6 +1659,9 @@ guarded formatting, independent review and runtime validation; no pass implied.
 Guarded formatting subsequently passed both commands; 18 local/remote source
 hashes reconcile, normal pressure and zero swap-outs/leftovers. Independent
 review and focused runtime checks now use the same frozen formatted bytes.
+Independent OpenAI reviewer `739406f9-1709-4f8e-a899-c48d8568eb03` is active;
+the parent-only focused batch started at 07:29Z and its guarded runner
+readiness was verified. No runtime verdict or acceptance has returned yet.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

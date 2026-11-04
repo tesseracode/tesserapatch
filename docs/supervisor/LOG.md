@@ -1,3 +1,16 @@
+## S9 Reviewer and Focused Runner Dispatched — 2026-11-04
+
+Independent code reviewer `739406f9-1709-4f8e-a899-c48d8568eb03` was explicitly
+selected with OpenAI `gpt-6-astra`, read-only and prohibited from running Go.
+Parent's serial focused batch `roc-s9-focused` started at **07:29:51Z**.
+At 07:31:06Z parent verified the runner's PID/start identity and actual
+guarded asset-test stage, whose marker is correctly in-flight, not a failure.
+
+The four-command batch covers the full asset suite, ROC0-9 workflow/CLI
+regressions, vet and build with first-failure stopping. It does not stand in
+for the fresh full gate. All 18 reviewed source hashes are frozen; do not
+revise until review and runtime feedback can be combined. No result claimed.
+
 ## S9 Formatting Passed; Independent Review / Focused Validation — 2026-11-04
 
 At **07:24:05Z** parent reconciled the exact 18-file formatted source. Both

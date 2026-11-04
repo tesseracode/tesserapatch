@@ -121,6 +121,13 @@ those formatter deltas, then verified the complete formatted manifest.
 The independent reviewer receives these exact frozen bytes; the implementer
 remains read-only while parent runs focused validation.
 
+Independent reviewer `739406f9-1709-4f8e-a899-c48d8568eb03` was explicitly
+selected with OpenAI `gpt-6-astra`. The parent-only focused batch
+`roc-s9-focused` started at 07:29:51Z; at 07:31:06Z its PID/start identity and
+live guarded asset-test stage were verified. The batch runs assets, ROC0-9
+workflow/CLI regressions, vet and build serially, stopping at its first
+failed command. No source edits while either review or validation is active.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -249,13 +256,11 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Guardedly format the six Go files, check repository formatting and reconcile
-   the formatter output against the frozen manifest.
-2. Independently review the formatted snapshot while parent runs guarded
-   focused/affected checks; revise any findings before publication.
-3. Push the reviewed checkpoint, then run a fresh full gate and exact-tip native CI.
-4. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
-5. Reassess GH #9 against the remaining fixed window; either dispatch a separate
+1. Complete independent review and the guarded focused batch against the
+   reconciled formatted snapshot; adjudicate any findings/failures together.
+2. Push the reviewed checkpoint, then run a fresh full gate and exact-tip native CI.
+3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
+4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
    fully budgeted wave or explicitly defer it. Stop before any unrelated issue.
 
 ## Blockers
