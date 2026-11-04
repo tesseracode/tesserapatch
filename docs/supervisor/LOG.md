@@ -12,7 +12,11 @@ using source `s9-final-c18f025-source`, and observe the exact-tip native run.
 Use WAVE_BASE=faeedd38a7b1056945864b1964bc55632eae7416. No partial-pass
 stitching or early release; preserve the first failure. Keep origin frozen,
 commit progress tracking locally, and retain the fixed 16:20:23Z deadline.
-Readiness and results are still to be verified, not implied by preparation.
+Gate start **07:54:46Z**; at **07:55:10Z** parent verified PID 34822's start
+identity, live make child and guarded `01-gofmt` admission. Native observation
+is responsive with all five required jobs in progress at the exact SHA.
+Executions: `roc-s9-full-gate`, `roc-s9-native-ci`. Results remain pending;
+do not confuse an in-flight marker with a failure or launch duplicate work.
 
 ## S9 Focused Validation Passed; Reviewed Checkpoint Authorized — 2026-11-04
 

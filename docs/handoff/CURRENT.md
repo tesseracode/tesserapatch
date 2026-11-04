@@ -172,6 +172,11 @@ Remote source: `s9-final-c18f025-source`; gate: `s9-full-gate-c18f025`, under
 the existing approved old-Mac validation root. Native run **41795299460** is
 bound to the same SHA. Both acceptance lanes are now dispatched; results
 remain pending. Subsequent progress tracking stays local to freeze origin.
+The complete gate started at **07:54:46Z**; at **07:55:10Z** its PID 34822 /
+start identity, make child and guarded `01-gofmt` admission were verified.
+The native observer is responsive and all five required jobs are in progress
+at the same SHA. Attached executions: `roc-s9-full-gate` and
+`roc-s9-native-ci`; do not launch duplicate Go work or restart either gate.
 
 ### Decisions for morning review
 

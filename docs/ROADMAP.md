@@ -1680,6 +1680,9 @@ controls, pinned hashes, 18 source hashes and exact 42/39 command parity, with
 fresh cache/evidence paths. Complete acceptance and exact-tip native CI
 **41795299460** are dispatched, not yet passed. Keep origin frozen until the
 run completes; tracking-only progress can remain local.
+The gate started at 07:54Z and runner/make/guarded-stage readiness was verified
+at 07:55Z. The native observer confirms all five required jobs in progress at
+the exact checkpoint; neither lane has a completed result yet.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
