@@ -4,11 +4,12 @@
 
 **Cluster state**: APPROVED
 
-**GH #9 implemented and review-APPROVED; validation pending.** The
+**GH #9 implemented and review-APPROVED; validation running.** The
 independent review (OpenAI model) approved the change after one MEDIUM
 finding was fixed forward, and the guarded old-Mac focused checks (`rev1`)
-passed. This commit is the candidate for native CI and the fresh guarded
-old-Mac full gate; GH #9 stays OPEN until both pass. The operator approved a
+passed. Source commit `b8a5f37` is pushed; native CI run 41873614423 and the
+fresh guarded old-Mac full gate (launched 17:04:35Z) are running against it.
+GH #9 stays OPEN until both pass. The operator approved a
 12-hour window on 2026-11-04, with an optional read-only v0.18 reproduction
 of GH #25/#26 only if GH #9 is complete and time remains. GH #13 is
 CLOSED/completed and v0.18.0 is published; neither is reopened by this window.
@@ -18,7 +19,7 @@ CLOSED/completed and v0.18.0 is published; neither is reopened by this window.
 - **Task ID**: `gh9-nested-repo-sentinel`
 - **Milestone**: Post-v0.18 reliability — GH #9
 - **Description**: Make wave-close `[2/8]` see source files inside untracked nested Git repositories, preserving allowlist behavior, never descending into `.git/`, with a failure-proving fixture
-- **Status**: Review APPROVED; focused checks PASS — native CI and fresh old-Mac full gate pending
+- **Status**: Review APPROVED; focused checks PASS; source `b8a5f37` pushed — native CI and fresh old-Mac full gate running
 - **Assigned**: 2026-11-04
 - **Window**: 2026-11-04T16:16:08Z → **2026-11-05T04:16:08Z** (12 hours, operator-approved; no silent extension)
 - **WAVE_BASE**: `064bc381dedd07fb2125ef1a75e639c01a841555`
@@ -107,6 +108,13 @@ latest release. Out of scope: GH #17, migration/coverage contracts
   repository with no matching files no longer WARNs. The allowlist side is
   deliberately not filtered: `allowed` only filters `candidates`, so a stale
   boundary entry there is inert, and a filter would be unguardable code.
+- **GH9-D12 — Tracking pushes are held while source CI runs.**
+  `.github/workflows/ci.yml` uses `concurrency: cancel-in-progress: true`
+  per ref, so any push to `main` cancels the running CI for `b8a5f37`.
+  Tracking updates are committed locally as they happen and pushed only
+  after run 41873614423 reaches a terminal state. The gate is unaffected:
+  `[3/8]` already verified HEAD == `origin/main` at launch, and `run-gate.py`
+  only re-checks the clone's local HEAD.
 
 ## Session Summary
 
@@ -198,12 +206,21 @@ Evidence archive `bin/gh9-20261104/rev1-evidence.tar.gz` (sha256
 normal-pressure admission, no new swap-outs, load1 <= 5, serial private Go
 1.26.5 with the accepted environment).
 
+Fresh guarded old-Mac full gate at source `b8a5f37` **launched**
+2026-11-04T17:04:35Z (runner PID 82853, identity verified; fresh clone of
+bundle sha256 `c3853d89…` fetched to HEAD == `origin/main`; 6 reviewed
+hashes, `HISTORY.md` prefix, 9 routing controls and exact 42/39 command
+parity verified before launch; fresh caches;
+`WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`). Early gate steps on
+the committed tree: `[1/8]` OK, `[2/8]` OK (the new sentinel on a real
+checkout), `[3/8]` OK, `[4/8]` OK (2 commits), `[5/8]` OK (`APPROVED`).
+Native CI run 41873614423 at `b8a5f37` in progress.
+
 ## Next Steps
 
-1. Push this commit; observe native CI (five required jobs).
-2. Fresh guarded old-Mac full gate at this commit:
-   `make wave-close-check WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`
-   (fresh clone and caches; ~3h40m).
+1. Observe native CI run 41873614423 (five required jobs; audit the
+   known-red Windows full suite against the GH #17 baseline).
+2. Observe the old-Mac full gate (`[6/8]`-`[8/8]`; ~3h40m from launch).
 3. Close GH #9 only after native CI and the gate pass; closeout tracking
    (LOG, ROADMAP ✅, HISTORY archive, Cluster state SHIPPED). Then, time
    permitting, read-only GH #25/#26 reproduction on v0.18.
