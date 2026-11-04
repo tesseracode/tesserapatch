@@ -2,116 +2,93 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-**Idle after backlog reconciliation; GH #9 window proposed, not authorized.**
-The operator-authorized account retry closed GH #13 as completed at
-**2026-11-04T15:15:52Z**. v0.18.0 is published and its complete source/release
-acceptance remains unchanged. The earlier external closure blocker is resolved.
+**GH #9 implementation window open.** The operator approved a 12-hour window
+on 2026-11-04 for GH #9 (wave-close sentinel misses source inside nested
+repositories), with an optional read-only v0.18 reproduction of GH #25/#26
+only if GH #9 is complete and time remains. GH #13 is CLOSED/completed and
+v0.18.0 is published; neither is reopened by this window.
 
 ## Active Task
 
-- **Task ID**: `await-next-assignment`
-- **Milestone**: Post-v0.18 planning
-- **Description**: Await the operator's next bounded assignment after the completed backlog review
-- **Status**: Idle - no implementation or autonomous window authorized
+- **Task ID**: `gh9-nested-repo-sentinel`
+- **Milestone**: Post-v0.18 reliability — GH #9
+- **Description**: Make wave-close `[2/8]` see source files inside untracked nested Git repositories, preserving allowlist behavior, never descending into `.git/`, with a failure-proving fixture
+- **Status**: In progress — dispatched; reproduction and implementation next
 - **Assigned**: 2026-11-04
-- **Scope**: No active source work, issue creation or GH #9 dispatch
+- **Window**: 2026-11-04T16:16:08Z → **2026-11-05T04:16:08Z** (12 hours, operator-approved; no silent extension)
+- **WAVE_BASE**: `064bc381dedd07fb2125ef1a75e639c01a841555`
 
-The prior overnight timer was stopped after final release tracking CI passed.
-This request does not restart that window or authorize GH #9 implementation.
-A future implementation needs a new explicit window and fresh WAVE_BASE.
+Scope: GH #9 only, then optionally GH #25/#26 read-only reproduction on the
+latest release. Out of scope: GH #17, migration/coverage contracts
+(GH #18-22/#24), research tracks, and the gate-time reduction experiment
+(recorded in ROADMAP as a follow-up after GH #9, not started here).
+
+## Decisions (for operator review)
+
+- **GH9-D1 — Latest-main health at dispatch.** CI 41859120038 at `064bc38`
+  had its two macOS jobs cancelled by GitHub ("job was not acquired by Runner
+  of type hosted even after multiple attempts", capacity notice, zero steps
+  executed). `064bc38` changes only four tracking documents relative to
+  `0fc232d`, whose CI 41844293141 passed all five required jobs. Latest-main
+  source health is therefore taken from 41844293141; the capacity-cancelled
+  run is not re-run, and this dispatch push supersedes it. GH #9's own source
+  commit must still receive a complete five-job native CI pass.
 
 ## Session Summary
 
-The operator-authorized retry closed GH #13 without new scopes/roles,
-agent authentication changes or an optional-comment retry. The completed
-external-closure handoff is already archived under 2026-11-04T15:17:52Z.
+GH #13 was closed as completed at 2026-11-04T15:15:52Z after the operator's
+account change. The post-v0.18 backlog was reconciled and archived at
+15:32:06Z (ROADMAP "Current Backlog — Post-v0.18.0"). The operator then
+approved this 12-hour GH #9 window and asked for a follow-up backlog item to
+halve old-Mac full-gate time without starving the machine.
 
-Backlog task `backlog-review-2026-11-04` is complete and archived exactly under
-**2026-11-04T15:32:06Z - Post-v0.18 backlog reconciliation complete; GH #9 window proposed**:
-6,066 bytes, SHA256
-`35eda00b298f0384b8e677128802a312c47992b08d4ddbbfb5e7a19d98c9be7f`.
-The prior 1,164,034-byte HISTORY prefix is unchanged. Do not duplicate any
-completed release, closure or backlog archive.
-
-The dated post-v0.18 snapshot near the top of ROADMAP records **12 open issues,
-14 closed issues and zero open PRs**, six named paper tracks and deferred
-idea families. It supersedes the older September 22 queue. All open issue
-bodies were read; historical design headers are not implementation status.
-
-GH #9 is the bounded next implementation candidate. Its current Makefile
-sentinel still uses Git-only enumeration; this analysis did not execute a
-new reproduction. GH #17 is a separate broad Windows portability effort.
-GH #18-22 and #25-26 require v0.18 rebaselining before fixes; GH #24 remains
-planning-only completeness expansion; GH #12/#14 remain evidence-gated
-retention/commutation research. Shipped GH #11/#13/#15/#16/#23 are not counted
-as pending merely because older document headers retain design statuses.
-
-The six named paper tracks are WP-004 dependency suggestions, recurring
-patches, hotfix, upstream-Git strategies, WP-006 substrate/non-Git behavior
-and WP-007 decision maps. No paper was graduated, architecture selected,
-issue created or frozen planning/research surface rewritten.
-
-**Window recommendation**: 8 hours for GH #9 alone, budgeting 1.5 hours for
-reproduction/fix/focused checks/independent review, 4 hours for a fresh complete
-guarded gate, 1.25 hours for closeout/tracking CI and 1.25 hours of buffer.
-The prior gate took 3h38m1s; recent native required-job wall times were
-55.6-74.0 minutes and source CI can overlap the old-Mac gate. A full gate
-restart adds about 3h38m, so 10-12 hours offers stronger retry headroom.
-This is a proposal, not a running window or a completion guarantee.
+Dispatch baseline verified at 16:22:12Z: HEAD = origin/main = `064bc38`,
+clean tree, no stash, one worktree, no merge/rebase/cherry-pick/index lock,
+zero untracked files.
 
 ## Current State
 
-- GH #13: CLOSED/completed; v0.18.0 release ID 433986008 is published.
-- Release commit: `a14de672141dd243729805d6442a0577bea1383b`.
-- Annotated tag object: `648afeeee5fcacffdf871177ad022406074b51c3`; unchanged.
-- Accepted source: `5133c950161efd6d4ba2ace1f51fb78f8d54832e`.
-- Last accepted tracking CI: 41844293141 at `0fc232d6e4f454f422dee5fd11533f3c85964b21`.
-- This analysis/closure follow-up changes tracking only; its subsequent push CI is not claimed accepted here.
-- GH #9: OPEN, not started; window recommendation only.
-- GH #17: OPEN; blocking native lanes pass, full Windows suite remains known-red.
+- GH #9: OPEN, in progress in this window.
+- GH #13: CLOSED/completed; v0.18.0 (release 433986008) published, tag object
+  `648afeeee5fcacffdf871177ad022406074b51c3` unchanged.
+- GH #17: OPEN; full Windows suite remains known-red; not in scope.
+- Current `[2/8]` (Makefile:79-110) enumerates candidates and allowlist
+  expansions only through `git ls-files --others`; Git reports an untracked
+  nested repository as one opaque `dir/` entry, so source inside it is invisible.
 
 ## Files Changed
 
-Only tracking: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
-`docs/ROADMAP.md` and `docs/supervisor/LOG.md`.
-No reviewed source, frozen planning surface, dependency, CI, resource guard,
-allowlist, research file or release tag is changed.
+Tracking only so far: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+`docs/supervisor/LOG.md`.
 
 ## Test Results
 
-No new Go work is required for account verification/backlog analysis.
-Existing acceptance remains valid: independent source approval, expanded
-focused checks, fresh 42-command/39-test gate in 3h38m1s, source/native
-main/tag CI and final tracking CI all passed. Both actual tagged Unix installs
-print `tpatch v0.18.0`; qualified Windows evidence remains unchanged.
-Detailed evidence is in the accepted archives and private audit files.
+None yet for GH #9. All local/old-Mac Go and gofmt runs will use the accepted
+guarded wrappers (60 s normal-pressure admission, no new swap-outs,
+load1 <= 5, serial private Go 1.26.5 with the accepted environment).
 
 ## Next Steps
 
-1. Await explicit authorization for the next bounded assignment.
-2. Before GH #9, record a fresh WAVE_BASE, verify latest-main CI and retain
-   the accepted guarded resource/serial validation protocol.
-3. Consider a separate bounded v0.18 reproduction pass for GH #25/#26 or a
-   separately scoped GH #17 effort; do not silently bundle either with GH #9.
+1. Reproduce the false-clean `[2/8]` result with a nested-repository fixture.
+2. Implement a filesystem-aware supplement that is deterministic, POSIX-sh,
+   allowlist-preserving and never descends into `.git/`.
+3. Add mutation-sensitive Go fixtures; guarded format/focused checks.
+4. Independent review (OpenAI model), then push, native CI and the fresh
+   guarded old-Mac `make wave-close-check WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`.
+5. Close GH #9 only after review, native CI and gate pass; then, time
+   permitting, read-only GH #25/#26 reproduction on v0.18.
 
 ## Blockers
 
-No release or GH #13 closure blockers remain. GH #9 implementation is
-unassigned pending the operator's next-window decision.
+None.
 
 ## Context for Next Agent
 
-Fresh issue inventory and closure evidence are in
-`bin/roc-s9-20261104-0620/backlog-open-issues-20261104.json` and
-`issue13-operator-authorized-retry.json`.
-The final release-tracking acceptance is in
-`final-tracking-ci-final-audit.json`; exact archive proofs are preserved
-alongside earlier failed/revised acceptance evidence.
-
-Treat source-only release acceptance and the separate Windows full-suite
-debt honestly. Do not revive the resolved managed-account blocker or treat
-old chronological ROADMAP dispatch prose as a fresh implementation assignment.
-The completed-analysis record is an implementation-agent synthesis, not a new
-independent source review. No new Go validation was required or run.
+The old-Mac harness (`run-gate.py`) runs `make wave-close-check` and requires
+the exact line `=== Mechanical gate: PASS ===`; `[2/8]` must therefore stay
+clean (not WARN) on a normal checkout. The shard-parity guard
+(`internal/cli/prepare_s7_ci_timeout_guard_test.go`) requires `'scripts/**'`
+exactly once in the Makefile and no recursive `$(MAKE)` in `wave-close-check`.
+Private evidence for this window goes under `bin/gh9-20261104/` (ignored).

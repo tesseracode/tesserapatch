@@ -22,13 +22,16 @@ GH #13 operation replay are shipped, not pending backlog.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.
-No new autonomous window is running; GH #9 has not started.
+**Update 2026-11-04T16:16:08Z**: the operator authorized a 12-hour GH #9
+window (deadline 2026-11-05T04:16:08Z, WAVE_BASE `064bc38`); GH #9 is 🚧
+in flight. Optional read-only GH #25/#26 v0.18 reproduction follows only if
+GH #9 closes inside the window. Nothing else in this snapshot is dispatched.
 
 ### Open GitHub issues
 
 | Issue | What remains | Readiness / required next step |
 |---|---|---|
-| GH #9 | The wave-close untracked-source sentinel can miss source inside nested Git repositories while recursive formatting still sees it. | Best bounded next implementation candidate. Current `Makefile:79-110` still uses Git-only enumeration for candidates and allowlist expansion; no executable reproduction was run during this analysis. Add a failure-proving nested-repository fixture, preserve allowlist behavior and avoid `.git` internals. |
+| GH #9 🚧 | The wave-close untracked-source sentinel can miss source inside nested Git repositories while recursive formatting still sees it. | **In flight** (12-hour window from 2026-11-04T16:16:08Z; see `docs/handoff/CURRENT.md`). Current `Makefile:79-110` still uses Git-only enumeration for candidates and allowlist expansion; no executable reproduction was run during this analysis. Add a failure-proving nested-repository fixture, preserve allowlist behavior and avoid `.git` internals. |
 | GH #17 | Make the full Windows repository suite pass, including path, permissions, symlink/junction and shell/process assumptions. | Separate, broad portability effort. Preserve all blocking native checks; remove the full-suite exception only after genuine success. Latest accepted audits retain 224 known legacy top-level failures, not the issue body's older inventory. |
 | GH #25 | Define truthful current-anchor verification/consolidation when independently landed features touch the same file and the child changes the parent's exact postimage. | Reproduce on v0.18 first: the report executed v0.16. Historical landing evidence alone does not establish current-tree equality, and a metadata-only consolidation is not a new source landing. Separate from GH #18 and #22. |
 | GH #26 | Correct obsolete hard-parent historical-anchor selection after a genuine re-landing, even when patch/recipe bytes are unchanged. | Reproduce on v0.18 first: the report executed v0.16. Then define generation-bound anchor selection or actionable truthful refusal/migration; no fake patch changes, forged generations or history rewriting. Distinct from GH #25. |
@@ -56,6 +59,12 @@ acceptance and implementation as separate decisions.
 | Upstream Git / patch-management strategies | Queued `research-upstream-git-strategies` brief below: durable Git history versus feature/generation history versus materialized source, LTS/major lines, backports and patch-store layouts. | Research first; no selected architecture, history rewrite or implementation. Recheck whitepaper numbering at dispatch. The multi-major workflow is a scenario, not an established standard named "Lib Flow." |
 | [WP-006 Git substrate/non-Git behavior](whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md) | Honest Git-init/preflight and explicit metadata-only capability boundaries. | Exploring; rebaseline current non-Git `prepare` behavior. No hidden native VCS or substrate-plugin implementation grant. |
 | [WP-007 decision tickets](whitepapers/WP-007-decision-tickets-and-ticket-tracking.md) | A small external/hybrid Markdown decision-map experiment linked to features and planning documents. | Exploring; the current recommendation is not to add a tpatch feature type. No CLI/schema work without evidence of a concrete tpatch-owned gap. |
+
+### Validation-infrastructure follow-ups
+
+| Item | What it is | Current gate |
+|---|---|---|
+| Old-Mac full-gate time reduction ⬜ | Experiment to bring the guarded old-Mac `make wave-close-check` from the measured **3h38m1s** to **at most half (≈1h49m)** with identical coverage: same 42 top-level commands / 39 uncached test shards, same blocking-CI partition and `-count=1` semantics, and no memory or CPU starvation (normal pressure, no new swap-outs, load bounded). Candidate levers to measure, not assumed: bounded shard concurrency where memory allows, compile-cache reuse that keeps tests uncached, shard rebalancing and toolchain/IO overheads. | Operator-requested 2026-11-04; **after GH #9**, not in the GH #9 window. Needs a measured experiment plan and explicit acceptance before any change to the accepted resource protocol, shard script or CI parity guards. |
 
 ### Deferred families and unscoped ideas
 
@@ -90,7 +99,7 @@ Old recipe-modernization bullets are partly superseded by GH #15, not a second
 unimplemented copy of generation authority. No research file or frozen planning
 surface was rewritten during this analysis.
 
-### GH #9 window recommendation — not dispatched
+### GH #9 window recommendation — dispatched 2026-11-04 as a 12-hour window
 
 Recommend **8 hours dedicated to GH #9** for one complete implementation,
 independent review and fresh acceptance cycle:

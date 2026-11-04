@@ -1,3 +1,26 @@
+## GH #9 Dispatched — 12-Hour Window — 2026-11-04
+
+**Authorization**: operator approved a 12-hour GH #9 window starting
+2026-11-04T16:16:08Z (deadline 2026-11-05T04:16:08Z), with an optional
+read-only v0.18 reproduction of GH #25/#26 only if GH #9 closes in time.
+The operator also requested a backlog item to halve old-Mac gate time with
+identical coverage and no resource starvation; it is recorded in ROADMAP as
+a post-GH #9 follow-up, not started.
+
+**Baseline** (16:22:12Z): HEAD = origin/main = WAVE_BASE
+`064bc381dedd07fb2125ef1a75e639c01a841555`; clean tree, no stash, one
+worktree, no in-progress Git operation, zero untracked files.
+
+**GH9-D1**: CI 41859120038 at `064bc38` lost both macOS jobs to GitHub hosted
+runner non-acquisition (zero steps executed). `064bc38` is tracking-only over
+`0fc232d`, whose CI 41844293141 passed all required jobs; latest-main source
+health is taken from that run. The GH #9 source commit still needs its own
+complete native CI pass.
+
+**Action**: CURRENT retargeted (Cluster state IN PROGRESS), ROADMAP GH #9 🚧
+plus the gate-time follow-up row. Implementation, independent review, native CI
+and a fresh guarded old-Mac gate follow under the accepted resource protocol.
+
 ## Post-v0.18 Backlog Reconciled / GH #9 Window Proposed — 2026-11-04
 
 **Result**: analysis complete, with 12 open issues, 14 closed issues and zero
