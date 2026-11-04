@@ -1,3 +1,31 @@
+## S9 Native Regression — Rev-0 NEEDS REVISION — 2026-11-04
+
+**Finding S9-R1**: Ubuntu job **126458448586**, CI **41795299460** at
+c18f025, failed `TestRGAS6DanglingDocDeltaAndSensitivity` at **08:00:24Z**.
+The AP validator's expected prose-body hashes still select S6, while S9
+intentionally updates all six skill bodies. The ROC-focused checks missed
+this RGA/AP dependency. This is not baseline Windows debt.
+
+Raw log and exact job/run/SHA metadata are preserved. At **08:03:15Z** parent
+reverified the old-Mac runner identity and sent SIGTERM only to that owned
+runner; all 97 sampled/descendant identities were gone at 08:03:16Z.
+The partial gate is interrupted, never passed or reused.
+
+**Decision S9-D10/D11**: reopen acceptance; implement a separately pinned S9
+projection over the unchanged S6 oracle, minimal existing AP-validator hook
+and reviewed CurrentSHA256 update. Preserve historical SHA256/History/
+FreezeCurrent, semantic predicates and real wrong-input controls. The source
+writer may change the existing S9 CLI test, the AP-validator hook,
+its provenance entry and only a necessary bounded S0 scope admission;
+all other reviewed bytes remain frozen. No S6-oracle edits or live-derived
+expected hashes. Re-review and expand focused RGA/AP/provenance/observer
+coverage before a new fresh complete gate and exact-tip CI.
+
+### Verdict: NEEDS REVISION
+
+No tag, release, GH #13 closure or GH #9 dispatch. The fixed 16:20:23Z
+deadline is unchanged; preserve all failed evidence.
+
 ## S9 Fresh Full-Gate / Native Acceptance Dispatch — 2026-11-04
 
 Reviewed checkpoint **c18f02545ec11ac7e8653ab8e8814ce9e0758a68** is pushed;

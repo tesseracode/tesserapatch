@@ -1684,6 +1684,16 @@ The gate started at 07:54Z and runner/make/guarded-stage readiness was verified
 at 07:55Z. The native observer confirms all five required jobs in progress at
 the exact checkpoint; neither lane has a completed result yet.
 
+**Rev-0 not accepted; rev-1 active**: Ubuntu CI 41795299460 failed
+`TestRGAS6DanglingDocDeltaAndSensitivity` at 08:00Z because the AP body guard
+still selects pre-S9 skill hashes. This is coupled S9 work, not GH #17 debt.
+The incomplete old-Mac gate was identity-safely stopped at 08:03Z; all 97
+owned identities ended and evidence is preserved. Authorize a separate pinned
+S9 prose projection, minimal AP-validator hook and CurrentSHA256 amendment,
+retaining historical AP/S6 oracles and fail-closed sensitivity. Re-review,
+expand focused coverage to the RGA/AP dependency, then run fresh complete
+acceptance. No tag/release/issue closure or GH #9 advancement on rev-0.
+
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
 time for a separate implementation/review/full-gate cycle. The last full gate
