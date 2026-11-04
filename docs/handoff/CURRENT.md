@@ -301,6 +301,11 @@ Remote source is `s9-final-5133c95-source`; gate is `s9-full-gate-5133c95`.
 Native CI **41801886005** is bound to the same SHA. Both acceptance lanes
 are dispatched with unchanged resource rules and the same fixed deadline;
 no result is implied. Progress commits remain local while origin is frozen.
+The new gate started at **08:47:27Z**. At **08:48:40Z** parent verified
+PID 51222/start identity, live make child 51233 and guarded `02-go`
+admission. Native observation is responsive with all five required jobs in
+progress at the same SHA. Attached executions: `roc-s9-rev1-full-gate` and
+`roc-s9-rev1-native-ci`; do not launch duplicate work.
 
 ### Decisions for morning review
 

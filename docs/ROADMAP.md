@@ -1726,6 +1726,8 @@ is pushed. At 08:46Z a separate fresh full-gate preparation passed all19
 hashes, nine controls, pinned harness and exact42/39 inventory with empty
 cache/evidence paths. Complete acceptance and exact-tip native CI
 **41801886005** are dispatched, not passed; origin is frozen until they end.
+Gate start 08:47Z; runner/make/guarded-stage readiness verified at08:48Z.
+The native observer confirms all five required jobs active at the same SHA.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

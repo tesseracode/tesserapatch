@@ -11,7 +11,11 @@ New cache/evidence/runner-identity paths were absent.
 `s9-final-5133c95-source` with unchanged WAVE_BASE=faeedd38a7b1056945864b1964bc55632eae7416,
 and observe exact-tip native CI. Freeze origin; keep tracking-only progress
 commits local. No reuse of rev-0 evidence or early tag/release/issue closure.
-Readiness/results remain to be verified; fixed deadline16:20:23Z unchanged.
+Gate start **08:47:27Z**; at **08:48:40Z** parent verified PID51222/start
+identity, make51233 and guarded `02-go` admission. Native observation is
+responsive with all five required jobs active at the exact SHA.
+Executions: `roc-s9-rev1-full-gate`, `roc-s9-rev1-native-ci`.
+Results remain pending; fixed deadline16:20:23Z unchanged.
 
 ## S9 Rev-1 Expanded Checks Passed; New Checkpoint Authorized — 2026-11-04
 
