@@ -4,13 +4,13 @@
 
 **Cluster state**: APPROVED
 
-**S8 REV-7 SOURCE APPROVED — access restored; fresh complete-gate launch resumes.**
+**S8 REV-7 SOURCE APPROVED — fresh complete gate running at ffb0323.**
 APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
 The inventory correction is committed at `15f071e` and its guarded checks pass.
 The published b133367 checkpoint is not accepted; both older full-gate
 preparations remain unrun and preserved. The correction and queued
 tracking are now published at `ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`.
-Fresh exact-tip CI is running; the new complete gate is prepared but unrun.
+Fresh exact-tip CI is running; the complete gate began at 00:52:11Z.
 The failed SSH launch never reached the old Mac. Operator-restored access
 and pristine preparation were verified at 00:51Z; no agent network changes.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
@@ -29,7 +29,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source approved — old-Mac access restored; pristine complete-gate launch resumes, native CI continues
+- **Status**: Source approved — complete fresh gate running since 00:52:11Z; native Windows/observers passed, main jobs pending
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -358,6 +358,14 @@ checked connection verified clean ffb0323 source and no runner, evidence or
 cache in the preparation. Resume launch under a new shell identifier: no Go
 or resource validation ran in the failed DNS attempt. The remaining window
 is just over four hours; keep every guard and the 04:55Z deadline unchanged.
+The complete gate actually began at **2026-11-04T00:52:11Z**, after fresh
+checks of pristine state, 36 reviewed hashes and five pinned harness/script
+hashes. Active shell: **`roc-s8-full-gate-ffb0323-restored`**. This is the
+first complete S8 gate; the earlier DNS failure never reached execution.
+At 00:52:53Z the parent verified runner **73086**, start identity
+**Tue Nov  3 16:52:10 2026**, exact command and live guarded evidence.
+The first formatting stage was in admission, pressure 1 and load1 1.37.
+Do not launch a duplicate; no gate completion is claimed.
 
 ## Current State
 
@@ -424,6 +432,8 @@ S8 requirements:
 - The operator-approved rev-6 validation exception permits a dedicated S8
   Windows step in `.github/workflows/ci.yml` and directly dependent S8 guards;
   existing workflow commands/partitions/timeouts must remain unchanged.
+- Rev-7 updates `internal/cli/prepare_avp2_test.go` for the audited S8 root
+  acquisition and extra-call/same-count replacement rejection controls.
 
 ## Test Results
 
@@ -593,6 +603,10 @@ Both initial and final audits are preserved under ignored evidence as
 `s8-ffb0323-windows-audit.json` and `s8-ffb0323-windows-audit-final.json`.
 Native Linux/macOS observers PASS; main jobs and the complete gate remain
 required before acceptance.
+The fresh gate is now running, not passed. Its owned runner/live admission
+were independently verified at 00:52:53Z; readiness is mirrored in
+`bin/roc-s8-20261103/full-gate-ffb0323-readiness.json`. The complete 42-command/
+39-test result, exact parity and final process/source reconciliation are pending.
 
 ## Validation Policy
 
@@ -626,8 +640,8 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Launch the verified-pristine complete gate at ffb0323 and verify its
-   owned runner and live guarded evidence.
+1. Await `roc-s8-full-gate-ffb0323-restored` and native CI observer
+   `roc-s8-ffb0323-native-all`; do not launch another gate.
 2. Keep origin frozen and observe the full gate plus remaining native jobs;
    stop safely for failure, resource limits or the 04:55Z deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive

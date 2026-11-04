@@ -1,3 +1,23 @@
+## S8 Complete Fresh Gate Running at ffb0323 — 2026-11-04
+
+The complete gate actually started at **00:52:11Z** in
+`s8-full-gate-ffb0323`, after rechecking pristine state, all 36 reviewed
+hashes and all five pinned harness/script hashes. Shell:
+`roc-s8-full-gate-ffb0323-restored`. This is the first S8 complete-gate run.
+
+At 00:52:53Z, the parent independently verified the runner PID **73086**,
+start identity **Tue Nov  3 16:52:10 2026**, exact run-gate command and live
+guarded evidence. The first formatting command was in admission, pressure
+normal (1), load1 1.37. The required continuous quiet window is enforced by
+the unchanged wrapper; no complete-gate result is claimed.
+Readiness evidence is mirrored as
+`bin/roc-s8-20261103/full-gate-ffb0323-readiness.json`.
+
+**Action**: leave the single owned gate running, preserve origin at ffb0323,
+and await its result plus remaining native CI. Do not launch a duplicate.
+Use runner identity, not PID alone, for any interruption/recovery; stop at
+the unchanged 04:55Z deadline if still incomplete.
+
 ## S8 Manual Access Restoration Verified; Fresh Gate Launch Resumes — 2026-11-04
 
 The read-only observer detected restored access at 00:50:08Z. A separate

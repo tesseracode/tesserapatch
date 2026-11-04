@@ -1798,6 +1798,10 @@ Manual restoration was detected at 00:50:08Z; host-key-checked access, clean
 ffb0323 source and absent runner/evidence/cache were verified at 00:51Z.
 Resume the unchanged fresh gate; the failed DNS attempt ran no Go. Native
 CI and the 04:55Z deadline remain unchanged.
+The first complete S8 gate started at **00:52:11Z** at ffb0323. Pristine state,
+36 source hashes and five harness/script hashes were reverified; independent
+runner/live-admission readiness passed at 00:52:53Z. The single guarded gate
+and remaining native jobs are running; no acceptance or duplicate launch.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
