@@ -1,3 +1,40 @@
+## Post-v0.18 Backlog Reconciled / GH #9 Window Proposed — 2026-11-04
+
+**Result**: analysis complete, with 12 open issues, 14 closed issues and zero
+open PRs. GH #13 is CLOSED/completed; no account-policy blocker remains.
+All open issue bodies and the authoritative paper/roadmap sources were read.
+The new dated ROADMAP snapshot supersedes the September 22 queue without
+rewriting historical research, frozen planning surfaces or released source.
+
+**Disposition**: GH #9 is the bounded implementation candidate; GH #17 is a
+separate broad Windows effort. GH #25/#26 and the GH #18-22 legacy reports
+need v0.18 rebaselining, with contract acceptance where required. GH #24 is
+planning-only coverage expansion; GH #12/#14 are evidence-gated research.
+Six named paper tracks and older deferred idea families remain distinct
+from ready code work. Stale PRD/index design headers do not reopen shipped
+GH #11/#13/#15/#16/#23.
+
+**Window proposal**: 8 hours for GH #9 alone: 1.5 hours implementation/focused
+fixtures/review, 4 hours fresh complete gate, 1.25 hours closing CI and
+1.25 hours buffer. Evidence is the 3h38m1s old-Mac gate and 55.6-74.0-minute
+native required-job wall times. Source CI can overlap the guarded gate.
+10-12 hours provides more credible full-restart headroom; estimates do not
+authorize shorter checks or a silent extension.
+
+**Action**: archive the completed analysis once, leave CURRENT idle, and
+publish only the four declared tracking paths. No new implementation,
+architecture decision, release, issue creation or autonomous window is
+authorized. No new Go validation is needed for this tracking-only task.
+Any future GH #9 dispatch must confirm latest-main CI and record a fresh
+WAVE_BASE; do not reuse the ended S9 timer/base.
+
+**Archive/idle transition 15:32:06Z**: the completed analysis is copied exactly
+to HISTORY (6,066 bytes, SHA256
+`35eda00b298f0384b8e677128802a312c47992b08d4ddbbfb5e7a19d98c9be7f`),
+preserving the entire prior 1,164,034-byte prefix. CURRENT has one canonical
+IDLE field and awaits the operator's next assignment. No new tip CI is
+claimed accepted by this synthesis.
+
 ## GH #13 Closed After Operator-Authorized Account Retry — 2026-11-04
 
 The operator changed the active GitHub CLI account and explicitly authorized

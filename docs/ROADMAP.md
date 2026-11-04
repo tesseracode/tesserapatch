@@ -11,6 +11,114 @@
 
 ---
 
+## Current Backlog — Post-v0.18.0 (2026-11-04)
+
+**Live inventory**: 12 open GitHub issues, 14 closed issues, zero open PRs.
+GH #13 is CLOSED/completed as of **2026-11-04T15:15:52Z**; v0.18.0 is
+published. The operator-authorized account retry resolved the external
+closure blocker without new roles/scopes or agent authentication changes.
+GH #15 recipe authority, GH #11/#16/#23 prepare/check/intent-bundle work and
+GH #13 operation replay are shipped, not pending backlog.
+
+This dated snapshot supersedes the September 22 post-v0.17 queue below.
+It is **analysis and prioritization, not implementation authorization**.
+No new autonomous window is running; GH #9 has not started.
+
+### Open GitHub issues
+
+| Issue | What remains | Readiness / required next step |
+|---|---|---|
+| GH #9 | The wave-close untracked-source sentinel can miss source inside nested Git repositories while recursive formatting still sees it. | Best bounded next implementation candidate. Current `Makefile:79-110` still uses Git-only enumeration for candidates and allowlist expansion; no executable reproduction was run during this analysis. Add a failure-proving nested-repository fixture, preserve allowlist behavior and avoid `.git` internals. |
+| GH #17 | Make the full Windows repository suite pass, including path, permissions, symlink/junction and shell/process assumptions. | Separate, broad portability effort. Preserve all blocking native checks; remove the full-suite exception only after genuine success. Latest accepted audits retain 224 known legacy top-level failures, not the issue body's older inventory. |
+| GH #25 | Define truthful current-anchor verification/consolidation when independently landed features touch the same file and the child changes the parent's exact postimage. | Reproduce on v0.18 first: the report executed v0.16. Historical landing evidence alone does not establish current-tree equality, and a metadata-only consolidation is not a new source landing. Separate from GH #18 and #22. |
+| GH #26 | Correct obsolete hard-parent historical-anchor selection after a genuine re-landing, even when patch/recipe bytes are unchanged. | Reproduce on v0.18 first: the report executed v0.16. Then define generation-bound anchor selection or actionable truthful refusal/migration; no fake patch changes, forged generations or history rewriting. Distinct from GH #25. |
+| GH #18 | Verify/migrate legacy cumulative-recorded stacks without treating successful replay at an old candidate base as proof of current stack integrity. | Read-only classification on v0.18, followed by an accepted ordered-stack/migration contract. Historical v0.15.1 cases contain multiple V7/V8 failure classes, not one blanket bypass. |
+| GH #19 | Persist/adopt provenance for manual preimage-bearing recipes, preserving exact owner bindings and truthful unknown historical generation times. | Rebaseline current producers and downstream examples, then accept the required PRD/ADR. No fabricated provenance, live-tree fallback or non-atomic publication. |
+| GH #20 | Adopt legacy canonical patches that lack generation manifests, including unchanged-byte refresh cases. | Rebaseline, then explicitly decide typed adoption/unknown provenance. ADR-024's historical-v1-backfill prohibition cannot be bypassed; candidate-base reachability is not replay proof. |
+| GH #21 | Mechanically migrate recognized old recipe schema shapes and every affected hash binding, or refuse safely. | Accept/revise the doctor contract first. Preserve strict source-shape checks, backups/recovery and idempotence; bound provenance/generation/verify/landing evidence makes this more than a JSON rename. |
+| GH #22 | Acknowledge reviewed later-touch overlaps with evidence bound to the relevant features, paths, generations and order. | Contract planning after rebaselining. Acknowledgement must expire when its bindings change and must not bypass preimages, authorize stale overwrite or turn failed verification green. |
+| GH #24 | Broaden which operation shapes can earn complete recipe coverage beyond the current conservative preimage-bearing write-file domain. | Explicitly non-blocking, planning-only ADR/PRD work. Define total cross-base classifications and proof/compatibility before any schema or consumer expansion; preserved replace/append execution is not complete coverage. |
+| GH #12 | Compact absorbed features using full/intent/stub/drop retention tiers without losing absorption or dependency provenance. | Evidence-gated research. Resolve live dependents and destructive acceptance; local landing is not proof of upstream absorption. GH #14 may supply transformations, but retention policy remains GH #12's responsibility. |
+| GH #14 | Verify reorder/reparent transformations through patch commutation rather than editing dependency metadata and assuming equivalence. | Evidence-gated planning: compare both orders from the same immutable base, require normalized tree equality/tests and transactional evidence updates. The broader commutation/search track still needs another real upstream-transition study. |
+
+GH #18-22 and #25-26 contain historical-version reports; they are not freshly
+reproduced v0.18 regressions. Neither the strict cutover nor the later releases
+prove that every legacy migration case is solved. Keep reproduction, contract
+acceptance and implementation as separate decisions.
+
+### Named documentation-only tracks
+
+| Track | What it is | Current gate |
+|---|---|---|
+| [WP-004 dependency suggestions](whitepapers/WP-004-auto-feature-dependencies.md) | Suggest hard/soft/no dependency with evidence and confidence; the narrow first candidate is read-only `feature deps suggest`, not automatic DAG mutation. | Approved paper research and the previously preferred later planning seed. Revalidate citations and explicitly open/accept a PRD before code. |
+| [Recurring patches](prds/PRD-recurring-patches.md) | One stable feature slug across repeated generations, with declared expected churn/reasons. | Paper design approved; needs accepted `ADR-recurring-patch-metadata-boundary` and current producer/event alignment. No scheduler, silent application or recurrence metadata as replay authority. |
+| [Hotfix](prds/PRD-tpatch-hotfix.md) | An urgent-patch fast path through intent preparation, with optional CVE metadata and later promotion/backfilled intent. | Draft/unrouted; refresh the old baseline. Existing apply/record/dependency safety remains intact. |
+| Upstream Git / patch-management strategies | Queued `research-upstream-git-strategies` brief below: durable Git history versus feature/generation history versus materialized source, LTS/major lines, backports and patch-store layouts. | Research first; no selected architecture, history rewrite or implementation. Recheck whitepaper numbering at dispatch. The multi-major workflow is a scenario, not an established standard named "Lib Flow." |
+| [WP-006 Git substrate/non-Git behavior](whitepapers/WP-006-tpatch-substrate-and-non-git-mode.md) | Honest Git-init/preflight and explicit metadata-only capability boundaries. | Exploring; rebaseline current non-Git `prepare` behavior. No hidden native VCS or substrate-plugin implementation grant. |
+| [WP-007 decision tickets](whitepapers/WP-007-decision-tickets-and-ticket-tracking.md) | A small external/hybrid Markdown decision-map experiment linked to features and planning documents. | Exploring; the current recommendation is not to add a tpatch feature type. No CLI/schema work without evidence of a concrete tpatch-owned gap. |
+
+### Deferred families and unscoped ideas
+
+- **Structural fingerprints, commutation graphs, search plans, planner audit
+  artifacts and vector retrieval** remain research directions in
+  [the research roadmap](state-of-the-art/research-roadmap.md), not separate
+  ready implementation tickets. The structural/search family requires another
+  real upstream-transition study; it overlaps GH #14 rather than adding an
+  already-approved parallel feature.
+- **Persisted anchors/richer operation identity** remain a separate future
+  contract choice. [ADR-036 D8](adrs/ADR-036-recipe-coverage-authority.md)
+  deliberately persists no contextual anchors; GH #13's ephemeral candidate
+  anchors do not remove that boundary. Broader completeness in GH #24 must not
+  be mistaken for automatic authorization of a persisted-anchor schema.
+- **Capture/context extensions** include session-stop auto-promotion,
+  agent/IDE/Git hooks, dependency/version snapshots and separate metadata
+  storage. Foundational capture/privacy/session/generation work has shipped;
+  rebaseline each older proposal rather than reimplementing it. Auto-promotion
+  on session stop remains explicitly deferred to `PRD-record-context-summary`.
+- **Older M14/M18+ ideas** include parent-drift auto-rebase, parent-patch resolver
+  context, per-dependency version ranges, stacked-PR delivery, cost/token
+  budgets, multi-repo orchestration, a web dashboard and parallel feature
+  workflows. These are unscoped ideas, not implementation commitments.
+
+**Documentation reconciliation**: `docs/CLUSTERS.md` retains a September 22
+snapshot; the operation-replay PRD header still says implementation is
+undispatched; the research roadmap and older future bullets include foundations
+that have since shipped. PRD design status is not implementation status, as
+`docs/prds/README.md` explains. Preserve reviewed historical/design surfaces;
+use this snapshot, release evidence and current tracking for the live queue.
+Old recipe-modernization bullets are partly superseded by GH #15, not a second
+unimplemented copy of generation authority. No research file or frozen planning
+surface was rewritten during this analysis.
+
+### GH #9 window recommendation — not dispatched
+
+Recommend **8 hours dedicated to GH #9** for one complete implementation,
+independent review and fresh acceptance cycle:
+
+| Budget | Work |
+|---|---|
+| 1.5 hours | Reproduction, bounded fix, focused regression/sensitivity fixtures and independent review |
+| 4 hours | Fresh complete guarded old-Mac gate; native source CI may overlap |
+| 1.25 hours | Closeout/tracking push and exact-tip native CI |
+| 1.25 hours | Resource admission delays and limited revision/coordination buffer |
+
+The last complete gate took **3h38m1s**. Recent required native jobs took
+**55.6-74.0 minutes** across the source/main/tag/final-tracking runs.
+A late failure requiring a full gate restart adds approximately another
+3h38m; **10-12 hours** is the more conservative choice if that restart
+headroom is wanted. These are measured planning estimates, not a completion
+promise; never shorten checks or silently extend the window.
+
+On explicit authorization, fetch/record a fresh `origin/main` WAVE_BASE,
+confirm latest-main CI and retain the accepted guarded resource/serial
+validation protocol. Do not reuse the S9 base or restart its ended timer.
+Keep GH #17, migration/coverage expansion and upstream-Git research outside
+the GH #9 slice. Suggested subsequent triage is a bounded v0.18 reproduction
+pass for GH #25/#26, with GH #17 as a separately scoped portability effort;
+the remaining contract/research tracks keep their own gates.
+
+---
+
 ## M0 — Bootstrap ✅
 
 **Goal**: Go module, CLI skeleton, build pipeline.
@@ -3097,7 +3205,7 @@ amendment. WP-004 is the preferred subsequent planning track, not an automatic
 implementation assignment. All delegated calls explicitly select an OpenAI
 model; no Anthropic/Claude agents or unverified optional-agent defaults.
 
-Current queue: reconcile GH #15 as shipped under its accepted v0.17 scope;
+Historical September 22 queue: reconcile GH #15 as shipped under its accepted v0.17 scope;
 GH #13's release prerequisite is satisfied but its capture-event planning
 amendment is still required. GH #9/#17 are reliability work; GH #18-22 should
 be re-baselined on v0.17 before fixes; GH #24 is non-blocking completeness-domain
@@ -3118,8 +3226,9 @@ No runtime or release scope is added by this intake.
 | Recurring patches, WP-006, WP-007, hotfix | Preserve paper-design/exploration/draft statuses and explicit gates; no automatic implementation queue. |
 
 The GH #13 issue's old description remains historical; the September 22 update
-records v0.17's actual prerequisite and remaining amendment. This table is the
-current queue; older chronological dispatch paragraphs below remain history.
+records v0.17's actual prerequisite and remaining amendment. This table was the
+queue at that date and is superseded by the November 4 post-v0.18 snapshot
+near the top of this file; chronological dispatch paragraphs below remain history.
 Research intake is delivered and awaiting independent review. The operator chose
 canonical capture-event digest inclusion in GH #13 candidate identity for the
 subsequent planning amendment; this is not runtime implementation authorization.
