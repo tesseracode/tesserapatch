@@ -20,8 +20,9 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Description**: Measured experiment, then an opt-in tracked change. Bring
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
-- **Status**: In progress — E1 audit running; E2 harness deployed on the old
-  Mac; negative control C1 running (2026-11-04T23:00Z)
+- **Status**: In progress — E1 audit done; controls C1 and C2 behaved as
+  intended; E2 run 1 running since 23:10:07Z; E3 opt-in drafted and validated
+  locally, uncommitted until E2 meets the target (2026-11-04T23:30Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -104,10 +105,67 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   - load1 ≤ 5 at every launch.
 
   Two consecutive passing runs are required.
+- **GT-D8, E1 fold-in (supersedes GT-D3's lane lists).** The audit
+  (`bin/gt-20261104/e1-audit.md`, private) found no pair that must never run
+  together in normal mode, plus two conditions:
+  - Golden recording (`TPATCH_RECORD_ROUTING_GOLDENS`,
+    `TPATCH_RECORD_PREPARE_PIB_GOLDENS`, `TPATCH_UPDATE_ROC_S0_GOLDENS`),
+    `TPATCH_LIVE_PROVIDER`, `GIT_DIR`, `GIT_WORK_TREE` and `GIT_INDEX_FILE`
+    must be unset. The harness scrubs them; the tracked runner refuses to
+    start if any is set.
+  - Shard 01's store test creates and removes a scratch directory under
+    `internal/store/` while `./...` shards walk the tree. The plan therefore
+    starts lane B with `./internal/cli`-only shards for longer than shard 01
+    takes (about 3,718 s against 2,784 s).
+
+  Final plan: **lane A** shards 1, 2, 3, 4, 6, 13, 17, 22, 26, 29 (about
+  5,222 s, peak 2.16 GiB); **lane B** shards 18–21, 23–25, 27, 28, 30–39,
+  then 5, 7–12, 14–16 (about 5,216 s, all five ≥ 2.5 GiB shards).
+- **GT-D9, tracked opt-in shape (E3).** `WAVE_CLOSE_TEST_LANES ?=` in the
+  Makefile. Empty keeps the serial script; `2` runs
+  `scripts/wave-close-test-lanes.sh 2`; any other value fails check 8. The
+  runner copies the serial script's preamble and `go test` lines verbatim,
+  checks that its static partition covers every serial shard exactly once,
+  and fails closed when it does not. `scripts/wave-close-test-shards.sh` is
+  unchanged. This keeps the plan's "lane mode in the shard script" intent
+  without touching the CI-parity source of truth.
+- **GT-D10, where local validation runs.** Local free memory stays near 67%,
+  under the 80% rule, so local runs use the accepted protocol instead:
+  60 s of pressure level normal, no new swap-outs, load1 ≤ 5 and no Go
+  process. They run in a clean temporary clone with only the E3 files
+  overlaid, because the main checkout's git-ignored `bin/` scratch (old
+  source copies) breaks `go vet ./...` and the repository-walking guards.
+- **GT-D11, docs-only push cancelled CI.** Pushing `21be56f` cancelled CI
+  run 41929031542 for `85a6763`. Both commits change only docs, so run
+  41930585027 on `21be56f` covers both trees. No further pushes while a CI
+  run is in progress.
+- **GT-D12, external load during a measured run (decided before run 1's
+  result was known).** GT-D7 is unchanged: wall time includes admission
+  waits. If a run misses 6,540 s and the miss is no larger than the time
+  launches were held for load from processes outside the gate, the run is
+  recorded as inconclusive. It neither counts toward nor breaks the
+  two-run streak. Run 1 hit this at 23:20Z: the Microsoft AutoUpdate helper
+  used about 315% CPU and pushed load1 to 8.8 while the gate's own test
+  binary used under 10%.
 
 ## Session Summary
 
-Dispatch only. Baseline verified at `7e0d63f`:
+- **E1 audit:** done; see GT-D8.
+- **Controls (on local-only fixture commits):**
+  - C1 collision pair: the run FAILED with shards 17 and 18 both exit 1, both
+    attributed, intervals overlapping (61.2–216.4 s).
+  - C2 stray write: both commands exited 0, yet the run FAILED with
+    `?? internal/cli/gt-stray.txt` as a checkout mutation.
+  - Both control leftovers were removed; the control clone is clean.
+- **E2 run 1:** launched 23:10:07Z on the scratch clone at `85a6763` with the
+  GT-D8 plan.
+- **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
+  Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
+  updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
+  clone: gofmt clean, targeted guards PASS, `go vet ./...` and
+  `go build ./cmd/tpatch` PASS.
+
+Dispatch baseline verified at `7e0d63f`:
 - HEAD equals origin/main;
 - no tracked changes, no stash;
 - a single worktree;
@@ -117,23 +175,34 @@ Dispatch only. Baseline verified at `7e0d63f`:
 
 - Serial baselines: S9 `5133c95` at 13,081 s; GH #9 `b8a5f37` at 13,093 s.
   Both PASS.
-- No experiment has run yet.
+- Controls C1 and C2 behaved as intended. E2 run 1 in progress.
 
 ## Files Changed
 
-Tracking only (dispatch): `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
-`docs/supervisor/LOG.md`.
+- Committed: tracking only (`docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`).
+- Uncommitted E3 draft: `scripts/wave-close-test-lanes.sh` (new),
+  `Makefile`, `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
+  `internal/cli/wave_close_lanes_test.go` (new).
 
 ## Test Results
 
-None yet.
+- E3 draft, clean clone of `21be56f` plus the four files, after a 60 s
+  GT-D10 window: `gofmt -l .` empty;
+  `go test -p=1 ./internal/cli -count=1 -run
+  '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard)$'`
+  ok (48.8 s); `go vet ./...` ok; `go build ./cmd/tpatch` ok.
+- Every new guard fixture is rejected, including a sequential runner (caught
+  by the lane rendezvous), a dropped preamble, a masked lane status, a
+  missing refusal and a drifted partition.
 
 ## Next Steps
 
-1. E1 audit.
-2. E2 harness and negative controls.
-3. E2 measured runs (×2).
-4. E3 go/no-go.
+1. Analyse E2 run 1; launch run 2 if it passes.
+2. If E2 meets GT-D7: AGENTS.md paragraph, independent review, commit and
+   push E3, native CI, then old-Mac gates in lane and serial modes.
+3. Otherwise: go/no-go report with the measured numbers, E3 left
+   uncommitted.
 
 ## Blockers
 

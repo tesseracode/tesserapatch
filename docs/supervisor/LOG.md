@@ -1,3 +1,28 @@
+## Progress — gate-time-reduction E1 audit and E2 controls — 2026-11-04
+
+**Reviewer**: implementation agent (autonomous window; decisions GT-D8–D12
+in `docs/handoff/CURRENT.md`).
+**Task**: E1 interference audit and the E2 negative controls.
+
+### Findings
+- **E1:** no pair of shards must be kept apart in normal mode. Golden
+  recording switches, `TPATCH_LIVE_PROVIDER` and Git directory redirection
+  must be unset. Shard 01's in-tree scratch directory must not overlap the
+  `./...` shards. Both are folded into the plan (GT-D8).
+- **C1 (collision fixture):** the run failed with shards 17 and 18 attributed
+  and overlapping. The harness detects cross-process collisions.
+- **C2 (stray write, exit 0):** the run failed on a checkout mutation. The
+  harness detects tests that pass but dirty the checkout.
+
+### Verdict: CONTROLS BEHAVED AS INTENDED
+
+### Action Taken
+- E2 run 1 launched at 23:10:07Z with the GT-D8 plan.
+- E3 drafted and validated in a clean clone. It is held uncommitted until E2
+  meets GT-D7.
+
+---
+
 ## Dispatch — gate-time-reduction — 2026-11-04
 
 **Supervisor**: implementation-agent dispatch (operator-approved 12 h window,
