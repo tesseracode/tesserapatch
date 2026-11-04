@@ -9,9 +9,9 @@ S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-The revised 18-file S9 implementation is frozen and preserved. Both bounded
-amendments are implemented, but source remains unformatted/unvalidated and
-unreviewed. Guarded formatting precedes independent review of exact bytes.
+The revised 18-file S9 implementation is frozen and guarded formatting has
+passed. Both bounded amendments are implemented. Independent source review
+and guarded focused validation are next; no runtime/full-gate pass is implied.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -35,7 +35,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Frozen implementation complete - guarded formatting and independent review pending
+- **Status**: Formatted source frozen - independent review and guarded focused validation
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -110,6 +110,16 @@ selection and disclosure controls advanced to v0.18.0. Actual runtime proof
 and independent review remain outstanding. The implementer is idle/read-only.
 Frozen source/archive: `rev0-source-sha256.json`, `rev0-source.tar.gz` and
 `rev0-freeze.json` under the ignored S9 evidence directory.
+
+Guarded formatting completed and was reconciled at **07:24:05Z**. The six-file
+formatter and whole-repository empty-output check both passed, with separate
+61.2-second stable admissions, pressure level 1 and zero new swap-outs.
+All four sampled owned identities ended; no blocked marker remains.
+Only `assets/operation_candidate_parity_test.go` and the S0 scope guard changed
+under gofmt. Parent verified all 18 local pre-format hashes before mirroring
+those formatter deltas, then verified the complete formatted manifest.
+The independent reviewer receives these exact frozen bytes; the implementer
+remains read-only while parent runs focused validation.
 
 ### Decisions for morning review
 
@@ -212,7 +222,9 @@ fixture path changed.
   these do not establish compilation, runtime behavior or acceptance.
 - Private native-evidence parser: archived positive, eight rejecting controls
   and the documented 223/224 failure variant pass; no native run is claimed.
-- **S9 formatting, tests, independent review, full gate and native CI: not run.**
+- Guarded S9 formatting: **2/2 commands passed**, whole-repository output empty;
+  normal pressure, zero new swap-outs and zero owned leftovers.
+- **S9 runtime tests, independent review, full gate and native CI: pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;

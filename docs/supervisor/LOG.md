@@ -1,3 +1,19 @@
+## S9 Formatting Passed; Independent Review / Focused Validation — 2026-11-04
+
+At **07:24:05Z** parent reconciled the exact 18-file formatted source. Both
+guarded formatter commands passed with empty repository findings, separate
+61.2-second stable admissions, pressure 1 and zero swap-outs. All four sampled
+owned identities ended; no blocked marker. Only the new asset parity test and
+S0 scope guard received formatter changes, after verification that no local
+source bytes had drifted. Evidence: `rev0-format-audit.json` and
+`rev0-formatted-sha256.json` in the ignored S9 directory.
+
+**Action**: dispatch a fresh independent OpenAI reviewer over this frozen
+snapshot; parent alone runs the guarded asset suite, ROC-focused workflow/CLI
+checks and vet/build. Keep source read-only until findings/results can be
+adjudicated together. These focused checks do not replace the fresh complete
+gate or exact-tip native CI; no acceptance or release is claimed.
+
 ## S9 Revised Source Frozen for Guarded Formatting and Review — 2026-11-04
 
 The same explicitly selected OpenAI implementer returned the completed bounded

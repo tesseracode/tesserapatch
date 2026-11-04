@@ -1656,6 +1656,9 @@ Both amendments returned in the revised **18-file frozen handback at 07:17Z**.
 Parent verified the exact edit scope, the sole one-line production guidance
 delta and unchanged HISTORY / historical release bytes. Six Go files await
 guarded formatting, independent review and runtime validation; no pass implied.
+Guarded formatting subsequently passed both commands; 18 local/remote source
+hashes reconcile, normal pressure and zero swap-outs/leftovers. Independent
+review and focused runtime checks now use the same frozen formatted bytes.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
