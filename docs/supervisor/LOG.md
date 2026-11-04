@@ -1,3 +1,12 @@
+## S8 Operator Chose Manual VPN Restoration — 2026-11-04
+
+The operator selected **manual-reconnect**. Do not reconnect NetBird or
+change network settings on their behalf. A bounded read-only SSH observer
+will detect restored access using the existing host key and authorized
+account, without running Go. Recheck pristine gate state and the remaining
+window before resuming; request an extension rather than start a gate that
+cannot fit. Native CI and the existing 04:55Z deadline remain unchanged.
+
 ## S8 Complete-Gate Launch Blocked Before SSH Connection — 2026-11-04
 
 The launch session `roc-s8-full-gate-ffb0323` exited 255 because

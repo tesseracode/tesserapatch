@@ -1791,6 +1791,9 @@ The full-gate launch was blocked before SSH connection: old-Mac hostname
 resolution fails and NetBird reports disconnected control connections.
 No remote command/Go run started. Native CI continues; request operator
 approval/manual VPN restoration before retrying the pristine preparation.
+The operator chose manual reconnection. Observe restored access read-only,
+then verify the pristine preparation and enough remaining window before
+launching; do not change network settings or shorten the full gate.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

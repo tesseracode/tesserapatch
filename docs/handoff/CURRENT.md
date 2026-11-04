@@ -349,6 +349,10 @@ command or Go run started; this is not a resource/test failure. Read-only
 NetBird status reports management and signal disconnected and no peer details.
 No network settings were changed. Ask the operator before reconnecting the
 existing VPN, then verify the preparation remains pristine before any launch.
+The operator selected **manual-reconnect**. Do not change NetBird or network
+settings. A bounded read-only SSH observer waits for restored access; it does
+not run Go. Recheck pristine preparation and sufficient remaining time before
+launch, otherwise request an extension. Native CI continues independently.
 
 ## Current State
 
@@ -617,7 +621,7 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Restore old-Mac access with operator approval or manual VPN reconnection;
+1. Wait for the operator's selected manual VPN reconnection;
    verify no runner/evidence/cache exists before retrying the never-started gate.
 2. Keep origin frozen at ffb0323, launch the unchanged complete gate if the
    remaining window permits, and observe it plus the remaining native jobs.
@@ -628,8 +632,8 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 ## Blockers
 
 The complete gate could not start: SSH cannot resolve the old Mac and NetBird
-reports both control connections disconnected. Operator approval/manual
-reconnection is needed; do not change VPN/DNS settings without approval.
+reports both control connections disconnected. The operator chose manual
+reconnection; do not change VPN/DNS settings on their behalf.
 The launch/readiness attempts exited 255 before running any remote command.
 
 Fresh exact-tip native CI and the complete fresh gate still block acceptance;
