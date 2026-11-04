@@ -1705,6 +1705,11 @@ At 08:19Z both guarded formatter commands passed, with 19 local/remote final
 hashes matching, normal pressure and zero swap-outs/leftovers. Independent
 re-review and expanded S0/S9/RGA/AP/provenance/observer checks are dispatched
 against that frozen snapshot; no revised runtime or acceptance result yet.
+Independent rev-1 review subsequently returned **APPROVED (source only)**,
+verifying all 19 hashes, the fail-closed projection/hook/scope and AP's absence
+from the independently derived historical provenance set. Expanded guarded
+validation started at 08:20Z; runner/runtime readiness was verified at 08:23Z.
+No revised full-gate/native acceptance or release is implied.
 
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough

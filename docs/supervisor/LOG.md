@@ -1,3 +1,32 @@
+## Review — GH #13 S9 rev-1 — 2026-11-04
+
+**Reviewer**: independent OpenAI `gpt-6-astra`
+`739406f9-1709-4f8e-a899-c48d8568eb03`; model confirmed by returned metadata.
+**Scope**: exact 19-file formatted manifest and three-file revision.
+
+### Verdict: APPROVED — source only, validation pending
+
+No significant issue. All 19 hashes match; the other sixteen rev-0 files are
+unchanged. The projection independently pins nine S6 inputs, changes exactly
+six reviewed bodies, preserves three, allocates a new map and rejects missing,
+extra, replaced, drifted, already/partially projected inputs. The real AP
+validator retains all inventory/semantic/declaration/body predicates and
+existing mutation controls. Removing the hook makes its baseline fail.
+
+PIB-459's observer targets the amended fixture; the untagged projection has
+no platform-tagged helper dependency. S0 admits only AP and retains earlier
+rejecting controls. Reviewer independently derived the 21-member historical
+provenance set: AP is absent from both it and the registry. No CurrentSHA256
+change is required; inventing an entry would violate the closed set.
+Historical oracles, enforcement, frozen boundaries, AR insertions, CI and
+resource guards remain unchanged.
+
+No Go/toolchain commands by the reviewer. Rev-0 remains unaccepted.
+**Action**: keep rev-1 source frozen and await expanded guarded runtime
+checks; a new fresh full gate/exact-tip native run are still required.
+Focused batch started **08:20:57Z**; PID 42251/start identity and guarded
+runtime stage were verified **08:23:16Z**.
+
 ## S9 Rev-1 Formatting Passed; Re-review / Expanded Checks — 2026-11-04
 
 At **08:19:34Z** both guarded formatter commands passed: empty repository

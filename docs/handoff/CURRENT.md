@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
@@ -11,8 +11,9 @@ S0-S8 are accepted. S8 closed durably at
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
 Rev-0 had independent source approval and six guarded formatting/focused
 passes, but did not pass complete acceptance. The bounded rev-1 handback is
-now frozen (19 total source files), awaiting guarded formatting, independent
-re-review and expanded validation. No S9 acceptance or release is claimed.
+now frozen (19 total source files), guarded formatting passed and independent
+rev-1 source re-review is APPROVED. Expanded guarded validation is active;
+no S9 acceptance or release is claimed.
 The exact reviewed source was pushed at
 `c18f02545ec11ac7e8653ab8e8814ce9e0758a68`, but native CI **41795299460**
 exposed a directly coupled AP prose-hash regression. Acceptance is reopened.
@@ -42,7 +43,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Rev-1 formatted and frozen - independent re-review and expanded guarded validation dispatched
+- **Status**: Rev-1 source APPROVED - expanded guarded validation active
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -245,6 +246,20 @@ bytes. The batch covers S0/S9, the failed RGA S6 doc delta, all S7 AP cases,
 pre-change/provenance checks, the AP registration observer, vet and build.
 No runtime or source re-approval is implied by formatting.
 
+Independent reviewer `739406f9-1709-4f8e-a899-c48d8568eb03` returned
+**rev-1 APPROVED - source only**, with no significant findings; metadata again
+confirms OpenAI `gpt-6-astra`. All 19 formatted hashes match. The reviewer
+verified the nine-input/six-change/three-preserved nonmutating projection,
+real rejecting controls, unchanged AP predicates, PIB-459 observer routing,
+platform compatibility and the narrow S0 admission. It independently derived
+the 21-member historical provenance set and confirmed AP is absent from both
+that set and the registry; no provenance amendment is required.
+
+Parent's expanded batch `roc-s9-rev1-focused` started at **08:20:57Z**.
+At **08:23:16Z**, PID 42251/start identity and the guarded `03-go` runtime
+stage were verified. Source stays frozen; runtime, fresh full gate and
+exact-tip native CI remain separate pending requirements.
+
 ### Decisions for morning review
 
 | ID | Decision and reason |
@@ -368,8 +383,10 @@ fixture path changed.
   unchanged historical S6/provenance/HISTORY.
 - Rev-1 guarded formatting: **2/2 passed**, empty repository output,
   pressure 1, zero new swap-outs and four owned identities ended; 19 final
-  local/remote hashes match. Independent re-review and expanded runtime
-  validation are dispatched, not yet passed.
+  local/remote hashes match.
+- Independent rev-1 source re-review: **APPROVED**, no significant findings;
+  AP's exclusion from the historical provenance set independently verified.
+- Rev-1 expanded guarded runtime validation: **active**, readiness verified.
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -405,8 +422,8 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 Rev-0 acceptance failed the coupled AP prose-hash dependency above. Rev-1's
 implementation has returned with no reported blocker, but still needs guarded
-formatting, independent review, expanded focused validation and fresh complete/
-native acceptance. GH #17 remains known separate debt.
+runtime validation and fresh complete/native acceptance. Guarded formatting
+and independent source re-review pass. GH #17 remains known separate debt.
 
 ## Context for Next Agent
 
