@@ -4,7 +4,7 @@
 
 **Cluster state**: APPROVED
 
-**S8 REV-7 SOURCE APPROVED — fresh native CI running; complete gate prepared.**
+**S8 REV-7 SOURCE APPROVED — native Windows audited; complete gate launch queued.**
 APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
 The inventory correction is committed at `15f071e` and its guarded checks pass.
 The published b133367 checkpoint is not accepted; both older full-gate
@@ -27,7 +27,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: Source approved — ffb0323 published; native CI 41744068167 running, complete gate prepared but unrun
+- **Status**: Source approved — ffb0323 Windows/observers passed; fresh complete gate launch queued, main native jobs running
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -328,6 +328,19 @@ Evidence, caches and runner identity are absent: **no full S8 gate has started**
 Keep origin frozen at ffb0323 while fresh native/complete-gate evidence runs;
 progress tracking may be committed locally and pushed with closure or another
 reviewed correction, not by cancelling the exact-tip CI.
+At 00:35:56Z, fresh Windows job 126292546580 completed successfully.
+All 26 required exact markers, 52 top-level S8 passes and zero S8 skips
+are verified. Both fresh observer jobs pass; native Linux/macOS main jobs
+continue. The baseline has 223 failures versus 224, none added: only the
+previously observed intermittent oversized-indexed-attribute failure is absent.
+The unchanged nonverbose full-suite output is not proof of that individual
+test's PASS, and the known panic remains. Preserve the initial strict-equality
+comparison and final no-new-failure audit; GH #17 remains open.
+
+The fresh complete gate is now authorized to launch, unchanged, while
+`roc-s8-ffb0323-native-all` watches remaining native jobs. The deadline leaves
+over four hours versus S7's measured 3h23m; no truncation/waiver is authorized
+if it runs longer. This transition queues launch, not completion.
 
 ## Current State
 
@@ -555,6 +568,14 @@ Final run metadata is preserved in `native-b133367-final-status.json`.
 No native result for ffb0323 or complete S8 gate exists yet. The ffb0323
 preparation's nine routing controls pass; its source and all five harness/script
 hashes verify, and no evidence/cache/runner identity exists before launch.
+Fresh ffb0323 Windows proof: 26/26 exact required markers, 52 S8 passes,
+zero S8 skips. Baseline 223 failures, none added, one known intermittent
+failure absent; known panic unchanged. Raw log SHA256:
+`6e69c82c7f3c13e90c735f827481fa8ddb0622c0e396f499e63b582dc8feceab`.
+Both initial and final audits are preserved under ignored evidence as
+`s8-ffb0323-windows-audit.json` and `s8-ffb0323-windows-audit-final.json`.
+Native Linux/macOS observers PASS; main jobs and the complete gate remain
+required before acceptance.
 
 ## Validation Policy
 
@@ -588,10 +609,10 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Keep origin frozen at ffb0323; audit native CI 41744068167's Windows
-   lane/baseline and stop on a newly reported failure.
-2. Then run the newly prepared `s8-full-gate-ffb0323` complete gate, preserving
-   every prior result and the deadline.
+1. Keep origin frozen at ffb0323; launch the prepared `s8-full-gate-ffb0323`
+   complete gate and verify its owned runner/readiness.
+2. Observe remaining native jobs and the complete gate, stopping safely on
+   a new failure, resource stop or deadline; preserve all evidence.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.

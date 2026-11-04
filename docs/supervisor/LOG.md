@@ -1,3 +1,29 @@
+## S8 ffb0323 Native Windows Audited; Complete Gate Launch Approved — 2026-11-04
+
+Native Windows job **126292546580** completed successfully at 00:35:56Z.
+The blocking S8 lane has all **26 exact required markers, 52 top-level passes
+and zero S8 skips**. Raw log SHA256:
+`6e69c82c7f3c13e90c735f827481fa8ddb0622c0e396f499e63b582dc8feceab`.
+Both fresh native observer jobs also pass; Linux/macOS main jobs continue.
+
+The initial strict baseline comparison reported **223 versus 224** failures,
+with none added: only the previously observed intermittent
+`TestRGAS5CaptureOversizedIndexedAttributeFallbackRefuses` failure is absent.
+The known CLI panic is unchanged; gitutil completes without a package panic,
+and its source plus the full-suite command are unchanged from b133367.
+The nonverbose log does not independently prove that individual test passed.
+**Decision**: this absence is not a new regression or a reason to require an
+old failure to recur. Preserve both comparison records; do not claim the
+allowed-failure suite green or close GH #17. No test, CI or guard was changed
+or rerun. Final audit: `s8-ffb0323-windows-audit-final.json` in ignored evidence.
+
+**Action**: launch the already prepared fresh `s8-full-gate-ffb0323`, using
+the unchanged 42-command/39-test partition, resource policy and WAVE_BASE.
+The 04:55Z deadline leaves over four hours, versus S7's measured 3h23m gate;
+stop safely if it is reached, without shortening the gate. Remaining native
+jobs are watched by `roc-s8-ffb0323-native-all` on separate GitHub hosts.
+This entry authorizes launch; it does not claim the gate has started or passed.
+
 ## S8 ffb0323 Published; Fresh Native CI Running and Gate Prepared — 2026-11-04
 
 Reviewed checkpoint **`ffb032307bc3d6b0fd8744da04e8f1c78884f3d9`** is pushed.

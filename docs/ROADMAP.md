@@ -1782,6 +1782,11 @@ Its new full-history source/gate preparation verifies 36 reviewed hashes,
 five unchanged harness/script hashes and nine routing controls, with no
 evidence/caches/runner identity. Full gate remains unrun pending native
 Windows audit. Freeze origin; tracking-only progress commits stay local.
+Fresh Windows S8 proof passes: all 26 exact markers, 52 top-level passes,
+zero skips. Baseline has 223 failures, none added; one previously intermittent
+failure is absent, not a claim that the known-red suite passed. Both native
+observer jobs pass. Launch the unchanged complete gate while main GitHub jobs
+continue separately; preserve the 04:55Z deadline and every resource guard.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 
