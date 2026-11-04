@@ -2,12 +2,14 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**S8 REV-7 IN PROGRESS — native CI exposed a stale root-call inventory.**
-The published b133367 checkpoint is not accepted. Both prepared full gates
-remain unrun; preserve them and repair the directly coupled inventory before
-publishing another reviewed validation checkpoint.
+**S8 REV-7 SOURCE APPROVED — fresh acceptance validation queued.**
+APPROVED denotes the reviewed validation checkpoint, not S8 acceptance.
+The inventory correction is committed at `15f071e` and its guarded checks pass.
+The published b133367 checkpoint is not accepted; both older full-gate
+preparations remain unrun and preserved. Publish the correction and queued
+tracking, then require fresh exact-tip native CI and a new complete gate.
 S7 closed at `d65150ce02668d095a0f4dffce9571ba3fd7096b`; fetch confirmed
 clean HEAD=origin/main, an empty stash and one main worktree before dispatch.
 Its terminal handoff is already archived byte-for-byte in HISTORY under
@@ -24,7 +26,7 @@ coverage expansion or upstream-Git research; never start #9.
 - **Task ID**: `implement-operation-replay-candidate-s8`
 - **Milestone**: GH #13 / ADR-037 and ADR-043 through ADR-050
 - **Description**: Journaled acceptance, authoritative per-path CAS, residual artifact publication and explicit recovery
-- **Status**: In progress — rev-7 source/targeted checks passed; native Windows proof verified; macOS observers pending
+- **Status**: Source approved — rev-7 checked and committed; fresh native CI and complete gate queued, S8 not accepted
 - **Assigned**: 2026-11-03
 - **WAVE_BASE**: `d65150ce02668d095a0f4dffce9571ba3fd7096b`
 - **Contract**: accepted PRD rev-7, sections 6.13–6.16, 7.4 and S8; ADR-044 held-lock amendment
@@ -305,6 +307,13 @@ exactly matches 224 baseline names with no additions/removals and the same
 known panic. GH #17 is not closed. Linux observers pass; macOS observers are
 still running. Overall b133367 CI remains failed on AVP-141, and a fresh
 published revision still needs exact-tip CI and the complete fresh gate.
+The remaining macOS observer job 126274474424 completed successfully at
+2026-11-03T23:59:01Z, including the unchanged AQ selector. The prior timeout's
+cause remains unproven, not waived or repaired through budget/partition changes.
+Both native observer jobs and the Windows S8 evidence pass at b133367; overall
+CI still fails on its old root inventory. The reviewed correction is committed
+at `15f071e`. Publish it with queued tracking for fresh exact-tip CI and a new
+complete gate. Preserve every earlier log and both unrun gate preparations.
 
 ## Current State
 
@@ -524,6 +533,12 @@ exactly. Raw log SHA256:
 `a432100d0a787132a8ffb94fbe05bb095712f1e1b286d8db60a90abb09c5c89f`.
 Audit JSON: `bin/roc-s8-20261103/s8-b133367-windows-audit.json`.
 This is native evidence for b133367, not acceptance of the corrected revision.
+Native b133367 macOS observers PASS (job 126274474424, completed
+2026-11-03T23:59:01Z). Raw log:
+`bin/roc-s8-20261103/s8-b133367-macos-observers-native.log`, SHA256
+`d0249953e4cef3b310b1e10e25c1bb5265974c1d07d0af870f27783c5bf13dd3`.
+Final run metadata is preserved in `native-b133367-final-status.json`.
+No native result for the corrected published tip or complete S8 gate exists yet.
 
 ## Validation Policy
 
@@ -557,19 +572,21 @@ the entire fresh gate pass. The deadline and every resource guard are unchanged.
 
 ## Next Steps
 
-1. Retain the reviewed/tested rev-7 correction locally while the remaining
-   b133367 macOS observer job finishes; do not cancel the needed AQ evidence.
-2. Then publish the reviewed correction for fresh exact-tip CI and a newly
-   prepared complete gate, preserving every prior result and deadline.
+1. Publish the reviewed/tested rev-7 correction with queued tracking and freeze
+   the exact pushed tip during fresh native CI and complete-gate validation.
+2. Audit the new Windows lane/baseline, then run a newly prepared complete
+   gate, preserving every prior result and the deadline.
 3. Complete the fresh full gate and exact-tip CI, then accept the ADR, archive
    the terminal handoff, update ROADMAP/LOG and push a clean closure.
 4. Do not start S9 or #9 in this S8 dispatch.
 
 ## Blockers
 
-Native CI fails on the ordinary lock-path regression, two Windows fixture
-assumptions and the macOS AQ observer timeout. Fresh source approval/native
-evidence and a complete gate are still required; ADR-051 remains Proposed.
+Fresh exact-tip native CI and the complete fresh gate still block acceptance;
+ADR-051 remains Proposed. The earlier lock/Windows fixture corrections have
+native evidence, and b133367's macOS observers pass without changing AQ.
+Its root-inventory failure is corrected in reviewed/tested commit `15f071e`,
+but the new checkpoint still requires complete acceptance evidence.
 The deadline remains 2026-11-04T04:55:00Z; timer `roc-s8-deadline`.
 
 ## Context for Next Agent
@@ -580,7 +597,9 @@ under `bin/roc-s6-20261031/` and remote evidence under the authorized
 evidence directory or remove unrelated remote processes/data.
 Explicit file-path staging only, required Copilot trailer, no amend/reset/clean.
 Keep S0 goldens, nineteen accepted AR memo-lifetime insertions, assets, SPEC,
-CI/scripts, dependencies, research, frozen ADR index and v0.17.0 unchanged.
+existing CI commands/partitions/timeouts, scripts, dependencies, research,
+frozen ADR index and v0.17.0 unchanged. The dedicated Windows S8 lane is the
+explicitly authorized CI exception, not permission to change existing lanes.
 Reviewed test-provenance amendments use CurrentSHA256 while preserving the
 original SHA256/History/FreezeCurrent. Record any strictly necessary scope
 addition before changing it; S8 may use shared publication/generation APIs,

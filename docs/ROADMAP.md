@@ -1772,6 +1772,11 @@ Native b133367 Windows proves all 26 required markers, 52 S8 passes and zero
 S8 skips; its 224-failure baseline and known panic are unchanged. Linux observers
 pass. Keep the correction local until macOS observer/AQ evidence finishes,
 then require fresh exact-tip CI and a complete fresh gate before acceptance.
+macOS observer job 126274474424 subsequently PASSED at 23:59:01Z, including
+unchanged AQ; its earlier timeout cause remains unproven. The reviewed
+correction is committed at `15f071e`. Publish it with queued tracking for
+fresh exact-tip native CI and a new complete gate; both older preparations
+remain unrun. Source approval is not S8 acceptance; the deadline is unchanged.
 
 ### GH #13 — ✅ S7 ACCEPTED — CLI — 2026-11-03
 

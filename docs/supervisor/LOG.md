@@ -1,3 +1,27 @@
+## S8 rev-7 Ready for Fresh Acceptance Validation — 2026-11-04
+
+The remaining b133367 macOS observer job **126274474424** completed
+successfully at **2026-11-03T23:59:01Z**, including the unchanged AQ selector.
+Its raw log SHA256 is
+`d0249953e4cef3b310b1e10e25c1bb5265974c1d07d0af870f27783c5bf13dd3`.
+Both observer jobs and the dedicated native Windows evidence now pass.
+The earlier AQ timeout's cause remains unproven; no timeout, partition,
+memo-lifetime insertion or resource guard was changed to obtain this result.
+Overall b133367 CI remains failed by the known Linux/macOS root inventory.
+
+The reviewed and guarded-tested correction is committed at **15f071e**.
+**Decision**: publish it with queued tracking, then freeze the new exact
+origin tip for fresh native CI and a new isolated complete gate. Audit the
+new Windows lane/baseline first; the gate may then overlap remaining GitHub
+jobs on their separate hosts. Earlier native/partial passes are diagnostic,
+not reused acceptance evidence. The two older full-gate preparations remain
+unrun and preserved.
+
+CURRENT's canonical APPROVED token means **source-approved validation
+checkpoint only**, not S8 acceptance; ADR-051 remains Proposed. All native
+requirements and the fresh 42-command/39-test gate must pass before closure.
+The deadline remains 2026-11-04T04:55:00Z; no S9, release or #9.
+
 ## S8 rev-7 Guarded Checks Passed; Native Windows Evidence Verified — 2026-11-03
 
 All five rev-7 guarded commands pass: both formatting checks, the full CLI
