@@ -1,3 +1,67 @@
+## Review — gh9-nested-repo-sentinel — 2026-11-04
+
+**Reviewer**: independent code-review agent (OpenAI `gpt-6.1-sol`), read-only;
+Go validation run separately under the guarded old-Mac protocol.
+**Task**: GH #9 — wave-close `[2/8]` must see source inside untracked nested
+Git repositories (WAVE_BASE `064bc38`).
+
+### Checklist
+- [x] Compiles — `go build ./cmd/tpatch` PASS (guarded `rev1`)
+- [x] Tests pass — focused GH9/S7/ROC tests PASS (guarded `rev1`); full
+  shards pending in the old-Mac gate
+- [x] Formatted — `gofmt -l .` empty, no formatter changes
+- [x] Artifacts deterministic — no `.tpatch/` change; `LC_ALL=C` merge
+- [x] Secrets safe
+- [x] Matches SPEC — process tooling only; no CLI contract change
+- [x] Handoff accurate — CURRENT.md decisions GH9-D1…D11
+
+### Verdict: APPROVED
+
+### Notes
+Round 1: NEEDS REVISION, one MEDIUM finding (R1): an untracked nested
+repository under a source pathspec is also reported by Git as the opaque
+record `internal/repo/`; the merge kept it, so allowlisting or ignoring the
+files inside still WARNed. Fixed forward (GH9-D11): inspected boundary
+records, plain or C-quoted, are dropped before nested files merge; five new
+fixtures and three mutations. Round 2 (delta): APPROVED, no findings.
+Separately, the supervisor's own `rev0` run caught a vacuous mutation guard
+(`git-dir-prune-removed`: Git skips `.git` components in `--index-info` with
+a stderr warning); fixed by an empty-stderr requirement on answered runs and
+an unreadable-directory fixture inside the nested `.git`. Guarded `rev1`:
+all 20 cases, 14 script and 4 wiring mutations, the frozen GH #13 fence and
+its sensitivity test, vet and build PASS.
+
+### Action Taken
+Commit and push the source with Cluster state APPROVED; GH #9 stays OPEN
+until native CI and the fresh guarded old-Mac full gate pass.
+
+## GH #9 Implemented — Focused Validation — 2026-11-04
+
+**Implementation**: `[2/8]` moved into the POSIX-sh
+`scripts/wave-close-untracked-sentinel.sh` (pathspecs stay in the Makefile;
+exit 0 OK / 3 WARN / other FAIL). Files inside untracked nested repositories
+are listed with `.git` pruned and classified through a throwaway index with
+the parent's ignore rules and Git pathspec matching (GH9-D2/D3/D8). Silent
+Git failures and ambiguous names now fail closed (GH9-D4); allowlist entries
+are never shell-globbed (GH9-D5).
+
+**Pre-existing blocker found**: the closed GH #13 ROC stage fence diffed the
+live tree, so it would reject any post-GH #13 change. Frozen to
+`bbb7a43..064bc38` with an ancestry anchor and a sensitivity test
+(GH9-D9). Alternatives and the remaining decisions (D6 Windows skip, D7 no
+CHANGELOG, D10 no ADR) are recorded in CURRENT.md.
+
+**Evidence so far**: reproduction (old `OK` with nested source present);
+differential old-vs-new byte-identical except the reproduction; shellcheck
+clean (`sh`, `dash`); shell fixture matrix identical under `sh` and `dash`.
+Guarded old-Mac focused checks `rev0`: gofmt clean, S7 guards and the 14
+sentinel cases PASS, but the `git-dir-prune-removed` mutation survived
+(Git skips `.git` paths in `--index-info` with a stderr warning; the harness
+compared stdout only). Fixed forward in rev1 (stderr must be empty on
+OK/WARN; unreadable-directory fixture inside the nested `.git`; newline-scan
+prune now guarded); every mutation re-verified at shell level under `sh`,
+`dash` and Git 2.50.1/2.55.0 before the next guarded Go run.
+
 ## GH #9 Dispatched — 12-Hour Window — 2026-11-04
 
 **Authorization**: operator approved a 12-hour GH #9 window starting

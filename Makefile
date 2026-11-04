@@ -61,6 +61,13 @@ all: fmt lint test build
 # consecutive clusters (C, D, E) surfaced the same known WIP files
 # as WARN every run, training reviewers to skim past the sentinel.
 # Residual (non-allowlisted) untracked files still WARN as before.
+# GH #9 (2026-11-04): [2/8] lives in scripts/wave-close-untracked-sentinel.sh
+# (pathspecs stay here as arguments). Git reports an untracked nested
+# repository as one opaque `dir/` entry, so the script also lists files
+# inside such repositories without descending into `.git`, applies the
+# parent's ignore rules and the same pathspec/allowlist matching, and fails
+# closed (instead of reading as clean) when Git or enumeration fails.
+# Exit status: 0 OK, 3 WARN, anything else FAIL.
 wave-close-test-shards:
 	@sh scripts/wave-close-test-shards.sh
 
@@ -77,37 +84,13 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[2/8] Untracked source-code files (forgotten \`git add\` sentinel)..."; \
-	untracked_src=$$(git ls-files --others --exclude-standard -- '*.go' 'internal/**' 'cmd/**' 'assets/**' 'scripts/**' 'docs/*.md' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' '.wave-close-allowlist' 2>/dev/null); \
-	if [ -n "$$untracked_src" ]; then \
-		allowlist_file=".wave-close-allowlist"; \
-		allow_patterns=""; \
-		if [ -f "$$allowlist_file" ]; then \
-			allow_patterns=$$(sed -e 's/#.*//' -e 's/[[:space:]]*$$//' "$$allowlist_file" | sed -e '/^[[:space:]]*$$/d'); \
-		fi; \
-		allow_expanded=""; \
-		if [ -n "$$allow_patterns" ]; then \
-			allow_expanded=$$(git ls-files --others --exclude-standard -- $$allow_patterns 2>/dev/null); \
-		fi; \
-		if [ -n "$$allow_expanded" ]; then \
-			allow_tmp=$$(mktemp); \
-			printf '%s\n' "$$allow_expanded" > "$$allow_tmp"; \
-			residual=$$(printf '%s\n' "$$untracked_src" | grep -Fxvf "$$allow_tmp") || true; \
-			allowed_count=$$(printf '%s\n' "$$untracked_src" | grep -Fxf "$$allow_tmp" | wc -l | tr -d ' '); \
-			rm -f "$$allow_tmp"; \
-		else \
-			residual="$$untracked_src"; \
-			allowed_count=0; \
-		fi; \
-		if [ -z "$$residual" ]; then \
-			echo "  OK ($$allowed_count entries allowlisted)"; \
-		else \
-			residual_count=$$(printf '%s\n' "$$residual" | wc -l | tr -d ' '); \
-			echo "  WARN: $$residual_count untracked files not in allowlist ($$allowed_count allowlisted):"; \
-			printf '%s\n' "$$residual" | sed 's/^/    /'; \
-			warn=1; \
-		fi; \
-	else \
-		echo "  OK"; \
+	sh scripts/wave-close-untracked-sentinel.sh '*.go' 'internal/**' 'cmd/**' 'assets/**' 'scripts/**' 'docs/*.md' 'docs/adrs/*.md' 'docs/prds/*.md' 'docs/milestones/*.md' 'docs/whitepapers/*.md' 'docs/state-of-the-art/**' 'Makefile' 'go.mod' 'go.sum' 'AGENTS.md' 'SPEC.md' 'CLAUDE.md' '.wave-close-allowlist'; \
+	sentinel_status=$$?; \
+	if [ "$$sentinel_status" -eq 3 ]; then \
+		warn=1; \
+	elif [ "$$sentinel_status" -ne 0 ]; then \
+		echo "  FAIL: untracked-source sentinel exited $$sentinel_status"; \
+		fail=1; \
 	fi; \
 	echo "[3/8] HEAD pushed to origin/main..."; \
 	if ! git fetch --quiet origin main 2>/dev/null; then \

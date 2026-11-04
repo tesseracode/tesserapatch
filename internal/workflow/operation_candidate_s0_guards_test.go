@@ -7,7 +7,9 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -576,9 +578,87 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 	rocS0AssertChangedPaths(t, rocS0ValidateCaptureChangedPaths, rocS0ValidateMemoScopeChange)
 }
 
+// GH #13 closed at rocClosureCommit, the post-v0.18.0 backlog reconciliation
+// and the last commit before an unrelated cluster (GH #9) dispatched. Its
+// stage fence is therefore a frozen record of rocS0Baseline..rocClosureCommit:
+// it still proves the whole cluster stayed inside the registered S0-S9
+// surfaces without fencing later, unrelated work (decision GH9-D9).
+const (
+	rocClosureCommit    = "064bc381dedd07fb2125ef1a75e639c01a841555"
+	rocS9TerminalCommit = "5133c950161efd6d4ba2ace1f51fb78f8d54832e"
+)
+
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS9ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	root := rgaS0RepoRoot(t)
+	if err := rocValidateClosureAnchor(root, rocClosureCommit); err != nil {
+		t.Fatal(err)
+	}
+	paths := rocClosedStagePaths(t, root, rocClosureCommit)
+	if err := rocValidateClosedStage(t, root, rocClosureCommit, paths); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func rocClosedStagePaths(t *testing.T, root, closure string) []string {
+	t.Helper()
+	return strings.Split(git(t, root, "diff", "--no-renames", "--name-only", rocS0Baseline, closure, "--"), "\n")
+}
+
+func rocValidateClosedStage(t *testing.T, root, closure string, paths []string) error {
+	t.Helper()
+	var ordinary []string
+	for _, path := range paths {
+		if path != rocS0MemoScopeFile {
+			ordinary = append(ordinary, path)
+			continue
+		}
+		before := gitOutput(t, root, "show", rocS0Baseline+":"+path)
+		after := gitOutput(t, root, "show", closure+":"+path)
+		if err := rocS1ValidateMemoScopeChange(before, after); err != nil {
+			return err
+		}
+	}
+	return rocS9ValidateStageChangedPaths(ordinary)
+}
+
+// rocValidateClosureAnchor requires the frozen record to contain the S9
+// terminal commit and to belong to the checked-out history.
+func rocValidateClosureAnchor(root, closure string) error {
+	for _, pair := range [][2]string{{rocS9TerminalCommit, closure}, {closure, "HEAD"}} {
+		cmd := exec.Command("git", "merge-base", "--is-ancestor", pair[0], pair[1])
+		cmd.Dir = root
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("GH #13 closure %s: %s is not an ancestor of %s: %v %s",
+				closure, pair[0], pair[1], err, output)
+		}
+	}
+	return nil
+}
+
+func TestROCS0ClosedStageScopeSensitivity(t *testing.T) {
+	root := rgaS0RepoRoot(t)
+	paths := rocClosedStagePaths(t, root, rocClosureCommit)
+	if len(paths) < 2 {
+		t.Fatalf("frozen GH #13 stage record is empty: %q", paths)
+	}
+	for _, extra := range []string{
+		"Makefile",
+		"scripts/wave-close-untracked-sentinel.sh",
+		"internal/cli/wave_close_sentinel_test.go",
+	} {
+		if err := rocValidateClosedStage(t, root, rocClosureCommit, append(slices.Clone(paths), extra)); err == nil {
+			t.Fatalf("frozen GH #13 stage record accepted the unregistered surface %s", extra)
+		}
+	}
+	for _, closure := range []string{
+		rocS0Baseline,
+		"c18f02545ec11ac7e8653ab8e8814ce9e0758a68", // S9 before its terminal fix
+	} {
+		if err := rocValidateClosureAnchor(root, closure); err == nil {
+			t.Fatalf("closure anchor accepted %s, which truncates the GH #13 record", closure)
+		}
+	}
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

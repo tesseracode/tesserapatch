@@ -5,6 +5,8 @@
 # line ignored); blank lines are ignored. Entries are matched against
 # `git ls-files --others --exclude-standard` output, so glob patterns
 # (`*`, `?`, `[...]`) are expanded the same way git pathspecs are.
+# Files inside untracked nested repositories (GH #9) are matched with the
+# same pathspec semantics, e.g. `scratch-review/repo/**`.
 #
 # Growth of this file is a reviewer scope-check item (AGENTS.md ->
 # Wave-Close Checklist): each entry should have an operator

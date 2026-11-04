@@ -2,20 +2,23 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**GH #9 implementation window open.** The operator approved a 12-hour window
-on 2026-11-04 for GH #9 (wave-close sentinel misses source inside nested
-repositories), with an optional read-only v0.18 reproduction of GH #25/#26
-only if GH #9 is complete and time remains. GH #13 is CLOSED/completed and
-v0.18.0 is published; neither is reopened by this window.
+**GH #9 implemented and review-APPROVED; validation pending.** The
+independent review (OpenAI model) approved the change after one MEDIUM
+finding was fixed forward, and the guarded old-Mac focused checks (`rev1`)
+passed. This commit is the candidate for native CI and the fresh guarded
+old-Mac full gate; GH #9 stays OPEN until both pass. The operator approved a
+12-hour window on 2026-11-04, with an optional read-only v0.18 reproduction
+of GH #25/#26 only if GH #9 is complete and time remains. GH #13 is
+CLOSED/completed and v0.18.0 is published; neither is reopened by this window.
 
 ## Active Task
 
 - **Task ID**: `gh9-nested-repo-sentinel`
 - **Milestone**: Post-v0.18 reliability — GH #9
 - **Description**: Make wave-close `[2/8]` see source files inside untracked nested Git repositories, preserving allowlist behavior, never descending into `.git/`, with a failure-proving fixture
-- **Status**: In progress — dispatched; reproduction and implementation next
+- **Status**: Review APPROVED; focused checks PASS — native CI and fresh old-Mac full gate pending
 - **Assigned**: 2026-11-04
 - **Window**: 2026-11-04T16:16:08Z → **2026-11-05T04:16:08Z** (12 hours, operator-approved; no silent extension)
 - **WAVE_BASE**: `064bc381dedd07fb2125ef1a75e639c01a841555`
@@ -35,6 +38,75 @@ latest release. Out of scope: GH #17, migration/coverage contracts
   source health is therefore taken from 41844293141; the capacity-cancelled
   run is not re-run, and this dispatch push supersedes it. GH #9's own source
   commit must still receive a complete five-job native CI pass.
+- **GH9-D2 — `[2/8]` moves into `scripts/wave-close-untracked-sentinel.sh`;
+  the 18 source pathspecs stay in the Makefile as arguments.** The fix needs
+  temp files, loops and status checks that do not fit a `\`-continued recipe.
+  Keeping the pathspecs in the Makefile preserves the S7 shard-parity guard
+  (`'scripts/**'` exactly once, no recursive `$(MAKE)`). Exit contract:
+  0 OK, 3 WARN, anything else FAIL (the Makefile maps 3 to `warn=1` and any
+  other non-zero status to an explicit FAIL line plus `fail=1`).
+- **GH9-D3 — Transparent-boundary supplement, not a per-boundary WARN.**
+  Alternatives considered: (a) WARN on every untracked nested repository
+  boundary — rejected, it fires on harmless scratch clones and cannot be
+  allowlisted per file; (b) run `git ls-files` inside each nested repository —
+  rejected, it executes the nested repository's config/hooks/fsmonitor and
+  applies the wrong ignore rules. Chosen: list files inside each boundary with
+  `find`, pruning every `.git` entry (Git never runs inside the nested
+  repository and its internals are never read), load the paths into a
+  throwaway index and let the parent's exclude rules (including `.gitignore`
+  files on the path) and Git's own pathspec matcher classify them, exactly as
+  if the nested `.git` were absent. Top-level output is unchanged for
+  checkouts without untracked nested repositories; nested matches are merged
+  with `LC_ALL=C sort -u` only when present (differential old-vs-new run:
+  byte-identical on every fixture without a nested repository).
+- **GH9-D4 — Fail closed.** The old recipe's `2>/dev/null` turned Git errors
+  into a false `OK`. Git failures, rejected allowlist patterns, a non-top-level
+  working directory, quoted (control-character/quote/backslash) boundary
+  names and file names containing newlines now FAIL.
+- **GH9-D5 — Allowlist entries are Git pathspecs, never shell globs.**
+  `set -f` before the unquoted `$allow_patterns` expansion. Previously a
+  pattern such as `*.go` was also shell-globbed against the cwd. No live
+  impact: the allowlist has zero entries.
+- **GH9-D6 — The new Go tests skip on Windows.** `wave-close-check` is a
+  POSIX make/sh gate that never runs on Windows; skipping keeps the GH #17
+  known-red Windows failure-identity set unchanged.
+- **GH9-D7 — No CHANGELOG entry.** There is no Unreleased convention and
+  this is contributor process tooling, not shipped CLI behavior.
+- **GH9-D8 — Throwaway-index isolation.** The scratch index is invoked with
+  `core.splitIndex=false`, `core.fsmonitor=false` and
+  `core.untrackedCache=false`, so nothing is written beside the real index
+  and no watcher is consulted.
+- **GH9-D9 — Freeze the closed GH #13 stage fence at its closeout head.**
+  `TestROCS0NoProductionChanges` diffed the *live* tree against the ROC S0
+  baseline `bbb7a43` and rejected every path outside the GH #13 S0-S9
+  allowlists (which explicitly reject `Makefile` and `.wave-close-allowlist`),
+  so any post-GH #13 work — GH #9 included — could not land. Following the
+  PIB frozen-range precedent (`prepare_pib_golden_test.go`), the fence now
+  validates `bbb7a43..064bc38` (`rocClosureCommit`, the GH #13 closeout head
+  and this window's WAVE_BASE). At `064bc38` the live and frozen diffs are
+  identical, so the cluster's scope proof is unchanged. New
+  `TestROCS0ClosedStageScopeSensitivity` proves the frozen record still
+  rejects unregistered surfaces and that the anchor rejects closures that
+  truncate the record (`bbb7a43`, `c18f025`); the anchor also requires the
+  S9 terminal commit `5133c95` and ancestry to HEAD. The capture-mode check
+  (only under `TPATCH_UPDATE_ROC_S0_GOLDENS=1`, never set) and the
+  memo-scope file checks are untouched.
+- **GH9-D10 — No ADR.** Gate tooling changes have been documented in the
+  AGENTS.md "Mechanical gate" paragraph (allowlist 2026-08-05, sharding
+  2026-08-29); GH #9 follows that precedent, with the alternatives recorded
+  in GH9-D3.
+- **GH9-D11 — Opaque boundary records are replaced, not kept (review
+  finding R1, MEDIUM).** A nested repository under a source pathspec (e.g.
+  `internal/repo/`) is also reported by the top-level query as the opaque
+  record `internal/repo/`. Keeping that record meant allowlisting or ignoring
+  the real files still WARNed. Every inspected boundary record (plain
+  `dir/` or C-quoted `"dir/"`) is now dropped from the candidates before the
+  nested files are merged, matching GH9-D3's "as if `.git` were absent"
+  model. Consequences: directory-style allowlist entries written for the old
+  record (`internal/repo/`) still cover the files inside; an untracked nested
+  repository with no matching files no longer WARNs. The allowlist side is
+  deliberately not filtered: `allowed` only filters `candidates`, so a stale
+  boundary entry there is inert, and a filter would be unguardable code.
 
 ## Session Summary
 
@@ -48,36 +120,92 @@ Dispatch baseline verified at 16:22:12Z: HEAD = origin/main = `064bc38`,
 clean tree, no stash, one worktree, no merge/rebase/cherry-pick/index lock,
 zero untracked files.
 
+Reproduced GH #9 in a scratch repository: the old `[2/8]` query printed
+`OK` while `scratch-review/repo/internal/example.go` sat inside an untracked
+nested repository (Git lists only `scratch-review/repo/`). Implemented the
+script-based sentinel (GH9-D2…D8), shellcheck-clean in `sh` and `dash`
+modes; the shell fixture matrix gives identical results under bash-as-sh
+and dash. A differential run of the old recipe (extracted from `064bc38`)
+against the new script was byte-identical for clean, several-files,
+partial/full/no-match allowlist and nested-under-pathspec fixtures; only the
+GH #9 reproduction changes (old `OK` → new WARN). Found and fixed the
+GH #13 live stage fence that would have rejected any post-GH #13 change
+(GH9-D9).
+
 ## Current State
 
-- GH #9: OPEN, in progress in this window.
+- GH #9: OPEN, implemented and review-APPROVED; native CI and full gate pending.
 - GH #13: CLOSED/completed; v0.18.0 (release 433986008) published, tag object
   `648afeeee5fcacffdf871177ad022406074b51c3` unchanged.
 - GH #17: OPEN; full Windows suite remains known-red; not in scope.
-- Current `[2/8]` (Makefile:79-110) enumerates candidates and allowlist
-  expansions only through `git ls-files --others`; Git reports an untracked
-  nested repository as one opaque `dir/` entry, so source inside it is invisible.
+- `[2/8]` now runs `sh scripts/wave-close-untracked-sentinel.sh <18 pathspecs>`;
+  source inside untracked nested repositories WARNs unless allowlisted.
 
 ## Files Changed
 
-Tracking only so far: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
-`docs/supervisor/LOG.md`.
+- `scripts/wave-close-untracked-sentinel.sh` (new) — the `[2/8]` sentinel.
+- `Makefile` — `[2/8]` calls the script and maps its exit status; GH #9 comment.
+- `internal/cli/wave_close_sentinel_test.go` (new) — 20 behavior cases,
+  14 script mutations, Makefile-recipe wiring with 4 mutations.
+- `internal/workflow/operation_candidate_s0_guards_test.go` — GH9-D9 frozen
+  GH #13 stage fence plus `TestROCS0ClosedStageScopeSensitivity`.
+- `AGENTS.md` — Mechanical gate paragraph: nested-repository supplement.
+- `.wave-close-allowlist` — header comment on nested-path matching (still
+  zero entries).
+- Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
 
 ## Test Results
 
-None yet for GH #9. All local/old-Mac Go and gofmt runs will use the accepted
-guarded wrappers (60 s normal-pressure admission, no new swap-outs,
-load1 <= 5, serial private Go 1.26.5 with the accepted environment).
+Shell-level (no Go): shellcheck `-s sh` and `-s dash` clean; fixture matrix
+under `sh` and `dash` as designed (evidence `bin/gh9-20261104/shell-matrix.txt`,
+`differential-old-vs-new.txt`). Guarded old-Mac focused run `rev0` (source `aa98763` + 6-file overlay):
+gofmt clean (no formatter changes); S7 shard-parity, CI-timeout and
+AR-claims guards PASS; `TestGH9WaveCloseUntrackedSentinel` 14/14 PASS;
+**`TestGH9WaveCloseUntrackedSentinelMutations/git-dir-prune-removed` FAIL**
+— the mutation survived. Root cause: `git update-index --index-info` does not
+reject `.git` path components, it skips them with an `Ignoring path` warning
+on stderr (Git 2.50.1 and 2.55.0 alike), and the harness compared stdout
+only, so the guard was vacuous. Fix (rev1): OK/WARN runs must have empty
+stderr, and a new `git-internals-never-traversed` fixture places an
+unreadable directory inside the nested `.git`, so any traversal of Git
+internals is a hard `find` error; a new mutation also covers the
+newline-scan `find` prune, which was previously unguarded. Because `rev0`
+ran `-failfast`, the remaining mutations had not executed: all 11 script
+mutations and 4 Makefile wiring mutations were then verified at shell level
+(no Go) under `sh` and `dash` locally and under `sh` with Git 2.50.1 on the
+old Mac. ROC workflow tests, vet and build did not run in `rev0`.
+
+Independent review (OpenAI `gpt-6.1-sol`, code-review agent): NEEDS
+REVISION with one MEDIUM finding (R1 → GH9-D11: opaque boundary records
+under a source pathspec survived allowlisting/ignoring of the files inside);
+fixed forward with 5 new fixtures and 3 new mutations; delta re-review
+**APPROVED**, no findings. Pre-Go shell harness after the fix: 17 replicated
+cases and 14/14 script mutations caught under `sh`/`dash` with Git 2.55.0
+and under `sh` with Apple Git 2.50.1.
+
+Guarded old-Mac focused run **`rev1` PASS** (17:05Z; source `aa98763` +
+6-file overlay, overlay sha256 `2601d638…`, files identical to this commit):
+gofmt clean (no formatter changes); `internal/cli` (no `-failfast`):
+`TestGH9WaveCloseUntrackedSentinel` 20/20, `…Mutations` 14/14,
+`…MakefileWiring` 4/4 mutations (the unreadable-directory fixture ran, not
+skipped), `TestS7WaveCloseShardParity`, `TestS7CIFullSuiteTimeoutGuard`,
+`TestS7ARPermanentBlockClaimsGuard` PASS; `internal/workflow`:
+`TestROCS0NoProductionChanges`, `TestROCS0ClosedStageScopeSensitivity`,
+`TestROCS0ScopeGuardSensitivity`, `TestROCS[2-9]ScopeTransition` PASS;
+`go vet ./...` and `go build ./cmd/tpatch` PASS; no blocked marker.
+Evidence archive `bin/gh9-20261104/rev1-evidence.tar.gz` (sha256
+`eb537483…`). All Go and gofmt runs use the accepted guarded wrappers (60 s
+normal-pressure admission, no new swap-outs, load1 <= 5, serial private Go
+1.26.5 with the accepted environment).
 
 ## Next Steps
 
-1. Reproduce the false-clean `[2/8]` result with a nested-repository fixture.
-2. Implement a filesystem-aware supplement that is deterministic, POSIX-sh,
-   allowlist-preserving and never descends into `.git/`.
-3. Add mutation-sensitive Go fixtures; guarded format/focused checks.
-4. Independent review (OpenAI model), then push, native CI and the fresh
-   guarded old-Mac `make wave-close-check WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`.
-5. Close GH #9 only after review, native CI and gate pass; then, time
+1. Push this commit; observe native CI (five required jobs).
+2. Fresh guarded old-Mac full gate at this commit:
+   `make wave-close-check WAVE_BASE=064bc381dedd07fb2125ef1a75e639c01a841555`
+   (fresh clone and caches; ~3h40m).
+3. Close GH #9 only after native CI and the gate pass; closeout tracking
+   (LOG, ROADMAP ✅, HISTORY archive, Cluster state SHIPPED). Then, time
    permitting, read-only GH #25/#26 reproduction on v0.18.
 
 ## Blockers
