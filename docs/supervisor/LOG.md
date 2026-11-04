@@ -1,3 +1,20 @@
+## v0.18.0 Annotated Tag Pushed / Release CI Dispatched — 2026-11-04
+
+At12:35Z, tracking-only consolidation
+`a14de672141dd243729805d6442a0577bea1383b` and annotated v0.18.0 were atomically
+pushed. Tag object `648afeeee5fcacffdf871177ad022406074b51c3` was created
+before pushing; both remote main and the peeled tag resolve to the expected
+commit. All19 accepted source hashes and exact HISTORY archive match.
+Only the four declared tracking paths changed; the commit has the required
+Copilot trailer.
+
+Main CI **41830644336** and tag/release CI **41830644313** are active at the
+exact consolidation SHA. Both observers use the unchanged16:20:23Z cutoff.
+**Action**: freeze origin/main and the immutable tag; commit progress locally
+without cancelling main CI. Verify required jobs, both tagged Unix version
+checks and automatic release publication before closing GH #13. No publication,
+issue closure or GH #9 start is claimed at dispatch.
+
 ## S9 Implementation Acceptance / Release Consolidation — 2026-11-04
 
 ### Verdict: APPROVED — S9 implementation ACCEPTED
