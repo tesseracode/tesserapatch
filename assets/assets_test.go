@@ -23,6 +23,12 @@ var requiredCommands = []string{
 	"tpatch record",
 	"tpatch land",
 	"tpatch reconcile",
+	"tpatch reconcile --candidate-diff",
+	"tpatch reconcile --accept-candidate",
+	"tpatch reconcile --reject-candidate",
+	"tpatch reconcile --clear-candidate-rejections",
+	"tpatch reconcile --resume-candidate-recovery",
+	"tpatch reconcile review list",
 	"tpatch reconcile audit-retirement",
 	"tpatch reconcile confirm-upstreamed",
 	"tpatch provider",
@@ -249,6 +255,9 @@ func TestSkillParityGuard(t *testing.T) {
 				}
 			}
 
+			if err := validateOperationCandidateSkill(content); err != nil {
+				t.Errorf("%s (%s) operation-candidate contract: %v", sf.name, sf.path, err)
+			}
 		})
 	}
 }

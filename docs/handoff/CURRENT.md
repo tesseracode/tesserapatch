@@ -2,16 +2,17 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **GH #13 S9 dispatched: docs, parity, downstream soak and release closeout.**
 S0-S8 are accepted. S8 closed durably at
 `faeedd38a7b1056945864b1964bc55632eae7416`; that commit's required CI
 41774958353 is successful. Its terminal handoff was already archived exactly
 in HISTORY under 2026-11-04T04:41:58Z and is not archived a second time.
-The revised 18-file S9 implementation is frozen, guarded formatting passed
-and independent rev-0 source review is APPROVED. The parent-only focused
-batch remains active; no runtime/full-gate/native pass or release is implied.
+The revised 18-file S9 implementation is frozen, independent rev-0 source
+review is APPROVED and all six guarded formatting/focused commands passed.
+This is the reviewed-source checkpoint for the fresh full gate, not final
+S9 acceptance. Complete full-gate/native CI and release remain pending.
 
 The operator authorized a ten-hour overnight window beginning
 **2026-11-04T06:20:23Z**, ending **2026-11-04T16:20:23Z**
@@ -35,7 +36,7 @@ The single clarification set explicitly authorizes:
 - **Task ID**: `implement-operation-replay-candidate-s9`
 - **Milestone**: GH #13 / ADR-037 / v0.18.0
 - **Description**: S9 docs, nine-region parity, frozen-fixture/adjacent-argument soak and fully validated GH #13 release closeout
-- **Status**: Independent source review APPROVED - guarded focused validation active
+- **Status**: Source APPROVED and focused validation passed - fresh full-gate/native acceptance pending
 - **Assigned**: 2026-11-04
 - **WAVE_BASE**: `faeedd38a7b1056945864b1964bc55632eae7416`
 - **Contract**: accepted PRD rev-7, section 6.0, S9 and ROC-001 through ROC-306; accepted S1-S8 ADRs
@@ -135,6 +136,26 @@ parser/predicates with genuinely newer-version controls, and unchanged
 protected boundaries. No significant finding. Returned metadata confirms
 the selected OpenAI model. Runtime, native CI and the fresh complete gate
 remain separate requirements, not implied by this verdict.
+
+At **2026-11-04T07:51:37Z** the parent audited the completed focused batch:
+all six formatting/test/vet/build commands pass with exact argument parity.
+The verbose logs contain 160 top-level PASS records and all 20 required
+exact markers for the new parity/scope/soak/suggested-command cases and
+current-release controls. Each command had a separate 61.2-second admission;
+all samples show normal pressure and zero new swap-outs. Maximum within-stage
+sampling gap is 2.134 seconds; all 312 sampled owned identities and the
+launcher have ended. No blocked marker remains. All 18 local/remote source
+hashes still match the independently reviewed formatted manifest.
+Evidence: `rev0-focused-audit.json` and `rev0-checks-evidence.tar.gz` under
+the ignored S9 directory. The archive SHA256 is
+`fe3906daa8abff8de8b02ac7cd24bfdc3207daa755fbbf6ba192cba637ce148f`.
+
+The canonical APPROVED field now records the independently approved,
+focused-tested source checkpoint required before the existing mechanical
+gate. It does not declare the remaining acceptance workload or release done.
+Publish this checkpoint, then keep origin frozen while the fresh 42-command
+gate and exact-tip native CI run. Any failure reopens review; do not tag,
+close GH #13 or dispatch GH #9 on focused evidence alone.
 
 ### Decisions for morning review
 
@@ -240,7 +261,13 @@ fixture path changed.
 - Guarded S9 formatting: **2/2 commands passed**, whole-repository output empty;
   normal pressure, zero new swap-outs and zero owned leftovers.
 - Independent rev-0 source review: **APPROVED**, no significant findings.
-- **S9 focused runtime tests: active; full gate and native CI: pending.**
+- Guarded focused batch: **4/4 commands passed** (assets; ROC0-9 workflow/CLI;
+  vet; build), **6/6 including formatting**. Exact command/source parity,
+  160 top-level PASS records and all 20 required exact markers verified.
+- Resource/process audit: pressure 1, zero new swap-outs, separate >=60-second
+  admissions, maximum sample gap 2.134 seconds, all 312 sampled identities
+  and launcher ended; no blocked marker.
+- **S9 fresh full gate and exact-tip native CI: pending.**
 
 Every local/old-Mac Go or gofmt invocation remains under the accepted wrapper:
 60 continuous seconds of normal OS pressure, no new swap-outs and load1 <=5;
@@ -265,9 +292,9 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 
 ## Next Steps
 
-1. Complete the guarded focused batch against the independently approved
-   frozen snapshot; any failure requires a scoped fix and re-review.
-2. Push the reviewed checkpoint, then run a fresh full gate and exact-tip native CI.
+1. Commit and push the exact independently approved, focused-tested checkpoint.
+2. Run a fresh full gate and exact-tip native CI; preserve first failure and
+   reopen review if a source correction is required.
 3. Accept/archive S9, push/tag/publish v0.18.0, verify release/CI and close GH #13.
 4. Reassess GH #9 against the remaining fixed window; either dispatch a separate
    fully budgeted wave or explicitly defer it. Stop before any unrelated issue.
@@ -275,8 +302,9 @@ its existing Go1.26.1 configuration; do not silently relabel it Go1.26.5.
 ## Blockers
 
 No known implementation blocker after the revised handback. Formatting,
-independent review, runtime/full-gate/native CI remain mandatory before
-acceptance. GH #17 remains known separate debt.
+independent source review and focused validation pass; the fresh complete
+gate and exact-tip native CI remain mandatory before acceptance.
+GH #17 remains known separate debt.
 
 ## Context for Next Agent
 

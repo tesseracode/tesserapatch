@@ -83,6 +83,40 @@ rejected as harder to inspect and aggregate. Embedding in `status.json` was
 rejected because current state and unbounded evidence history have different
 lifecycles.
 
+#### GH #13 / v0.18.0 amendment — verdict-bearing and supporting evidence
+
+ADR-037 D25 and ADR-049 refine D1/D3's one-attempt-per-verdict reading without
+changing schema 1, any enum or content-addressed append/no-op behavior.
+An invocation has **at most one verdict-bearing entry per phase**, not at most
+one line per phase. A verdict-bearing entry records that phase's observation,
+not necessarily the invocation's final outcome.
+
+The five existing supporting kinds keep their firing conditions and payloads:
+file-novelty and hunk-overlap are phase-3.5 diagnostics; path-restructure is
+phase-3.5 and blocked-only; blocked-classification is phase-4 and blocked-only;
+the confirmation gate's manual-review is phase-3.5 and upstreamed-only.
+There can be three supporting phase-3.5 entries beside its verdict-bearing
+entry, or one supporting phase-4 entry beside its verdict-bearing entry.
+Gate confirmation does not coexist with the blocked-only diagnostics.
+
+The authoritative all-present arm substitutes one new phase-2 attempt for the
+legacy derived attempt and pairs it with an invocation-local typed proof.
+Candidate-ready substitutes two ordered verdict-bearing attempts: phase-2
+`recipe-operation-match` / `still_needed` / `high`, then phase-4
+`forward-apply` / `blocked` / `low`. The overall answer is `still_needed`,
+so blocked-only supporting entries do not fire. Fallthrough appends its
+phase-2 observation directly and retains the terminal phase's derived entry.
+There is never both a staged and derived verdict for the same phase.
+
+`tpatch reconcile review list <slug>` labels the two classes separately and shows
+the latest invocation in phase order; `--all` labels historical append order.
+The revision JSON envelope is unchanged. Stored confidence, origin and hashes
+are observations, not a way to reconstruct confirmation authority. See
+`internal/workflow/operation_candidate_phase.go`
+(`evaluateReconcileOperationCandidate`), `reconcile.go`
+(`persistReconcileEvidence`, `applyUpstreamedConfirmationGate`), and
+`internal/cli/cobra.go` (`reconcileReviewCmd`).
+
 ### D2 — Evidence entries use per-line `schema_version: 1` and stable canonical JSON
 
 Every evidence line carries `schema_version: 1`. Writers emit lexicographically

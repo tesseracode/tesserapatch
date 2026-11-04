@@ -13,6 +13,8 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 )
 
+const rgaCurrentChangelogRelease = "0.18.0"
+
 // RGA-359 checks installed bytes and current public guidance with the same
 // validator used by the wrong-input cases below. Changelog releases older
 // than the selected contract are not current guidance; no other file is exempted.
@@ -50,7 +52,7 @@ func TestRecipeAuthorityPublicParity(t *testing.T) {
 
 func rgaValidatePublicSurface(path, body string) error {
 	if path == "CHANGELOG.md" {
-		current, err := rgaChangelogSection(body, "0.17.0")
+		current, err := rgaChangelogSection(body, rgaCurrentChangelogRelease)
 		if err != nil {
 			return err
 		}
@@ -531,7 +533,15 @@ func TestRecipeAuthorityEditorFailureDisclosureSensitivity(t *testing.T) {
 			if err := validate(good); err != nil {
 				t.Fatalf("actual disclosure baseline: %v", err)
 			}
-			spans := block.FindAllStringIndex(good, -1)
+			current := good
+			if surface == "CHANGELOG.md" {
+				var err error
+				current, err = rgaChangelogSection(good, rgaCurrentChangelogRelease)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			spans := block.FindAllStringIndex(current, -1)
 			if len(spans) != 1 {
 				t.Fatalf("want one editor disclosure mutation target, got %d", len(spans))
 			}
@@ -750,8 +760,8 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	good := string(raw)
-	const heading = "## v0.17.0 — 2026-09-20 — recipe generation authority"
-	boundary := strings.Index(good, "\n## v0.16.0 ")
+	const heading = "## v0.18.0 — 2026-11-04 — reviewed operation replay candidates"
+	boundary := strings.Index(good, "\n## v0.17.0 ")
 	if strings.Count(good, heading) != 1 || boundary < 0 {
 		t.Fatal("versioned mutation fixture must pin the actual current and historical headings")
 	}
@@ -761,7 +771,7 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		t.Fatalf("actual versioned baseline: %v", err)
 	}
 	for _, alternative := range []string{
-		"## v0.17.0", "## [0.17.0]", "## [v0.17.0] - 2026-09-19",
+		"## v0.18.0", "## [0.18.0]", "## [v0.18.0] - 2026-11-04",
 	} {
 		if err := validate(strings.Replace(good, heading, alternative, 1)); err != nil {
 			t.Fatalf("supported version heading %q: %v", alternative, err)
@@ -769,22 +779,22 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	}
 	for name, wrong := range map[string]string{
 		"missing-current":                 "# Changelog\n" + history,
-		"wrong-version":                   strings.Replace(good, heading, "## v0.16.9", 1),
-		"unreleased-only-is-not-v017":     strings.Replace(good, heading, "## Unreleased", 1),
+		"wrong-version":                   strings.Replace(good, heading, "## v0.17.9", 1),
+		"unreleased-only-is-not-v018":     strings.Replace(good, heading, "## Unreleased", 1),
 		"unexpected-unreleased-before":    strings.Replace(good, heading, "## Unreleased\n\n"+heading, 1),
 		"unexpected-unreleased-after":     good + "\n## Unreleased\n",
 		"duplicate-current":               current + "\n" + heading + "\n" + history,
-		"duplicate-current-after-history": good + "\n## [v0.17.0]\n",
-		"linked-current-after-history":    good + "\n## [v0.17.0](#release)\nCoverage is replay-safe.\n",
-		"unsupported-current-suffix":      good + "\n## v0.17.0-rc1\nCoverage is replay-safe.\n",
-		"newer-minor-false-history":       current + "\n## v0.18.0\nCoverage is replay-safe.\n" + history,
-		"newer-patch-false-history":       current + "\n## v0.17.1\nCoverage is replay-safe.\n" + history,
+		"duplicate-current-after-history": good + "\n## [v0.18.0]\n",
+		"linked-current-after-history":    good + "\n## [v0.18.0](#release)\nCoverage is replay-safe.\n",
+		"unsupported-current-suffix":      good + "\n## v0.18.0-rc1\nCoverage is replay-safe.\n",
+		"newer-minor-false-history":       current + "\n## v0.19.0\nCoverage is replay-safe.\n" + history,
+		"newer-patch-false-history":       current + "\n## v0.18.1\nCoverage is replay-safe.\n" + history,
 		"newer-major-false-history":       current + "\n## v1.0.0\nCoverage is replay-safe.\n" + history,
-		"newer-after-history":             good + "\n## v0.18.0\nCoverage is replay-safe.\n",
-		"linked-newer-after-history":      good + "\n## [v0.18.0](#release)\nCoverage is replay-safe.\n",
+		"newer-after-history":             good + "\n## v0.19.0\nCoverage is replay-safe.\n",
+		"linked-newer-after-history":      good + "\n## [v0.19.0](#release)\nCoverage is replay-safe.\n",
 		"numeric-version-overflow":        current + "\n## v999999999999999999999999.0.0\n" + history,
-		"equal-version-leading-zero":      good + "\n## v0.017.0\n",
-		"current-after-older-version":     strings.Replace(good, heading, "## v0.16.9\n\n"+heading, 1),
+		"equal-version-leading-zero":      good + "\n## v0.018.0\n",
+		"current-after-older-version":     strings.Replace(good, heading, "## v0.17.9\n\n"+heading, 1),
 		"unknown-current-boundary":        current + "\n## Release notes\nCoverage is replay-safe.\n" + history,
 		"fenced-current-heading":          strings.Replace(good, heading, "```markdown\n"+heading+"\n```", 1),
 	} {
@@ -797,11 +807,25 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	for name, addition := range map[string]string{
 		"versioned-replay-overclaim": "Coverage is replay-safe.",
 		"versioned-editor-overclaim": "tpatch edit exits zero even when the editor process fails.",
-		"fenced-false-history":       "```markdown\n## v0.16.0\nCoverage is replay-safe.\n```",
+		"fenced-false-history":       "```markdown\n## v0.17.0\nCoverage is replay-safe.\n```",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := validate(current + "\n\n" + addition + "\n" + history); err == nil {
 				t.Fatal("graduating the heading silently exempted the current contract")
+			}
+		})
+	}
+	for _, row := range []struct{ name, disclosure, code string }{
+		{"historical-authority-cannot-fill-current", "Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.", "missing necessary-not-sufficient disclaimer"},
+		{"historical-warning-cannot-fill-current", "A warn/exit0 coverage row is not eligibility and never grants replay permission.", "missing warning-not-eligibility disclaimer"},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			without := strings.Replace(current, row.disclosure, "", 1)
+			if without == current {
+				t.Fatal("current disclaimer mutation target absent")
+			}
+			if err := validate(without + history); err == nil || !strings.Contains(err.Error(), row.code) {
+				t.Fatalf("historical release supplied missing current authority disclaimer: %v", err)
 			}
 		})
 	}
@@ -818,7 +842,7 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	if err := validate(current + history + "\nCoverage is replay-safe.\n"); err != nil {
 		t.Fatalf("genuinely older release prose became current authority: %v", err)
 	}
-	for _, older := range []string{"0.16.99", "0.9.0", "0.0.0"} {
+	for _, older := range []string{"0.17.99", "0.16.99", "0.9.0", "0.0.0"} {
 		if err := validate(current + "\n## v" + older + "\nCoverage is replay-safe.\n"); err != nil {
 			t.Fatalf("numeric older-version boundary %s rejected: %v", older, err)
 		}

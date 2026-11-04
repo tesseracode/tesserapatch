@@ -1666,6 +1666,14 @@ The reviewer subsequently returned **rev-0 APPROVED (source only)** with no
 significant finding and all frozen/provenance boundaries retained. Parent
 focused validation is still active; fresh full-gate and native CI remain pending.
 
+**07:51Z focused close**: all six guarded formatting/test/vet/build commands
+passed with exact command parity and all 18 reviewed source hashes intact.
+Verified 160 top-level PASS records and 20 exact required markers; normal
+pressure, zero new swap-outs and no owned leftovers or blocked marker.
+S9's source checkpoint is APPROVED for publication and fresh full-gate/native
+validation, not yet accepted or released. Origin remains frozen during that
+acceptance run; no GH #9 dispatch on partial evidence.
+
 **Conditional next issue**: the operator approved GH #9, the nested-repository
 wave-close sentinel bug, only after GH #13 closure and passing CI, with enough
 time for a separate implementation/review/full-gate cycle. The last full gate

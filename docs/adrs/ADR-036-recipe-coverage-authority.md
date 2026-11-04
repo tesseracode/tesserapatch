@@ -2075,6 +2075,39 @@ The complete v0.17.0 producer inventory is:
 | P6 | `tpatch implement` — both arms of the `RunImplement` recipe parse (`internal/workflow/implement.go:192-195,209`) **and** a successful `implement --manual` checkpoint of an externally authored recipe (`internal/cli/cobra.go:744`, `internal/store/manual.go:51-80`) | `implement` | no | yes | no | publish coverage after the recipe and its provenance are published, at the common coverage-last point both parse arms reach; when no canonical patch exists, publish explicit incomplete coverage — never silent absence |
 | P7 | `tpatch edit` when the **resolved** artifact path is the canonical `artifacts/post-apply.patch` or `artifacts/apply-recipe.json` (`internal/cli/c1.go:33-44,64-95`) | `artifact-edit` | via the operator's editor | via the operator's editor | no | after the editor process returns — successfully or not — detect the bound mutation and either recompute coverage where that is truthful, or publish explicit incomplete coverage with `manual-bound-artifact-edit` |
 
+**GH #13 / v0.18.0 P3 amendment — two acceptance variants.**
+[ADR-037 D30](ADR-037-reconcile-operation-replay-candidate-authority.md) and
+[ADR-051 D3](ADR-051-operation-candidate-acceptance-recovery.md) extend P3,
+not the seven-producer registry or either v1 schema:
+
+- **`resolver-accept`** is the existing `--accept` / `--resolve --apply` path.
+  It preserves the recipe and republishes E then C. ADR-040 still governs
+  `producer-patch-rewrite` / `recipe-not-regenerated`; the pair is not added
+  merely because acceptance occurred.
+- **`operation-candidate-accept`** is explicit `--accept-candidate`.
+  Following fresh whole-candidate validation and CAS, it regenerates the
+  upstream-to-result residual patch and complete recipe, stages provenance and
+  an ADR-024 generation through the shared appender, and publishes through
+  `PublishCoverage` within the journaled acceptance transaction. Stored
+  `producer: reconcile-accept`, `capture.mode: reconcile` and `schema_version: 1`
+  remain unchanged. E is published before C, C last; `reference.kind: commit`,
+  its commit and the recomputed `preimage_set_sha256` bind the same immutable
+  upstream checked by CAS. Absorbed effects are not reintroduced.
+
+The variant names describe paths, not new persisted producer values.
+ADR-051's candidate-only same-patch exception appends a generation when the
+normalized base/recipe/capture/upper tuple changes; an unchanged tuple remains
+a no-op, and ordinary producers retain their existing behavior. Publication,
+artifact and state failures are non-zero, with journal/rollback recovery rather
+than success-shaped warnings. This is not a generic repair pass: incomplete
+P4-P7 inputs remain ineligible, and neither stored completeness nor a producer
+label authorizes replay.
+
+Implementation: `internal/workflow/operation_candidate_publication.go`
+(`operationCandidatePublication`), `recipe_coverage_publish.go`
+(`PublishCoverage`), `patch_generations.go`
+(`AppendPatchGenerationForFeature`).
+
 **P4 is a composite and owes publication per event, not per command.**
 `tpatch cycle` runs implement at step `[4/6]` (`internal/cli/phase2.go:112`)
 and captures the patch at step `[6/6]` (`internal/cli/phase2.go:166`). The

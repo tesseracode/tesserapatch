@@ -2,6 +2,63 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.18.0 — 2026-11-04 — reviewed operation replay candidates
+
+### Added
+
+- **Opt-in operation replay for reconcile (GH #13).** Set
+  `operation_candidate_enabled: true` in `.tpatch/config.yaml` (not
+  `tpatch config set`). Default-off behavior is preserved. Complete paired
+  recipe coverage and capture evidence are independently reconstructed against
+  immutable commits; stored completeness, confidence, labels and hashes do not
+  authorize replay or retirement.
+- Bounded, deletion-aware insertion alignment and safe regular-file creation,
+  with whole-effect validation and no-write idempotency checks. Intentional
+  upstream deletions stay deleted. Ambiguous, unsupported or unsafe effects
+  withhold the whole candidate and retain the existing fallback. Phase 2
+  remains offline and cannot preempt a provider answer or clean phase-4 reapply.
+  All-present confirmation requires the new invocation-local CG1-CG7 proof.
+- Deterministic isolated candidates with separate immutable audit metadata,
+  review diffs and lifecycle state. New reconcile terminal flags:
+  `--candidate-diff`, `--accept-candidate`, `--reject-candidate`,
+  `--clear-candidate-rejections`, and `--resume-candidate-recovery`, each taking
+  one slug. Explicit review/acceptance stays separate from resolver-shadow
+  acceptance. Reconcile review distinguishes verdict-bearing phase observations
+  from supporting evidence and the final outcome.
+- Journaled, rollback-capable acceptance with continuous feature/global locks,
+  fresh authority derivation, configured tests and exact bytes/native-mode/absence
+  CAS rechecked immediately before live writes. Upstream ancestry, not HEAD
+  equality, is required. Recovery is explicit and commit-marker-driven:
+  uncommitted transactions restore snapshots; committed ones finish cleanup.
+  No live index, refs, reflogs or Git history are rewritten.
+- Successful acceptance publishes the complete upstream-to-result residual
+  patch, regenerated recipe, provenance, generation and E-then-C pair through
+  the existing P3 publisher, rebinding the applied base without restoring absorbed
+  effects. Candidate-only identical-patch generations can append when normalized
+  base/recipe/capture/upper bindings differ; matching bindings remain no-op.
+  Ordinary producers and resolver recipe-preservation behavior are unchanged.
+- Public SPEC and all six embedded skills now describe the shipped contract,
+  with exact-region PRD/ADR parity guards and frozen adjacent-argument
+  downstream soak coverage.
+
+This is not generic history replay, automatic conflict acceptance, coverage
+repair, filesystem-wide atomicity or cross-host exclusion. Broader operation
+coverage remains GH #24 work. Native Windows candidate support does not resolve
+the separate known-red full-suite debt under GH #17. This source release adds
+no binary packaging infrastructure.
+
+### Unchanged safeguards
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally
+returns tpatch exit 1, not the editor's exact exit code.
+
 ## v0.17.0 — 2026-09-20 — recipe generation authority
 
 ### Added

@@ -138,6 +138,35 @@ V1 storage:
 
 ## 5. Implementation Notes
 
+### GH #13 / v0.18.0 authority amendment
+
+ADR-037 D2 and ADR-049 add exactly one automated confirming authority class.
+With `operation_candidate_enabled: true`, a fresh GH #13 evaluator proof must
+satisfy CG1-CG7: independently recomputed E1-E15; every canonical effect
+present at the immutable upstream; zero candidate operations, applicable or
+conflicting effects; and agreement with the single new phase-2 verdict-bearing
+entry's upstream origin, present pre-reconcile state and exact
+`[upstreamCommit]` reference. The typed proof is invocation-local and reaches
+the gate through `saveReconcileArtifacts`, never stored evidence or ambient
+state. Confidence, stored labels and hashes alone cannot confirm.
+
+This adds to, rather than weakens, the existing patch-id and high-confidence
+reverse-apply authorities. Legacy operation matches and provider claims do not
+gain authority; a failed confirming proof is still demoted to
+`blocked` / `rejected-upstreamed`. Ineligible opt-in operation evaluation falls
+through to later phases rather than retiring a feature. An operation replay
+candidate is a separate `still_needed` review object: explicit
+`tpatch reconcile --accept-candidate <slug>` applies it and leaves the feature
+`applied`, not `upstream_merged`. It is not a human retirement confirmation.
+The shipped human revision path is specified by
+[PRD-confirm-upstreamed-human-review-path](PRD-confirm-upstreamed-human-review-path.md);
+the proposed command sketches above are not additional CLI flags.
+
+Implementation: `internal/workflow/reconcile.go`
+(`applyUpstreamedConfirmationGate`) and
+`internal/workflow/operation_candidate_phase.go`
+(`evaluateReconcileOperationCandidate`, `qualifyingOperationAttempt`).
+
 - Patch-id matches auto-confirm when `matched_upstream_sha` is reachable from
   the target upstream range.
 - Patch-id matches require manual confirmation when reachability cannot be

@@ -133,9 +133,9 @@ feature B's buffer (PRD §7 D18).
 When upstream releases a new version, run `tpatch reconcile`. The 4-phase decision tree determines each feature's fate:
 
 1. **Reverse-apply** — Is the patch already in upstream? → UPSTREAMED
-2. **Operation-level** — Check individual recipe operations → partial detection
+2. **Operation-level** — Opt-in immutable effect proof: all-present confirms only with CG1-CG7; conflict/mix continue to later phases
 3. **Provider-assisted** — LLM semantic check → structural differences
-4. **Forward-apply** — Can the patch be re-applied? → REAPPLIED or BLOCKED
+4. **Forward-apply** — Clean → REAPPLIED; conflict → validated opt-in candidate for explicit acceptance, otherwise BLOCKED
 
 ## You Are the Provider
 
@@ -177,7 +177,7 @@ is proof by itself.
 |---|---|---|
 | P1 | `record` | `tpatch record <slug>` including `--auto`, `--from`/`--to`, `--staged`, `--unstaged`; `tpatch land <slug>` embeds P1, not a new producer. |
 | P2 | `feature-patch-amend` | `tpatch feature patch refresh <slug>` / `tpatch feature patch fixup <slug> --reason "..."`; non-empty same-patch checkpoint writes only E + C, not patch/recipe/provenance/generation/marker/state. Empty capture is no event. |
-| P3 | `reconcile-accept` | `tpatch reconcile --accept <slug>` (also `--resolve --apply` auto-accept) refreshes patch, preserves recipe and republishes the pair. |
+| P3 | `reconcile-accept` | Resolver `tpatch reconcile --accept <slug>` (also `--resolve --apply` auto-accept) refreshes patch, preserves recipe and republishes the pair. Operation `tpatch reconcile --accept-candidate <slug>` regenerates the complete residual recipe and publishes E then C under journaled acceptance. |
 | P4 | `cycle` | `tpatch cycle <slug>` patch-capture step; earlier implement is P6. Skipped/declined/empty patch steps owe no P4 event. |
 | P5 | `apply-done` | `tpatch apply <slug> --mode done` / auto apply's done step on patch write; state-selected canonical-patch reapply is separate, not a P5 write event. |
 | P6 | `implement` | `tpatch implement <slug>` provider/heuristic writes and successful `tpatch implement <slug> --manual` checkpoints; `no-capture`, including raw undecodable provider output as incomplete. |
@@ -229,8 +229,8 @@ not a complete-coverage example. All ten predicates must hold:
 
 `cross_base_status`: incomplete → `unsupported`; complete existing-file writes
 → `consumer-derivation-required`; complete exclusively empty-gated creations
-→ `reference-tree-only`. No GH #13 replay consumer or persisted anchors;
-broader operation coverage stays GH #24 work.
+→ `reference-tree-only`. GH #13 independently derives candidates under the opt-in
+below; no replay anchors are persisted. Broader operation coverage stays GH #24 work.
 
 **Readers:** verify's `recipe_generation_coverage` orders malformed C, then
 owner/raw-byte/reference/E binding failures (block/exit 2), then valid incomplete
@@ -347,6 +347,68 @@ Removing a feature with downstream dependents requires `--cascade`:
 - **`--force` alone never bypasses the dep-integrity gate** — it only suppresses the TTY confirm prompt (PRD §3.7, ADR-011 D7).
 
 Toggle the whole feature with `features_dependencies: true|false` in `.tpatch/config.yaml` (default `true` from v0.6.0).
+
+## Operation replay candidates (v0.18.0)
+
+`operation_candidate_enabled` is default off. Opt in with
+`operation_candidate_enabled: true` in `.tpatch/config.yaml`; omission or
+`false` disables derivation. This key is not supported by `tpatch config set`.
+Use `tpatch reconcile <slug> --upstream-ref <ref>` after the normal clean-tree
+preflight. Only single-slug `applied`/`blocked` features qualify, with complete
+paired capture/coverage, independently rederived immutable inputs and safe
+unambiguous insertions/creations. An unsupported effect withholds the whole
+candidate; upstream deletions stay deleted.
+
+With the opt-in enabled, phase 2 is not a shortcut around later phases:
+
+```text
+→ All already-present → UPSTREAMED only with CG1-CG7; otherwise confirmation gate → BLOCKED
+→ Any conflict → nonterminal phase-2 BLOCKED classification; continue phases 3 and 4
+→ Mix (present/applicable, at least one applicable) → nonterminal; candidate only after a phase-4 conflict
+```
+
+CG1-CG7 require a fresh invocation-local proof, independent E1-E15/effect
+recomputation and the exact qualifying upstream evidence entry.
+Stored labels, confidence and hashes are not replay or confirmation authority.
+Provider fallback remains available; `--resolve` suppresses candidate publication.
+A clean phase-4 reapply wins; live conflict markers still block.
+Candidate-ready means `still_needed`, not accepted or retired; State/Notes stay
+unchanged. Equal inputs reuse the same validated candidate. Generation performs
+structural and idempotency checks, not configured project tests.
+
+| Action | Exact command |
+|---|---|
+| Review diff | `tpatch reconcile --candidate-diff <slug>` |
+| Explicitly accept | `tpatch reconcile --accept-candidate <slug>` |
+| Reject and prune | `tpatch reconcile --reject-candidate <slug>` |
+| Clear rejected IDs | `tpatch reconcile --clear-candidate-rejections <slug>` |
+| Explicit recovery | `tpatch reconcile --resume-candidate-recovery <slug>` |
+
+Review the diff and intent before explicit acceptance; there is no candidate
+auto-accept. Each flag takes the slug as its value, with no positional slug.
+Only `--path` and `--format human|json` may accompany it; `--help` remains help.
+Other reconcile flags are mutually exclusive with these actions.
+Resolver `--accept`, `--reject`, `--shadow-diff` are not candidate aliases;
+accept or reject a pending candidate before using the resolver.
+`tpatch reconcile review list <slug>` separates phase-local verdict-bearing
+evidence from supporting diagnostics and the returned outcome.
+
+Acceptance rederives/rematerializes under feature-then-global locks and runs
+configured `test_command` tests in the candidate before rechecking bindings.
+It requires upstream ancestry, not HEAD equality, plus exact path bytes/native
+modes/absence CAS, repeated immediately before the first live write. It publishes
+the residual patch, regenerated recipe, provenance, generation and complete E/C
+(E before C, C last), then records the upstream base and `applied` state.
+No live index, refs or reflogs are rewritten; no commit, rebase or history rewrite.
+It neither applies the textual patch to live files nor copies a resolver shadow.
+
+Acceptance is journaled and rollback-capable, not filesystem-wide atomic or
+cross-host exclusion. `recovery-required` blocks ordinary actions until explicit
+recovery: no commit marker restores snapshots/absences and prior Apply/State to
+pending; a committed marker permits cleanup only. A late CAS refusal preserves
+the foreign edit and journal. Never delete recovery evidence to bypass the gate.
+Terminal exits: 0 completed; 2 validation/CAS/binding/test refusal; 3
+state/lock/recovery refusal or completed rollback; 1 internal/failed rollback.
 
 ## Reconcile Phase 3.5 — Provider-assisted conflict resolution (v0.5.0)
 

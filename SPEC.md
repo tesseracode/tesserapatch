@@ -84,6 +84,11 @@ of scope; see `docs/adrs/ADR-031-rejected-feature-state-data-model.md` D6.
 | `tpatch feature intent-archive purge <slug> <selector> [--yes] [--json] [--quiet] [--path]` | Preview or perform bounded archive retention cleanup |
 | `tpatch record <slug> [--path]` | Capture patches (tracked + untracked files) |
 | `tpatch reconcile [--upstream-ref] [slug...] [--path]` | Reconcile features against upstream |
+| `tpatch reconcile --candidate-diff <slug> [--format human\|json] [--path]` | Review a pending operation candidate without accepting it |
+| `tpatch reconcile --accept-candidate <slug> [--format human\|json] [--path]` | Explicitly validate and accept an operation candidate |
+| `tpatch reconcile --reject-candidate <slug> [--format human\|json] [--path]` | Reject the candidate identity and prune its worktree |
+| `tpatch reconcile --clear-candidate-rejections <slug> [--format human\|json] [--path]` | Clear this feature's rejected candidate IDs |
+| `tpatch reconcile --resume-candidate-recovery <slug> [--format human\|json] [--path]` | Explicitly recover an interrupted candidate acceptance |
 | `tpatch reconcile audit-retirement <slug> [--json] [--path]` | Read-only audit of retired feature dependency metadata |
 | `tpatch reconcile confirm-upstreamed <slug> [--json\|--format json] [--path]` | Confirm an upstreamed reconcile outcome and auto-run retirement cleanup audit |
 | `tpatch provider check [--path]` | Validate provider endpoint |
@@ -417,14 +422,28 @@ the tracked tree, under `.tpatch/local/resource-scratch/<slug>/`: a
 persistent zero-length `.lock` file plus one `es_<12hex>/` directory per
 in-flight invocation. Nothing captured is ever written there.
 
+Operation candidates use a separate namespace:
+`.tpatch/reconcile-candidates/<slug>/<candidate_id>/`. Immutable `candidate.json`
+binds the source feature state, immutable commits, input digests, complete effect
+map and structural result; `candidate.patch` is the upstream-to-candidate review
+diff. Mutable `state.json` records `pending`, `stale`, `rejected` or `accepted`,
+separately from the feature lifecycle. `worktree/` is disposable; the audit
+metadata and diff survive pruning. `status.json:reconcile.operation_candidate`
+points to the pending candidate and survives unrelated reconciles.
+`rejected.jsonl` lives at `.tpatch/reconcile-candidates/<slug>/`.
+During acceptance the candidate directory also holds `staged/`, `snapshots/`
+and `accept-journal.json`; their presence is recovery evidence, not permission
+to bypass validation. No artifact persists executable offsets or replay anchors.
+
 #### Recipe generation authority (GH #15; v0.17.0)
 
 `artifacts/post-apply.patch` remains the canonical feature diff.
 `apply-recipe.json` is an executable plan, not a replacement for that diff.
 Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
 A warn/exit0 coverage row is not eligibility and never grants replay permission.
-GH #13's new reconcile operation-replay consumer belongs to a future,
-separate release; GH #15 neither implements it nor persists replay anchors.
+GH #13's opt-in operation-replay consumer is specified in §7. It independently
+reconstructs eligibility and replay authority; GH #15 coverage alone grants
+neither, and neither feature persists replay anchors.
 Landing trailers, verification attestation and dependency gates remain
 independent. No recipe-schema or landing-trailer change is introduced.
 
@@ -441,7 +460,7 @@ invocation alone is not an event.
 |---|---|---|---|
 | P1 | `record`; the embedded record step of `land` | `record` | Selected record mode: `working-tree-all`, `staged-index`, `unstaged-worktree`, `committed-range`, `auto-committed-range`, or `explicit-committed-range`. Derives a recipe when authorized and fully representable. `land` adds no producer or second publication; `land --no-record` skips P1. |
 | P2 | `feature patch refresh <slug>`; `feature patch fixup <slug> --reason <reason>` | `feature-patch-amend` | `working-tree-all`. Patch writes use non-regenerating autogen. A non-empty capture matching the latest generation still republishes evidence/coverage, without patch, recipe, provenance, generation or state writes. |
-| P3 | `reconcile --accept <slug>`; auto-accept via `reconcile --resolve --apply <slug>` | `reconcile-accept` | `reconcile`. Refresh writes the canonical patch against the accepted upstream commit and preserves the recipe. Publication is owed even for identical or empty refreshed patch bytes, whether or not a generation is appended. |
+| P3 | Resolver: `reconcile --accept <slug>` or `reconcile --resolve --apply <slug>`; operation candidate: `reconcile --accept-candidate <slug>` | `reconcile-accept` | `reconcile`. Resolver acceptance preserves the recipe and republishes even for identical/empty refreshed patch bytes. Operation-candidate acceptance regenerates the complete residual recipe, stages its generation and publishes E then C inside the journaled transaction (§7). |
 | P4 | `cycle`'s non-empty patch-capture step | `cycle` | `working-tree-all`. No recipe regeneration here. The earlier implement step is P6; `--skip-execute` or declining subsequent prompts leaves that P6 publication, not an unfulfilled P4 event. |
 | P5 | `apply --mode done`'s non-empty patch write | `apply-done` | `working-tree-all`. Preserves the recipe. The state-selected canonical-patch reapply branch writes no bound artifact and owes no P5 publication. |
 | P6 | `implement` provider/heuristic recipe writes; `implement --manual` checkpoint | `implement` | `no-capture`, empty selectors, unavailable reference. Publishes incomplete coverage, including when no canonical patch exists. A successful raw undecodable response write also binds its exact bytes and reports `recipe-undecodable`. |
@@ -679,10 +698,10 @@ Phase 1: Reverse-Apply Check (fast, free)
     → If patch already present in upstream → UPSTREAMED
 
 Phase 2: Operation-Level Evaluation (deterministic, no LLM)
-    → If apply-recipe.json exists, evaluate each operation individually
-    → All already-present → UPSTREAMED
-    → Any conflict → BLOCKED
-    → Mix → STILL-NEEDED
+    → Opt-in: independently validate E1-E15 and classify canonical effects at resolved upstream
+    → All already-present → UPSTREAMED only with CG1-CG7; otherwise confirmation gate → BLOCKED
+    → Any conflict → nonterminal phase-2 BLOCKED classification; continue phases 3 and 4
+    → Mix (present/applicable, at least one applicable) → nonterminal; candidate only after a phase-4 conflict
 
 Phase 3: Provider-Assisted Semantic Check (when Phase 1-2 inconclusive)
     → Send acceptance criteria + upstream diff to LLM
@@ -691,8 +710,115 @@ Phase 3: Provider-Assisted Semantic Check (when Phase 1-2 inconclusive)
 Phase 4: Forward-Apply Attempt (safety net)
     → Try git apply on new upstream
     → Clean → REAPPLIED
-    → Conflicts → BLOCKED
+    → Conflicts → validated operation candidate (STILL-NEEDED), otherwise BLOCKED
 ```
+
+#### Operation replay candidates (GH #13; v0.18.0)
+
+**Default off.** Set `operation_candidate_enabled: true` directly in
+`.tpatch/config.yaml` to opt in; omission or `false` disables derivation.
+`tpatch config set` does not expose this key. Gate-off reconciliation retains
+the legacy evaluator and confirmation behavior, including demotion of an
+unproven operation match. Existing phase-1 and optional phase-1.5 fast paths
+still run first.
+
+The opt-in evaluator reads one resolved upstream commit, not live worktree
+content. E1-E15 independently validate the strict complete coverage/capture-event
+pair, current raw patch/recipe bindings, reconstructed reference/effects, recipe
+witnesses, lifecycle/dependency/supersession constraints, single-slug mode and
+absence of a resolver shadow. Only `applied` and `blocked` source states qualify.
+Multi-slug and `--cumulative-legacy` invocations retain their existing fallback.
+Replay derives bounded, unambiguous text insertions and safe regular-file
+creations; an unsafe, conflicting, unsupported or ambiguous effect withholds
+the whole candidate, never a partial one. Upstream deletions stay deleted.
+
+CG1-CG7 add one confirming authority class beside patch-id and high-confidence
+reverse-apply: a typed, invocation-local proof must bind freshly recomputed
+E1-E15, every effect present at the immutable upstream, and zero candidate
+operations/applicable/conflicting effects. It must agree with the exact single
+new phase-2 verdict-bearing entry: `match_origin: upstream`,
+`pre_reconcile_presence: present`, and exactly `[upstreamCommit]` in
+`upstream_commit_refs`, with the same commit in the proof and entry.
+Stored labels, confidence, hashes or replayed evidence cannot mint this proof.
+Failure of these confirmation conditions never retires the feature.
+
+Phase 2 holds an applicable derivation in memory; it does not persist a
+candidate or suppress phase 3. Provider fallback remains available. A provider
+answer or clean phase-4 reapply wins; live conflict markers still block.
+Only a phase-4 textual-conflict/exhausted-blocked arm can finalize the fully
+validated candidate. `--resolve` suppresses candidate publication and keeps
+the resolver path. A pending candidate must first be accepted or rejected before
+resolver actions can run. Candidate-ready returns `still_needed` with phase
+`phase-2-operation-candidate`, preserving feature State and Notes.
+
+Candidate generation runs structural, full-effect and no-write idempotency
+checks, not `test_command`. The immutable ID binds canonical capture-event
+identity, raw C/patch/recipe hashes, commits, source state and complete derivation.
+Equal inputs reuse the same validated candidate; hashes are integrity bindings,
+not authority. `tpatch reconcile review list <slug>` distinguishes verdict-bearing
+phase-local observations from supporting diagnostics and the returned outcome.
+A candidate-ready invocation records phase-2 `still_needed` and phase-4
+`blocked`; those are not contradictory overall verdicts.
+
+#### Review, explicit acceptance and recovery
+
+```text
+tpatch reconcile --candidate-diff <slug>
+tpatch reconcile --accept-candidate <slug>
+tpatch reconcile --reject-candidate <slug>
+tpatch reconcile --clear-candidate-rejections <slug>
+tpatch reconcile --resume-candidate-recovery <slug>
+```
+
+Each terminal takes exactly one slug as its flag value, not as a positional
+argument. Only `--path` and `--format human|json` may accompany it; `--help`
+still prints help. Other reconcile flags, including another terminal,
+`--resolve`, `--apply`, `--allow-dirty` and `--upstream-ref`, are exclusive by
+explicit flag presence. There is no candidate auto-accept flag. Resolver
+`--accept`, `--reject` and `--shadow-diff` remain separate, not aliases.
+Review the candidate diff and intent before explicit acceptance.
+
+Acceptance holds the feature lock then the global worktree-mutation lock
+continuously. It rederives authority from immutable objects, rematerializes and
+validates the whole candidate, runs configured `test_command` tests there, and
+rechecks all bindings afterward. With no test command, acceptance records
+structural validation only; configured passing tests record `structural+tests`.
+The upstream must be an ancestor of live HEAD, not necessarily equal to it.
+Exact bytes, native mode and absence on candidate paths supply compare-and-swap
+(CAS) authority at steps 6 and 10; unrelated dirty paths need not be discarded.
+
+The fourteen-step transaction stages the residual patch, regenerated recipe,
+provenance, generation and E/C pair before any live write. Snapshots cover every
+candidate path and seven feature files: patch, recipe, provenance,
+`patch-generations.json`, `recipe-capture-event.json`, `recipe-coverage.json`
+and `status.json`, including explicit absence and prior Apply/State.
+After a durable journal, step 10 rechecks CAS immediately before writing;
+step 11 publishes inputs then E then C last through the shared publisher.
+Step 12 agrees the applied base, complete coverage reference and latest generation
+on the accepted upstream, marks the feature `applied`, and records acceptance.
+The commit marker precedes pruning and pointer cleanup. Absorbed upstream effects
+are excluded from the residual. Candidate-only identical-patch generations may
+append when normalized base/recipe/capture/upper bindings differ; identical
+bindings remain no-op and ordinary producers are unchanged.
+
+This is journaled, rollback-capable, explicitly recoverable acceptance, not
+filesystem-wide atomicity or exclusion of external/cross-host writers.
+A leading step-10 CAS refusal leaves the foreign edit and unmarked journal
+intact, before any live write. Ordinary reconcile and candidate actions refuse
+an outstanding journal with `recovery-required`; only
+`--resume-candidate-recovery` recovers it. No marker means restore all snapshots,
+including absences and prior Apply/State, to pending; a committed marker means
+cleanup only, never rollback. Failed rollback retains the journal.
+Generation, rejection and acceptance do not rewrite live Git index, refs or
+reflogs, commit/rebase history, apply textual patches to the live tree, or copy a
+resolver shadow into it.
+
+| Candidate terminal exit | Meaning |
+|---|---|
+| 0 | Action completed; candidate-ready reconcile itself also exits 0 without accepting. |
+| 2 | Usage/arity/format refusal, absent candidate, divergent HEAD, failed CAS/occupied creation, changed bindings or failed configured tests. |
+| 3 | State/coexistence/lock/platform/filesystem refusal, recovery required, coverage publication failure or completed acceptance rollback. |
+| 1 | Unexpected/internal failure or failed rollback; retained recovery evidence must be inspected. |
 
 ### 8. Skill System
 

@@ -1,3 +1,25 @@
+## S9 Focused Validation Passed; Reviewed Checkpoint Authorized — 2026-11-04
+
+At **07:51:37Z** parent audited six guarded commands (formatting twice, assets,
+ROC0-9 workflow/CLI, vet, build), all passed with exact argument parity.
+Verbose logs prove 160 top-level PASS records and all 20 required exact
+markers, including the actual suggested-command executions and both
+adjacent-argument soaks/refusal controls. All 18 local/remote source hashes
+remain identical to the independently approved formatted snapshot.
+
+Separate admissions exceeded 60 seconds; every sample had pressure 1 and
+zero new swap-outs. Maximum within-stage gap was 2.134 seconds. All 312
+sampled owned identities and the launcher ended; no blocked marker.
+Evidence: ignored `rev0-focused-audit.json` and archive SHA256
+`fe3906daa8abff8de8b02ac7cd24bfdc3207daa755fbbf6ba192cba637ce148f`.
+
+**Decision**: source APPROVED for the existing gate's published checkpoint.
+This is not final S9 acceptance. Commit/push the exact reviewed source and
+prepare a new full-history source/cache/evidence set for all 42 commands /
+39 uncached test commands. Run exact-tip native CI in parallel on separate
+hosts; freeze origin during acceptance. No tag, release, GH #13 closure or
+GH #9 work before the complete evidence passes.
+
 ## Review — GH #13 S9 rev-0 — 2026-11-04
 
 **Reviewer**: independent OpenAI `gpt-6-astra` agent

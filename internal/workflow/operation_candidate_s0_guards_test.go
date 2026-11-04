@@ -268,6 +268,62 @@ func rocS8ValidateStageChangedPaths(paths []string) error {
 	return nil
 }
 
+var rocS9AllowedPaths = map[string]bool{
+	"SPEC.md":      true,
+	"CHANGELOG.md": true,
+	"docs/adrs/ADR-036-recipe-coverage-authority.md":              true,
+	"docs/adrs/ADR-025-reconcile-evidence-and-revision-schema.md": true,
+	"docs/prds/PRD-upstreamed-confirmation-gate.md":               true,
+	"docs/prds/PRD-confirm-upstreamed-human-review-path.md":       true,
+	"assets/assets_test.go":                                       true,
+	"assets/operation_candidate_parity_test.go":                   true,
+	"assets/recipe_authority_parity_test.go":                      true,
+	"assets/skills/claude/tessera-patch/SKILL.md":                 true,
+	"assets/skills/copilot/tessera-patch/SKILL.md":                true,
+	"assets/skills/cursor/tessera-patch.mdc":                      true,
+	"assets/skills/windsurf/windsurfrules":                        true,
+	"assets/prompts/copilot/tessera-patch-apply.prompt.md":        true,
+	"assets/workflows/tessera-patch-generic.md":                   true,
+	"internal/cli/operation_candidate_s9_test.go":                 true,
+}
+
+func rocS9ValidateStageChangedPaths(paths []string) error {
+	for _, path := range paths {
+		if rocS9AllowedPaths[path] {
+			continue
+		}
+		if err := rocS8ValidateStageChangedPaths([]string{path}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func TestROCS9ScopeTransition(t *testing.T) {
+	for path := range rocS9AllowedPaths {
+		if err := rocS9ValidateStageChangedPaths([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		if err := rocS8ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S8 unexpectedly admitted the S9 surface %s", path)
+		}
+	}
+	for _, path := range []string{
+		"internal/workflow/operation_candidate_s9.go",
+		"internal/cli/operation_candidate_s9.go",
+		"internal/cli/unregistered_s9_test.go",
+		"assets/./operation_candidate_parity_test.go",
+		"assets/unregistered_candidate_test.go",
+		"assets/skills/SKILL.md",
+		"docs/adrs/ADR-052-unreviewed.md",
+		"go.mod", "go.sum", "Makefile", ".wave-close-allowlist",
+	} {
+		if err := rocS9ValidateStageChangedPaths([]string{path}); err == nil {
+			t.Fatalf("S9 admitted an unregistered surface %s", path)
+		}
+	}
+}
+
 func TestROCS8ScopeTransition(t *testing.T) {
 	for path := range rocS8AllowedPaths {
 		if err := rocS8ValidateStageChangedPaths([]string{path}); err != nil {
@@ -521,7 +577,7 @@ func rocS0AssertCaptureOnlyScope(t *testing.T) {
 
 func rocS0AssertStageScope(t *testing.T) {
 	t.Helper()
-	rocS0AssertChangedPaths(t, rocS8ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
+	rocS0AssertChangedPaths(t, rocS9ValidateStageChangedPaths, rocS1ValidateMemoScopeChange)
 }
 
 func TestROCS0NoProductionChanges(t *testing.T) {

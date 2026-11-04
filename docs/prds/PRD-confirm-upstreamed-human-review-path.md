@@ -11,6 +11,28 @@
 [PRD-reconcile-retirement-state-audit](./PRD-reconcile-retirement-state-audit.md).
 Implementation reuses `ADR-025-reconcile-evidence-and-revision-schema`.
 
+## GH #13 / v0.18.0 authority-class note
+
+ADR-037 D2 and ADR-049 add an automated, invocation-local CG1-CG7 authority
+for an all-present operation evaluation. It independently rederives E1-E15 and
+all effects at the immutable upstream, requires zero applicable/conflicting
+effects and zero candidate operations, and cross-checks the exact qualifying
+phase-2 evidence entry. Stored labels, confidence, hashes or an earlier
+`recipe-operation-match` line cannot reconstruct the typed proof.
+The patch-id and high-confidence reverse-apply paths are unchanged.
+
+This does not change this PRD's authorizing human revision triple, commit
+validation, supersession guards or retirement audit. Automatically confirmed
+operation outcomes can use the existing confirmed fast path; unproven outcomes
+still require the existing review-revision route. In contrast, a pending
+operation replay candidate has outcome `still_needed` and requires
+`tpatch reconcile --accept-candidate <slug>`, not `confirm-upstreamed`.
+Candidate acceptance reapplies the residual and leaves state `applied`;
+it never authorizes retirement. See `internal/workflow/reconcile.go`
+(`applyUpstreamedConfirmationGate`), `operation_candidate_acceptance.go`
+(`acceptOperationCandidate`) and `internal/cli/cobra.go`
+(`reconcileConfirmUpstreamedCmd`).
+
 ## Related
 
 - [PRD-upstreamed-confirmation-gate](./PRD-upstreamed-confirmation-gate.md) — v0.11 gate this PRD completes

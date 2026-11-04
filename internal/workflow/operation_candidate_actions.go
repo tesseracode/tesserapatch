@@ -188,7 +188,7 @@ func RefuseResolverActionWhenCandidatePending(s *store.Store, slug string) error
 	}
 	return &OperationCandidateActionError{
 		Code:   "candidate-pending",
-		Detail: fmt.Sprintf("run `tpatch reconcile %s --reject-candidate` or `--accept-candidate` first", slug),
+		Detail: fmt.Sprintf("run `tpatch reconcile --reject-candidate %s` or `tpatch reconcile --accept-candidate %s` first", slug, slug),
 	}
 }
 
