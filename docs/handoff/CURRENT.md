@@ -115,6 +115,24 @@ latest release. Out of scope: GH #17, migration/coverage contracts
   after run 41873614423 reaches a terminal state. The gate is unaffected:
   `[3/8]` already verified HEAD == `origin/main` at launch, and `run-gate.py`
   only re-checks the clone's local HEAD.
+- **GH9-D13 — The GH #25/#26 reproduction ran during the validation wait.**
+  It was local and read-only and could be preempted by any GH #9 fix-forward.
+  It used a v0.18.0 binary built from `git archive v0.18.0` under the guarded
+  60 s admission, in the ignored directory `bin/gh9-20261104/repro-v018/`.
+  The fixtures were fresh public clones of `tesseracode/t3code` checked out
+  detached, plus a disposable repository for the minimal #25 case. Verify ran
+  with `--json --no-write`, and every fixture worktree was confirmed clean
+  afterwards. The operator's installed `tpatch` (v0.16.0) was not touched.
+- **GH9-D14 — No external posting.** Results, drafted comment text and the
+  new finding (F-V18-1) are recorded here and in
+  `bin/gh9-20261104/repro-v018/DRAFTS.md`. No issue comments were posted and
+  no issues were filed. The operator decides whether to post or file them.
+- **GH9-D15 — F-V18-1 is recorded, not fixed, in this window.** It is outside
+  GH #9 scope. The likely fix is to remove `"version": 1` from the docs
+  example and add a guard that the authoritative example decodes strictly.
+  It is small but needs its own review and CI cycle. A push while source CI
+  runs would also cancel it (GH9-D12). It is listed as an unfiled backlog
+  candidate in ROADMAP.
 
 ## Session Summary
 
@@ -146,6 +164,9 @@ GH #13 live stage fence that would have rejected any post-GH #13 change
 - GH #13: CLOSED/completed; v0.18.0 (release 433986008) published, tag object
   `648afeeee5fcacffdf871177ad022406074b51c3` unchanged.
 - GH #17: OPEN; full Windows suite remains known-red; not in scope.
+- GH #25/#26: OPEN; both still reproduce on v0.18.0 (read-only, GH9-D13).
+- F-V18-1: the docs example `"version": 1` makes a recipe undecodable;
+  unfiled (GH9-D14/D15).
 - `[2/8]` now runs `sh scripts/wave-close-untracked-sentinel.sh <18 pathspecs>`;
   source inside untracked nested repositories WARNs unless allowlisted.
 
@@ -216,14 +237,70 @@ the committed tree: `[1/8]` OK, `[2/8]` OK (the new sentinel on a real
 checkout), `[3/8]` OK, `[4/8]` OK (2 commits), `[5/8]` OK (`APPROVED`).
 Native CI run 41873614423 at `b8a5f37` in progress.
 
+### GH #25/#26 reproduction on v0.18.0 (GH9-D13)
+
+The v0.18.0 binary (commit `a14de67`, sha256 `b3bc68ad…3ebd`) was run with
+local Git 2.55.0. All evidence is hashed in
+`bin/gh9-20261104/repro-v018/SUMMARY.json`.
+
+- **GH #26 still reproduces on v0.18.0.**
+  - At t3code `5ce5d79`, `copilot-cli-provider` exits 0. Four other roots
+    exit 2 at `recipe_replay_clean` with `failed_at: parent-landing-drift`:
+    `copilot-sdk-license-notice`, `copilot-runtime-packaging`,
+    `phase1-foundation` and `attention-notifications`.
+  - The current anchor is `materialized-clean`; the historical V8/V10 checks
+    are skipped.
+  - `attention-notifications` still selects the historical base `75bfc26`
+    and replay landing `55fd4d7`, not the genuine new base `19785c6`.
+  - The diagnostic still says to verify the parent first, but the parent
+    already passes, so the advice does not help.
+  - The v0.1.4 port case in the issue comment was rerun at source `16d428d`,
+    the commit where the archived v0.16.0 summary was produced. All 11 roots
+    are identical to v0.16.0 in exit code, `failed_at` and the set of
+    blocking checks.
+  - New in v0.18: each legacy root gets a warn-only
+    `recipe_generation_coverage` (`recipe-coverage-missing`) result. It does
+    not change the exit code.
+- **GH #25 still reproduces on v0.18.0.**
+  - Minimal disposable case (`r25.sh`): before the child lands, the parent
+    exits 0. After the child lands, the parent exits 2 with `failed_at:
+    landed-content-absent`. Landing evidence is `exact`;
+    `recipe_replay_clean` and `write_file_preimage_fresh` pass;
+    `post_apply_patch_replay_clean` fails. The child exits 0, and the node
+    behavior check passes.
+  - Both features now record with `recipe coverage: complete` (D16
+    derivation), which does not change the parent result.
+  - At the Fusion fixture t3code `184d025`, `copilot-fusion-model-selection`
+    exits 2 with `parent-landing-drift` on `copilot-cli-provider`, which
+    matches the archived v0.16.0 `nativeVerify` refusal.
+- **New finding F-V18-1 (unfiled):** the documented example recipe is
+  rejected.
+  - The example in `docs/agent-as-provider.md:80` ("apply-recipe.json schema
+    (authoritative)") includes a top-level `"version": 1`. It has done so
+    since v0.4.3 (`45d0589`).
+  - `ApplyRecipe` has never had that field, and no tpatch writer emits it.
+  - The strict decoder rejects it. Doctor D7 has flagged it since `daf2e6f`.
+    Since v0.17.0, `implement --manual` publishes `recipe-undecodable` and
+    `apply --mode execute` refuses with `recipe-generation-incomplete`.
+  - Observed on v0.18.0 (`out25/attempt1-version-field.log`). Unchanged on
+    `main`.
+  - Only hand-written or agent-written recipes that follow the docs are
+    affected. The shipped skills do not show a `version` field.
+  - A recipe whose `preimage_hash` was bare hex (no `sha256:` prefix) was
+    also rejected. The skills document the prefixed form, so that was my
+    mistake in the test script, not a finding.
+
 ## Next Steps
 
 1. Observe native CI run 41873614423 (five required jobs; audit the
    known-red Windows full suite against the GH #17 baseline).
 2. Observe the old-Mac full gate (`[6/8]`-`[8/8]`; ~3h40m from launch).
-3. Close GH #9 only after native CI and the gate pass; closeout tracking
-   (LOG, ROADMAP ✅, HISTORY archive, Cluster state SHIPPED). Then, time
-   permitting, read-only GH #25/#26 reproduction on v0.18.
+3. Close GH #9 only after native CI and the gate both pass. Then do the
+   closeout tracking: LOG, ROADMAP ✅, HISTORY archive, and Cluster state
+   SHIPPED.
+4. The GH #25/#26 v0.18 reproduction is done (see Test Results). For the
+   operator: decide whether to post the drafted issue comments and whether
+   to file F-V18-1 (`bin/gh9-20261104/repro-v018/DRAFTS.md`).
 
 ## Blockers
 
