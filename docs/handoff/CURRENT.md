@@ -13,10 +13,11 @@ GH #9 nested-repo sentinel shipped; issue closed**.
 
 WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 
-**Progress (2026-11-05T03:50Z):** E2 met the target twice in a row
+**Progress (2026-11-05T04:30Z):** E2 met the target twice in a row
 (5,957.8 s and 5,969.9 s, about 54% below serial). E3 is approved and
-committed as an opt-in mode. The old-Mac lane and serial gates at the E3
-commit are pending (GT-D28).
+committed as an opt-in mode (`6b3a4ac`). The first old-Mac lane gate was
+stopped by external memory pressure, with no test failure (GT-D29). The
+serial gate (the authority) waits for the old Mac to be calm.
 
 ## Active Task
 
@@ -27,8 +28,9 @@ commit are pending (GT-D28).
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
 - **Status**: Approved, gates pending — E2 met GT-D7 (runs 2 and 3 PASSED
   consecutively in 5,957.8 s and 5,969.9 s); E3 rev-4 APPROVED and
-  committed; old-Mac lane and serial gates follow at the E3 commit
-  (GT-D28) (2026-11-05T03:50Z)
+  committed as `6b3a4ac`; the first lane gate was stopped by external
+  memory pressure (GT-D29); the serial gate waits for a calm old Mac
+  (2026-11-05T04:30Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -394,6 +396,30 @@ commit are pending (GT-D28).
   the state goes back to IN PROGRESS in a tracking commit, and the fix
   goes through review and both gates again. Closeout commits after the
   gates touch tracking files only.
+- **GT-D29, the first lane gate at `6b3a4ac` is inconclusive (external
+  memory pressure), not an E3 defect.** The lane gate passed `[1/8]` to
+  `[7/8]`, then the harness stopped `[8/8]` after 1,601 s on its
+  new-swap-outs rule (28,792 pages at 04:15:52Z). No test failed. OneDrive
+  relaunched on the old Mac at 03:55:09Z and resynced, with it and
+  fileproviderd at 40–60% CPU. Free pages fell to about 15 MB while our two
+  test processes held only 2.7 GB. Run 3 reached the same free-page floor
+  at 5.2 GB owned without a swap-out. After the stop, with no Go process
+  running, the old Mac swapped out another 30,854 pages, so the pressure
+  was external.
+  - Chosen: do not touch OneDrive, because it is the operator's
+    application. Wait until the old Mac has gone 15 continuous minutes
+    without new swap-outs, with load1 ≤ 4. Then run the serial gate first,
+    because it is the authority (GT-D13). Retry the lane gate afterwards in
+    fresh directories if the window allows. The failed run is kept as
+    `gt-lanes-6b3a4ac-*.fail1` on the old Mac, with its evidence in
+    `bin/gt-20261104/lanegate-6b3a4ac/`.
+  - If the old Mac is not calm by 07:05Z (the latest start that leaves
+    3.6 h for the serial gate), report go/no-go without the authority gate,
+    and set Cluster state back to IN PROGRESS.
+  - Lesson for the adoption decision (GT-D27): lane mode leaves less
+    memory headroom, so an external memory consumer can trip the
+    swap-out stop sooner. The stop works as designed: it fails safe, and
+    no result is reported from a starved run.
 
 ## Session Summary
 
@@ -502,6 +528,12 @@ commit are pending (GT-D28).
   and `serial-gate/` (`prepare-serial.py` and `run-serial.sh`, adapted from
   the GH #9 serial gate scripts: same tools, hashes, 9 controls and 42-command
   parity; they clone from GitHub and check the reviewed source hashes).
+- **E3 committed and pushed** as `6b3a4ac` (explicit paths; trailer).
+- **Old-Mac lane gate at `6b3a4ac`:** prepared (16 controls, exact
+  42-command parity) and launched at 03:49:21Z. `[1/8]` to `[7/8]` OK,
+  including 12 trailer commits and the APPROVED token. At 1,601 s the
+  harness stopped `[8/8]` on new swap-outs caused by an external OneDrive
+  resync. No test failed; this is inconclusive (GT-D29).
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -526,8 +558,9 @@ Dispatch baseline verified at `7e0d63f`:
   6,540 s), so GT-D7 is met. Both runs: 42/42, no holds, exact package
   parity, pressure normal, no new swap-outs, no tail or barrier violations.
   Peak load1 3.78 and 4.82; minimum free memory 74% in both.
-- E3 committed (opt-in, GT-D27). The old-Mac lane gate and then the serial
-  gate (the authority, GT-D13) run at the E3 commit.
+- E3 committed as `6b3a4ac` (opt-in, GT-D27). The first lane gate was
+  stopped by external memory pressure (GT-D29). The serial gate (the
+  authority, GT-D13) waits for a calm old Mac.
 
 ## Files Changed
 
@@ -544,6 +577,9 @@ Dispatch baseline verified at `7e0d63f`:
   empty; `go vet ./...` ok; `go build ./cmd/tpatch` ok.
 - E2 run 3: PASS, 5,969.9 s, 42/42, `gt_d7_run_ok` true.
 - CI 41955457091 (`b39e7dc`): all five jobs passed.
+- Old-Mac lane gate at `6b3a4ac`: STOPPED by the swap-out rule at 1,601 s,
+  external cause, no test failure (GT-D29); 7 of 42 top-level commands
+  had passed.
 - E3 rev-4, same clean clone, after a 60 s GT-D10 window: `gofmt -l .`
   empty; `go vet ./internal/cli` ok; the same targeted set ok (159.8 s).
 - E3 rev-3 (superseded), same clean clone, each run after a 60 s GT-D10 window:
@@ -567,15 +603,18 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. Push the E3 commit (CI for `b39e7dc` has passed) and watch native CI.
-2. Old-Mac lane gate at the E3 commit (`lane-gate/prepare-lanes.py`, then
-   `run-gate-lanes.py`, about 1.7 h).
-3. Then, never overlapping, the old-Mac serial gate (`serial-gate/
-   prepare-serial.py`, then `run-serial.sh`, about 3.6 h, the authority
-   per GT-D13). Deadline 10:51:49Z.
-4. If both pass and CI is green: closeout (HISTORY archive, LOG entry,
-   ROADMAP row ✅, morning report). If a gate fails: Cluster state back to
-   IN PROGRESS (GT-D28) and a go/no-go report.
+1. Native CI 41963870311 for `6b3a4ac` (running).
+2. When the old Mac has been calm for 15 minutes (no new swap-outs,
+   load1 ≤ 4; cutoff 07:05Z): the serial gate at `6b3a4ac`
+   (`serial-gate/prepare-serial.py`, then `run-serial.sh`, about 3.6 h,
+   the authority per GT-D13). Do not push to `main` until the serial gate
+   has passed `[3/8]`, which requires HEAD to equal origin/main.
+3. Then, never overlapping, retry the lane gate in fresh directories if
+   the window allows (about 1.7 h; deadline 10:51:49Z).
+4. If the serial gate passes and CI is green: closeout (HISTORY archive, LOG
+   entry, ROADMAP row ✅, morning report). If a gate fails on the code, or the
+   serial gate cannot run: Cluster state back to IN PROGRESS (GT-D28/D29)
+   and a go/no-go report.
 
 ## Blockers
 

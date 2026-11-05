@@ -1,3 +1,30 @@
+## Gate — gate-time-reduction lane gate at `6b3a4ac` — 2026-11-05
+
+**Runner**: old-Mac lane gate (`run-gate-lanes.py`, evidence only per
+GT-D13), `make wave-close-check WAVE_BASE=7e0d63f WAVE_CLOSE_TEST_LANES=2`.
+
+### Result
+- `[1/8]` to `[7/8]` OK: clean tree, sentinel, HEAD pushed, 12 trailer
+  commits, APPROVED token, gofmt, vet and build.
+- `[8/8]` stopped by the harness at 1,601 s: new system swap-outs (28,792
+  pages at 04:15:52Z). 7 of 42 top-level commands had passed; no test
+  failed; owned cleanup left nothing running.
+- Cause: external. OneDrive relaunched at 03:55:09Z and resynced
+  (OneDrive plus fileproviderd at 40–60% CPU). Free pages fell to about
+  15 MB with only 2.7 GB owned, and the old Mac kept swapping out with no
+  Go process running.
+
+### Verdict: INCONCLUSIVE (external resource stop)
+
+### Action Taken
+- GT-D29: OneDrive is the operator's application and is left alone. The
+  serial gate (the authority) runs once the old Mac has gone 15 continuous
+  minutes without swap-outs and with load1 ≤ 4, with a cutoff of 07:05Z.
+  The lane gate is retried afterwards in fresh directories if the window
+  allows.
+
+---
+
 ## Review — gate-time-reduction E3 docs (rev-5) and E2 run 3 — 2026-11-05
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
