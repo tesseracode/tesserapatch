@@ -77,7 +77,6 @@ It is not automatically safe on a different upstream base.
 
 ```json
 {
-  "version": 1,
   "feature": "<slug>",
   "operations": [
     { "type": "ensure-directory", "path": "src/feature/" },

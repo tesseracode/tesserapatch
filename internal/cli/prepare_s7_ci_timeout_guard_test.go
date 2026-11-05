@@ -210,8 +210,8 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 			mutateMakefile: func(body string) string {
 				return strings.Replace(
 					body,
-					"shards=\"sh scripts/wave-close-test-shards.sh\"; \\",
-					"shards=\"go test -count=1 ./...\"; \\",
+					"set -- sh scripts/wave-close-test-shards.sh; \\",
+					"set -- go test -count=1 ./...; \\",
 					1,
 				)
 			},
@@ -219,19 +219,41 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 		{
 			name: "gate-ignores-shard-status",
 			mutateMakefile: func(body string) string {
-				return strings.Replace(body, "if out=$$($$shards 2>&1); then", "if out=$$($$shards 2>&1) || true; then", 1)
+				return strings.Replace(body, "if out=$$(\"$$@\" 2>&1); then", "if out=$$(\"$$@\" 2>&1) || true; then", 1)
 			},
 		},
 		{
-			name: "lanes-on-by-default",
+			name:           "check-8-moved-to-sibling-target",
+			mutateMakefile: s7WaveCloseCheck8Moved,
+		},
+		{
+			name: "lanes-off-by-default",
 			mutateMakefile: func(body string) string {
-				return strings.Replace(body, "\nWAVE_CLOSE_TEST_LANES ?=\n", "\nWAVE_CLOSE_TEST_LANES ?= 2\n", 1)
+				return strings.Replace(body, "\nWAVE_CLOSE_TEST_LANES ?= 2\n", "\nWAVE_CLOSE_TEST_LANES ?=\n", 1)
 			},
 		},
 		{
-			name: "lanes-forced-by-second-assignment",
+			name: "serial-by-default",
 			mutateMakefile: func(body string) string {
-				return body + "\nexport WAVE_CLOSE_TEST_LANES = 2\n"
+				return strings.Replace(body, "\nWAVE_CLOSE_TEST_LANES ?= 2\n", "\nWAVE_CLOSE_TEST_LANES ?= 0\n", 1)
+			},
+		},
+		{
+			name: "serial-forced-by-second-assignment",
+			mutateMakefile: func(body string) string {
+				return body + "\nexport WAVE_CLOSE_TEST_LANES = 0\n"
+			},
+		},
+		{
+			name: "serial-escape-renamed",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]; then", "\"$(WAVE_CLOSE_TEST_LANES)\" = serial ]; then", 1)
+			},
+		},
+		{
+			name: "mode-banner-dropped",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))\"; \\\n", "", 1)
 			},
 		},
 		{
@@ -261,6 +283,13 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 			}
 			if err := validateS7WaveCloseShardParity(mutatedMakefile, mutatedScript); err == nil {
 				t.Fatal("wave-close shard parity accepted wrong input")
+			}
+		})
+	}
+	for _, redefinition := range s7WaveCloseCheckRedefinitions {
+		t.Run(redefinition.name, func(t *testing.T) {
+			if validateS7WaveCloseShardParity(makefile+redefinition.text, script) == nil {
+				t.Fatal("wave-close shard parity accepted a redefined wave-close-check")
 			}
 		})
 	}
@@ -311,10 +340,14 @@ func validateS7WaveCloseShardParity(makefile, script string) error {
 		return errors.New("wave-close-test-shards target does not invoke the guarded script")
 	}
 	checkStart := strings.Index(makefile, "wave-close-check:\n")
-	if checkStart < 0 || strings.Count(makefile[checkStart:], s7WaveCloseCheckShardBlock) != 1 {
+	rule, err := s7WaveCloseCheckRule(makefile)
+	if err != nil {
+		return err
+	}
+	if checkStart < 0 || strings.Count(rule, s7WaveCloseCheckShardBlock) != 1 {
 		return errors.New("wave-close-check does not invoke the guarded shard script")
 	}
-	if err := validateS7WaveCloseLaneOptIn(makefile); err != nil {
+	if err := validateS7WaveCloseLaneDefault(makefile); err != nil {
 		return err
 	}
 	if strings.Contains(makefile[checkStart:], "$(MAKE)") {

@@ -1,3 +1,57 @@
+## Review — wave-close-lanes-adoption-and-fv18 (A+B) r1 — 2026-11-05
+
+**Reviewer**: independent code-review agent (OpenAI model, read-only, no Go).
+**Task**: lane default in check 8 with static and behavioral guards;
+F-V18-1 doc fix with a strict-decode guard.
+
+### Checklist
+- [x] Compiles / vet / build (local clean-clone validation r1, PASS)
+- [x] Targeted tests pass; negative controls fail for the intended reason
+- [x] Formatted
+- [x] Artifacts deterministic (no `.tpatch/` change)
+- [x] Secrets safe
+- [ ] Matches the approved semantics (see F1)
+- [x] Handoff accurate
+
+### Verdict: NEEDS REVISION
+
+### Notes
+- **F1 MEDIUM** — check 8 expanded the lane command string unquoted, so
+  `WAVE_CLOSE_TEST_LANES='2 '` word-split to `2` and ran lanes instead of
+  failing closed (LW-D2 says every value but `0`/`2` fails).
+- **F2 MEDIUM** — the static guard and the behavioral extractor read from
+  `wave-close-check:` to end of file, so moving check 8 into a later,
+  uninvoked target would pass both guards.
+
+### Action Taken
+- Fixed forward. Check 8 now passes the count to the lane runner as one
+  quoted argument (`set -- sh scripts/wave-close-test-lanes.sh
+  "$(WAVE_CLOSE_TEST_LANES)"`; the runner is called as `"$@"`). New mode
+  cases: trailing space, leading space from the environment, two counts;
+  new mutation fixture `lane-count-unquoted`.
+- New `s7WaveCloseCheckRule` bounds both guards to the wave-close-check
+  rule (target line plus its tab-indented recipe). New mutation fixture
+  `check-8-moved-to-sibling-target` in both guards.
+- Local validation r2 and re-review r2 dispatched.
+
+### Re-review r2: NEEDS REVISION
+- **F3 MEDIUM** — rule uniqueness counted only the exact
+  `wave-close-check:` line; a later `wave-close-check: preflight` rule (or a
+  shared target list) would override the guarded recipe under GNU make.
+- Fixed forward: `s7WaveCloseCheckRule` now counts every rule whose target
+  list names `wave-close-check` (exactly one, with no prerequisites) and
+  rejects `include`/`$(eval`. Five redefinition fixtures (override, shared
+  target list, double colon, include, eval) run in both guards.
+  Validation r2 was stopped (it was testing pre-F3 code); r3 and re-review
+  r3 dispatched.
+
+### Re-review r3: APPROVED
+- No significant issues in the F3 delta. The real Makefile yields exactly
+  one rule naming wave-close-check, and each redefinition fixture is
+  rejected by the new rule logic, not by an unrelated check.
+
+---
+
 ## Dispatch — wave-close-lanes-adoption-and-fv18 — 2026-11-05
 
 **Supervisor**: implementation agent (unattended 6 h window).

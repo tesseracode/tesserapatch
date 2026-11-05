@@ -1,6 +1,9 @@
 package assets_test
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -384,35 +387,99 @@ func TestAllSkillFilesExist(t *testing.T) {
 // Prevents the skill docs from drifting out of sync with the code
 // agents actually run.
 func TestSkillRecipeSchemaMatchesCLI(t *testing.T) {
-	codeBlock := regexp.MustCompile("(?s)```json\\s*\\n(.*?)\\n```")
 	for _, sf := range skillFiles {
 		t.Run(sf.name, func(t *testing.T) {
 			data, err := assets.Skills.ReadFile(sf.path)
 			if err != nil {
 				t.Fatalf("cannot read %s: %v", sf.path, err)
 			}
-			content := string(data)
-			matches := codeBlock.FindAllStringSubmatch(content, -1)
-			checked := 0
-			for _, m := range matches {
-				block := m[1]
-				if !strings.Contains(block, "\"operations\"") {
-					continue
-				}
-				recipe, err := workflow.DecodeApplyRecipeStrict([]byte(block))
-				if err != nil {
-					t.Errorf("%s: recipe JSON block does not match workflow.ApplyRecipe schema: %v\nBlock:\n%s",
-						sf.path, err, block)
-					continue
-				}
-				if strings.TrimSpace(recipe.Feature) == "" {
-					t.Errorf("%s: recipe JSON block missing top-level `feature` field", sf.path)
-				}
-				checked++
-			}
-			if checked == 0 {
-				t.Errorf("%s: no recipe JSON block found — every skill must include at least one worked apply-recipe.json example", sf.path)
+			for _, problem := range recipeSchemaExampleProblems(sf.path, string(data)) {
+				t.Error(problem)
 			}
 		})
 	}
+}
+
+// recipeSchemaDocs are the user docs outside the embedded skills that show
+// an apply-recipe.json example. GH #27 (F-V18-1): the authoritative example
+// in docs/agent-as-provider.md carried a top-level `version` that the strict
+// decoder rejects, because no guard read it.
+var recipeSchemaDocs = []string{"docs/agent-as-provider.md"}
+
+func TestDocRecipeSchemaMatchesCLI(t *testing.T) {
+	for _, path := range recipeSchemaDocs {
+		t.Run(path, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(path)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, problem := range recipeSchemaExampleProblems(path, string(data)) {
+				t.Error(problem)
+			}
+		})
+	}
+}
+
+// TestRecipeSchemaExampleGuardSensitivity proves the recipe-example guard
+// fails when the docs example is broken the way GH #27 found it, or loses
+// its example altogether.
+func TestRecipeSchemaExampleGuardSensitivity(t *testing.T) {
+	const path = "docs/agent-as-provider.md"
+	data, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(path)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := string(data)
+	if problems := recipeSchemaExampleProblems(path, doc); len(problems) != 0 {
+		t.Fatalf("unmutated %s must pass: %v", path, problems)
+	}
+	const recipeStart = "```json\n{\n  \"feature\": "
+	if strings.Count(doc, recipeStart) != 1 {
+		t.Fatalf("%s: want exactly one recipe example starting %q", path, recipeStart)
+	}
+	for _, fixture := range []struct{ name, from, to string }{
+		{name: "version-field-restored", from: recipeStart, to: "```json\n{\n  \"version\": 1,\n  \"feature\": "},
+		{name: "feature-dropped", from: "  \"feature\": \"<slug>\",\n", to: ""},
+		{name: "operation-type-renamed", from: "{ \"type\": \"ensure-directory\"", to: "{ \"op\": \"ensure-directory\""},
+		{name: "example-removed", from: "\"operations\": [", to: "\"steps\": ["},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			if strings.Count(doc, fixture.from) != 1 {
+				t.Fatalf("fixture anchor %q must occur exactly once", fixture.from)
+			}
+			mutated := strings.Replace(doc, fixture.from, fixture.to, 1)
+			if len(recipeSchemaExampleProblems(path, mutated)) == 0 {
+				t.Fatal("recipe-example guard accepted a broken example")
+			}
+		})
+	}
+}
+
+// recipeSchemaExampleProblems decodes every ```json block that has an
+// "operations" key with the CLI's strict decoder. A file without such a
+// block is a problem too: each guarded file must show a worked example.
+func recipeSchemaExampleProblems(path, content string) []string {
+	codeBlock := regexp.MustCompile("(?s)```json\\s*\\n(.*?)\\n```")
+	var problems []string
+	checked := 0
+	for _, m := range codeBlock.FindAllStringSubmatch(content, -1) {
+		block := m[1]
+		if !strings.Contains(block, "\"operations\"") {
+			continue
+		}
+		recipe, err := workflow.DecodeApplyRecipeStrict([]byte(block))
+		if err != nil {
+			problems = append(problems, fmt.Sprintf("%s: recipe JSON block does not match workflow.ApplyRecipe schema: %v\nBlock:\n%s",
+				path, err, block))
+			continue
+		}
+		if strings.TrimSpace(recipe.Feature) == "" {
+			problems = append(problems, fmt.Sprintf("%s: recipe JSON block missing top-level `feature` field", path))
+		}
+		checked++
+	}
+	if checked == 0 {
+		problems = append(problems, fmt.Sprintf("%s: no recipe JSON block found — every guarded file must include at least one worked apply-recipe.json example", path))
+	}
+	return problems
 }

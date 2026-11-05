@@ -68,16 +68,19 @@ all: fmt lint test build
 # parent's ignore rules and the same pathspec/allowlist matching, and fails
 # closed (instead of reading as clean) when Git or enumeration fails.
 # Exit status: 0 OK, 3 WARN, anything else FAIL.
-# Gate-time reduction (2026-11-05): WAVE_CLOSE_TEST_LANES=2 opts check 8 into
-# scripts/wave-close-test-lanes.sh, which runs the same serial commands in two
-# concurrent lanes under a static, guarded partition, then a short solo tail
-# of the observer shards one at a time. Empty (the default) keeps the serial
-# script; any other value fails the check.
+# Gate-time reduction (2026-11-05): check 8 runs scripts/wave-close-test-lanes.sh,
+# which runs the same serial commands in two concurrent lanes under a static,
+# guarded partition, then a short solo tail of the observer shards one at a
+# time. Lane mode (WAVE_CLOSE_TEST_LANES=2) is the default since the operator
+# adopted it for accepted wave closes (GT-D27). WAVE_CLOSE_TEST_LANES=0 runs
+# the serial script instead; any other value, including an empty one or one
+# with surrounding spaces, fails the check (the lane count reaches the lane
+# runner as one quoted argument).
 wave-close-test-shards:
 	@sh scripts/wave-close-test-shards.sh
 
 WAVE_BASE ?=
-WAVE_CLOSE_TEST_LANES ?=
+WAVE_CLOSE_TEST_LANES ?= 2
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
 	@fail=0; warn=0; \
@@ -211,12 +214,14 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[8/8] CI-equivalent uncached test shards clean..."; \
-	shards="sh scripts/wave-close-test-shards.sh"; \
-	if [ -n "$(WAVE_CLOSE_TEST_LANES)" ]; then \
-		shards="sh scripts/wave-close-test-lanes.sh $(WAVE_CLOSE_TEST_LANES)"; \
-		echo "  (opt-in: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))"; \
+	set -- sh scripts/wave-close-test-lanes.sh "$(WAVE_CLOSE_TEST_LANES)"; \
+	mode=lanes; \
+	if [ "$(WAVE_CLOSE_TEST_LANES)" = 0 ]; then \
+		set -- sh scripts/wave-close-test-shards.sh; \
+		mode=serial; \
 	fi; \
-	if out=$$($$shards 2>&1); then \
+	echo "  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))"; \
+	if out=$$("$$@" 2>&1); then \
 		echo "  OK"; \
 	else \
 		echo "  FAIL: test suite failed"; \

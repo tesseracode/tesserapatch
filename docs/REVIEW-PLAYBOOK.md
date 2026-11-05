@@ -137,10 +137,14 @@ make wave-close-test-shards
 make wave-close-check
 ```
 
-The serial default is the accepted path. `WAVE_CLOSE_TEST_LANES=2` is an
-opt-in that roughly halves `[8/8]` on the old Mac but runs two test
-processes at once; do not use it for a wave close until the operator has
-adopted it (see AGENTS.md → Mechanical gate).
+`make wave-close-check` runs `[8/8]` in lane mode by default
+(`WAVE_CLOSE_TEST_LANES=2`, adopted for accepted wave closes in GT-D27): two
+test processes at once, roughly half the serial time on the old Mac, and
+about 6 GiB of memory headroom. Before the gate, wait for one 60-second
+window of normal memory pressure, no new swap-outs, load1 ≤ 5 and no other
+Go process. If external pressure stops a lane gate, wait for calm, retry
+lanes once, then run `make wave-close-check WAVE_CLOSE_TEST_LANES=0`
+(serial). Any other value fails the check (see AGENTS.md → Mechanical gate).
 
 ### 1.9 Detach anything that runs longer than about a minute
 

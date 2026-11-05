@@ -1,6 +1,7 @@
 #!/bin/sh
-# Opt-in two-lane runner for the wave-close test shards
-# (`make wave-close-check WAVE_CLOSE_TEST_LANES=2`).
+# Two-lane runner for the wave-close test shards: the default for
+# `make wave-close-check` (WAVE_CLOSE_TEST_LANES=2); WAVE_CLOSE_TEST_LANES=0
+# runs the serial script instead.
 #
 # scripts/wave-close-test-shards.sh stays the single source of truth: this
 # runner copies its environment preamble and its `go test -p=1` lines

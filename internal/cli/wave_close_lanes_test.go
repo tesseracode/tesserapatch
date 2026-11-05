@@ -22,23 +22,29 @@ import (
 	"time"
 )
 
-// Gate-time reduction (2026-11-05): `make wave-close-check
-// WAVE_CLOSE_TEST_LANES=2` runs the serial shard commands in two concurrent
-// lanes. These guards keep that mode opt-in, derived from the serial script,
-// and inside the measured and audited partition.
+// Gate-time reduction (2026-11-05): `make wave-close-check` runs the serial
+// shard commands in two concurrent lanes (WAVE_CLOSE_TEST_LANES=2, the
+// default since the operator adopted lane mode for accepted wave closes,
+// GT-D27); WAVE_CLOSE_TEST_LANES=0 runs the serial script. These guards keep
+// lane mode the default with a working serial escape, derived from the
+// serial script, and inside the measured and audited partition.
 
 const (
 	s7WaveCloseLaneScriptPath = "scripts/wave-close-test-lanes.sh"
-	s7WaveCloseLaneCall       = "sh " + s7WaveCloseLaneScriptPath + " $(WAVE_CLOSE_TEST_LANES)"
-	// s7WaveCloseCheckShardBlock is check 8 of wave-close-check: serial by
-	// default, the lane runner only when WAVE_CLOSE_TEST_LANES is non-empty,
-	// and the runner's exit status decides the check either way.
-	s7WaveCloseCheckShardBlock = "\tshards=\"sh scripts/wave-close-test-shards.sh\"; \\\n" +
-		"\tif [ -n \"$(WAVE_CLOSE_TEST_LANES)\" ]; then \\\n" +
-		"\t\tshards=\"" + s7WaveCloseLaneCall + "\"; \\\n" +
-		"\t\techo \"  (opt-in: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))\"; \\\n" +
+	s7WaveCloseLaneCall       = "sh " + s7WaveCloseLaneScriptPath + " \"$(WAVE_CLOSE_TEST_LANES)\""
+	// s7WaveCloseCheckShardBlock is check 8 of wave-close-check: the lane
+	// runner, given the switch's value as one quoted argument, unless
+	// WAVE_CLOSE_TEST_LANES is exactly 0, which selects the serial script.
+	// The runner's exit status decides the check either way, and the lane
+	// runner refuses every value but 2.
+	s7WaveCloseCheckShardBlock = "\tset -- " + s7WaveCloseLaneCall + "; \\\n" +
+		"\tmode=lanes; \\\n" +
+		"\tif [ \"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]; then \\\n" +
+		"\t\tset -- sh scripts/wave-close-test-shards.sh; \\\n" +
+		"\t\tmode=serial; \\\n" +
 		"\tfi; \\\n" +
-		"\tif out=$$($$shards 2>&1); then \\\n" +
+		"\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))\"; \\\n" +
+		"\tif out=$$(\"$$@\" 2>&1); then \\\n" +
 		"\t\techo \"  OK\"; \\\n"
 	// s7WaveCloseLaneRefusal is the runner's refusal loop. The concurrency
 	// audit assumed every one of these is unset.
@@ -99,9 +105,63 @@ var s7WaveCloseAuditedUnsetVariables = []string{
 	"TPATCH_LIVE_PROVIDER", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE",
 }
 
-func validateS7WaveCloseLaneOptIn(makefile string) error {
-	if strings.Count(makefile, "\nWAVE_CLOSE_TEST_LANES ?=\n") != 1 {
-		return errors.New("wave-close lanes are not opt-in: WAVE_CLOSE_TEST_LANES must default to empty")
+// s7WaveCloseMakefileInclusion matches a directive that would read rules
+// from another makefile or from evaluated text.
+var s7WaveCloseMakefileInclusion = regexp.MustCompile(`(?m)^[ ]*(-include|sinclude|include)[ \t]|\$\(eval[ \t]`)
+
+// s7WaveCloseCheckRedefinitions are additions that would give
+// wave-close-check another recipe outside the guarded rule: GNU make runs
+// the last recipe it reads for a target.
+var s7WaveCloseCheckRedefinitions = []struct{ name, text string }{
+	{name: "overriding-rule-appended", text: "\nwave-close-check: preflight\n\t@true\n"},
+	{name: "shared-target-list-appended", text: "\nrelease wave-close-check:\n\t@true\n"},
+	{name: "double-colon-rule-appended", text: "\nwave-close-check::\n\t@true\n"},
+	{name: "makefile-included", text: "\ninclude wave-close-extra.mk\n"},
+	{name: "rule-evaluated", text: "\n$(eval wave-close-check: ; @true)\n"},
+}
+
+// s7WaveCloseCheckRule returns the wave-close-check rule: its target line
+// and the tab-indented recipe lines that directly follow it. Guards read
+// only this rule, so a check moved into another target does not count, and
+// the Makefile must not define wave-close-check anywhere else.
+func s7WaveCloseCheckRule(makefile string) (string, error) {
+	if s7WaveCloseMakefileInclusion.MatchString(makefile) {
+		return "", errors.New("Makefile includes or evaluates rules, so wave-close-check could be redefined outside the guarded rule")
+	}
+	rules := 0
+	for _, line := range strings.Split(makefile, "\n") {
+		if strings.HasPrefix(line, "\t") || strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
+		targets, rest, found := strings.Cut(line, ":")
+		if !found || strings.Contains(targets, "=") || strings.HasPrefix(rest, "=") || strings.HasPrefix(rest, ":=") {
+			continue
+		}
+		if slices.Contains(strings.Fields(targets), "wave-close-check") {
+			rules++
+		}
+	}
+	const target = "\nwave-close-check:\n"
+	if rules != 1 || strings.Count(makefile, target) != 1 {
+		return "", fmt.Errorf("wave-close-check must be defined by exactly one rule, `wave-close-check:` with no prerequisites; found %d rules naming it", rules)
+	}
+	rule := makefile[strings.Index(makefile, target)+1:]
+	lines := strings.SplitAfter(rule, "\n")
+	size := len(lines[0])
+	for _, line := range lines[1:] {
+		if !strings.HasPrefix(line, "\t") {
+			break
+		}
+		size += len(line)
+	}
+	return rule[:size], nil
+}
+
+// validateS7WaveCloseLaneDefault checks that lane mode is the wave-close
+// default and that only check 8 reads the switch.
+func validateS7WaveCloseLaneDefault(makefile string) error {
+	if strings.Count(makefile, "\nWAVE_CLOSE_TEST_LANES ?= 2\n") != 1 {
+		return errors.New("wave-close lanes are not the default: WAVE_CLOSE_TEST_LANES must default to 2")
 	}
 	uses := 0
 	for _, line := range strings.Split(makefile, "\n") {
@@ -1319,6 +1379,211 @@ func TestS7WaveCloseLaneRunner(t *testing.T) {
 			}
 			if checkS7WaveCloseLaneBehavior(t, mutated, shards, serial) == nil {
 				t.Fatal("broken lane runner passed the behavioral checks")
+			}
+		})
+	}
+}
+
+// s7WaveCloseLaneUsageEnd ends the lane runner's argument check, which
+// refuses every lane count but 2 before the runner does anything else.
+const s7WaveCloseLaneUsageEnd = "\techo \"usage: sh scripts/wave-close-test-lanes.sh 2\" >&2\n\texit 2\nfi\n"
+
+// s7WaveCloseModeCase is one wave-close-check invocation: make arguments,
+// extra environment, the stub runners' exit status, and the expected runner
+// call ("" for none) and check result.
+type s7WaveCloseModeCase struct {
+	name   string
+	args   []string
+	env    []string
+	stub   string
+	call   string
+	banner string
+	pass   bool
+}
+
+var s7WaveCloseModeCases = []s7WaveCloseModeCase{
+	{name: "default", call: "lanes 2", banner: "(lanes: WAVE_CLOSE_TEST_LANES=2)", pass: true},
+	{name: "explicit-lanes", args: []string{"WAVE_CLOSE_TEST_LANES=2"}, call: "lanes 2", banner: "(lanes: WAVE_CLOSE_TEST_LANES=2)", pass: true},
+	{name: "serial", args: []string{"WAVE_CLOSE_TEST_LANES=0"}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)", pass: true},
+	{name: "serial-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES=0"}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)", pass: true},
+	{name: "empty", args: []string{"WAVE_CLOSE_TEST_LANES="}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=)"},
+	{name: "trailing-space", args: []string{"WAVE_CLOSE_TEST_LANES=2 "}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=2 )"},
+	{name: "leading-space-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES= 2"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES= 2)"},
+	{name: "two-counts", args: []string{"WAVE_CLOSE_TEST_LANES=2 2"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=2 2)"},
+	{name: "unknown-count", args: []string{"WAVE_CLOSE_TEST_LANES=3"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=3)"},
+	{name: "word", args: []string{"WAVE_CLOSE_TEST_LANES=serial"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=serial)"},
+	{name: "lanes-fail", stub: "1", call: "lanes 2", banner: "(lanes: WAVE_CLOSE_TEST_LANES=2)"},
+	{name: "serial-fails", args: []string{"WAVE_CLOSE_TEST_LANES=0"}, stub: "1", call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)"},
+}
+
+// s7WaveCloseModeMakefile cuts the switch's declaration and check 8 of the
+// wave-close-check rule out of the Makefile into a one-target makefile.
+func s7WaveCloseModeMakefile(makefile string) (string, error) {
+	declaration := regexp.MustCompile(`(?m)^WAVE_CLOSE_TEST_LANES \?=.*$`).FindAllString(makefile, -1)
+	if len(declaration) != 1 {
+		return "", fmt.Errorf("found %d WAVE_CLOSE_TEST_LANES declarations, want 1", len(declaration))
+	}
+	recipe, err := s7WaveCloseCheckRule(makefile)
+	if err != nil {
+		return "", err
+	}
+	begin := strings.Index(recipe, "\techo \"[8/8] ")
+	end := strings.Index(recipe, "\techo \"\"; \\\n")
+	if begin < 0 || end < begin {
+		return "", errors.New("check 8 not found in wave-close-check")
+	}
+	return declaration[0] + "\ncheck8:\n\t@fail=0; \\\n" + recipe[begin:end] + "\texit $$fail\n", nil
+}
+
+// s7WaveCloseCheck8Moved moves check 8 and the rest of the wave-close-check
+// recipe into a sibling target that wave-close-check does not run. It
+// returns the Makefile unchanged if check 8 is not found.
+func s7WaveCloseCheck8Moved(makefile string) string {
+	rule, err := s7WaveCloseCheckRule(makefile)
+	if err != nil {
+		return makefile
+	}
+	begin := strings.Index(rule, "\techo \"[8/8] ")
+	if begin < 0 {
+		return makefile
+	}
+	moved := rule[:begin] + "\ttrue\n\nwave-close-check-tests:\n\t@fail=0; warn=0; \\\n" + rule[begin:]
+	return strings.Replace(makefile, rule, moved, 1)
+}
+
+// checkS7WaveCloseCheckModes runs check 8 under make with stub runners that
+// record their call. The lane stub keeps the real runner's argument check,
+// so a value the real runner refuses fails the check here too.
+func checkS7WaveCloseCheckModes(t *testing.T, makePath, makefile, lanes string) error {
+	t.Helper()
+	mini, err := s7WaveCloseModeMakefile(makefile)
+	if err != nil {
+		return err
+	}
+	end := strings.Index(lanes, s7WaveCloseLaneUsageEnd)
+	if end < 0 || strings.Count(lanes, s7WaveCloseLaneUsageEnd) != 1 {
+		return errors.New("lane runner argument check not found")
+	}
+	record := `printf '%s\n' "$*" >"$S7_MODE_RECORD"; exit "${S7_MODE_STUB:-0}"` + "\n"
+	laneStub := lanes[:end+len(s7WaveCloseLaneUsageEnd)] + `set -- lanes "$@"` + "\n" + record
+	serialStub := "#!/bin/sh\nset -- serial \"$@\"\n" + record
+	var env []string
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		switch name {
+		case "MAKEFLAGS", "MFLAGS", "GNUMAKEFLAGS", "MAKELEVEL", "MAKEFILES", "MAKEOVERRIDES",
+			"WAVE_CLOSE_TEST_LANES", "S7_MODE_RECORD", "S7_MODE_STUB":
+			continue
+		}
+		env = append(env, entry)
+	}
+	for _, c := range s7WaveCloseModeCases {
+		dir := t.TempDir()
+		for path, body := range map[string]string{
+			"Makefile":                          mini,
+			s7WaveCloseLaneScriptPath:           laneStub,
+			"scripts/wave-close-test-shards.sh": serialStub,
+		} {
+			full := filepath.Join(dir, filepath.FromSlash(path))
+			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+				return err
+			}
+			if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+				return err
+			}
+		}
+		recordPath := filepath.Join(dir, "record")
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		cmd := exec.CommandContext(ctx, makePath, append([]string{"-s", "check8"}, c.args...)...)
+		cmd.Dir = dir
+		cmd.Env = append(slices.Clone(env), "S7_MODE_RECORD="+recordPath, "S7_MODE_STUB="+c.stub)
+		cmd.Env = append(cmd.Env, c.env...)
+		out, runErr := cmd.CombinedOutput()
+		cancel()
+		var exitErr *exec.ExitError
+		if runErr != nil && !errors.As(runErr, &exitErr) {
+			return fmt.Errorf("%s: make: %v\n%s", c.name, runErr, out)
+		}
+		call := ""
+		if body, err := os.ReadFile(recordPath); err == nil {
+			call = strings.TrimSuffix(string(body), "\n")
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		if call != c.call || (runErr == nil) != c.pass || !strings.Contains(string(out), "  "+c.banner+"\n") {
+			return fmt.Errorf("%s: runner call %q, check passed %v; want %q, %v and banner %q:\n%s",
+				c.name, call, runErr == nil, c.call, c.pass, c.banner, out)
+		}
+	}
+	return nil
+}
+
+// TestS7WaveCloseCheckModeSelection runs check 8 of wave-close-check under
+// make: lane mode by default, serial for WAVE_CLOSE_TEST_LANES=0, a failed
+// check for any other value, and the runner's status decides the check.
+func TestS7WaveCloseCheckModeSelection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("wave-close-check is a POSIX make/sh gate that is not run on Windows (Windows portability: GH #17)")
+	}
+	makePath, err := exec.LookPath("make")
+	if err != nil {
+		t.Fatalf("wave-close-check needs make: %v", err)
+	}
+	root := avpRepoRoot(t)
+	read := func(path string) string {
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+	makefile := read("Makefile")
+	lanes := read(s7WaveCloseLaneScriptPath)
+	if err := checkS7WaveCloseCheckModes(t, makePath, makefile, lanes); err != nil {
+		t.Fatal(err)
+	}
+	for _, broken := range []struct {
+		name, from, to string
+		inLanes        bool
+		mutate         func(string) string
+	}{
+		{name: "lanes-off-by-default", from: "\nWAVE_CLOSE_TEST_LANES ?= 2\n", to: "\nWAVE_CLOSE_TEST_LANES ?=\n"},
+		{name: "serial-by-default", from: "\nWAVE_CLOSE_TEST_LANES ?= 2\n", to: "\nWAVE_CLOSE_TEST_LANES ?= 0\n"},
+		{name: "serial-escape-inverted", from: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]", to: "\"$(WAVE_CLOSE_TEST_LANES)\" != 0 ]"},
+		{name: "serial-escape-ignored", from: "\t\tset -- sh scripts/wave-close-test-shards.sh; \\\n", to: ""},
+		{name: "empty-means-serial", from: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]", to: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ] || [ -z \"$(WAVE_CLOSE_TEST_LANES)\" ]"},
+		{name: "lane-count-hardcoded", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " 2"},
+		{name: "lane-count-unquoted", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " $(WAVE_CLOSE_TEST_LANES)"},
+		{name: "runner-status-ignored", from: "if out=$$(\"$$@\" 2>&1); then", to: "if out=$$(\"$$@\" 2>&1) || true; then"},
+		{name: "runner-accepts-any-count", from: " || [ \"$1\" != 2 ]; then\n", to: "; then\n", inLanes: true},
+		{name: "check-8-moved-to-sibling-target", mutate: s7WaveCloseCheck8Moved},
+	} {
+		t.Run(broken.name, func(t *testing.T) {
+			mutatedMakefile, mutatedLanes := makefile, lanes
+			if broken.mutate != nil {
+				mutatedMakefile = broken.mutate(makefile)
+				if mutatedMakefile == makefile {
+					t.Fatal("mutation changed nothing")
+				}
+			} else {
+				target := &mutatedMakefile
+				if broken.inLanes {
+					target = &mutatedLanes
+				}
+				if strings.Count(*target, broken.from) != 1 {
+					t.Fatalf("mutation anchor %q must occur exactly once", broken.from)
+				}
+				*target = strings.Replace(*target, broken.from, broken.to, 1)
+			}
+			if checkS7WaveCloseCheckModes(t, makePath, mutatedMakefile, mutatedLanes) == nil {
+				t.Fatal("broken wave-close mode selection passed the behavioral checks")
+			}
+		})
+	}
+	for _, redefinition := range s7WaveCloseCheckRedefinitions {
+		t.Run(redefinition.name, func(t *testing.T) {
+			if checkS7WaveCloseCheckModes(t, makePath, makefile+redefinition.text, lanes) == nil {
+				t.Fatal("a redefined wave-close-check passed the behavioral checks")
 			}
 		})
 	}
