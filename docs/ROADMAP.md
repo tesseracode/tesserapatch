@@ -31,7 +31,11 @@ reproduction ran during GH #9's validation wait (GH9-D13), and both issues
 still reproduce. **Update 2026-11-05T08:43Z**: the operator-approved
 gate-time reduction window (WAVE_BASE `7e0d63f`) shipped lane mode opt-in
 (`6b3a4ac`; row below). Nothing else in this snapshot is dispatched; the
-next window needs a fresh operator assignment.
+next window needs a fresh operator assignment. **Update 2026-11-05T18:27Z**:
+the operator adopted lane mode for accepted wave closes (GT-D27) and
+authorized a 6-hour window (deadline 2026-11-06T00:27:19Z, WAVE_BASE
+`4382c33`) for the lane default plus F-V18-1, with a GH #25 PRD draft
+(row below).
 
 ### Open GitHub issues
 
@@ -72,6 +76,7 @@ acceptance and implementation as separate decisions.
 | Item | What it is | Current gate |
 |---|---|---|
 | Old-Mac full-gate time reduction ✅ | Experiment to bring the guarded old-Mac `make wave-close-check` from the measured **3h38m1s** to **at most half (≈1h49m)** with identical coverage: same 42 top-level commands / 39 uncached test shards, same blocking-CI partition and `-count=1` semantics, and no memory or CPU starvation (normal pressure, no new swap-outs, load bounded). Candidate levers to measure, not assumed: bounded shard concurrency where memory allows, compile-cache reuse that keeps tests uncached, shard rebalancing and toolchain/IO overheads. | **✅ SHIPPED opt-in 2026-11-05** (12 h window from 2026-11-04T22:51:49Z, WAVE_BASE `7e0d63f`; record in `docs/handoff/HISTORY.md`). Shipped in `6b3a4ac` (range `7e0d63f..6b3a4ac`, tracking through the closeout commit) as `scripts/wave-close-test-lanes.sh` and the `WAVE_CLOSE_TEST_LANES=2` Makefile switch: two lanes running the identical 42 commands / 39 test shards, a shard-01 barrier and a serial tail for the three hosted-observer shards; the empty default stays serial (GT-D27). Measured on the old Mac in scratch trials: **5,958 s and 5,970 s** against 13,093 s serial (about 54% faster, under the ≈6,540 s target), normal pressure, no new swap-outs. Independent review APPROVED after 1 HIGH and 9 MEDIUM code findings and 2 MEDIUM doc findings were fixed; native CI 41963870311 passed; fresh guarded old-Mac **serial** gate PASS at `6b3a4ac` (42/42 commands, 14,327 s, slowed by an external OneDrive resync). Evidence-only old-Mac **lane** gate PASS at `6df4ced`: the full `make wave-close-check` in **6,330 s** end to end (42/42, exact parity, no new swap-outs). **Operator decision pending:** whether accepted wave closes adopt lane mode with one 60 s admission per gate (GT-D27). |
+| Lane-mode wave-close default + F-V18-1 🚧 | Operator-approved (GT-D27): `make wave-close-check` runs check 8 in lane mode by default (`WAVE_CLOSE_TEST_LANES=0` = serial), with one 60 s pressure admission per gate and a calm-retry-then-serial fallback. Same window: fix F-V18-1 (the `docs/agent-as-provider.md` recipe example carries a top-level `version` the strict decoder rejects) with a strict-decode guard, and draft the GH #25 planning PRD. | 🚧 dispatched 2026-11-05T18:27Z, WAVE_BASE `4382c33`; tracking in `docs/handoff/CURRENT.md` |
 | Observer child-budget headroom ⬜ | The hosted observer tests (`s7ObservedHostedBudgets`, `internal/cli/prepare_s7_registration_test.go`) give their child `go test` a fixed wall-clock budget. On the old Mac in serial mode, AM-AO's child uses about 88% of its 4 m budget, AQ about 83% of 8 m and AP about 65% of 8 m. Gate-time E2 run 1 showed that a ×1.13 slowdown is enough to fail AM-AO (GT-D18). | Not scheduled. A latent flake risk even in serial mode on slower hosts. Any fix changes test budgets or child-build cost and needs its own review; the lane runner keeps these shards in a serial tail instead. |
 
 ### Deferred families and unscoped ideas

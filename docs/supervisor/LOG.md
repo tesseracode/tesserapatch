@@ -1,3 +1,28 @@
+## Dispatch — wave-close-lanes-adoption-and-fv18 — 2026-11-05
+
+**Supervisor**: implementation agent (unattended 6 h window).
+**Task**: A — lane mode becomes the wave-close default (GT-D27 adopted;
+`WAVE_CLOSE_TEST_LANES=0` = serial); B — F-V18-1 fix with a strict-decode
+guard, filed and closed as a GitHub issue; C — GH #25 PRD draft during gate
+waits; D — CI plus the first accepted lane-mode wave close.
+
+### Baseline
+- HEAD == origin/main == `4382c33`; no tracked changes, no stash, one
+  worktree, no in-progress Git operation; CI idle.
+- **WAVE_BASE = 4382c33ec414da18fe45b4c4bc2011bbdee1674f**; deadline
+  2026-11-06T00:27:19Z.
+
+### Operator approvals
+- GT-D27 adopted (one 60 s pressure admission per gate); Makefile default
+  flips to lanes; on an external-pressure stop wait for calm, retry lanes
+  once, then serial; file F-V18-1 as an issue and close it with the fix.
+
+### Action Taken
+- CURRENT.md retargeted (Cluster state IN PROGRESS, replaced in place);
+  ROADMAP row 🚧. Decisions LW-D1…D3 recorded in CURRENT.md.
+
+---
+
 ## Gate — gate-time-reduction lane gate retry at `6df4ced` — 2026-11-05
 
 **Runner**: old-Mac lane gate (`run-gate-lanes.py`, evidence only per
