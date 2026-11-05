@@ -21,9 +21,10 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
 - **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
-  overlap, GT-D18); run 2 with the solo-tail plan running since 00:23:49Z;
-  E3 rev-1 NEEDS REVISION (3 MEDIUM, GT-D19–D21), rev-2 in progress,
-  uncommitted until E2 meets the target (2026-11-05T00:35Z)
+  overlap, GT-D18); run 2 with the solo-tail plan running remotely since
+  00:23:49Z but unobservable since NetBird logged out (GT-D22); E3 rev-2
+  (GT-D19–D21) validated locally and sent for re-review, uncommitted until
+  E2 meets the target (2026-11-05T01:10Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -245,8 +246,10 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **GT-D19, cancellation escalates to KILL (rev-1 review R1-F1).** TERM
   alone left TERM-ignoring descendants running (for example
   `TestRunawayChildIsBoundedToCapPlusOne` uses `trap '' TERM`). After TERM
-  and CONT, the runner polls for up to 10 s, then sends KILL to every
-  frozen process that is still alive. Zombies count as exited.
+  and CONT, the runner polls for up to 10 s. It then freezes the whole tree
+  again from scratch, so a survivor is stopped too and cannot start a new
+  process between the listing and the kill, and sends KILL to everything
+  from either freeze that is still alive. Zombies count as exited.
 - **GT-D20, cancellation also finds reparented and escaped descendants
   (rev-1 review R1-F2).** The PPID scan misses a process whose parent has
   already exited, such as the setsid escapee in
@@ -266,12 +269,42 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     parent link is not found. Under Ctrl-C the serial gate misses the same
     setsid escapees, and the repository's escapees exit on their own after
     a bounded hold.
-- **GT-D21, switch discovery scopes constants per package (rev-1 review
-  R1-F3).** The const map was per directory, so `package a_test` could
-  overwrite a constant of `package a` with the same name and hide a switch.
-  Constants are now keyed by directory and package name. A name defined
-  twice with different values in one package (only possible with build
-  tags) is ambiguous: folding through it fails, and the scan fails closed.
+- **GT-D21, switch discovery resolves constants by scope and package
+  (rev-1 review R1-F3).** The const map was per directory, so `package
+  a_test` could overwrite a constant of `package a` with the same name and
+  hide a switch.
+  - Files are grouped by directory and package name.
+  - A reference is bound as the compiler would bind it. The parser's
+    resolver binds same-file references, including function-local
+    constants and parameters or variables that shadow a constant. A
+    reference it leaves unresolved folds to that package's package-level
+    constants.
+  - A package-level name declared in several build-tagged files folds to
+    every declared value, in either file order. Concatenation takes every
+    combination; more than 64 values fails the scan closed.
+  - Changed from the first plan, which made such a name unfoldable. An
+    unfoldable operand would silently hide `part + "UPDATE_X"`, because the
+    remaining run carries no prefix.
+  - Found during validation: name-only resolution across the whole package
+    folded local variables in `internal/cli` (for example `pkg + "\x00" +
+    rel`) into 216 values. Lexical binding fixes that, and a fixture with
+    shadowing locals guards it.
+  - Rejected: `go/types` type-checking of every package. It is too heavy for
+    a guard test and needs source imports of the whole module.
+  - `ast.Object` is deprecated, but it is the only scope information
+    available without type-checking.
+- **GT-D22, NetBird logged out mid-run; E2 continues remotely, observed
+  later (2026-11-05T00:5xZ).** The local NetBird daemon reports
+  `NeedsLogin`, so `macbook-pro.netbird.selfhosted` no longer resolves. The
+  run-2 watcher exhausted its retries. Run 2 was started with `nohup` on the
+  old Mac and keeps running; its evidence stays in `$G/run2`.
+  - NetBird login is an interactive SSO step for the operator; I do not
+    attempt it.
+  - A local watcher polls NetBird. When the old Mac is reachable again, it
+    fetches run 2's state. Run 3 is launched only if run 2 passed and the
+    remaining window still covers a full run plus margin.
+  - Until then, E3 rev-2 proceeds locally (validation, smoke, re-review).
+    GT-D7 cannot be met without old-Mac access, so E3 stays uncommitted.
 
 ## Session Summary
 
@@ -307,6 +340,24 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   caught, and a regex-scanner mutation fails the discovery test. Lane-gate
   smoke with the rev-1 script: PASS, 42/42, no shard-01 overlap.
 - **Rev-1 review** (`gpt-6.1-sol`): NEEDS REVISION, 3 MEDIUM (GT-D19–D21).
+- **E3 rev-2** (GT-D18–D21) in a clean clone of `54177df` plus the four
+  files: gofmt clean, `go vet ./internal/cli` ok, targeted guards ok
+  (120 s). Mutation evidence:
+  - all 12 runner mutations are caught, including KILL escalation removed,
+    escapees not tracked, the solo tail running after a lane failure, a
+    masked solo status, and solo shards moved into lane B;
+  - the no-`lsof`/no-`/proc` refusal is exercised on macOS;
+  - 4 discovery mutations each fail the discovery test: name-only
+    resolution, package keyed by directory only, first declaration wins,
+    and no value cap.
+- **Lane-gate smoke with the rev-2 script:** PASS, 42/42, exact parity, no
+  shard-01 overlap, clean source. The call log shows the three solo shards
+  starting after every lane command ended, one at a time, in serial order.
+  Two earlier smoke attempts failed on harness setup, not on the runner: I
+  copied the real Makefile into the stub repo, and I ran without `python3
+  -B`. Both are recorded in the private evidence.
+- **NetBird logged out** around 00:50Z (GT-D22); run 2 is unobservable
+  until the operator logs in again.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -324,7 +375,10 @@ Dispatch baseline verified at `7e0d63f`:
 - Serial baselines: S9 `5133c95` at 13,081 s; GH #9 `b8a5f37` at 13,093 s.
   Both PASS.
 - Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
-  in progress. GT-D7 now needs runs 2 and 3 to pass consecutively.
+  running remotely but unobservable (GT-D22). GT-D7 now needs runs 2 and 3
+  to pass consecutively.
+- E3 rev-2 passes local guards, mutation checks and the lane-gate smoke;
+  awaiting re-review.
 
 ## Files Changed
 
@@ -336,8 +390,13 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Test Results
 
-- E3 draft, clean clone of `21be56f` plus the four files, after a 60 s
-  GT-D10 window: `gofmt -l .` empty;
+- E3 rev-2, clean clone of `54177df` plus the four files, each run after a
+  60 s GT-D10 window: `gofmt -l .` empty; `go vet ./internal/cli` ok;
+  `go test -p=1 ./internal/cli -count=1 -run
+  '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard|S7WaveCloseShardParity)$'`
+  ok (120.3 s). The first run failed on the real repo (GT-D21, 216-value
+  fold) and was fixed before this result.
+- E3 rev-1 draft (superseded), clean clone of `21be56f`: `gofmt -l .` empty;
   `go test -p=1 ./internal/cli -count=1 -run
   '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard)$'`
   ok (48.8 s); `go vet ./...` ok; `go build ./cmd/tpatch` ok.
@@ -347,18 +406,18 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. E3 rev-2: KILL escalation, marker-descriptor tracking, per-package
-   constants, the solo tail and the lane rebalance, with failing fixtures
-   for each; then re-review.
-2. Analyse E2 run 2; launch run 3 if it passes.
-3. If E2 meets GT-D7: AGENTS.md paragraph, independent review, commit and
-   push E3, native CI, then old-Mac gates in lane and serial modes.
+1. E3 rev-2 re-review (same reviewer, no Go runs).
+2. When NetBird is back (GT-D22): fetch and analyse E2 run 2; launch run 3
+   if it passed and the window still fits a full run.
+3. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
+   then old-Mac gates in lane and serial modes.
 4. Otherwise: go/no-go report with the measured numbers, E3 left
    uncommitted.
 
 ## Blockers
 
-None.
+- Old-Mac access: NetBird `NeedsLogin` since about 00:50Z. Operator action:
+  `netbird up` (interactive SSO). E2 cannot complete without it.
 
 ## Context for Next Agent
 
