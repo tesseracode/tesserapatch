@@ -22,6 +22,10 @@ GT-D13), `make wave-close-check WAVE_BASE=7e0d63f WAVE_CLOSE_TEST_LANES=2`.
   minutes without swap-outs and with load1 ≤ 4, with a cutoff of 07:05Z.
   The lane gate is retried afterwards in fresh directories if the window
   allows.
+- Follow-up: the old Mac was calm for 15 minutes at 04:37:22Z. The serial
+  gate at `6b3a4ac` was prepared (9 controls, exact 42-command parity) and
+  started at 04:37:50Z; `[1/8]` to `[5/8]` OK. Its verdict gets its own
+  entry.
 
 ---
 

@@ -13,11 +13,12 @@ GH #9 nested-repo sentinel shipped; issue closed**.
 
 WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 
-**Progress (2026-11-05T04:30Z):** E2 met the target twice in a row
+**Progress (2026-11-05T04:45Z):** E2 met the target twice in a row
 (5,957.8 s and 5,969.9 s, about 54% below serial). E3 is approved and
 committed as an opt-in mode (`6b3a4ac`). The first old-Mac lane gate was
 stopped by external memory pressure, with no test failure (GT-D29). The
-serial gate (the authority) waits for the old Mac to be calm.
+old Mac was calm for 15 minutes by 04:37:22Z; the serial gate (the
+authority) started at 04:37:50Z at `6b3a4ac` and passed `[1/8]` to `[5/8]`.
 
 ## Active Task
 
@@ -29,8 +30,8 @@ serial gate (the authority) waits for the old Mac to be calm.
 - **Status**: Approved, gates pending — E2 met GT-D7 (runs 2 and 3 PASSED
   consecutively in 5,957.8 s and 5,969.9 s); E3 rev-4 APPROVED and
   committed as `6b3a4ac`; the first lane gate was stopped by external
-  memory pressure (GT-D29); the serial gate waits for a calm old Mac
-  (2026-11-05T04:30Z)
+  memory pressure (GT-D29); the serial gate at `6b3a4ac` is running
+  (started 04:37:50Z, past `[3/8]`) (2026-11-05T04:45Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -534,6 +535,14 @@ serial gate (the authority) waits for the old Mac to be calm.
   including 12 trailer commits and the APPROVED token. At 1,601 s the
   harness stopped `[8/8]` on new swap-outs caused by an external OneDrive
   resync. No test failed; this is inconclusive (GT-D29).
+- **Calm wait:** from 04:22:13Z the old Mac showed no new swap-outs,
+  load1 ≤ 3.43, pressure level 1 and no Go process; OneDrive dropped to
+  0% CPU at 04:28Z. Calm for 15 minutes at 04:37:22Z.
+- **Serial gate at `6b3a4ac`:** prepared at 04:37:43Z (9 controls, 6
+  reviewed source hashes, exact 42/39-command parity, clean source, fresh
+  caches) and started at 04:37:50Z (runner pid 78778, accepted protocol).
+  `[1/8]` to `[5/8]` OK, including `[3/8]` HEAD equals origin/main and
+  `[4/8]` 12 trailer commits.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -560,7 +569,8 @@ Dispatch baseline verified at `7e0d63f`:
   Peak load1 3.78 and 4.82; minimum free memory 74% in both.
 - E3 committed as `6b3a4ac` (opt-in, GT-D27). The first lane gate was
   stopped by external memory pressure (GT-D29). The serial gate (the
-  authority, GT-D13) waits for a calm old Mac.
+  authority, GT-D13) is running at `6b3a4ac` (started 04:37:50Z,
+  expected to finish about 08:15Z).
 
 ## Files Changed
 
@@ -603,14 +613,13 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. Native CI 41963870311 for `6b3a4ac` (running).
-2. When the old Mac has been calm for 15 minutes (no new swap-outs,
-   load1 ≤ 4; cutoff 07:05Z): the serial gate at `6b3a4ac`
-   (`serial-gate/prepare-serial.py`, then `run-serial.sh`, about 3.6 h,
-   the authority per GT-D13). Do not push to `main` until the serial gate
-   has passed `[3/8]`, which requires HEAD to equal origin/main.
-3. Then, never overlapping, retry the lane gate in fresh directories if
-   the window allows (about 1.7 h; deadline 10:51:49Z).
+1. Native CI 41963870311 for `6b3a4ac` (finishing).
+2. The serial gate at `6b3a4ac` (the authority per GT-D13) is running;
+   evidence in `$R/gt-serial-6b3a4ac-gate/evidence/`. It already passed
+   `[3/8]`, so tracking-only pushes no longer affect it.
+3. Then, never overlapping, retry the lane gate in fresh directories at
+   the then-current origin/main if the window allows (about 1.7 h;
+   deadline 10:51:49Z).
 4. If the serial gate passes and CI is green: closeout (HISTORY archive, LOG
    entry, ROADMAP row ✅, morning report). If a gate fails on the code, or the
    serial gate cannot run: Cluster state back to IN PROGRESS (GT-D28/D29)
