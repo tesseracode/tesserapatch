@@ -20,9 +20,10 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Description**: Measured experiment, then an opt-in tracked change. Bring
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
-- **Status**: In progress — E1 audit done; controls C1 and C2 behaved as
-  intended; E2 run 1 running since 23:10:07Z; E3 opt-in drafted and validated
-  locally, uncommitted until E2 meets the target (2026-11-04T23:30Z)
+- **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
+  overlap, GT-D18); run 2 with the solo-tail plan running since 00:23:49Z;
+  E3 rev-1 NEEDS REVISION (3 MEDIUM, GT-D19–D21), rev-2 in progress,
+  uncommitted until E2 meets the target (2026-11-05T00:35Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -208,6 +209,69 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   interpreted literals, `+` concatenation, parentheses and package-level
   constants. It fails closed on any constant fragment that contains a
   switch prefix but is not a complete name.
+- **GT-D18, E2 run 1 is a FAIL; three observer shards move to a serial
+  tail.** Shard 31 (`TestS7ObservedAMThroughAORegistrationAuthority`)
+  exited 1 at 00:07:08Z after 303 s with "observed registration missing
+  out-of-band markers (timed out)". GT-D12 does not apply: a test failure
+  is a FAIL, not an inconclusive miss.
+  - Root cause: the hosted observer tests run a child `go test` under a
+    fixed wall-clock budget (`s7ObservedHostedBudgets`,
+    `internal/cli/prepare_s7_registration_test.go`). For AM-AO that budget
+    is 4 m. In the serial baseline the whole test took 264.6 s, so the
+    child used about 88% of its budget. Two-lane overlap slowed shards by
+    ×1.02–1.18 (shard 31 by ×1.13; likely the shared turbo and thermal
+    budget, since load stayed at 2–2.7 on 8 threads, pressure was normal
+    and there were no swap-outs). That exceeded the budget.
+  - Decision: an observer shard whose serial child run uses more than half
+    of its fixed budget runs alone, after both lanes have passed. That is
+    shards 31 (about 88% of 4 m), 32 (AP, about 65% of 8 m) and 33 (AQ,
+    about 83% of 8 m). Shards 17 and 29 move from lane A to lane B to
+    rebalance.
+  - Model: lane A 4,705 s, lane B 4,657 s, tail 1,076 s, preflight 82 s;
+    makespan 5,863 s plus admission. Lane B reaches its first `./...` shard
+    at about 3,241 s and shard 01 ends at about 2,866 s, so the GT-D15
+    barrier should not hold.
+  - The other child-`go` budget, `TestPrepareArtifactUnstableMutationControls`
+    (3 m outer, 2 m inner, in shard 01), passed under overlap in run 1. It is
+    monitored, not moved.
+  - Rejected: raising the test budgets. That changes test semantics and is
+    outside this window. The ~10–15% serial headroom of AM-AO is a latent
+    flake risk even in serial mode; it is recorded as a backlog note in
+    `docs/ROADMAP.md`.
+  - E2 runs 2 and 3 use this plan
+    (`bin/gt-20261104/plan-2lane-tail.json`). The private tool mirrors the
+    GT-D15 barrier and the tail, and logs when each shard becomes ready, so
+    holds are measured from ready to launch.
+- **GT-D19, cancellation escalates to KILL (rev-1 review R1-F1).** TERM
+  alone left TERM-ignoring descendants running (for example
+  `TestRunawayChildIsBoundedToCapPlusOne` uses `trap '' TERM`). After TERM
+  and CONT, the runner polls for up to 10 s, then sends KILL to every
+  frozen process that is still alive. Zombies count as exited.
+- **GT-D20, cancellation also finds reparented and escaped descendants
+  (rev-1 review R1-F2).** The PPID scan misses a process whose parent has
+  already exited, such as the setsid escapee in
+  `buildEscapingDoltCLIFixture`. Before starting the lanes, the runner
+  opens a marker file in its temporary directory on descriptor 9, and every
+  descendant inherits it. Cancellation stops the union of the PPID tree and
+  every process that holds the marker, listed with `lsof` or, on Linux,
+  `/proc/*/fd`. Only the runner's descendants can hold the descriptor, so
+  no unrelated process is signalled.
+  - Rejected: an exported environment token. macOS 27 `ps -E` does not
+    show another process's environment, which was checked directly.
+  - Rejected: `set -m` process groups. dash refuses job control without a
+    tty (the CI case), and zsh cannot set it.
+  - Rejected: signalling the runner's own process group. It is shared with
+    the caller (make, or the Go test binary in the fixtures).
+  - Residual: a descendant that closes descriptor 9 and also loses its
+    parent link is not found. Under Ctrl-C the serial gate misses the same
+    setsid escapees, and the repository's escapees exit on their own after
+    a bounded hold.
+- **GT-D21, switch discovery scopes constants per package (rev-1 review
+  R1-F3).** The const map was per directory, so `package a_test` could
+  overwrite a constant of `package a` with the same name and hide a switch.
+  Constants are now keyed by directory and package name. A name defined
+  twice with different values in one package (only possible with build
+  tags) is ambiguous: folding through it fails, and the scan fails closed.
 
 ## Session Summary
 
@@ -230,6 +294,19 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     - pass case: PASS, 42/42 parity, 4.7 s of lane overlap;
     - shard 3 failing: FAIL, and the other lane stopped after 9 stages.
   - The smoke test found the GT-D14 clock defect, which is now fixed.
+- **E2 run 1 FAILED** at 00:07:08Z: shard 31 exceeded its 4 m observer
+  child budget under two-lane overlap (GT-D18). Per-package `ok` for every
+  other completed shard. Shard 01's `internal/cli` took 1,556 s of its
+  40 m timeout.
+- **E2 run 2** launched 00:23:49Z with the GT-D18 solo-tail plan. The first
+  attempt was refused because run 1's build step left an ignored `tpatch`
+  binary in the scratch clone; the tool's clean-checkout check worked as
+  intended. The binary was removed before relaunch.
+- **E3 rev-1** (GT-D15–D17) in a clean clone: gofmt clean, `go vet
+  ./internal/cli` ok, targeted guards ok (69 s), all 6 runner mutations
+  caught, and a regex-scanner mutation fails the discovery test. Lane-gate
+  smoke with the rev-1 script: PASS, 42/42, no shard-01 overlap.
+- **Rev-1 review** (`gpt-6.1-sol`): NEEDS REVISION, 3 MEDIUM (GT-D19–D21).
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -246,7 +323,8 @@ Dispatch baseline verified at `7e0d63f`:
 
 - Serial baselines: S9 `5133c95` at 13,081 s; GH #9 `b8a5f37` at 13,093 s.
   Both PASS.
-- Controls C1 and C2 behaved as intended. E2 run 1 in progress.
+- Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
+  in progress. GT-D7 now needs runs 2 and 3 to pass consecutively.
 
 ## Files Changed
 
@@ -269,10 +347,13 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. Analyse E2 run 1; launch run 2 if it passes.
-2. If E2 meets GT-D7: AGENTS.md paragraph, independent review, commit and
+1. E3 rev-2: KILL escalation, marker-descriptor tracking, per-package
+   constants, the solo tail and the lane rebalance, with failing fixtures
+   for each; then re-review.
+2. Analyse E2 run 2; launch run 3 if it passes.
+3. If E2 meets GT-D7: AGENTS.md paragraph, independent review, commit and
    push E3, native CI, then old-Mac gates in lane and serial modes.
-3. Otherwise: go/no-go report with the measured numbers, E3 left
+4. Otherwise: go/no-go report with the measured numbers, E3 left
    uncommitted.
 
 ## Blockers

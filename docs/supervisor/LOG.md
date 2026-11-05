@@ -1,3 +1,33 @@
+## Review — gate-time-reduction E3 rev-1 — 2026-11-05
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: E3 rev-1, the fixes for the rev-0 findings (GT-D15–D17) in
+`scripts/wave-close-test-lanes.sh` and `internal/cli/wave_close_lanes_test.go`.
+
+### Findings
+1. **MEDIUM — cancellation never escalates past TERM.** A descendant that
+   ignores TERM keeps running. Accepted; fixed by KILL escalation (GT-D19).
+2. **MEDIUM — reparented descendants escape the PPID scan.** A process
+   whose parent already exited, such as a setsid escapee, is not found.
+   Accepted; fixed by an inherited marker descriptor (GT-D20).
+3. **MEDIUM — the per-directory constant map mixes packages.** `package
+   a_test` can overwrite a constant of `package a` and hide a switch.
+   Accepted; fixed by per-package scopes that fail closed on ambiguity
+   (GT-D21).
+
+### Verdict: NEEDS REVISION
+
+### Action Taken
+- All three findings accepted; rev-2 in progress with a failing fixture for
+  each.
+- Separately, E2 run 1 FAILED: shard 31 timed out against its observer
+  child budget under overlap. The lane plan now runs shards 31–33 in a
+  serial tail after both lanes pass (GT-D18). Run 2 uses that plan, and
+  rev-2 adds the tail to the lane runner.
+
+---
+
 ## Review — gate-time-reduction E3 draft (rev-0) — 2026-11-04
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
