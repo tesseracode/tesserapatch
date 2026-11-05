@@ -1,3 +1,51 @@
+## Wave Close — wave-close-lanes-adoption-and-fv18 — 2026-11-05
+
+**Reviewer**: supervisor (implementation-agent close; Go validation under
+the guarded protocol; independent reviews recorded below).
+**Task**: Lane-mode wave-close default (GT-D27 adoption) + F-V18-1 (GH #27),
+with the GH #25 PRD Draft (WAVE_BASE `4382c33`; range `b41a073`..`7f5f97c`).
+
+### Checklist
+- [x] Compiles — `go vet ./...` and `go build ./cmd/tpatch` OK (lane gate
+  `[7/8]`)
+- [x] Tests pass — 42/42 CI-equivalent uncached top-level commands OK
+  (lane gate `[8/8]`); native CI 42084638899 (`b41a073`) and 42096817879
+  (`7f5f97c`) all five jobs
+- [x] Formatted — lane gate `[6/8]` OK
+- [x] Artifacts deterministic — no `.tpatch/` change
+- [x] Secrets safe
+- [x] Matches SPEC — validation tooling and a doc example fix; no CLI
+  contract change
+- [x] Handoff accurate — decisions LW-D1…D10; archived to HISTORY
+- [x] Parity guard — `assets` package passes, including the new
+  recipe-schema guards
+
+### Verdict: APPROVED — SHIPPED
+
+### Notes
+**Old-Mac lane gate at `7f5f97c` (the first accepted lane-mode wave
+close).** `make wave-close-check WAVE_BASE=4382c33…` with no lane argument;
+check 8 announced `(lanes: WAVE_CLOSE_TEST_LANES=2)`.
+`=== Mechanical gate: PASS ===` at 21:27:50Z after 6,152.8 s end to end
+(61.2 s admission), about 57% below the 14,326.9 s serial gate at
+`6b3a4ac`. 42/42 top-level commands with exact command multiset and
+preflight order; no shard-01 overlap with broad shards; 3 trailer commits;
+APPROVED token. Pressure level 1 throughout, 0 unhealthy samples, 0 new
+swap-outs, peak load1 4.12, minimum free memory 73%, peak owned RSS
+5.72 GB, no external Go process; 0 owned processes left; source clean;
+release tag unchanged. The fallback was not needed (LW-D10).
+
+**GH #27** closed with a comment referencing `c03da36`.
+
+### Action Taken
+- ROADMAP row "Lane-mode wave-close default + F-V18-1" → ✅.
+- Handoff archived to HISTORY (`2026-11-05T21:31:47Z - Lane-mode
+  wave-close default + F-V18-1`; block 11,819 bytes, SHA256 `4533377…`);
+  CURRENT left IDLE pending the operator's review of the LW decisions and
+  the GH #25 PRD open questions.
+
+---
+
 ## Review — GH #25 PRD draft (C) — 2026-11-05
 
 **Reviewer**: independent code-review agent (OpenAI model, read-only, no Go).
