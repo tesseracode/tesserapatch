@@ -1,3 +1,30 @@
+## Review — gate-time-reduction E3 rev-3 — 2026-11-05
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: E3 rev-3, the fixes for the rev-2 findings (GT-D23–D25).
+
+### Findings
+- Rev-2 F1 (reused-pid KILL) and F2 (re-entrant cleanup) are closed.
+- **MEDIUM — repeated initializers keep their original bindings.** In a
+  function, `const (suffix = "RECORD_ROUTING_" + suffix; name)`: `name`
+  repeats the list textually, so its `suffix` is the local one, but
+  discovery followed the original binding to the package-level `suffix`.
+  It reported a different name and missed the real switch. Accepted; fixed
+  by resolving each local constant in the scope of its declaring spec
+  (GT-D26).
+
+### Verdict: NEEDS REVISION
+
+### Action Taken
+- Finding accepted. Rev-4 adds two shadowing fixtures, including the
+  reviewer's case. All 10 discovery mutations fail the discovery test, and
+  the targeted guards pass. Sent back to the same reviewer.
+- E2 run 2: both lanes finished at 01:45:18Z with all 39 lane shards exit
+  0. The solo tail is running.
+
+---
+
 ## Review — gate-time-reduction E3 rev-2 — 2026-11-05
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go

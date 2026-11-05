@@ -23,9 +23,9 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
   overlap, GT-D18); run 2 with the solo-tail plan running remotely since
   00:23:49Z, all shards so far exit 0, observable again after a NetBird
-  outage (GT-D22); rev-2 review NEEDS REVISION (1 HIGH, 2 MEDIUM); E3
-  rev-3 (GT-D23–D25) validated locally and sent for re-review, uncommitted
-  until E2 meets the target (2026-11-05T01:40Z)
+  outage (GT-D22); rev-3 review NEEDS REVISION (1 MEDIUM, GT-D26); E3
+  rev-4 validated locally and sent for re-review, uncommitted until E2
+  meets the target (2026-11-05T02:00Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -351,6 +351,29 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     `v + "UPDATE_…"` is a switch, which checks the positional mapping.
   - Three discovery mutations are caught: no repetition at all, no local
     repetition, and no package-level repetition.
+- **GT-D26, a repeated list resolves where it is repeated (rev-3 review,
+  MEDIUM).** Repetition is textual, and a function-local constant's scope
+  begins after its own spec. So in a repeated spec, a name declared by an
+  earlier spec of the same block shadows whatever the original list's
+  identifier referred to. Rev-3 reused the original expression's parser
+  bindings and missed such switches.
+  - Each spec now records a scope: the constants declared by the earlier
+    specs of its block, not its own. A local constant's expression is
+    folded in its declaring spec's scope. Names in that scope take
+    precedence over the parser's binding; others keep it. Package-level
+    constants fold with no scope, since every package-level name is
+    already in scope.
+  - Fixture package `f`, with a package-level `tail`: in one function,
+    `head = "RECORD_REBOUND_" + tail; tail; rebound`. `tail` cannot see
+    itself, so it uses the outer value; `rebound` sees the local `tail`. In
+    another function, `tail = "RECORD_SOURCE_" + tail; again`, the
+    reviewer's case: the source spec rebinds its own name.
+  - Three mutations are caught: no rebinding, a spec's scope including its
+    own names, and folding definitions in the caller's scope instead of
+    the declaring one.
+  - Rejected: failing closed on any repetition that could rebind. That is
+    simpler, but it would reject valid code, and the correct resolution
+    needs only one scope map per spec.
 
 ## Session Summary
 
@@ -428,6 +451,12 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     mutant fails the test.
 - **Lane-gate smoke with the rev-3 script:** PASS, 41 tool calls, the same
   as rev-2.
+- **Rev-3 review:** F1 and F2 closed. NEEDS REVISION on one MEDIUM: a
+  repeated local list kept its original identifier bindings (GT-D26).
+- **E3 rev-4** (test file only; the runner script is unchanged, so the
+  rev-3 smoke stands): gofmt clean, `go vet ./internal/cli` ok, targeted
+  guards ok (159.8 s). All 10 discovery mutations fail the discovery test,
+  including the three new rebinding mutations, and none is invalid.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -447,8 +476,9 @@ Dispatch baseline verified at `7e0d63f`:
 - Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
   running remotely, all completed shards exit 0 (GT-D22 resolved). GT-D7
   now needs runs 2 and 3 to pass consecutively.
-- E3 rev-3 passes local guards, mutation checks and the lane-gate smoke;
-  awaiting re-review. At 01:33Z run 2 had 30 shards done, all exit 0.
+- E3 rev-4 passes local guards, mutation checks and the lane-gate smoke;
+  awaiting re-review. Run 2's lanes finished at 01:45:18Z, with all 39 lane
+  shards exit 0; the solo tail is running.
 
 ## Files Changed
 
@@ -460,7 +490,9 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Test Results
 
-- E3 rev-3, same clean clone, each run after a 60 s GT-D10 window:
+- E3 rev-4, same clean clone, after a 60 s GT-D10 window: `gofmt -l .`
+  empty; `go vet ./internal/cli` ok; the same targeted set ok (159.8 s).
+- E3 rev-3 (superseded), same clean clone, each run after a 60 s GT-D10 window:
   `gofmt -l .` empty; `go vet ./internal/cli` ok; `go test -p=1
   ./internal/cli -count=1 -run
   '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard)$'`
@@ -481,7 +513,7 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. E3 rev-3 re-review (same reviewer, no Go runs).
+1. E3 rev-4 re-review (same reviewer, no Go runs).
 2. When run 2 exits (projected about 02:02Z): fetch and analyse it; launch
    run 3 if it passed and the window still fits a full run.
 3. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
