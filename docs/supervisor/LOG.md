@@ -1,3 +1,30 @@
+## Gate — gate-time-reduction lane gate retry at `6df4ced` — 2026-11-05
+
+**Runner**: old-Mac lane gate (`run-gate-lanes.py`, evidence only per
+GT-D13), `make wave-close-check WAVE_BASE=7e0d63f WAVE_CLOSE_TEST_LANES=2`,
+in fresh directories after the serial gate (GT-D30).
+
+### Result
+- `=== Mechanical gate: PASS ===` at 10:25:59Z; started 08:40:29Z.
+- **6,329.6 s end to end**, including `[1/8]` to `[7/8]` and the 61 s
+  initial admission: under the 6,540 s target and about 52% below the
+  13,093 s serial baseline.
+- 42/42 top-level commands, exact command parity and preflight order, no
+  shard-01 overlap with broad shards; 14 trailer commits; APPROVED token.
+- Pressure level 1 throughout, no new swap-outs, minimum free memory 73%,
+  peak owned RSS 6.02 GB, no external Go process.
+- Peak load1 5.53: 22 unhealthy samples triggered one fresh 60 s
+  re-admission before a launch (GT-D2); no runtime stop.
+- 0 owned processes remaining; source clean; release tag unchanged.
+
+### Verdict: PASS (evidence only; the serial gate at `6b3a4ac` is the authority)
+
+### Action Taken
+- Recorded in the IDLE handoff and the ROADMAP row. Adoption for accepted
+  wave closes remains the operator's decision (GT-D27).
+
+---
+
 ## Wave Close — gate-time-reduction — 2026-11-05
 
 **Reviewer**: supervisor (implementation-agent close; Go validation under

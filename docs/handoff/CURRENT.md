@@ -16,6 +16,11 @@ reduction: lane mode shipped opt-in**:
   `1b16ffbfea85b0aaa1986cd215632077755c237f1389a9ad7c9e9e9d80b3faf1`;
 - the prior 1,193,330-byte prefix is unchanged.
 
+**Lane gate addendum (2026-11-05T10:25:59Z):** the evidence-only lane gate
+at `6df4ced` PASSED end to end in **6,329.6 s** (`make wave-close-check
+WAVE_CLOSE_TEST_LANES=2`, 42/42 commands, exact parity), under the
+6,540 s target and about 52% below the 13,093 s serial baseline.
+
 **Operator decision pending (GT-D27):** whether accepted wave closes adopt
 `WAVE_CLOSE_TEST_LANES=2` with one 60 s admission per gate. The default
 stays serial until then. The next implementation needs a new explicit
@@ -48,8 +53,8 @@ its deadline at 2026-11-05T10:51:49Z (WAVE_BASE `7e0d63f`).
 - **Validation:** native CI 41963870311 (`6b3a4ac`) and 41969985410
   (`6df4ced`) green; old-Mac serial gate PASS (42/42 commands, 14,326.9 s,
   no new swap-outs); lane gate attempt 1 stopped by external swap-outs
-  (GT-D29); the lane gate retry at `6df4ced` (evidence only) was running
-  at closeout.
+  (GT-D29); the lane gate retry at `6df4ced` (evidence only) PASSED in
+  6,329.6 s, recorded after the archive (see Test Results).
 
 ### Decisions awaiting operator review (full text in the HISTORY archive)
 
@@ -104,21 +109,35 @@ its deadline at 2026-11-05T10:51:49Z (WAVE_BASE `7e0d63f`).
 
 - This closeout: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
   `docs/supervisor/LOG.md`, `docs/ROADMAP.md`.
+- Lane gate addendum: `docs/handoff/CURRENT.md`, `docs/supervisor/LOG.md`,
+  `docs/ROADMAP.md`.
 
 ## Test Results
 
 - See the HISTORY archive. Summary: old-Mac serial gate PASS at `6b3a4ac`
-  (42/42 commands, 14,326.9 s, no new swap-outs); CI 41963870311 and
-  41969985410 green; the lane gate retry at `6df4ced` (evidence only) was
-  running at closeout.
+  (42/42 commands, 14,326.9 s, no new swap-outs); CI 41963870311,
+  41969985410 and 41996834555 (`2359553`, closeout) green.
+- **Old-Mac lane gate at `6df4ced` (evidence only, GT-D13): PASS.**
+  `make wave-close-check WAVE_BASE=7e0d63f WAVE_CLOSE_TEST_LANES=2`,
+  started 08:40:29Z, `=== Mechanical gate: PASS ===` at 10:25:59Z.
+  - 6,329.6 s end to end, including `[1/8]`–`[7/8]` and one 61 s initial
+    admission; 4,744 s of concurrent test time.
+  - 42/42 top-level commands, exact command parity and preflight order,
+    no shard-01 overlap with broad shards, consistent stage clock.
+  - Pressure normal (level 1) throughout, no new swap-outs, minimum free
+    memory 73%, peak owned RSS 6.02 GB, no external Go process.
+  - Peak load1 5.53: 22 samples were unhealthy, so one launch waited for
+    a fresh 60 s qualifying window (GT-D2 re-admission); no stop.
+  - Owned cleanup: 0 processes remaining; source clean afterwards;
+    release tag unchanged.
+  - Evidence in `bin/gt-20261104/lanegate-6df4ced/`.
 
 ## Next Steps
 
-1. Agent, this window: record the lane retry result at `6df4ced`
-   (evidence only) here and in the LOG.
-2. Operator: decide GT-D27 (adopt lane mode for accepted wave closes, with
-   one 60 s admission per gate).
-3. Operator: assign the next backlog item with a fresh WAVE_BASE.
+1. Operator: decide GT-D27 (adopt lane mode for accepted wave closes, with
+   one 60 s admission per gate). Evidence: E2 runs 2 and 3 plus the lane
+   gate at `6df4ced`, all under 6,540 s.
+2. Operator: assign the next backlog item with a fresh WAVE_BASE.
 
 ## Blockers
 
