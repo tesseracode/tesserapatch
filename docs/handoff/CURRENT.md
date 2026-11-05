@@ -78,8 +78,12 @@ GT-D28 (LW-D7).
   with five redefinition fixtures in both guards. Re-review r3 APPROVED;
   local validation r3 PASS.
 - C: the GH #25 draft (`docs/prds/PRD-overlap-verification-consolidation.md`,
-  Draft, planning only) is written; it is reviewed and committed separately
-  from the code.
+  Draft, planning only) passed an independent claims check (r1 NEEDS
+  REVISION with 2 HIGH + 3 MEDIUM, fixed; r2 APPROVED WITH NOTES, LOW cite
+  fixed). It recommends C (read-only assessment) first, then A for the
+  single-child case behind an ADR-013 amendment, with B as a runbook, and
+  lists twelve open questions for the operator. Committed separately from
+  the code.
 
 ### Decisions (for operator review)
 
@@ -138,6 +142,7 @@ GT-D28 (LW-D7).
   `scripts/wave-close-test-lanes.sh`, `AGENTS.md`,
   `docs/REVIEW-PLAYBOOK.md`.
 - B: `docs/agent-as-provider.md`, `assets/assets_test.go`.
+- C: `docs/prds/PRD-overlap-verification-consolidation.md` (new, Draft).
 
 ## Test Results
 
@@ -161,13 +166,11 @@ GT-D28 (LW-D7).
 
 ## Next Steps
 
-1. Push the A+B commit once the dispatch CI run (`b41a073`) has finished;
-   watch CI.
-2. D: lane gate on the old Mac at the pushed commit, with the default
+1. Push the A+B commit (`c03da36`) and the C commit together once the
+   dispatch CI run (`b41a073`) has finished; watch CI.
+2. D: lane gate on the old Mac at the pushed HEAD, with the default
    command and no lane argument (fallback per approvals).
-3. C: independent check of the GH #25 draft's claims audit; commit it
-   (Draft, planning only) with the closeout.
-4. Closeout: close GH #27, HISTORY archive, IDLE CURRENT, LOG, ROADMAP ✅,
+3. Closeout: close GH #27, HISTORY archive, IDLE CURRENT, LOG, ROADMAP ✅,
    push, CI.
 
 ## Blockers

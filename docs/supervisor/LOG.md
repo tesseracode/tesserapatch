@@ -1,3 +1,35 @@
+## Review — GH #25 PRD draft (C) — 2026-11-05
+
+**Reviewer**: independent code-review agent (OpenAI model, read-only, no Go).
+**Task**: `docs/prds/PRD-overlap-verification-consolidation.md`, a Draft
+planning PRD (no implementation authorized) written during gate waits.
+
+### Verdict: APPROVED WITH NOTES (r2), after NEEDS REVISION (r1)
+
+### Notes
+- r1: 2 HIGH, 3 MEDIUM, all fixed by the drafter. (1) The no-manufacture
+  rule M2 now bans synthetic or backfilled evidence while allowing the
+  consolidation workflow's normal record/land producers for the new slug
+  only. (2) Option A requires each explaining descendant to pass its own
+  blocking checks in the same run (E6), matching N19. (3) ADR-028 D8 is
+  scoped to recipe/write-file preimage drift; a downgrade would extend it
+  and needs ADR-028 + ADR-013 amendments. (4) Trailer claims name the four
+  landing-attestation trailers; reconcile auto-drop's `Tpatch-Slug`/
+  `Tpatch-CVE` is noted. (5) The v0.18 reproduction claim cites only
+  HISTORY.md, not private evidence.
+- r2 LOW: the record-producer cite pointed at the plan, not the writers;
+  fixed by the implementation agent with the reviewer's cites (verified).
+- Recommendation recorded in the draft (operator decision pending): C
+  (read-only assessment) first, then A for the single-child case behind an
+  ADR-013 amendment; B as a runbook. Twelve open questions for the operator.
+
+### Action Taken
+- Draft kept untracked until it passed review, then committed on its own
+  (docs only) and pushed together with the code commit, so one CI run and
+  one lane gate cover both.
+
+---
+
 ## Review — wave-close-lanes-adoption-and-fv18 (A+B) r1 — 2026-11-05
 
 **Reviewer**: independent code-review agent (OpenAI model, read-only, no Go).
