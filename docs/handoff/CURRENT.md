@@ -22,9 +22,9 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
 - **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
   overlap, GT-D18); run 2 with the solo-tail plan running remotely since
-  00:23:49Z but unobservable since NetBird logged out (GT-D22); E3 rev-2
-  (GT-D19–D21) validated locally and sent for re-review, uncommitted until
-  E2 meets the target (2026-11-05T01:10Z)
+  00:23:49Z, all shards so far exit 0, observable again after a NetBird
+  outage (GT-D22); E3 rev-2 (GT-D19–D21) validated locally and sent for
+  re-review, uncommitted until E2 meets the target (2026-11-05T01:15Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -305,6 +305,12 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     remaining window still covers a full run plus margin.
   - Until then, E3 rev-2 proceeds locally (validation, smoke, re-review).
     GT-D7 cannot be met without old-Mac access, so E3 stays uncommitted.
+  - **Resolved 01:07:45Z without operator action.** NetBird reconnected on
+    its own (`Management: Connected`). Run 2 had kept running throughout:
+    at 01:08:51Z every completed shard had exited 0, lane B launched each
+    shard as soon as the previous one finished, and the monitor had not
+    stopped the run. A new watcher tolerates ssh failures instead of
+    exiting on them.
 
 ## Session Summary
 
@@ -356,8 +362,16 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   Two earlier smoke attempts failed on harness setup, not on the runner: I
   copied the real Makefile into the stub repo, and I ran without `python3
   -B`. Both are recorded in the private evidence.
-- **NetBird logged out** around 00:50Z (GT-D22); run 2 is unobservable
-  until the operator logs in again.
+- **NetBird logged out** around 00:50Z and reconnected on its own at
+  01:07:45Z (GT-D22). Run 2 continued throughout. Lane B's shards are
+  within about 3% of their estimates, which projects completion around
+  02:02Z (about 5,920 s, target 6,540 s).
+- **Analyzer** (`bin/gt-20261104/analyze-e2.py`, private) now measures
+  holds from `ready` to `launch` and checks the GT-D18 solo tail (no
+  overlap, after every lane shard) and the GT-D15 barrier (module-walking
+  shards start only after shard 01 exits 0). On the fake-toolchain smoke,
+  the clean run reports no violations, and copies mutated to break each
+  rule are each caught.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -375,8 +389,8 @@ Dispatch baseline verified at `7e0d63f`:
 - Serial baselines: S9 `5133c95` at 13,081 s; GH #9 `b8a5f37` at 13,093 s.
   Both PASS.
 - Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
-  running remotely but unobservable (GT-D22). GT-D7 now needs runs 2 and 3
-  to pass consecutively.
+  running remotely, all completed shards exit 0 (GT-D22 resolved). GT-D7
+  now needs runs 2 and 3 to pass consecutively.
 - E3 rev-2 passes local guards, mutation checks and the lane-gate smoke;
   awaiting re-review.
 
@@ -407,8 +421,8 @@ Dispatch baseline verified at `7e0d63f`:
 ## Next Steps
 
 1. E3 rev-2 re-review (same reviewer, no Go runs).
-2. When NetBird is back (GT-D22): fetch and analyse E2 run 2; launch run 3
-   if it passed and the window still fits a full run.
+2. When run 2 exits (projected about 02:02Z): fetch and analyse it; launch
+   run 3 if it passed and the window still fits a full run.
 3. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
    then old-Mac gates in lane and serial modes.
 4. Otherwise: go/no-go report with the measured numbers, E3 left
@@ -416,8 +430,8 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Blockers
 
-- Old-Mac access: NetBird `NeedsLogin` since about 00:50Z. Operator action:
-  `netbird up` (interactive SSO). E2 cannot complete without it.
+- None. The NetBird outage (about 00:50Z to 01:07:45Z) resolved without
+  operator action.
 
 ## Context for Next Agent
 
