@@ -1,3 +1,27 @@
+## Review — gate-time-reduction E3 rev-4 — 2026-11-05
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: E3 rev-4, the fix for the rev-3 finding (GT-D26): local constants
+resolve in their declaring spec's scope.
+
+### Findings
+- The rev-3 finding is closed. No significant issues found.
+
+### Verdict: APPROVED
+
+### Action Taken
+- E3 review cycle closed after four rounds: 1 HIGH and 7 MEDIUM findings
+  accepted, each with a fixture that fails when its fix is reverted.
+- E2 run 2 PASSED and meets GT-D7: 42/42 in 5,957.8 s (target 6,540 s,
+  serial baseline 13,093 s). It had no holds, package parity with the
+  serial baseline, peak load1 3.78, minimum free memory 74% at pressure
+  level 1, no new swap-outs, and no tail or barrier violations.
+- E2 run 3 launched at 02:03:52Z. If it also passes, GT-D7 is met: commit
+  E3, then the native CI and the old-Mac lane and serial gates.
+
+---
+
 ## Review — gate-time-reduction E3 rev-3 — 2026-11-05
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go

@@ -21,11 +21,9 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
 - **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
-  overlap, GT-D18); run 2 with the solo-tail plan running remotely since
-  00:23:49Z, all shards so far exit 0, observable again after a NetBird
-  outage (GT-D22); rev-3 review NEEDS REVISION (1 MEDIUM, GT-D26); E3
-  rev-4 validated locally and sent for re-review, uncommitted until E2
-  meets the target (2026-11-05T02:00Z)
+  overlap, GT-D18); run 2 PASSED in 5,957.8 s and meets GT-D7; run 3
+  running remotely since 02:03:52Z; E3 rev-4 APPROVED, uncommitted until
+  run 3 passes (2026-11-05T02:10Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -457,6 +455,12 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   rev-3 smoke stands): gofmt clean, `go vet ./internal/cli` ok, targeted
   guards ok (159.8 s). All 10 discovery mutations fail the discovery test,
   including the three new rebinding mutations, and none is invalid.
+- **Rev-4 review:** APPROVED, with no significant issues.
+- **E2 run 2 PASSED** at 02:03:26Z: 5,957.8 s, about 54% below the serial
+  baseline. The lanes ended at 01:45:18Z, and the solo tail took 1,067 s.
+  The analyzer finds no holds, tail violations or barrier violations.
+- **E2 run 3** launched at 02:03:52Z on the same clean scratch clone, after
+  removing the `tpatch` binary that run 2's build left behind.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -476,9 +480,12 @@ Dispatch baseline verified at `7e0d63f`:
 - Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
   running remotely, all completed shards exit 0 (GT-D22 resolved). GT-D7
   now needs runs 2 and 3 to pass consecutively.
-- E3 rev-4 passes local guards, mutation checks and the lane-gate smoke;
-  awaiting re-review. Run 2's lanes finished at 01:45:18Z, with all 39 lane
-  shards exit 0; the solo tail is running.
+- E3 rev-4 APPROVED; it passes local guards, mutation checks and the
+  lane-gate smoke.
+- E2 run 2 PASSED: 42/42 in 5,957.8 s (target 6,540 s), no holds, exact
+  package parity, peak load1 3.78, minimum free memory 74%, no new
+  swap-outs, and no tail or barrier violations (`gt_d7_run_ok`). Run 3 is
+  running.
 
 ## Files Changed
 
@@ -513,12 +520,13 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. E3 rev-4 re-review (same reviewer, no Go runs).
-2. When run 2 exits (projected about 02:02Z): fetch and analyse it; launch
-   run 3 if it passed and the window still fits a full run.
-3. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
-   then old-Mac gates in lane and serial modes.
-4. Otherwise: go/no-go report with the measured numbers, E3 left
+1. When run 3 exits (projected about 03:43Z): fetch and analyse it. Run 2
+   passed, so run 3 passing meets GT-D7.
+2. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
+   then old-Mac gates: lane mode first (about 1.7 h), then serial mode
+   (about 3.6 h, the authority per GT-D13). Both fit before the 10:51:49Z
+   deadline if run 3 ends on schedule.
+3. Otherwise: go/no-go report with the measured numbers, E3 left
    uncommitted.
 
 ## Blockers
