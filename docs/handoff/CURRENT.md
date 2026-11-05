@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **Gate-time reduction window dispatched (2026-11-04T22:51:49Z, deadline
 2026-11-05T10:51:49Z).** The goal is to bring the guarded old-Mac
@@ -13,6 +13,11 @@ GH #9 nested-repo sentinel shipped; issue closed**.
 
 WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 
+**Progress (2026-11-05T03:50Z):** E2 met the target twice in a row
+(5,957.8 s and 5,969.9 s, about 54% below serial). E3 is approved and
+committed as an opt-in mode. The old-Mac lane and serial gates at the E3
+commit are pending (GT-D28).
+
 ## Active Task
 
 - **Task ID**: gate-time-reduction
@@ -20,10 +25,10 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Description**: Measured experiment, then an opt-in tracked change. Bring
   the old-Mac full gate to ≤ 6,540 s with the same 42 commands and 39 test
   commands, identical argv and `-count=1`, with no memory or CPU starvation.
-- **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
-  overlap, GT-D18); run 2 PASSED in 5,957.8 s and meets GT-D7; run 3
-  running remotely since 02:03:52Z; E3 rev-4 APPROVED, uncommitted until
-  run 3 passes (2026-11-05T02:10Z)
+- **Status**: Approved, gates pending — E2 met GT-D7 (runs 2 and 3 PASSED
+  consecutively in 5,957.8 s and 5,969.9 s); E3 rev-4 APPROVED and
+  committed; old-Mac lane and serial gates follow at the E3 commit
+  (GT-D28) (2026-11-05T03:50Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -372,6 +377,23 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   - Rejected: failing closed on any repetition that could rebind. That is
     simpler, but it would reject valid code, and the correct resolution
     needs only one scope map per spec.
+- **GT-D27, lane mode lands opt-in, not as the accepted wave-close path.**
+  The E3 commit makes `WAVE_CLOSE_TEST_LANES=2` available and documents it
+  in AGENTS.md. The empty default stays serial. Running two `go test`
+  processes at once conflicts with the operator's per-run admission rule
+  (no other Go process), and the window approved amortized admission for
+  the scratch harness only. So switching accepted wave closes to lane mode
+  is left to the operator. Recommendation: adopt it, with one 60 s
+  admission per gate and continuous sampling, as E2 measured.
+- **GT-D28, Cluster state APPROVED at the E3 commit, before the gates.**
+  Gate step `[5/8]` requires a terminal token at the HEAD it checks, and
+  the gates must run on the pushed E3 commit. So the E3 commit carries
+  APPROVED: the code review is APPROVED (rev-4, plus a doc-only check of
+  the AGENTS.md text) and E2 met GT-D7. This follows the GH #9 precedent,
+  whose gate also checked an APPROVED token. If either old-Mac gate fails,
+  the state goes back to IN PROGRESS in a tracking commit, and the fix
+  goes through review and both gates again. Closeout commits after the
+  gates touch tracking files only.
 
 ## Session Summary
 
@@ -461,6 +483,25 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   The analyzer finds no holds, tail violations or barrier violations.
 - **E2 run 3** launched at 02:03:52Z on the same clean scratch clone, after
   removing the `tpatch` binary that run 2's build left behind.
+- **E2 run 3 PASSED** at 03:43:50Z: 5,969.9 s, 42/42, no holds, exact
+  package parity, peak load1 4.82, minimum free memory 74%, pressure normal
+  throughout, no new swap-outs, solo tail 1,076 s, no tail or barrier
+  violations. With run 2, **GT-D7 is met** (two consecutive passes).
+- **CI 41955457091** for `b39e7dc`: all five jobs passed.
+- **Docs for E3:** an AGENTS.md addendum on the opt-in lane mode, and a
+  REVIEW-PLAYBOOK §1.8 note that serial remains the accepted path. The
+  rev-4 reviewer checked these claims against the code (doc-only, no Go):
+  NEEDS REVISION on two MEDIUM overstatements (the cancellation guarantee,
+  and parity attributed to the serial script). Both were fixed, and the
+  re-check was APPROVED.
+- **E3 final local check** in the clean scratch clone, after a 60 s window:
+  `gofmt -l .` empty, `go vet ./...` ok, `go build ./cmd/tpatch` ok, and
+  `sh -n` ok on the runner.
+- **Old-Mac gate tools staged** under `$R/gt-20261104/`:
+  `lane-gate/` (16-control lane tools, hashes in `lane-tool-hashes.json`)
+  and `serial-gate/` (`prepare-serial.py` and `run-serial.sh`, adapted from
+  the GH #9 serial gate scripts: same tools, hashes, 9 controls and 42-command
+  parity; they clone from GitHub and check the reviewed source hashes).
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -477,26 +518,32 @@ Dispatch baseline verified at `7e0d63f`:
 
 - Serial baselines: S9 `5133c95` at 13,081 s; GH #9 `b8a5f37` at 13,093 s.
   Both PASS.
-- Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
-  running remotely, all completed shards exit 0 (GT-D22 resolved). GT-D7
-  now needs runs 2 and 3 to pass consecutively.
+- Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); the
+  solo-tail replan then passed twice in a row (runs 2 and 3).
 - E3 rev-4 APPROVED; it passes local guards, mutation checks and the
   lane-gate smoke.
-- E2 run 2 PASSED: 42/42 in 5,957.8 s (target 6,540 s), no holds, exact
-  package parity, peak load1 3.78, minimum free memory 74%, no new
-  swap-outs, and no tail or barrier violations (`gt_d7_run_ok`). Run 3 is
-  running.
+- E2 runs 2 and 3 PASSED consecutively (5,957.8 s and 5,969.9 s against
+  6,540 s), so GT-D7 is met. Both runs: 42/42, no holds, exact package
+  parity, pressure normal, no new swap-outs, no tail or barrier violations.
+  Peak load1 3.78 and 4.82; minimum free memory 74% in both.
+- E3 committed (opt-in, GT-D27). The old-Mac lane gate and then the serial
+  gate (the authority, GT-D13) run at the E3 commit.
 
 ## Files Changed
 
-- Committed: tracking only (`docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+- Committed: tracking (`docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`).
-- Uncommitted E3 draft: `scripts/wave-close-test-lanes.sh` (new),
-  `Makefile`, `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
-  `internal/cli/wave_close_lanes_test.go` (new).
+- E3 commit: `scripts/wave-close-test-lanes.sh` (new), `Makefile`,
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
+  `internal/cli/wave_close_lanes_test.go` (new), `AGENTS.md`,
+  `docs/REVIEW-PLAYBOOK.md`.
 
 ## Test Results
 
+- E3 final, clean scratch clone, after a 60 s GT-D10 window: `gofmt -l .`
+  empty; `go vet ./...` ok; `go build ./cmd/tpatch` ok.
+- E2 run 3: PASS, 5,969.9 s, 42/42, `gt_d7_run_ok` true.
+- CI 41955457091 (`b39e7dc`): all five jobs passed.
 - E3 rev-4, same clean clone, after a 60 s GT-D10 window: `gofmt -l .`
   empty; `go vet ./internal/cli` ok; the same targeted set ok (159.8 s).
 - E3 rev-3 (superseded), same clean clone, each run after a 60 s GT-D10 window:
@@ -520,14 +567,15 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. When run 3 exits (projected about 03:43Z): fetch and analyse it. Run 2
-   passed, so run 3 passing meets GT-D7.
-2. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
-   then old-Mac gates: lane mode first (about 1.7 h), then serial mode
-   (about 3.6 h, the authority per GT-D13). Both fit before the 10:51:49Z
-   deadline if run 3 ends on schedule.
-3. Otherwise: go/no-go report with the measured numbers, E3 left
-   uncommitted.
+1. Push the E3 commit (CI for `b39e7dc` has passed) and watch native CI.
+2. Old-Mac lane gate at the E3 commit (`lane-gate/prepare-lanes.py`, then
+   `run-gate-lanes.py`, about 1.7 h).
+3. Then, never overlapping, the old-Mac serial gate (`serial-gate/
+   prepare-serial.py`, then `run-serial.sh`, about 3.6 h, the authority
+   per GT-D13). Deadline 10:51:49Z.
+4. If both pass and CI is green: closeout (HISTORY archive, LOG entry,
+   ROADMAP row ✅, morning report). If a gate fails: Cluster state back to
+   IN PROGRESS (GT-D28) and a go/no-go report.
 
 ## Blockers
 

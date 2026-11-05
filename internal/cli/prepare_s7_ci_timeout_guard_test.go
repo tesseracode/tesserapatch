@@ -210,10 +210,34 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 			mutateMakefile: func(body string) string {
 				return strings.Replace(
 					body,
-					"if out=$$(sh scripts/wave-close-test-shards.sh 2>&1); then \\",
-					"go test -count=1 ./...",
+					"shards=\"sh scripts/wave-close-test-shards.sh\"; \\",
+					"shards=\"go test -count=1 ./...\"; \\",
 					1,
 				)
+			},
+		},
+		{
+			name: "gate-ignores-shard-status",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "if out=$$($$shards 2>&1); then", "if out=$$($$shards 2>&1) || true; then", 1)
+			},
+		},
+		{
+			name: "lanes-on-by-default",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "\nWAVE_CLOSE_TEST_LANES ?=\n", "\nWAVE_CLOSE_TEST_LANES ?= 2\n", 1)
+			},
+		},
+		{
+			name: "lanes-forced-by-second-assignment",
+			mutateMakefile: func(body string) string {
+				return body + "\nexport WAVE_CLOSE_TEST_LANES = 2\n"
+			},
+		},
+		{
+			name: "lane-runner-replaced",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, s7WaveCloseLaneCall, "sh scripts/other-lanes.sh", 1)
 			},
 		},
 		{
@@ -287,12 +311,11 @@ func validateS7WaveCloseShardParity(makefile, script string) error {
 		return errors.New("wave-close-test-shards target does not invoke the guarded script")
 	}
 	checkStart := strings.Index(makefile, "wave-close-check:\n")
-	if checkStart < 0 ||
-		!strings.Contains(
-			makefile[checkStart:],
-			"if out=$$("+scriptCall+" 2>&1); then \\",
-		) {
+	if checkStart < 0 || strings.Count(makefile[checkStart:], s7WaveCloseCheckShardBlock) != 1 {
 		return errors.New("wave-close-check does not invoke the guarded shard script")
+	}
+	if err := validateS7WaveCloseLaneOptIn(makefile); err != nil {
+		return err
 	}
 	if strings.Contains(makefile[checkStart:], "$(MAKE)") {
 		return errors.New("wave-close-check contains recursive make and is unsafe under make -n/-q/-t")

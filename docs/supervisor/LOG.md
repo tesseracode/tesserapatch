@@ -1,3 +1,34 @@
+## Review — gate-time-reduction E3 docs (rev-5) and E2 run 3 — 2026-11-05
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: Doc-only check of the AGENTS.md lane-mode addendum and the
+REVIEW-PLAYBOOK §1.8 note against the approved rev-4 code.
+
+### Findings
+- **MEDIUM — cancellation overstated.** "Terminates every process it
+  started" ignored the known residual: a descendant that drops both its
+  parent link and the inherited descriptor 9 escapes, and the cancellation
+  fixture requires two such decoys to survive. Accepted; reworded.
+- **MEDIUM — parity attributed to the wrong source.** The serial script
+  has no refusal list; the guard checks recording switches discovered in
+  the Go sources plus a fixed audited list. Accepted; reworded.
+- Re-check: APPROVED.
+
+### Verdict: APPROVED
+
+### Action Taken
+- E2 run 3 PASSED at 03:43:50Z: 42/42 in 5,969.9 s, no holds, exact
+  package parity, peak load1 4.82, minimum free memory 74%, pressure level
+  1 throughout, no new swap-outs, solo tail 1,076 s, no tail or barrier
+  violations. With run 2 (5,957.8 s), **GT-D7 is met**.
+- CI 41955457091 for `b39e7dc`: all five jobs passed.
+- E3 committed as an opt-in mode (GT-D27) with Cluster state APPROVED
+  (GT-D28). Next: native CI, then the old-Mac lane gate and the serial gate
+  (the authority, GT-D13), never overlapping.
+
+---
+
 ## Review — gate-time-reduction E3 rev-4 — 2026-11-05
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go

@@ -137,6 +137,11 @@ make wave-close-test-shards
 make wave-close-check
 ```
 
+The serial default is the accepted path. `WAVE_CLOSE_TEST_LANES=2` is an
+opt-in that roughly halves `[8/8]` on the old Mac but runs two test
+processes at once; do not use it for a wave close until the operator has
+adopted it (see AGENTS.md → Mechanical gate).
+
 ### 1.9 Detach anything that runs longer than about a minute
 
 The agent terminal integration returns no output and then stops responding for

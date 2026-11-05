@@ -68,10 +68,16 @@ all: fmt lint test build
 # parent's ignore rules and the same pathspec/allowlist matching, and fails
 # closed (instead of reading as clean) when Git or enumeration fails.
 # Exit status: 0 OK, 3 WARN, anything else FAIL.
+# Gate-time reduction (2026-11-05): WAVE_CLOSE_TEST_LANES=2 opts check 8 into
+# scripts/wave-close-test-lanes.sh, which runs the same serial commands in two
+# concurrent lanes under a static, guarded partition, then a short solo tail
+# of the observer shards one at a time. Empty (the default) keeps the serial
+# script; any other value fails the check.
 wave-close-test-shards:
 	@sh scripts/wave-close-test-shards.sh
 
 WAVE_BASE ?=
+WAVE_CLOSE_TEST_LANES ?=
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
 	@fail=0; warn=0; \
@@ -205,7 +211,12 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[8/8] CI-equivalent uncached test shards clean..."; \
-	if out=$$(sh scripts/wave-close-test-shards.sh 2>&1); then \
+	shards="sh scripts/wave-close-test-shards.sh"; \
+	if [ -n "$(WAVE_CLOSE_TEST_LANES)" ]; then \
+		shards="sh scripts/wave-close-test-lanes.sh $(WAVE_CLOSE_TEST_LANES)"; \
+		echo "  (opt-in: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))"; \
+	fi; \
+	if out=$$($$shards 2>&1); then \
 		echo "  OK"; \
 	else \
 		echo "  FAIL: test suite failed"; \
