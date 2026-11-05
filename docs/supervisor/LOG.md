@@ -1,3 +1,58 @@
+## Wave Close — gate-time-reduction — 2026-11-05
+
+**Reviewer**: supervisor (implementation-agent close; Go validation under
+the guarded old-Mac protocol; independent reviews recorded below).
+**Task**: Old-Mac full-gate time reduction — opt-in two-lane wave close
+(WAVE_BASE `7e0d63f`; source `6b3a4ac`).
+
+### Checklist
+- [x] Compiles — `go vet ./...` and `go build ./cmd/tpatch` OK (serial gate
+  `[7/8]`)
+- [x] Tests pass — 39 CI-equivalent uncached shards OK (serial gate
+  `[8/8]`); native CI 41963870311 (`6b3a4ac`) and 41969985410 (`6df4ced`)
+  all five jobs
+- [x] Formatted — serial gate `[6/8]` OK
+- [x] Artifacts deterministic — no `.tpatch/` change
+- [x] Secrets safe
+- [x] Matches SPEC — process tooling only; no CLI contract change; the
+  serial default is unchanged
+- [x] Handoff accurate — decisions GT-D1…D30; archived to HISTORY
+
+### Verdict: APPROVED — SHIPPED (opt-in; adoption is the operator's call, GT-D27)
+
+### Notes
+**Old-Mac serial gate (the authority, GT-D13)** at `6b3a4ac`:
+`=== Mechanical gate: PASS ===` at 08:36:38Z.
+- 42/42 top-level commands, 39/39 test commands, exact command parity;
+  14,326.9 s.
+- No new swap-outs; peak owned RSS 5.16 GB; source clean afterwards;
+  release tag unchanged.
+- Against the GH #9 baseline (`b8a5f37`, 13,093 s): command time ×1.07 and
+  admission +463 s. OneDrive (fileproviderd) used 100–180% CPU in bursts
+  from about 05:38Z to 07:05Z; load1 peaked at 6.8 and command 11 waited
+  303 s for admission.
+
+**Measured result (E2, scratch).** Runs 2 and 3 PASSED in 5,957.8 s and
+5,969.9 s against the 6,540 s target, with identical commands, no holds,
+normal pressure and no new swap-outs (GT-D7).
+
+**Lane gates (evidence only).** Attempt 1 at `6b3a4ac` stopped on external
+swap-outs (GT-D29, INCONCLUSIVE). The retry at `6df4ced` started at
+08:40:34Z and passed `[1/8]` to `[6/8]`; its result gets its own entry.
+
+**Count correction.** The rev-4 entry first said "1 HIGH and 7 MEDIUM";
+the code findings were 1 HIGH and 9 MEDIUM (rev-0 3, rev-1 3, rev-2 the
+HIGH and 2, rev-3 1), plus 2 MEDIUM in the rev-5 docs check. Corrected in
+place.
+
+### Action Taken
+- ROADMAP "Old-Mac full-gate time reduction" → ✅.
+- Handoff archived to HISTORY (`2026-11-05T08:43:11Z - Gate-time
+  reduction: lane mode shipped opt-in`); CURRENT left IDLE pending the
+  operator's GT-D27 decision and the next assignment.
+
+---
+
 ## Gate — gate-time-reduction lane gate at `6b3a4ac` — 2026-11-05
 
 **Runner**: old-Mac lane gate (`run-gate-lanes.py`, evidence only per
@@ -73,8 +128,10 @@ resolve in their declaring spec's scope.
 ### Verdict: APPROVED
 
 ### Action Taken
-- E3 review cycle closed after four rounds: 1 HIGH and 7 MEDIUM findings
-  accepted, each with a fixture that fails when its fix is reverted.
+- E3 review cycle closed after four rounds: 1 HIGH and 9 MEDIUM findings
+  accepted, each with a fixture that fails when its fix is reverted
+  (rev-0 3 MEDIUM, rev-1 3, rev-2 the HIGH and 2, rev-3 1; corrected at
+  closeout from "7 MEDIUM").
 - E2 run 2 PASSED and meets GT-D7: 42/42 in 5,957.8 s (target 6,540 s,
   serial baseline 13,093 s). It had no holds, package parity with the
   serial baseline, peak load1 3.78, minimum free memory 74% at pressure
