@@ -1,3 +1,36 @@
+## Review — gate-time-reduction E3 rev-2 — 2026-11-05
+
+**Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go
+runs).
+**Task**: E3 rev-2, the fixes for the rev-1 findings (GT-D19–D21) plus the
+GT-D18 solo tail, in `scripts/wave-close-test-lanes.sh` and
+`internal/cli/wave_close_lanes_test.go`.
+
+### Findings
+1. **HIGH — KILL escalation can hit a reused pid.** Escalation signalled
+   pids remembered from the first listing. One that exited during the 10 s
+   grace could have had its pid reused by an unrelated process. Accepted;
+   fixed by signalling only live pids verified by a listing taken while
+   they were stopped (GT-D23).
+2. **MEDIUM — a second signal abandons cleanup.** Another INT, TERM or HUP
+   during cleanup ran `exit` again, skipping KILL escalation and
+   temporary-file removal. Accepted; cleanup now ignores further signals,
+   and the first signal runs cleanup itself (GT-D24).
+3. **MEDIUM — omitted const initializers hide switches.** In `const (p =
+   "TPATCH_"; q)`, `q` repeats `p`'s expression but has no AST `Values`, so
+   discovery silently dropped `q + "RECORD_…"`. Accepted; discovery now
+   repeats the previous list, package-level and local (GT-D25).
+
+### Verdict: NEEDS REVISION
+
+### Action Taken
+- All three accepted; rev-3 adds a failing fixture for each, validated
+  locally before re-review.
+- Separately, NetBird reconnected on its own at 01:07:45Z. E2 run 2 had
+  kept running, with every shard so far exiting 0.
+
+---
+
 ## Review — gate-time-reduction E3 rev-1 — 2026-11-05
 
 **Reviewer**: independent code-review agent (`gpt-6.1-sol`, read-only, no Go

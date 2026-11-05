@@ -23,8 +23,9 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
 - **Status**: In progress — E2 run 1 FAILED (shard 31 observer budget under
   overlap, GT-D18); run 2 with the solo-tail plan running remotely since
   00:23:49Z, all shards so far exit 0, observable again after a NetBird
-  outage (GT-D22); E3 rev-2 (GT-D19–D21) validated locally and sent for
-  re-review, uncommitted until E2 meets the target (2026-11-05T01:15Z)
+  outage (GT-D22); rev-2 review NEEDS REVISION (1 HIGH, 2 MEDIUM); E3
+  rev-3 (GT-D23–D25) validated locally and sent for re-review, uncommitted
+  until E2 meets the target (2026-11-05T01:40Z)
 - **Assigned**: 2026-11-04 (operator-approved 12 h window)
 
 ## Operator approvals (2026-11-04T22:51Z)
@@ -311,6 +312,45 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
     shard as soon as the previous one finished, and the monitor had not
     stopped the run. A new watcher tolerates ssh failures instead of
     exiting on them.
+- **GT-D23, cleanup signals only pids it has just verified (rev-2 review
+  F1, HIGH).** `freeze` keeps its last listing, taken with every member
+  stopped, in `$owned`. `verified` is `$frozen ∩ $owned`. TERM and KILL go
+  only to verified pids that `alive` still shows running; a stopped live
+  process cannot exit, so its pid cannot have been reused. Nothing
+  remembered from the first listing is signalled after the 10 s grace.
+  After TERM every frozen pid is sent CONT so it can act on the signal;
+  after KILL every frozen pid that was not killed is sent CONT, so nothing
+  is left stopped. The grace loop polls `alive $(members)`.
+  - Guard: each hung fake `go` also starts a decoy. On TERM it closes the
+    marker descriptor, and when its parent dies it is reparented. It keeps
+    its pid but is no longer the runner's, so it stands in for a reused
+    pid. The cancel check requires both decoys to be spared. Mutation
+    `remembered-pids-killed` (escalate against the accumulated frozen set,
+    as rev-2 did) kills them and is caught.
+  - Rejected: comparing process start times before signalling. `ps -o
+    lstart` has one-second resolution and differs between BSD and procps.
+    Verifying while stopped needs no identity comparison.
+- **GT-D24, cleanup is non-reentrant (rev-2 review F2, MEDIUM).** The EXIT
+  trap is `trap "" INT TERM HUP; cleanup`. INT, TERM and HUP run
+  `on_signal`, which ignores further signals, runs cleanup itself, clears
+  the EXIT trap and exits 130, 143 or 129. Running cleanup inside the
+  signal handler, not through `exit`, closes the gap where a signal arrives
+  as the EXIT trap starts. Whichever invocation reaches `trap ''` first
+  completes, and later signals are ignored.
+  - Guard: the cancel fixture sends SIGHUP and then SIGTERM again 1.5 s
+    after the first SIGTERM, while cleanup waits on the TERM-ignoring
+    child. Mutation `second-signal-exits` (the rev-2 traps) leaves the
+    temporary directory behind and is caught.
+- **GT-D25, omitted const initializers (rev-2 review F3, MEDIUM).** One pass
+  over every const `GenDecl` in the package, including function-local ones,
+  records each spec's effective expressions: an empty list repeats the
+  previous non-empty one, as the Go spec's implicit repetition does.
+  Package-level collection and local resolution both use it.
+  - Fixture package `e`: a package-level `const (p = "TPATCH_"; q)` and a
+    local two-name group `x, y = "OTHER_", "TPATCH_"; u, v`. Only
+    `v + "UPDATE_…"` is a switch, which checks the positional mapping.
+  - Three discovery mutations are caught: no repetition at all, no local
+    repetition, and no package-level repetition.
 
 ## Session Summary
 
@@ -372,6 +412,22 @@ WAVE_BASE = 7e0d63fe71756618a6d1478ec35cdf38e1af4897
   shards start only after shard 01 exits 0). On the fake-toolchain smoke,
   the clean run reports no violations, and copies mutated to break each
   rule are each caught.
+- **Rev-2 review** (`gpt-6.1-sol`): NEEDS REVISION. HIGH: KILL escalation
+  could signal a reused pid. MEDIUM: a second signal abandoned cleanup.
+  MEDIUM: omitted const initializers hid switches. Fixes: GT-D23 to D25.
+- **E3 rev-3** in the same clean clone: gofmt clean; `sh`, dash and bash
+  `-n` ok; `go vet ./internal/cli` ok; targeted guards ok (159.9 s).
+  Mutation evidence:
+  - all 13 runner mutations are caught, including the new
+    `remembered-pids-killed` (decoys killed) and `second-signal-exits`
+    (cleanup abandoned, temporary directory left behind);
+  - all 7 discovery mutations fail the discovery test itself, including the
+    three new implicit-repetition mutations. The first attempt at
+    `implicit-not-repeated` failed to compile, which proves nothing; the
+    proof script now reports build failures as invalid, and the corrected
+    mutant fails the test.
+- **Lane-gate smoke with the rev-3 script:** PASS, 41 tool calls, the same
+  as rev-2.
 - **E3 draft (uncommitted):** `scripts/wave-close-test-lanes.sh`, the
   Makefile opt-in, new guards in `internal/cli/wave_close_lanes_test.go`, and
   updated parity checks in `prepare_s7_ci_timeout_guard_test.go`. In a clean
@@ -391,8 +447,8 @@ Dispatch baseline verified at `7e0d63f`:
 - Controls C1 and C2 behaved as intended. E2 run 1 FAILED (GT-D18); run 2
   running remotely, all completed shards exit 0 (GT-D22 resolved). GT-D7
   now needs runs 2 and 3 to pass consecutively.
-- E3 rev-2 passes local guards, mutation checks and the lane-gate smoke;
-  awaiting re-review.
+- E3 rev-3 passes local guards, mutation checks and the lane-gate smoke;
+  awaiting re-review. At 01:33Z run 2 had 30 shards done, all exit 0.
 
 ## Files Changed
 
@@ -404,7 +460,12 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Test Results
 
-- E3 rev-2, clean clone of `54177df` plus the four files, each run after a
+- E3 rev-3, same clean clone, each run after a 60 s GT-D10 window:
+  `gofmt -l .` empty; `go vet ./internal/cli` ok; `go test -p=1
+  ./internal/cli -count=1 -run
+  '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard)$'`
+  ok (159.9 s; `TestS7WaveCloseLaneRunner` 126 s).
+- E3 rev-2 (superseded), clean clone of `54177df` plus the four files, each run after a
   60 s GT-D10 window: `gofmt -l .` empty; `go vet ./internal/cli` ok;
   `go test -p=1 ./internal/cli -count=1 -run
   '^Test(GH9WaveClose.*|S7WaveClose.*|S7CIFullSuiteTimeoutGuard|S7ARPermanentBlockClaimsGuard|S7WaveCloseShardParity)$'`
@@ -420,7 +481,7 @@ Dispatch baseline verified at `7e0d63f`:
 
 ## Next Steps
 
-1. E3 rev-2 re-review (same reviewer, no Go runs).
+1. E3 rev-3 re-review (same reviewer, no Go runs).
 2. When run 2 exits (projected about 02:02Z): fetch and analyse it; launch
    run 3 if it passed and the window still fits a full run.
 3. If E2 meets GT-D7: AGENTS.md paragraph, commit and push E3, native CI,
