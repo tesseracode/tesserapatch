@@ -191,6 +191,18 @@ applies to each code wave.
   `invalid-or-missing-evidence`; LOW: R14 cites pointed at R11). Both fixed
   and confirmed: **GH #26 PRD APPROVED**. Code cites in the GH #26 PRD were
   re-verified by content against the post-fix code.
+- **W1 close CI 42170715937: green** (06:37Z, all five jobs).
+- **W2 and the D track pushed** together at 06:38Z (`e41c474..2e44569`,
+  OV-D15). CI 42175737134 runs at `2e44569`. The `e41c474` lane gate keeps
+  running (its check 3 passed at launch); the `2e44569` gate starts once it
+  frees the old Mac.
+- **v0.19.0 draft reviewed:** APPROVED after one MEDIUM fix (see OV-D16).
+  Uncommitted until W2's CI and lane gate pass.
+- **W1 lane gate at `e41c474`: PASS** (07:32:53Z, checks 1–8). W1 is
+  closed; ROADMAP row ✅.
+- **Lane gate at `2e44569`** (W2 + D track) launched 07:35Z, deadline
+  10:04Z; checks 1–6 passed, including 3 (pushed), 4 (five trailers) and 5
+  (terminal token).
 
 ### Decisions awaiting operator review (OV-D*)
 
@@ -287,6 +299,20 @@ applies to each code wave.
   second 1 h 45 m gate. I pushed both commits together; CI and the lane gate
   run once at the D-track tip, which contains W2 unchanged. W2 keeps its own
   commit, and the code cites in the GH #26 PRD match that tree.
+- **OV-D16 (v0.19.0 release content):** the release adds a dated
+  `## v0.19.0 — 2026-11-06` CHANGELOG section (W2 as Added, the captured-bytes
+  probe change and the W1 switch as Changed, the two planning PRDs as
+  planning only, plus the "Unchanged safeguards" block every release
+  repeats). RGA-359 validates only the newest release section, so
+  `rgaCurrentChangelogRelease` moves to 0.19.0 and
+  `TestRecipeAuthorityVersionedChangelogScope`'s pinned headings and
+  wrong-input versions move up one minor, exactly as `c18f025` did for
+  0.18.0. The skills' "Operation replay candidates (v0.18.0)" headings stay:
+  they name the release that shipped that feature. The release commit is
+  made only after W2's CI and lane gate pass; the tag is created before the
+  push. The W2 reviewer approved the draft after one MEDIUM fix: the
+  captured-bytes bullet no longer claims a mid-run edit cannot change the
+  result, because a detected edit still fails verification.
 
 ## Current State
 
@@ -356,16 +382,12 @@ applies to each code wave.
 
 ## Next Steps
 
-1. W1: close commit `e41c474` pushed; CI 42170715937 and the old-Mac lane
-   gate (checks 1–7 passed) run in parallel. When both pass, flip the ROADMAP
-   W1 row to ✅.
-2. W2 (review APPROVED, mutants 23/23, local r4 PASS, committed): push after
-   CI 42170715937 finishes; CI; lane gate at the W2 tip once the W1 gate
-   frees the old Mac.
-3. D track (all APPROVED): committed after W2; pushed with it (OV-D15).
-4. R: v0.19.0 (CHANGELOG plus the release-guard pins; tag before push) if W2
-   ships.
-5. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,
+1. W1: ✅ closed (CI green, lane gate PASS at `e41c474`).
+2. W2 + D track (`2e44569`, pushed 06:38Z): CI 42175737134 and the lane
+   gate at `2e44569` (launched 07:35Z) run in parallel.
+3. R: v0.19.0 (draft APPROVED, uncommitted: CHANGELOG plus the release-guard
+   pins; tag before push) once W2's CI and lane gate pass.
+4. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,
    ROADMAP, push with CI green.
 
 ## Blockers

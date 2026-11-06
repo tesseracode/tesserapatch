@@ -1,3 +1,47 @@
+## Wave close — W1 (empty `WAVE_CLOSE_TEST_LANES` = serial) — 2026-11-06
+
+**Runner**: old-Mac lane gate (`WAVE_CLOSE_TEST_LANES=2`, exact 42/39
+command parity with CI) at the W1 close commit `e41c474`,
+`WAVE_BASE=2335cca`.
+
+### Verdict: PASS
+
+### Notes
+- Checks 1–8 passed; completed 07:32:53Z. Source clean after the run;
+  release tag unchanged.
+- CI 42163688451 (`3303cc2`) and CI 42170715937 (`e41c474`) green.
+- Gate #1 at `3303cc2` had failed [5/8] on the mid-cycle token, a protocol
+  issue fixed by OV-D10; nothing in W1's code changed between the gates.
+
+### Action Taken
+W1 ROADMAP row flipped to ✅. The lane gate for W2 and the D track
+launched at `2e44569` (07:35Z; checks 1–6 passed).
+
+---
+
+## Review — v0.19.0 release draft — 2026-11-06
+
+**Reviewer**: code-review agent (gpt-6.1-sol, read-only; same agent as W2)
+**Task**: the v0.19.0 CHANGELOG section and the RGA-359 release pin bump in
+`assets/recipe_authority_parity_test.go`.
+
+### Verdict: APPROVED (after one fix)
+
+### Notes
+- MEDIUM, fixed: the "Changed" bullet claimed an artifact edited during a run
+  could not change that run's result. A detected edit still marks the
+  snapshot unstable and fails verification (`markSnapshotUnstable`, present
+  before W2). The bullet now says a live edit never enters a Git probe or a
+  memoized probe result, and that a detected edit still fails verification.
+  Re-check: APPROVED.
+- The version-scope fixture bump mirrors `c18f025`; every wrong-input case
+  keeps its newer, older or equal-version meaning.
+
+### Action Taken
+The release commit waits for W2's CI and the lane gate at `2e44569`.
+
+---
+
 ## Validation — W2 local validation r4 — 2026-11-06
 
 **Runner**: local serial validation (`bin/ov-20261106/local-val-w2.sh`,
