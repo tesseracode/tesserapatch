@@ -2,14 +2,18 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IDLE
 
-**W1, GH #25 C1–C2 (W2) and the D track are accepted; v0.19.0 publication
-is pending tag CI.** The validated source `2e44569` passed independent
-review, CI 42175737134 (all five jobs) and a complete serial old-Mac gate
-(OV-D17). This release commit changes only the CHANGELOG, the release-guard
-pins and tracking. Do not claim shipment until the tag CI and the automatic
-GitHub release succeed.
+**v0.19.0 SHIPPED; the 14-hour window is closed.** Release:
+https://github.com/tesseracode/tesserapatch/releases/tag/v0.19.0. Main CI
+42224722016 and tag CI 42224725398 passed all five jobs at the release commit
+`68142ca`, and the tag run's release job published the release. Nothing is
+dispatched; the next window needs a fresh operator assignment.
+
+At consolidation, W1, GH #25 C1–C2 (W2) and the D track were accepted. The
+validated source `2e44569` passed independent review, CI 42175737134 and a
+complete serial old-Mac gate (OV-D17). The release commit changed only the
+CHANGELOG, the release-guard pins and tracking (OV-D18).
 
 The operator's 14-hour unattended window runs **2026-11-06T03:24:42Z** to
 **2026-11-06T17:24:42Z**. The operator authorized a minor release if W2
@@ -21,7 +25,7 @@ shipped.
 - **Milestone**: Post-v0.18 backlog — GH #25 C1–C2 / v0.19.0
 - **Description**: Publish the accepted window work as v0.19.0, verify
   main and tag CI and the GitHub release, then close the window
-- **Status**: Release consolidation committed — annotated tag and pushes next
+- **Status**: Complete — v0.19.0 published (14:37Z)
 - **Assigned**: 2026-11-06
 - **WAVE_BASE**: `2335ccafd9ed17f6bb3b47b57a9e48715776132a`
 - **Validated source**: `2e44569d2acc2b142ab34f12c23fc74794a65269`
@@ -97,9 +101,8 @@ OV-D18 (release commit not tracking-only).
 
 ## Current State
 
-All window work is accepted. Remaining: tag v0.19.0, push main and the tag,
-verify both CI runs and the automatic release, then close the window
-(`Cluster state` → `IDLE`).
+All window work is accepted and v0.19.0 is published (tag `v0.19.0` on
+`68142ca`). The window is closed (`Cluster state: IDLE`).
 
 GH #25 stays open: only C1–C2 shipped. A1 (ADR-013 Amendment 3), B and C3
 are not authorized. GH #26 and GH #24 have approved planning PRDs and no
@@ -128,15 +131,17 @@ Release consolidation only:
   `^Test(ROCS0|DoctorD6)` (workflow) and
   `^Test(S6Unreleased|S6Changelog|DoctorCLID6|S6PrepareContractRows)` (CLI)
   PASS.
-- Main and tag CI for the release commit and the GitHub release: **pending**.
+- Main CI 42224722016 and tag CI 42224725398: all five jobs green; release
+  published by the tag run: https://github.com/tesseracode/tesserapatch/releases/tag/v0.19.0.
+  The tag run's install and `Verify tag version` steps printed exactly
+  `tpatch v0.19.0` (Linux and macOS; the Windows install smoke printed it
+  too).
 
 ## Next Steps
 
-1. Create the annotated tag `v0.19.0` on this commit, then push `main` and
-   the tag.
-2. Verify main and tag CI (all five jobs) and `gh release view v0.19.0`.
-3. Close the window: one tracking commit setting `Cluster state` to `IDLE`
-   with the release URL and run IDs; push; CI green.
+1. None in this window. Candidates for the next one: GH #25 A1 (ADR-013
+   Amendment 3), operator answers to the GH #26 and GH #24 PRDs' §9, the
+   arbitration fail-fast backlog row, and the open OV-D items above.
 
 ## Blockers
 

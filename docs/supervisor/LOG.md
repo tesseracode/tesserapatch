@@ -1,3 +1,17 @@
+## Release published — v0.19.0 — 2026-11-06
+
+### Verdict: SHIPPED
+
+### Notes
+- Main CI 42224722016 and tag CI 42224725398: all five jobs green; the tag
+  run's release job published https://github.com/tesseracode/tesserapatch/releases/tag/v0.19.0.
+- GH #25 stays open: only C1–C2 shipped.
+
+### Action Taken
+Window closed; `Cluster state` set to `IDLE`.
+
+---
+
 ## Release consolidation — v0.19.0 — 2026-11-06
 
 ### Verdict: APPROVED — window work ACCEPTED; release consolidated

@@ -21,6 +21,8 @@ published. The operator-authorized account retry resolved the external
 closure blocker without new roles/scopes or agent authentication changes.
 GH #15 recipe authority, GH #11/#16/#23 prepare/check/intent-bundle work and
 GH #13 operation replay are shipped, not pending backlog.
+**v0.19.0** (GH #25 C1–C2 overlap assessment, the wave-close serial switch)
+was published on 2026-11-06T14:37:14Z; GH #25 stays open for A1, B and C3.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.
@@ -42,8 +44,8 @@ operator answered the GH #25 PRD's twelve open questions and authorized a
 empty → serial for the wave-close switch, W2 GH #25 C1–C2, planning docs
 for GH #26/#24 plus stale-docs cleanup, and a minor release if W2 ships
 (rows below). W1 was accepted at `e41c474`, and W2 and the D track at
-`2e44569` (CI green; old-Mac gate serial PASS in 10,816.3 s); v0.19.0 is
-consolidated for tagging.
+`2e44569` (CI green; old-Mac gate serial PASS in 10,816.3 s); v0.19.0
+shipped (https://github.com/tesseracode/tesserapatch/releases/tag/v0.19.0). Nothing else is dispatched.
 
 ### Open GitHub issues
 
