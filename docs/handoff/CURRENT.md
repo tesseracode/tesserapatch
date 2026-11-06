@@ -128,7 +128,8 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
   v0.20.0 CHANGELOG section and release-guard pin (release-candidate rule)
   and sets Cluster state `APPROVED` in place for its gate (NW-D13 pattern).
 - **W0 CI 42268412048 green (19:16Z) on all five jobs; `7b690b2` pushed.**
-  W1's CI 42278212760 is running.
+  W1's CI 42278212760 on `7b690b2` finished green on all five jobs
+  (20:34Z), Windows included.
 - **W0's validation-machine gate: FAIL, not a code failure** (NW-D23).
   Lane mode hit a resource stop at 19:27Z (new swap-outs). The serial
   fallback then refused at preparation: it requires `origin/main` to equal
@@ -265,7 +266,7 @@ no code.
 1. W0: CI 42268412048 green. Its gate failed on a push during the run
    (NW-D23, NW-D24); W1's gate covers it, and the W0 rows close on it.
 2. D: done (approved; Amendment 4 PROPOSED, awaiting the operator).
-3. W1: approved; `7b690b2` pushed. CI 42278212760 and the
+3. W1: approved; `7b690b2` pushed; CI 42278212760 green. The
    validation-machine gate (`WAVE_BASE=fddf4bd`, serial, started
    20:18:26Z) are running. No push until the gate verdict (NW-D24).
 4. W2: folded into W1 (NW-D17).
