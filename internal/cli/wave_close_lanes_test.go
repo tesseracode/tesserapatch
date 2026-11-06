@@ -25,25 +25,28 @@ import (
 // Gate-time reduction (2026-11-05): `make wave-close-check` runs the serial
 // shard commands in two concurrent lanes (WAVE_CLOSE_TEST_LANES=2, the
 // default since the operator adopted lane mode for accepted wave closes,
-// GT-D27); WAVE_CLOSE_TEST_LANES=0 runs the serial script. These guards keep
+// GT-D27); an empty value or WAVE_CLOSE_TEST_LANES=0 runs the serial script
+// (operator, 2026-11-06). These guards keep
 // lane mode the default with a working serial escape, derived from the
 // serial script, and inside the measured and audited partition.
 
 const (
 	s7WaveCloseLaneScriptPath = "scripts/wave-close-test-lanes.sh"
-	s7WaveCloseLaneCall       = "sh " + s7WaveCloseLaneScriptPath + " \"$(WAVE_CLOSE_TEST_LANES)\""
+	s7WaveCloseLaneCall       = "sh " + s7WaveCloseLaneScriptPath + " \"$$WAVE_CLOSE_TEST_LANES\""
 	// s7WaveCloseCheckShardBlock is check 8 of wave-close-check: the lane
 	// runner, given the switch's value as one quoted argument, unless
-	// WAVE_CLOSE_TEST_LANES is exactly 0, which selects the serial script.
+	// WAVE_CLOSE_TEST_LANES is empty or exactly 0, which selects the serial
+	// script. The switch is exported and read as a shell variable, never
+	// interpolated into shell source.
 	// The runner's exit status decides the check either way, and the lane
 	// runner refuses every value but 2.
 	s7WaveCloseCheckShardBlock = "\tset -- " + s7WaveCloseLaneCall + "; \\\n" +
 		"\tmode=lanes; \\\n" +
-		"\tif [ \"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]; then \\\n" +
+		"\tif [ -z \"$$WAVE_CLOSE_TEST_LANES\" ] || [ \"$$WAVE_CLOSE_TEST_LANES\" = 0 ]; then \\\n" +
 		"\t\tset -- sh scripts/wave-close-test-shards.sh; \\\n" +
 		"\t\tmode=serial; \\\n" +
 		"\tfi; \\\n" +
-		"\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))\"; \\\n" +
+		"\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$$WAVE_CLOSE_TEST_LANES)\"; \\\n" +
 		"\tif out=$$(\"$$@\" 2>&1); then \\\n" +
 		"\t\techo \"  OK\"; \\\n"
 	// s7WaveCloseLaneRefusal is the runner's refusal loop. The concurrency
@@ -163,15 +166,19 @@ func validateS7WaveCloseLaneDefault(makefile string) error {
 	if strings.Count(makefile, "\nWAVE_CLOSE_TEST_LANES ?= 2\n") != 1 {
 		return errors.New("wave-close lanes are not the default: WAVE_CLOSE_TEST_LANES must default to 2")
 	}
+	if strings.Count(makefile, "\nexport WAVE_CLOSE_TEST_LANES\n") != 1 {
+		return errors.New("WAVE_CLOSE_TEST_LANES must be exported exactly once, so check 8 can read it as a shell variable")
+	}
 	uses := 0
 	for _, line := range strings.Split(makefile, "\n") {
 		if !strings.HasPrefix(line, "#") {
 			uses += strings.Count(line, "WAVE_CLOSE_TEST_LANES")
 		}
 	}
-	// One declaration plus the four references in check 8.
-	if uses != 5 {
-		return fmt.Errorf("WAVE_CLOSE_TEST_LANES is referenced %d times outside comments, want 5", uses)
+	// One declaration, one export and the five shell-variable references in
+	// check 8, so no make reference can paste the value into shell source.
+	if uses != 7 {
+		return fmt.Errorf("WAVE_CLOSE_TEST_LANES is referenced %d times outside comments, want 7", uses)
 	}
 	if strings.Count(makefile, "sh "+s7WaveCloseLaneScriptPath) != 1 {
 		return errors.New("wave-close lane runner must be invoked exactly once, from check 8")
@@ -1406,22 +1413,43 @@ var s7WaveCloseModeCases = []s7WaveCloseModeCase{
 	{name: "explicit-lanes", args: []string{"WAVE_CLOSE_TEST_LANES=2"}, call: "lanes 2", banner: "(lanes: WAVE_CLOSE_TEST_LANES=2)", pass: true},
 	{name: "serial", args: []string{"WAVE_CLOSE_TEST_LANES=0"}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)", pass: true},
 	{name: "serial-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES=0"}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)", pass: true},
-	{name: "empty", args: []string{"WAVE_CLOSE_TEST_LANES="}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=)"},
+	{name: "empty", args: []string{"WAVE_CLOSE_TEST_LANES="}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=)", pass: true},
+	{name: "empty-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES="}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=)", pass: true},
+	{name: "empty-serial-fails", args: []string{"WAVE_CLOSE_TEST_LANES="}, stub: "1", call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=)"},
+	// make drops leading spaces from a command-line value, so the shell sees
+	// an empty value here; from the environment the space survives and the
+	// value fails like any other.
+	{name: "whitespace-only-on-command-line", args: []string{"WAVE_CLOSE_TEST_LANES= "}, call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=)", pass: true},
+	{name: "whitespace-only-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES= "}, banner: "(lanes: WAVE_CLOSE_TEST_LANES= )"},
+	{name: "zero-with-space-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES=0 "}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=0 )"},
 	{name: "trailing-space", args: []string{"WAVE_CLOSE_TEST_LANES=2 "}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=2 )"},
 	{name: "leading-space-from-environment", env: []string{"WAVE_CLOSE_TEST_LANES= 2"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES= 2)"},
 	{name: "two-counts", args: []string{"WAVE_CLOSE_TEST_LANES=2 2"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=2 2)"},
 	{name: "unknown-count", args: []string{"WAVE_CLOSE_TEST_LANES=3"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=3)"},
 	{name: "word", args: []string{"WAVE_CLOSE_TEST_LANES=serial"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=serial)"},
+	// The value is data, never shell source: quotes and command substitution
+	// stay literal and fail like any other value.
+	{name: "literal-double-quotes", args: []string{`WAVE_CLOSE_TEST_LANES=""`}, banner: `(lanes: WAVE_CLOSE_TEST_LANES="")`},
+	{name: "literal-quoted-zero-from-environment", env: []string{`WAVE_CLOSE_TEST_LANES="0"`}, banner: `(lanes: WAVE_CLOSE_TEST_LANES="0")`},
+	{name: "command-substitution", args: []string{"WAVE_CLOSE_TEST_LANES=`echo 2`"}, banner: "(lanes: WAVE_CLOSE_TEST_LANES=`echo 2`)"},
 	{name: "lanes-fail", stub: "1", call: "lanes 2", banner: "(lanes: WAVE_CLOSE_TEST_LANES=2)"},
 	{name: "serial-fails", args: []string{"WAVE_CLOSE_TEST_LANES=0"}, stub: "1", call: "serial", banner: "(serial: WAVE_CLOSE_TEST_LANES=0)"},
 }
 
-// s7WaveCloseModeMakefile cuts the switch's declaration and check 8 of the
-// wave-close-check rule out of the Makefile into a one-target makefile.
+// s7WaveCloseModeMakefile cuts the switch's declaration, its export (when
+// present) and check 8 of the wave-close-check rule out of the Makefile into
+// a one-target makefile.
 func s7WaveCloseModeMakefile(makefile string) (string, error) {
 	declaration := regexp.MustCompile(`(?m)^WAVE_CLOSE_TEST_LANES \?=.*$`).FindAllString(makefile, -1)
 	if len(declaration) != 1 {
 		return "", fmt.Errorf("found %d WAVE_CLOSE_TEST_LANES declarations, want 1", len(declaration))
+	}
+	switch exports := regexp.MustCompile(`(?m)^export WAVE_CLOSE_TEST_LANES$`).FindAllString(makefile, -1); len(exports) {
+	case 0:
+	case 1:
+		declaration[0] += "\n" + exports[0]
+	default:
+		return "", fmt.Errorf("found %d WAVE_CLOSE_TEST_LANES exports, want at most 1", len(exports))
 	}
 	recipe, err := s7WaveCloseCheckRule(makefile)
 	if err != nil {
@@ -1519,8 +1547,9 @@ func checkS7WaveCloseCheckModes(t *testing.T, makePath, makefile, lanes string) 
 }
 
 // TestS7WaveCloseCheckModeSelection runs check 8 of wave-close-check under
-// make: lane mode by default, serial for WAVE_CLOSE_TEST_LANES=0, a failed
-// check for any other value, and the runner's status decides the check.
+// make: lane mode by default, serial for an empty WAVE_CLOSE_TEST_LANES or 0,
+// a failed check for any other value, and the runner's status decides the
+// check.
 func TestS7WaveCloseCheckModeSelection(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("wave-close-check is a POSIX make/sh gate that is not run on Windows (Windows portability: GH #17)")
@@ -1549,11 +1578,18 @@ func TestS7WaveCloseCheckModeSelection(t *testing.T) {
 	}{
 		{name: "lanes-off-by-default", from: "\nWAVE_CLOSE_TEST_LANES ?= 2\n", to: "\nWAVE_CLOSE_TEST_LANES ?=\n"},
 		{name: "serial-by-default", from: "\nWAVE_CLOSE_TEST_LANES ?= 2\n", to: "\nWAVE_CLOSE_TEST_LANES ?= 0\n"},
-		{name: "serial-escape-inverted", from: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]", to: "\"$(WAVE_CLOSE_TEST_LANES)\" != 0 ]"},
+		{name: "serial-escape-inverted", from: "\"$$WAVE_CLOSE_TEST_LANES\" = 0 ]", to: "\"$$WAVE_CLOSE_TEST_LANES\" != 0 ]"},
 		{name: "serial-escape-ignored", from: "\t\tset -- sh scripts/wave-close-test-shards.sh; \\\n", to: ""},
-		{name: "empty-means-serial", from: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]", to: "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ] || [ -z \"$(WAVE_CLOSE_TEST_LANES)\" ]"},
+		{name: "empty-not-serial", from: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ] || ", to: ""},
+		{name: "empty-test-inverted", from: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ]", to: "[ -n \"$$WAVE_CLOSE_TEST_LANES\" ]"},
+		{name: "empty-and-zero-both-required", from: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ] || [", to: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ] && ["},
+		{name: "whitespace-only-means-serial", from: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ]", to: "[ -z \"$(strip $(WAVE_CLOSE_TEST_LANES))\" ]"},
+		{name: "zero-with-space-means-serial", from: "[ \"$$WAVE_CLOSE_TEST_LANES\" = 0 ]", to: "[ $$WAVE_CLOSE_TEST_LANES = 0 ]"},
+		{name: "switch-not-exported", from: "\nexport WAVE_CLOSE_TEST_LANES\n", to: "\n"},
+		{name: "condition-interpolated", from: "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ] || [ \"$$WAVE_CLOSE_TEST_LANES\" = 0 ]", to: "[ -z \"$(WAVE_CLOSE_TEST_LANES)\" ] || [ \"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]"},
+		{name: "lane-count-interpolated", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " \"$(WAVE_CLOSE_TEST_LANES)\""},
 		{name: "lane-count-hardcoded", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " 2"},
-		{name: "lane-count-unquoted", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " $(WAVE_CLOSE_TEST_LANES)"},
+		{name: "lane-count-unquoted", from: s7WaveCloseLaneCall, to: "sh " + s7WaveCloseLaneScriptPath + " $$WAVE_CLOSE_TEST_LANES"},
 		{name: "runner-status-ignored", from: "if out=$$(\"$$@\" 2>&1); then", to: "if out=$$(\"$$@\" 2>&1) || true; then"},
 		{name: "runner-accepts-any-count", from: " || [ \"$1\" != 2 ]; then\n", to: "; then\n", inLanes: true},
 		{name: "check-8-moved-to-sibling-target", mutate: s7WaveCloseCheck8Moved},

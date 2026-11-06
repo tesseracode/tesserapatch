@@ -1,3 +1,44 @@
+## Review — W1 wave-close-empty-serial — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol), two rounds.
+**Task**: Operator revision of LW-D2: an empty `WAVE_CLOSE_TEST_LANES` runs
+the serial script, like `0`; every other non-`2` value still fails check 8.
+
+### Checklist
+- [x] Compiles / vet — local r1 (rev-1 code); r2 for rev-2 pending
+- [x] Tests pass — targeted lane, shard-parity and mode-selection tests (r1)
+- [x] Formatted
+- [x] Artifacts deterministic — no `.tpatch/` change
+- [x] Secrets safe
+- [x] Matches SPEC — gate-only change; AGENTS.md and REVIEW-PLAYBOOK §1.8
+  updated
+- [x] Handoff accurate — OV-D2/OV-D3 recorded
+
+### Verdict: APPROVED (rev-2)
+
+### Notes
+- Rev-1: **NEEDS REVISION**, one MEDIUM finding. Check 8 pasted
+  `$(WAVE_CLOSE_TEST_LANES)` into shell source, so the literal value `""`
+  became an empty string and selected serial; at `2335cca` that value
+  failed. The same path let a literal `"0"` select serial and a backtick
+  value run as a command.
+- Rev-2: the switch is exported and read only as `"$$WAVE_CLOSE_TEST_LANES"`
+  (OV-D3). New behavioural cases pin the literal-quote, quoted-zero and
+  command-substitution values as failures; new mutations
+  (`switch-not-exported`, `condition-interpolated`,
+  `lane-count-interpolated`, parity `switch-unexported`) each fail a guard.
+  No static "no `$(` reference" guard was added: the exact check-8 block and
+  the reference count already reject every interpolation, so it could never
+  be the only guard that fails. Re-review: **APPROVED**, no findings.
+- OV-D2: make strips leading spaces from command-line values, so
+  whitespace-only on the command line is empty (serial); from the
+  environment it fails. Pinned by test; recorded for operator review.
+
+### Action Taken
+Local validation r2, then commit, push, CI and the old-Mac lane gate.
+
+---
+
 ## Dispatch — overnight-20261106 — 2026-11-06
 
 **Reviewer**: supervisor (implementation-agent dispatch).

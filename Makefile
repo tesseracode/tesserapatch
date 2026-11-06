@@ -72,15 +72,21 @@ all: fmt lint test build
 # which runs the same serial commands in two concurrent lanes under a static,
 # guarded partition, then a short solo tail of the observer shards one at a
 # time. Lane mode (WAVE_CLOSE_TEST_LANES=2) is the default since the operator
-# adopted it for accepted wave closes (GT-D27). WAVE_CLOSE_TEST_LANES=0 runs
-# the serial script instead; any other value, including an empty one or one
-# with surrounding spaces, fails the check (the lane count reaches the lane
-# runner as one quoted argument).
+# adopted it for accepted wave closes (GT-D27). An empty WAVE_CLOSE_TEST_LANES
+# or WAVE_CLOSE_TEST_LANES=0 runs the serial script instead (operator,
+# 2026-11-06); any other value, including whitespace-only or one with
+# surrounding spaces, fails the check (the lane count reaches the lane runner
+# as one quoted argument). The switch is exported and check 8 reads it as a
+# shell variable, so its value never becomes shell source: quotes, backticks
+# and `$` in it stay literal. make itself drops leading spaces from a
+# command-line value, so `WAVE_CLOSE_TEST_LANES=" "` on the command line is
+# empty; the same value from the environment keeps its space and fails.
 wave-close-test-shards:
 	@sh scripts/wave-close-test-shards.sh
 
 WAVE_BASE ?=
 WAVE_CLOSE_TEST_LANES ?= 2
+export WAVE_CLOSE_TEST_LANES
 wave-close-check:
 	@echo "=== Wave-Close Checklist (mechanical gate) ==="
 	@fail=0; warn=0; \
@@ -214,13 +220,13 @@ wave-close-check:
 		echo "  OK"; \
 	fi; \
 	echo "[8/8] CI-equivalent uncached test shards clean..."; \
-	set -- sh scripts/wave-close-test-lanes.sh "$(WAVE_CLOSE_TEST_LANES)"; \
+	set -- sh scripts/wave-close-test-lanes.sh "$$WAVE_CLOSE_TEST_LANES"; \
 	mode=lanes; \
-	if [ "$(WAVE_CLOSE_TEST_LANES)" = 0 ]; then \
+	if [ -z "$$WAVE_CLOSE_TEST_LANES" ] || [ "$$WAVE_CLOSE_TEST_LANES" = 0 ]; then \
 		set -- sh scripts/wave-close-test-shards.sh; \
 		mode=serial; \
 	fi; \
-	echo "  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))"; \
+	echo "  ($$mode: WAVE_CLOSE_TEST_LANES=$$WAVE_CLOSE_TEST_LANES)"; \
 	if out=$$("$$@" 2>&1); then \
 		echo "  OK"; \
 	else \

@@ -144,7 +144,8 @@ about 6 GiB of memory headroom. Before the gate, wait for one 60-second
 window of normal memory pressure, no new swap-outs, load1 ≤ 5 and no other
 Go process. If external pressure stops a lane gate, wait for calm, retry
 lanes once, then run `make wave-close-check WAVE_CLOSE_TEST_LANES=0`
-(serial). Any other value fails the check (see AGENTS.md → Mechanical gate).
+(serial; an empty value is serial too). Any other value fails the check (see
+AGENTS.md → Mechanical gate).
 
 ### 1.9 Detach anything that runs longer than about a minute
 

@@ -70,25 +70,61 @@ applies to each code wave.
   `2335cca`, no tracked changes, no stash, one worktree, no in-progress Git
   operation, CI 42113608021 green. Live inventory: 11 open issues, 16 closed,
   0 open PRs.
+- **W1 implemented (03:30Z):** check 8 runs the serial script for an empty
+  `WAVE_CLOSE_TEST_LANES` or `0`; any other value fails. Guards and docs
+  updated (AGENTS.md, REVIEW-PLAYBOOK §1.8, Makefile and lane-script
+  headers).
+- **W1 review rev-1 (gpt-6.1-sol): NEEDS REVISION**, one MEDIUM finding:
+  the value was interpolated into shell source, so a literal `""` value
+  became an empty string and selected serial (it failed at `2335cca`).
+  The same interpolation also let a literal `"0"` select serial and a
+  backtick value execute.
+- **W1 rev-2:** the switch is exported and check 8 reads it only as a shell
+  variable (OV-D3). New behavioural cases (literal quotes, quoted zero,
+  command substitution) and mutations (`switch-not-exported`,
+  `condition-interpolated`, `lane-count-interpolated`, `switch-unexported`).
+  **Review rev-2: APPROVED** (no findings).
 
 ### Decisions awaiting operator review (OV-D*)
 
 - **OV-D1:** the window starts at the baseline check (03:24:42Z); WAVE_BASE
   `2335cca`.
+- **OV-D2 (W1, whitespace):** your answer was "empty or zero; whitespace-only
+  still fails". GNU make itself strips leading spaces from a command-line
+  value, so `make wave-close-check WAVE_CLOSE_TEST_LANES=" "` reaches the
+  recipe as empty and runs serial. The same value from the environment keeps
+  its space and fails. I kept make's behaviour rather than fighting it, and
+  pinned both cases in the mode-selection test. Revisit if you want
+  whitespace-only on the command line to fail too (it would need a
+  `$(origin …)`/`$(value …)` check).
+- **OV-D3 (W1 review fix):** the switch is now `export`ed and check 8 reads
+  `"$$WAVE_CLOSE_TEST_LANES"` instead of pasting `$(WAVE_CLOSE_TEST_LANES)`
+  into the shell command. Quotes, backticks and `$` in the value stay
+  literal and fail like any other non-`2` value. The banner text the old-Mac
+  harness matches is unchanged.
 
 ## Current State
 
-- Wave close: lane mode by default; `WAVE_CLOSE_TEST_LANES=0` is serial
-  (W1 adds empty → serial).
+- Wave close: lane mode by default; an empty `WAVE_CLOSE_TEST_LANES` or `0`
+  is serial (W1); any other value fails.
 
 ## Files Changed
 
 - Dispatch: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`.
+- W1: `Makefile`, `internal/cli/wave_close_lanes_test.go`,
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
+  `scripts/wave-close-test-lanes.sh`, `AGENTS.md`, `docs/REVIEW-PLAYBOOK.md`.
 
 ## Test Results
 
-- None yet this window.
+- W1 local r1 (rev-1 code): ALL PASS — gofmt, targeted lane/shard/mode
+  tests, vet, build; the old Makefile FAILED both the mode-selection and the
+  parity tests, as required.
+- W1 local r2 (rev-2 code): ALL PASS at 03:42:02Z — gofmt, targeted
+  lane/shard/mode/CI-timeout/sentinel-wiring tests and `TestROCS8ScopeTransition`,
+  vet, build; the `2335cca` Makefile FAILED the mode-selection and parity
+  tests, as required.
 
 ## Next Steps
 

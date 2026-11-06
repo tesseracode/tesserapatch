@@ -247,13 +247,31 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 		{
 			name: "serial-escape-renamed",
 			mutateMakefile: func(body string) string {
-				return strings.Replace(body, "\"$(WAVE_CLOSE_TEST_LANES)\" = 0 ]; then", "\"$(WAVE_CLOSE_TEST_LANES)\" = serial ]; then", 1)
+				return strings.Replace(body, "\"$$WAVE_CLOSE_TEST_LANES\" = 0 ]; then", "\"$$WAVE_CLOSE_TEST_LANES\" = serial ]; then", 1)
+			},
+		},
+		{
+			name: "empty-escape-dropped",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "[ -z \"$$WAVE_CLOSE_TEST_LANES\" ] || ", "", 1)
+			},
+		},
+		{
+			name: "switch-unexported",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "\nexport WAVE_CLOSE_TEST_LANES\n", "\nunexport WAVE_CLOSE_TEST_LANES\n", 1)
+			},
+		},
+		{
+			name: "switch-interpolated-in-another-recipe",
+			mutateMakefile: func(body string) string {
+				return strings.Replace(body, "\t@sh scripts/wave-close-test-shards.sh\n", "\t@echo \"$(WAVE_CLOSE_TEST_LANES)\" >/dev/null; sh scripts/wave-close-test-shards.sh\n", 1)
 			},
 		},
 		{
 			name: "mode-banner-dropped",
 			mutateMakefile: func(body string) string {
-				return strings.Replace(body, "\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$(WAVE_CLOSE_TEST_LANES))\"; \\\n", "", 1)
+				return strings.Replace(body, "\techo \"  ($$mode: WAVE_CLOSE_TEST_LANES=$$WAVE_CLOSE_TEST_LANES)\"; \\\n", "", 1)
 			},
 		},
 		{
