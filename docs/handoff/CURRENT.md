@@ -127,6 +127,15 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
   the fixed tree passed (see Test Results). The W1 close commit carries the
   v0.20.0 CHANGELOG section and release-guard pin (release-candidate rule)
   and sets Cluster state `APPROVED` in place for its gate (NW-D13 pattern).
+- **W0 CI 42268412048 green (19:16Z) on all five jobs; `7b690b2` pushed.**
+  W1's CI 42278212760 is running.
+- **W0's validation-machine gate: FAIL, not a code failure** (NW-D23).
+  Lane mode hit a resource stop at 19:27Z (new swap-outs). The serial
+  fallback then refused at preparation: it requires `origin/main` to equal
+  the gated commit, and `7b690b2` had been pushed at 19:16Z. W1's gate at
+  `7b690b2` (`WAVE_BASE=fddf4bd`) runs the same full suite on a tree that
+  contains W0, so it replaces W0's gate. It started at 20:18:26Z, directly
+  in serial mode (swap 1752M > 1640M limit).
 
 ### Operator answers (2026-11-06)
 
@@ -166,6 +175,8 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 | NW-D20 | Code review F1: fix the `verify --all` persistence-error defect in W1 even though it predates A1. A promoted parent is the first case where a previously failing feature becomes a pass whose record write can fail, and the fix is a single branch plus a portable regression through a package-level write seam (`writeVerifyRecordFrom`) rather than file permissions, which do not behave the same on Windows. A failed verdict whose write failed stays `failed` (its exit code is already non-zero) and keeps the error as its reason. |
 | NW-D21 | Code review F2: skip the two shell-script `git` shim rows on Windows instead of writing a Windows shim. The logic they guard is not OS-specific; Linux and macOS CI run them, and the new gitutil rows (`TestEnumerateCommitTrailersAt*`, no shim) plus `TestA1UnrelatedMergeIsRefused` give Windows portable coverage of D36's pinning and P10. Same pass: an explicit revision that Git cannot resolve is now an enumeration error, not "no commits"; only the live-`HEAD` form keeps the empty-repository tolerance. |
 | NW-D22 | W1's validation-machine gate uses the window's `WAVE_BASE=fddf4bd`, not W0's tip: its trailer walk then covers every commit of the window (W0, D, W1 and their tracking) in one pass, which is a superset of what W0's gate checked and costs nothing extra. |
+| NW-D23 | W0's gate is not rerun at `6eb98a0`: W1's gate at `7b690b2` with `WAVE_BASE=fddf4bd` runs the full sharded suite on a tree that contains W0 and walks every window commit's trailer, as NW-D2 did for `68142ca`/`fddf4bd`. W0's rows close on that gate. |
+| NW-D24 | Never push while a validation-machine gate is running. The private harness's lane-to-serial fallback prepares again and requires `origin/main` to equal the gated commit, so a push during the gate turns a recoverable lane stop into a FAIL (it cost W0's gate). Pushes wait for the gate verdict, the same as they wait for CI on the same ref. |
 
 ## Current State
 
@@ -251,12 +262,12 @@ no code.
 
 ## Next Steps
 
-1. W0: CI 42268412048 and the validation-machine gate (`6eb98a0`,
-   `WAVE_BASE=2e44569`, NW-D2) are running; on PASS flip the W0 rows.
+1. W0: CI 42268412048 green. Its gate failed on a push during the run
+   (NW-D23, NW-D24); W1's gate covers it, and the W0 rows close on it.
 2. D: done (approved; Amendment 4 PROPOSED, awaiting the operator).
-3. W1: approved and closing. Push the close commit after W0's CI
-   finishes, then CI, then the validation-machine gate with
-   `WAVE_BASE=fddf4bd` (NW-D22) once W0's gate is done.
+3. W1: approved; `7b690b2` pushed. CI 42278212760 and the
+   validation-machine gate (`WAVE_BASE=fddf4bd`, serial, started
+   20:18:26Z) are running. No push until the gate verdict (NW-D24).
 4. W2: folded into W1 (NW-D17).
 5. R: v0.20.0 if A1 ships (`make release-check` before `git tag -a`).
 

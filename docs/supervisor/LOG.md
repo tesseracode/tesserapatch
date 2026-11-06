@@ -1,3 +1,17 @@
+## Supervisor decision — W0 validation-machine gate FAIL (harness) — 2026-11-06
+
+**Task**: W0 gate at `6eb98a0` (`WAVE_BASE=2e44569`)
+
+### Decision: superseded by W1's gate
+
+- CI 42268412048 on `6eb98a0`: green on all five jobs.
+- Gate: lane mode stopped at 19:27Z (resource stop, new swap-outs); the
+  serial fallback refused at preparation because `origin/main` had moved
+  to `7b690b2` (pushed 19:16Z). No test failed.
+- W1's gate at `7b690b2` with `WAVE_BASE=fddf4bd` runs the same suite on a
+  tree containing W0 (NW-D23). From now on, no push while a gate runs
+  (NW-D24).
+
 ## Supervisor decision — W1 close (GH #25 A1) — 2026-11-06
 
 **Task**: W1 — GH #25 A1 (ADR-013 Amendment 3), arbitration leak folded in
