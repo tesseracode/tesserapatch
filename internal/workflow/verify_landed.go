@@ -95,14 +95,17 @@ func FailedAtVocabulary() []string {
 	}
 }
 
-// Advisory codes — the closed set of five (D12 / §4.3.9). All are
-// `warn`; none flips `passed`.
+// Advisory codes — the closed set of six (D12 / §4.3.9, widened by
+// ADR-013 Amendment 3 D32). All are `warn`; none flips `passed`.
+// `explained-by-descendant` exists only next to a V8 current half that
+// Amendment 3 promoted.
 const (
 	AdvisoryContextDrift             = "context-drift"
 	AdvisoryLaterTouch               = "later-touch"
 	AdvisoryUnattributedMaterialized = "unattributed-materialized"
 	AdvisoryBaseCommitUnreachable    = "base-commit-unreachable"
 	AdvisoryProvenanceUnreachable    = "provenance-unreachable"
+	AdvisoryExplainedByDescendant    = "explained-by-descendant"
 	// AdvisoryInventoryUnreadable is the §3.6.9 read-error advisory for
 	// an UNRELATED feature. It is named in §3.6.9 and R-less by design
 	// (the closed set of five covers the check-level advisories); it is
@@ -137,11 +140,14 @@ const (
 )
 
 // Anchor-C ladder outcomes reported in `checks[].anchor_results.current`.
+// CurrentExplainedByDescendant is not a ladder outcome: it replaces
+// `absent` when Amendment 3 promotes the current half (D28).
 const (
 	CurrentMaterializedClean       = "materialized-clean"
 	CurrentMaterializedContextDrif = "materialized-context-drift"
 	CurrentAbsent                  = "absent"
 	CurrentSkipped                 = "skipped"
+	CurrentExplainedByDescendant   = "explained-by-descendant"
 )
 
 // ── Report sub-objects (schema 1.1, additive) ────────────────────────────
@@ -612,11 +618,13 @@ type verifyRunContext struct {
 }
 
 // headRev is the revision every HEAD reference in the verify pipeline
-// resolves to. The ordinary pipeline keeps the symbolic `HEAD`; a nested
-// E6 verify pins it to the run's captured commit so it can never observe
-// a HEAD that moved after the run started (Amendment 2 D23).
+// resolves to: the run's captured commit, so no check can observe a HEAD
+// that moved after the run started — even one that moved and came back
+// before the end-of-run re-statement (Amendment 2 D23, extended to the
+// ordinary pipeline by Amendment 3 D36). Only a run that could not
+// capture HEAD keeps the symbolic `HEAD`; its checks fail on their own.
 func (ctx *verifyRunContext) headRev() string {
-	if ctx.overlapNested && ctx.head != "" {
+	if ctx.headErr == nil && ctx.head != "" {
 		return ctx.head
 	}
 	return "HEAD"
@@ -649,7 +657,11 @@ func newVerifyRunContext(s *store.Store) *verifyRunContext {
 	ctx.facts, ctx.factsErr = gitutil.ReadRepoFacts(s.Root)
 	// 4. The single enumeration.
 	ctx.head, ctx.headErr = gitutil.HeadCommitOffline(s.Root)
-	ctx.commits, ctx.commitsErr = gitutil.EnumerateCommitTrailers(s.Root)
+	enumerateFrom := "" // an uncaptured HEAD keeps the shipped empty-repository handling
+	if ctx.headErr == nil {
+		enumerateFrom = ctx.head
+	}
+	ctx.commits, ctx.commitsErr = gitutil.EnumerateCommitTrailersAt(s.Root, enumerateFrom)
 	return ctx
 }
 

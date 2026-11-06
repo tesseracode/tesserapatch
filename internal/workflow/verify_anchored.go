@@ -44,6 +44,13 @@ type dynamicPhase struct {
 	overlap            *VerifyOverlapAssessment
 	overlapReplacedV8  bool
 	plainV8Remediation string
+	// Amendment 3 (D30/D33): overlapPromotable records that the fold's
+	// conditions (P1, P4–P7, P9, P10) held, anchorCSetFailedAt that anchor C — not
+	// an earlier failure — set failedAt (P8), and explainedAdvisory is the
+	// R27 advisory a promotion appends.
+	overlapPromotable  bool
+	anchorCSetFailedAt bool
+	explainedAdvisory  VerifyAdvisory
 }
 
 // anchoredInput carries everything the dynamic phase needs. Nothing here
@@ -314,18 +321,38 @@ func foldAnchorC(out *dynamicPhase, in anchoredInput, ladder ladderOutcome) {
 		if ladder.ZeroContextHunks > 0 {
 			rem = remediationR2(attestation, path)
 		}
-		// Amendment 2 D21/D26: explain the block without changing it. A
-		// nested E6 verify never assesses.
+		// Amendment 2 D21/D26: explain the block. A nested E6 verify never
+		// assesses, so it never promotes (Amendment 3 D30 P3).
 		plain := appendRemediation(out.v8.Remediation, rem)
 		if !in.ctx.overlapNested {
 			out.overlap = assessBlockedOverlap(in)
 			out.overlapReplacedV8 = true
 			out.plainV8Remediation = plain
-			rem = overlapRemediation(out.overlap, in.slug, attestation, rem)
+			direct, childClean := false, false
+			if len(out.overlap.Descendants) == 1 {
+				child := out.overlap.Descendants[0]
+				direct = hasDirectHardEdge(in.ctx, child.Slug, in.slug)
+				childClean = in.ctx.overlapVerifyMemo[child.Slug].currentClean
+				out.explainedAdvisory = warnAdvisory(AdvisoryExplainedByDescendant, in.slug, "",
+					remediationR27(in.slug, attestation, child.Slug, child.AttestationCommit))
+			}
+			reason := explainedPromotionBlocker(out.overlap, direct, evidenceStateLabel(in.evidence), historical, childClean)
+			if reason == "" {
+				reason = mergeFreeHistoryBlocker(in.ctx, attestation)
+			}
+			out.overlapPromotable = reason == ""
+			if reason == "" {
+				// The only way a promotable explanation stays red is
+				// another failure in the run (P8); a dropped assessment
+				// restores the plain remediation instead (D21).
+				reason = overlapReasonOtherFailure
+			}
+			rem = overlapRemediation(out.overlap, in.slug, attestation, rem, reason)
 		}
 		out.v8.Remediation = appendRemediation(out.v8.Remediation, rem)
 		if out.failedAt == "" {
 			out.failedAt = FailedAtLandedContentAbsent
+			out.anchorCSetFailedAt = true
 		}
 	case ladder.ContextDrift:
 		out.advisories = append(out.advisories, warnAdvisory(
@@ -479,15 +506,18 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	}
 	defer func() { _ = ctx.pruneShadow(slug) }()
 
-	// 3. Closure arbitration (D13).
+	// 3. Closure arbitration (D13). Its pending state is drained on BOTH
+	//    paths: a fail-fast that left it on the run context would hand
+	//    this feature's member advisories and baselines to the next
+	//    `--all` entry (ADR-013 Amendment 3 D37).
 	arb := arbitrateClosure(in, order, shadowRoot, shadowPath, v7Mode, v8Mode, v10Mode)
-	if arb != nil {
-		return *arb
-	}
 	advisories := in.ctx.pendingAdvisories
 	in.ctx.pendingAdvisories = nil
 	memberBaselines := in.ctx.pendingMemberBaselines
 	in.ctx.pendingMemberBaselines = nil
+	if arb != nil {
+		return *arb
+	}
 
 	closureBaselineTree, err := snapshotShadowTree(ctx, shadowPath)
 	if err != nil {

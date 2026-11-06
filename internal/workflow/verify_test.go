@@ -480,9 +480,10 @@ func TestRunVerify_JSONShape(t *testing.T) {
 	// 1.0 key retains its name, type and position, and the landed blocks
 	// are added alongside.
 	// ADR-013 Amendment 2 (schema 1.2) adds only the optional
-	// `overlap_assessment`, absent from this report.
-	if m["schema_version"] != "1.2" {
-		t.Errorf("schema_version=1.2 expected, got %v", m["schema_version"])
+	// `overlap_assessment`, absent from this report; Amendment 3 (1.3)
+	// only widens closed vocabularies.
+	if m["schema_version"] != "1.3" {
+		t.Errorf("schema_version=1.3 expected, got %v", m["schema_version"])
 	}
 	checks, ok := m["checks"].([]any)
 	if !ok || len(checks) != 12 {

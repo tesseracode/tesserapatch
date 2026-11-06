@@ -9,6 +9,11 @@ package workflow
 // the persisted record; the only text it may change is the V8
 // remediation (D26). It uses the run's immutable inventory and captured
 // bytes, the run's captured HEAD commit and an isolated temp index only.
+//
+// The one exception is Amendment 3 (D28–D35, GH #25 A1): RunVerify may
+// promote V8's current half when a recorded-descendant-evolution
+// assessment names a single direct hard child and every D30 condition
+// holds (promoteExplainedCurrentAnchor).
 
 import (
 	"bytes"
@@ -31,8 +36,12 @@ const (
 	OverlapInvalidOrMissingEvidence    = "invalid-or-missing-evidence"
 )
 
-// OverlapVerdictEffectNone is the only `verdict_effect` value (D20).
-const OverlapVerdictEffectNone = "none"
+// `verdict_effect` values: `none` (D20) unless Amendment 3 promoted V8's
+// current half (D31).
+const (
+	OverlapVerdictEffectNone                = "none"
+	OverlapVerdictEffectCurrentAnchorPassed = "current-anchor-passed"
+)
 
 // Procedure steps that can decide a class (D20 `failed_step`).
 const (
@@ -77,6 +86,10 @@ type VerifyOverlapDescendant struct {
 type overlapNestedVerify struct {
 	passed bool
 	detail string
+	// currentClean records that the descendant's own V8 current anchor
+	// matched with full context (`materialized-clean`), so every one of
+	// its paths is plainly present at HEAD (Amendment 3 D30 P9).
+	currentClean bool
 }
 
 // overlapCandidate is the working state for one candidate descendant.
@@ -593,6 +606,12 @@ func (ctx *verifyRunContext) sameRunDescendantVerify(s *store.Store, slug string
 		res = overlapNestedVerify{detail: "its own same-run verify could not complete"}
 	case report.Verdict != "passed":
 		res = overlapNestedVerify{detail: "its own same-run verify failed" + nestedFailureSuffix(report)}
+	default:
+		for _, c := range report.Checks {
+			if c.ID == CheckPostApplyPatchReplayClean {
+				res.currentClean = c.AnchorResults["current"] == CurrentMaterializedClean
+			}
+		}
 	}
 	ctx.overlapVerifyMemo[slug] = res
 	return res
@@ -663,7 +682,9 @@ func nestedFailureSuffix(r *VerifyReport) string {
 
 // overlapRemediation picks the V8 remediation for a blocked ladder by
 // assessment class (D26). R1/R2 stay the answer for every other class.
-func overlapRemediation(a *VerifyOverlapAssessment, slug, attestation, fallback string) string {
+// reason says why a recorded-descendant-evolution explanation cannot pass
+// the check (Amendment 3 D32).
+func overlapRemediation(a *VerifyOverlapAssessment, slug, attestation, fallback, reason string) string {
 	if a == nil {
 		return fallback
 	}
@@ -673,7 +694,7 @@ func overlapRemediation(a *VerifyOverlapAssessment, slug, attestation, fallback 
 		for _, d := range a.Descendants {
 			parts = append(parts, d.Slug+" @ "+d.AttestationCommit)
 		}
-		return remediationR25(slug, attestation, strings.Join(parts, ", "))
+		return remediationR25(slug, attestation, strings.Join(parts, ", "), reason)
 	case OverlapInvalidOrMissingEvidence:
 		for _, d := range a.Descendants {
 			if d.FailedRule != "" {
@@ -685,8 +706,112 @@ func overlapRemediation(a *VerifyOverlapAssessment, slug, attestation, fallback 
 	return fallback
 }
 
-func remediationR25(slug, sha, descendants string) string {
-	return fmt.Sprintf("landed feature: post-apply.patch postimage is not present at HEAD because recorded descendant(s) %s rewrote it after landing commit %s (overlap assessment: recorded-descendant-evolution) — verify still requires this feature's own postimage at HEAD, so this check stays failed; do NOT re-land %s or run tpatch reconcile to restore it, which would undo the descendants' recorded changes", descendants, sha, slug)
+func remediationR25(slug, sha, descendants, reason string) string {
+	return fmt.Sprintf("landed feature: post-apply.patch postimage is not present at HEAD because recorded descendant(s) %s rewrote it after landing commit %s (overlap assessment: recorded-descendant-evolution) — the explanation cannot pass this check because %s, so it stays failed; do NOT re-land %s or run tpatch reconcile to restore it, which would undo the descendants' recorded changes", descendants, sha, reason, slug)
+}
+
+// remediationR27 is the `explained-by-descendant` advisory message
+// (Amendment 3 D31).
+func remediationR27(slug, sha, child, childSHA string) string {
+	return fmt.Sprintf("landed feature: post-apply.patch postimage is not present at HEAD, but HEAD on every one of its paths is exactly landing commit %s evolved by its recorded hard child %s @ %s (overlap assessment: recorded-descendant-evolution), so the current anchor passes — do NOT re-land %s or run tpatch reconcile to restore it, which would undo %s; change these paths through %s", sha, child, childSHA, slug, child, child)
+}
+
+// Reasons a recorded-descendant-evolution explanation cannot pass V8's
+// current half (Amendment 3 D30, D32).
+const overlapReasonOtherFailure = "another block-severity check failed in this run"
+
+// explainedPromotionBlocker checks D30's P1, P4–P7 and P9 for an
+// assessment computed by the anchor-C fold and returns why it cannot
+// promote V8's current half, or "" when it can. P10 needs Git and is
+// checked next by mergeFreeHistoryBlocker; P2 and P8 are checked after
+// the whole run by promoteExplainedCurrentAnchor; P3 holds because a
+// nested verify never assesses.
+func explainedPromotionBlocker(a *VerifyOverlapAssessment, directHardChild bool, targetEvidence, historical string, childCurrentClean bool) string {
+	switch {
+	case a == nil || a.Class != OverlapRecordedDescendantEvolution:
+		return "the overlap assessment did not find a recorded descendant evolution"
+	case len(a.Descendants) != 1:
+		return fmt.Sprintf("%d recorded descendants rewrote these paths and only a single direct hard child can explain them (GH #25 A1)", len(a.Descendants))
+	case !directHardChild:
+		return fmt.Sprintf("descendant %s reaches this feature only through intermediate features", a.Descendants[0].Slug)
+	case targetEvidence != EvidenceExact:
+		return fmt.Sprintf("this feature's own landing evidence is %s, not exact", targetEvidence)
+	case historical != "passed":
+		return "the historical half of this check did not pass"
+	case !childCurrentClean:
+		return fmt.Sprintf("descendant %s's own current anchor did not match with full context, so its own paths are not proven present at HEAD", a.Descendants[0].Slug)
+	}
+	return ""
+}
+
+// mergeFreeHistoryBlocker is D30 P10: merge topologies are refused in
+// v1 (GH #25 Q2), so no merge commit may sit between this feature's
+// landing commit and the captured HEAD. An unanswerable query refuses.
+func mergeFreeHistoryBlocker(ctx *verifyRunContext, landing string) string {
+	free, err := ctx.mergeFreeSince(landing)
+	if err != nil {
+		return fmt.Sprintf("git could not determine whether the history from landing commit %s to HEAD is free of merge commits", landing)
+	}
+	if !free {
+		return fmt.Sprintf("the history from landing commit %s to HEAD contains a merge commit, and merge topologies are refused (GH #25 Q2)", landing)
+	}
+	return ""
+}
+
+// hasDirectHardEdge reports whether child declares a `hard` depends_on
+// edge naming parent in the run inventory (D30 P5).
+func hasDirectHardEdge(ctx *verifyRunContext, child, parent string) bool {
+	for _, st := range ctx.inv.Statuses() {
+		if st.Slug != child {
+			continue
+		}
+		for _, d := range st.DependsOn {
+			if d.Slug == parent && d.Kind == store.DependencyKindHard {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// promoteExplainedCurrentAnchor passes V8's current half on a recorded
+// single-child explanation (Amendment 3 D30/D31). It runs after the D21
+// drop checks, so a dropped assessment (nil) never promotes (P2), and it
+// requires that anchor C's block is the run's only failure (P8). It
+// reports whether it promoted.
+func promoteExplainedCurrentAnchor(report *VerifyReport, phase dynamicPhase) bool {
+	a := report.OverlapAssessment
+	if a == nil || !phase.overlapPromotable || !phase.anchorCSetFailedAt {
+		return false
+	}
+	v8 := -1
+	for i, c := range report.Checks {
+		if c.ID == CheckPostApplyPatchReplayClean {
+			v8 = i
+			continue
+		}
+		if !c.Skipped && !c.Passed && (c.Severity == SeverityBlock || c.Severity == SeverityBlockAbort) {
+			return false
+		}
+	}
+	if v8 < 0 {
+		return false
+	}
+	c := &report.Checks[v8]
+	results := make(map[string]string, len(c.AnchorResults))
+	for k, v := range c.AnchorResults {
+		results[k] = v
+	}
+	results["current"] = CurrentExplainedByDescendant
+	c.AnchorResults = results
+	c.Passed = true
+	c.Skipped = false
+	c.Remediation = ""
+	report.FailedAt = ""
+	report.ParentSlug = ""
+	a.VerdictEffect = OverlapVerdictEffectCurrentAnchorPassed
+	report.Advisories = append(report.Advisories, phase.explainedAdvisory)
+	return true
 }
 
 // remediationR26Execution is R26 when the assessment could not run a
@@ -704,7 +829,11 @@ func writeOverlapAssessment(w io.Writer, a *VerifyOverlapAssessment) {
 	if a == nil {
 		return
 	}
-	fmt.Fprintf(w, "  ~ overlap assessment: %s (explanation only; verdict unchanged) — %s\n", a.Class, a.Detail)
+	effect := "explanation only; verdict unchanged"
+	if a.VerdictEffect == OverlapVerdictEffectCurrentAnchorPassed {
+		effect = "explains the current anchor; V8 passes"
+	}
+	fmt.Fprintf(w, "  ~ overlap assessment: %s (%s) — %s\n", a.Class, effect, a.Detail)
 	for _, d := range a.Descendants {
 		line := "    - " + d.Slug
 		if d.AttestationCommit != "" {

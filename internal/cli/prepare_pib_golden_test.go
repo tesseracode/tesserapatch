@@ -1519,7 +1519,7 @@ func preparePIBGoldenDelta(name, got string) error {
 	if err != nil {
 		return err
 	}
-	want, err = ovExpectedVerifySchemaGolden(name, want)
+	want, err = verifySchemaGoldenChain(name, want)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IN PROGRESS
 
 **10-hour unattended window dispatched** (operator, 2026-11-06): runs
 **2026-11-06T16:37:59Z** to **2026-11-07T02:37:59Z**. v0.19.0 is published
@@ -25,10 +25,10 @@ Scope, in order (operator-approved):
 
 ## Active Task
 
-- **Task ID**: `window-20261106-w0-fixture-leak-release-check`
+- **Task ID**: `window-20261106-w1-gh25-a1`
 - **Milestone**: Post-v0.19 backlog — validation hygiene, GH #25 A1, GH #26/#24 decisions
-- **Description**: W0 — partial-clone fixture daemon leak + `make release-check`
-- **Status**: Approved (three review rounds) and locally validated; push, CI and validation-machine gate pending
+- **Description**: W1 — GH #25 A1 under ADR-013 Amendment 3 (W2's arbitration fail-fast leak folded in, NW-D17)
+- **Status**: In progress — design round 1 UNSOUND (F1–F4), round 2 APPROVED (Amendment 3 ACCEPTED); code review pending. W0 pushed (`6eb98a0`); its CI and validation-machine gate are running
 - **Assigned**: 2026-11-06
 - **WAVE_BASE**: `fddf4bd1483572acbb5208324a376b5d1796e864`
 - **Deadline**: `2026-11-07T02:37:59Z`
@@ -97,6 +97,19 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 - **Validation-host automation (private, OV-D17 answer):** a runner
   pre-flight and automatic serial fallback, kept outside the repository
   (NW-D9, NW-D10).
+- **W0/D pushed (18:11Z):** CI 42254732308 on `edd72a3` finished green, then
+  `583f7dc..6eb98a0` was pushed. CI 42268412048 and the validation-machine
+  gate (`6eb98a0`, `WAVE_BASE=2e44569`, lane mode) are running.
+- **W1 (GH #25 A1):** Amendment 3 rev-1 (D28–D35) and the code were drafted.
+  Design review round 1 (gpt-6.1-sol) was **UNSOUND** with four findings:
+  F1 `HEAD` A→B→A between D21's two reads; F2 merges allowed in `T..H`;
+  F3 a child that passes only with context drift on its own path; F4 the
+  arbitration fail-fast leak (W2). Amendment 3 rev-2 adds D36 (the run
+  reads only the captured `HEAD`), D37 (arbitration state drained on both
+  paths), P9 (child full-context clean) and P10 (no merge in `T..H`,
+  fail-closed). Report schema `1.3`; new advisory `explained-by-descendant`
+  (R27). Focused tests pass; 16 manual mutants all killed. Design round 2
+  **APPROVED**; Amendment 3 is ACCEPTED.
 
 ### Operator answers (2026-11-06)
 
@@ -127,14 +140,19 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 | NW-D11 | ADR-013 numbering: Amendment 3 is reserved for GH #25 A1 (decisions D28–D39), which comes later in this window; GH #26's draft takes Amendment 4 (D40–D45) and labels its measurements A4-E1–A4-E6, so neither draft renumbers the other whichever is accepted first. |
 | NW-D12 | Local validation runs on repository files only. The ignored `bin/` directory holds private evidence, including old source snapshots with `.go` files. `gofmt -l .`, `go vet ./...` and `TestS7CIFullSuiteTimeoutGuard`'s filesystem walk all read them and fail locally (`TestS7ARExitSixRouteGuard` found again in a snapshot). None of them exist in CI or in the validation machine's clean checkout, where the unscoped commands still run. So locally: gofmt on `git ls-files -co --exclude-standard`, vet on `go list ./...` minus `/bin/`, and that one guard left to CI and the gate. Backlog row added (keep private snapshots from looking like Go source). |
 | NW-D13 | Cluster state for the W0 gate: W0 and D are both approved, so the single `**Cluster state**` field is set to `APPROVED` in place before W0's gate, as OV-D10 prescribes (the gate's `[5/8]` rejects a mid-cycle token, and the gate runs at the tip, which also carries D's docs). When W1's ADR draft is committed, the field goes back to `IN PROGRESS` in place, and W1's close commit sets `APPROVED` again. |
+| NW-D14 | F1 (ABA `HEAD`): pin every `HEAD`-dependent read to the commit captured when the run starts (D36) instead of adding more re-checks. Comparing `HEAD` at more points still cannot see a move that comes back; reading one commit throughout makes the move harmless. D21's end-of-run drop stays for a move that does not come back. |
+| NW-D15 | F2 (merges): refuse promotion when any merge commit is in `T..H` (P10), including an unrelated merge, and when the query fails. GH #25 Q2 refuses merge topologies; telling a harmless merge from a harmful one is A2+ work. A merged repository keeps today's red verdict with the explanation. |
+| NW-D16 | F3: the child's own nested V8 must report `current: materialized-clean` (P9). A child with context drift can still explain the target (Amendment 2), it just cannot make it pass. |
+| NW-D17 | W2 folded into W1: the arbitration fail-fast leak reproduces (a test fails without the fix) and promotion makes cross-entry state verdict-relevant, so it is fixed under Amendment 3 D37 and reviewed with W1 rather than separately. |
+| NW-D18 | P3 (a nested verify never promotes) cannot be built end to end: a grandchild's closure arbitration already fails once its parent was rewritten. It is recorded as holding by construction plus a unit guard that runs the nested verify of a promotable target directly. |
+| NW-D19 | The P8 fixture (another block failure keeps the block) uses a malformed `recipe-coverage.json`: V11 fails at `block` after anchor C ran. A static failure such as a missing `spec.md` skips V7/V8, so anchor C never runs and P8 is not exercised. |
 
 ## Current State
 
-`origin/main` is at `edd72a3` (window dispatch; v0.19.0 tag on `68142ca`).
-W0 is approved by independent review, passed local validation and is
-committed locally as `583f7dc`; push (after `edd72a3`'s CI finishes), CI
-and the validation-machine gate follow. D is approved and committed on its
-own. GH #25 stays open
+`origin/main` is at `6eb98a0` (W0, D and their tracking; v0.19.0 tag on
+`68142ca`). CI 42268412048 and the validation-machine gate for `6eb98a0`
+are running. W1 (GH #25 A1): Amendment 3 ACCEPTED (design round 2 APPROVED); the
+implementation is committed locally and in code review. GH #25 stays open
 (A1 authorized in this window; B and C3 not). GH #26 and GH #24 have
 operator answers; only GH #26's ADR-013 Amendment 4 draft is authorized,
 no code.
@@ -151,6 +169,15 @@ no code.
 - D (approved, own commit): `docs/prds/PRD-historical-anchor-relanding.md`,
   `docs/prds/PRD-coverage-operation-domain.md`,
   `docs/adrs/ADR-013-verify-freshness-overlay.md`.
+- W1 (implementation commit, local): `docs/adrs/ADR-013-verify-freshness-overlay.md`
+  (Amendment 3 rev-2); `internal/gitutil/trailers.go`;
+  `internal/workflow/verify.go`, `verify_anchored.go`, `verify_gitgate.go`,
+  `verify_landed.go`, `verify_overlap.go`; tests
+  `internal/workflow/verify_overlap_a1_test.go` (new),
+  `verify_overlap_test.go`, `verify_landed_grouph_test.go`,
+  `verify_test.go`; `internal/cli/verify_landed_cli_test.go`,
+  `verify_overlap_golden_test.go` and four golden call sites;
+  `SPEC.md`; `docs/prds/PRD-overlap-verification-consolidation.md`.
 
 ## Test Results
 
@@ -174,15 +201,22 @@ no code.
   `TestS7CIFullSuiteTimeoutGuard` was left to CI and the gate (NW-D12).
 - Private runner harness (dev machine, stub tools): 12 cases pass; all 10
   orchestrator mutants are killed.
+- CI 42254732308 (`edd72a3`) green on all five jobs.
+- W1 focused (dev machine): `TestOverlap|TestA1|TestACL11[34]` ok (19 s);
+  `internal/cli` golden/verify tests ok (17 s). Manual mutants: 16/16
+  killed, restore verified (`bin/nw-20261106/w1-a1-mutation.txt`,
+  private).
 
 ## Next Steps
 
-1. W0: push; CI; validation-machine gate with the new private pre-flight
-   (`WAVE_BASE=2e44569`, NW-D2).
+1. W0: CI 42268412048 and the validation-machine gate (`6eb98a0`,
+   `WAVE_BASE=2e44569`, NW-D2) are running; on PASS flip the W0 rows.
 2. D: done (approved; Amendment 4 PROPOSED, awaiting the operator).
-3. W1: GH #25 A1 (ADR-013 Amendment 3 first).
-4. W2: arbitration fail-fast reproduction.
-5. R: v0.20.0 if A1 ships.
+3. W1: code review, local validation, commit, push
+   after W0's CI, CI, gate. The gated close commit carries the v0.20.0
+   CHANGELOG section and pin (release-candidate rule).
+4. W2: folded into W1 (NW-D17).
+5. R: v0.20.0 if A1 ships (`make release-check` before `git tag -a`).
 
 ## Blockers
 

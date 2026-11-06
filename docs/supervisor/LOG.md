@@ -1,3 +1,58 @@
+## Review — W1 (GH #25 A1, ADR-013 Amendment 3 rev-2) design round 2 — 2026-11-06
+
+**Reviewer**: same independent code-review agent (gpt-6.1-sol), design and
+draft-code review (no Go runs)
+**Task**: W1 — GH #25 A1
+
+### Verdict: APPROVED
+
+### Notes
+- F1–F4 from round 1 are closed by D36, P10, P9 and D37; no further
+  findings.
+
+### Action Taken
+Amendment 3 marked ACCEPTED. The implementation is committed locally and
+goes to an independent code review; the v0.20.0 CHANGELOG section and
+release-guard pin are drafted for the gated close commit.
+
+---
+
+## Review — W1 (GH #25 A1, ADR-013 Amendment 3) design round 1 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol), design review
+of the Amendment 3 draft and the draft code (no Go runs)
+**Task**: W1 — GH #25 A1 (single recorded child, linear ancestry)
+
+### Verdict: UNSOUND (four findings)
+
+### Notes
+- F1 (HIGH): D21 compares `HEAD` only at the start and the end of the run.
+  `HEAD` can move A→B→A in between, and V4's validator, V5 and the trailer
+  enumeration read the live `HEAD`, so a promoted run could rest on a
+  mixture of two commits.
+- F2: merges in `T..H` were allowed. GH #25 Q2 refuses merge topologies,
+  and a child reached through a merge's second parent passes E5.
+- F3: E6 accepts a child that passes its own verify with reduced context
+  (`context-drift`) on a path the target never touches, so the child's own
+  paths are not proven to be what it recorded.
+- F4: closure arbitration's fail-fast path left member advisories and
+  baselines on the run context for the next `verify --all` entry (the W2
+  backlog item).
+- Fixes (Amendment 3 rev-2): D36 pins every `HEAD`-dependent read to the
+  captured commit (V4 adapter, `headRev()`, `EnumerateCommitTrailersAt`);
+  P10 refuses any merge in `T..H` and refuses when Git cannot answer; P9
+  requires the child's nested V8 current to be `materialized-clean`; D37
+  drains the arbitration state right after it returns, on both paths.
+  P3 is recorded as holding by construction plus a unit guard. New tests
+  A3-T11–A3-T17; 16 manual mutants (P2–P10, D36 ×4, D37, the anchor-C
+  gate) all killed (`bin/nw-20261106/w1-a1-mutation.txt`, private).
+
+### Action Taken
+Amendment 3 rev-2 and the revised code go back to the same reviewer.
+W2 is folded into W1 (NW-D17).
+
+---
+
 ## Review — D (GH #26/#24 answers, ADR-013 Amendment 4 draft) rounds 1–2 — 2026-11-06
 
 **Reviewer**: independent code-review agent (gpt-6.1-sol), design review

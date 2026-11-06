@@ -322,7 +322,7 @@ func TestRGAS5GoldenCaptureEventDeltaAndSensitivities(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expected, err = ovExpectedVerifySchemaGolden(name, expected)
+			expected, err = verifySchemaGoldenChain(name, expected)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -527,13 +527,13 @@ func TestRGAS5VerifyGoldenDeltaAndSensitivities(t *testing.T) {
 	if err != nil {
 		t.Fatalf("exact new verify row was rejected: %v", err)
 	}
-	// Later rows (GH #25 W2's schema bump) apply on top, so the row's
-	// sensitivities are judged against the final expected report.
-	final, err := ovExpectedVerifySchemaGolden(name, expected)
+	// Later rows (GH #25 W2's and A1's schema bumps) apply on top, so the
+	// row's sensitivities are judged against the final expected report.
+	final, err := verifySchemaGoldenChain(name, expected)
 	if err != nil || preparePIBGoldenDelta(name, string(final)) != nil {
 		t.Fatalf("exact new verify row was rejected: %v", err)
 	}
-	missingRow, err := ovExpectedVerifySchemaGolden(name, previous)
+	missingRow, err := verifySchemaGoldenChain(name, previous)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -79,7 +79,7 @@ const (
 
 // verifySchemaVersion is the PRD §4.3 schema_version field for the
 // `--json` report. Bumping is a breaking change for harness consumers.
-const verifySchemaVersion = "1.2"
+const verifySchemaVersion = "1.3"
 
 // VerifyOptions controls a single `RunVerify` invocation.
 type VerifyOptions struct {
@@ -346,6 +346,9 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	} else if report.OverlapAssessment != nil && !ctx.headStillCaptured() {
 		dropOverlapAssessment(report, phase)
 	}
+	// Amendment 3 (D33): only an assessment that survived both drops may
+	// pass V8's current half.
+	promoteExplainedCurrentAnchor(report, phase)
 
 	// Verdict: failed if any non-skipped, non-warn check failed.
 	report.Verdict, report.ExitCode = computeVerdict(report.Checks)
@@ -766,8 +769,15 @@ func checkDepMetadataValid(ctx *verifyRunContext, s *store.Store, slug string, s
 	// (rev-1 adjudication findings 1 + 2): below the 2.36 floor the
 	// ancestry resolver refuses without spawning git.
 	env := store.ValidationEnv{
-		Snapshot:   ctx.inv.Snapshot(),
-		IsAncestor: func(_, ancestor, descendant string) (bool, error) { return ctx.isAncestorChecked(ancestor, descendant) },
+		Snapshot: ctx.inv.Snapshot(),
+		IsAncestor: func(_, ancestor, descendant string) (bool, error) {
+			// The validator names the live HEAD; verify answers at the
+			// run's captured commit (Amendment 3 D36).
+			if descendant == "HEAD" {
+				descendant = ctx.headRev()
+			}
+			return ctx.isAncestorChecked(ancestor, descendant)
+		},
 	}
 	if err := store.ValidateDependenciesWith(s, slug, status.DependsOn, env); err != nil {
 		return store.VerifyCheckResult{

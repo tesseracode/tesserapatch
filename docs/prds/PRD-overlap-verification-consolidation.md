@@ -6,6 +6,11 @@ approvals") and authorized C1–C2; options A, B and C3 remain planning only.
 The semantics for C1–C2 are ADR-013 **Amendment 2** (D20–D27). Because Q1
 puts C before A, the A1 anchor-C widening that §6 calls "Amendment 2"
 becomes **Amendment 3** when it is drafted.
+**2026-11-06T16:37:59Z:** slice **A1** (one direct hard child, linear
+ancestry) authorized; its semantics are ADR-013 **Amendment 3** (D28–D37,
+P1–P10). Merge topologies are refused (Q2), and the explaining child must
+pass its own verify with a full-context current anchor. A2, A3, B and C3
+remain planning only.
 **Date**: 2026-11-05
 **Owner**: Core
 **Issue**: [GH #25](https://github.com/tesseracode/tesserapatch/issues/25)

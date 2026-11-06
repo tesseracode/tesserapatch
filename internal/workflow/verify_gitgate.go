@@ -30,6 +30,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
@@ -94,6 +95,24 @@ func (ctx *verifyRunContext) isAncestor(ancestor, descendant string) bool {
 		return false
 	}
 	return v
+}
+
+// mergeFreeSince reports whether no merge commit is reachable from the
+// captured HEAD but not from base (Amendment 3 D30 P10). It reads the
+// captured commit, never the live HEAD, and returns an error when Git
+// could not answer.
+func (ctx *verifyRunContext) mergeFreeSince(base string) (bool, error) {
+	if err := ctx.gitGate(); err != nil {
+		return false, err
+	}
+	if ctx.headErr != nil || ctx.head == "" {
+		return false, fmt.Errorf("HEAD was not captured")
+	}
+	out, stderr, err := gitutil.RunOfflineGitIn(ctx.root, "rev-list", "--merges", "--max-count=1", "--end-of-options", base+".."+ctx.head)
+	if err != nil {
+		return false, fmt.Errorf("git rev-list --merges: %v: %s", err, strings.TrimSpace(stderr))
+	}
+	return strings.TrimSpace(out) == "", nil
 }
 
 // headStillCaptured re-resolves HEAD and reports whether it still names

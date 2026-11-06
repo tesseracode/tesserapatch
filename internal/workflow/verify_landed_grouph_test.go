@@ -287,14 +287,15 @@ func TestACL112_InventoryOrderIsDeterministic(t *testing.T) {
 }
 
 // AC-L113 — a no-evidence report is a SEMANTIC superset of "1.0":
-// every 1.0 key retains name, type and position. The version is "1.2"
-// since ADR-013 Amendment 2 added the optional `overlap_assessment`.
+// every 1.0 key retains name, type and position. The version is "1.3"
+// since ADR-013 Amendment 3 widened three closed vocabularies (after
+// Amendment 2's optional `overlap_assessment` made it 1.2).
 func TestACL113_SchemaIsAdditiveSuperset(t *testing.T) {
 	f := newLandedFixture(t, "forward-shape")
 	f.Implement("l1\nl2\nCHANGED\nl4\nl5\nl6\nl7\nl8\nl9\nl10\nl11\nl12\nl13\nl14\nl15\n")
 	r := f.Verify()
-	if r.SchemaVersion != "1.2" {
-		t.Fatalf("schema_version=%q want 1.2", r.SchemaVersion)
+	if r.SchemaVersion != "1.3" {
+		t.Fatalf("schema_version=%q want 1.3", r.SchemaVersion)
 	}
 	data, err := json.Marshal(r)
 	if err != nil {
@@ -327,7 +328,7 @@ func TestACL113_SchemaIsAdditiveSuperset(t *testing.T) {
 }
 
 // AC-L114 — `failed_at` only takes a value from the closed set of
-// thirteen, and advisory `code` only from the closed set of five.
+// thirteen, and advisory `code` only from the closed set of six.
 func TestACL114_ClosedVocabularies(t *testing.T) {
 	if len(FailedAtVocabulary()) != 13 {
 		t.Fatalf("failed_at vocabulary has %d values, want 13", len(FailedAtVocabulary()))
@@ -343,6 +344,7 @@ func TestACL114_ClosedVocabularies(t *testing.T) {
 		AdvisoryContextDrift: true, AdvisoryLaterTouch: true,
 		AdvisoryUnattributedMaterialized: true, AdvisoryBaseCommitUnreachable: true,
 		AdvisoryProvenanceUnreachable: true, AdvisoryInventoryUnreadable: true,
+		AdvisoryExplainedByDescendant: true,
 	}
 	// Adversarial sweep over every landed shape produced by the matrix.
 	for _, r := range collectRepresentativeReports(t) {

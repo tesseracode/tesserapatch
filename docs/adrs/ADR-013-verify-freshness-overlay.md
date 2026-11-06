@@ -1,7 +1,7 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 4 PROPOSED 2026-11-06 (draft, design only — GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; not accepted, authorizes no implementation)** · Amendment 3 is reserved for GH #25 A1 (D28–D39)
-**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 4 draft)
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 4 PROPOSED 2026-11-06 (draft, design only — GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; not accepted, authorizes no implementation)** · **Amendment 3 PROPOSED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; binding after its design review)**
+**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-019 (`tpatch land` trailer-block schema — Amendment 1's evidence substrate), ADR-016 (`record` auto-base resolution — owner of `apply.base_commit`), ADR-028 (supersession edge model), ADR-032 (feature-unapply state boundary), `docs/prds/PRD-verify-freshness.md` (successor PRD), `docs/prds/PRD-tpatch-land.md` (Amendment 1 co-amended), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor PRD), `docs/dependencies.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2 fix this amendment must not regress)
@@ -1680,6 +1680,271 @@ run.
   still make the target's own ladder and the assessment observe different
   trees; the post-assessment `HEAD` check catches every movement that is not
   restored. Ordinary verify has the same exposure today.
+
+# Amendment 3 (2026-11-06, ACCEPTED) — The current anchor explained by one recorded child — GH #25 A1
+
+**Status of this amendment**: ACCEPTED (2026-11-06; independent design
+review round 1 UNSOUND, round 2 APPROVED). The operator authorized slice A1 for
+the 2026-11-06T16:37:59Z window, on the GH #25 answers (PRD
+`docs/prds/PRD-overlap-verification-consolidation.md` §8: Q2 ancestry only,
+merges refused; Q3 a generation snapshot is required; Q4 hard edges only;
+Q5 ladder step 1 only; Q11 `duplicate-equivalent` may not explain; Q12).
+Binding since design review round 2. Adds
+**D28–D37**; D38–D39 stay unused. Revision 2 answers design review round 1
+(UNSOUND, F1–F4): D36 pins every `HEAD`-dependent read to the captured
+commit (F1), P10 refuses merge topologies (F2), P9 requires the child's
+own current anchor to be full-context clean (F3), and D37 drains the
+closure arbitration's pending state on its fail-fast path (F4).
+
+**Issue**: <https://github.com/tesseracode/tesserapatch/issues/25>
+
+**Changes to prior decisions.** Anchor C's meaning widens (D28). D20's
+constant `verdict_effect` gains a second value, D12's closed advisory set
+gains one code, and D26's R25 gains a reason clause (D32). D27's "no
+verdict ever turns green" is narrowed to everything outside D30.
+D36 replaces the run's remaining live-`HEAD` reads with the captured
+commit, and D37 fixes how D13's arbitration hands over its pending state.
+Unchanged: D12's `(0/0)` rule, D13, D14, D17, D21's trigger and drop rules,
+D22's procedure, D23, D24, D25, ADR-019, and the shape of the persisted
+`VerifyRecord`.
+
+## A3.0 Context
+
+After Amendment 2, the PRD §2.1 minimal case — a parent lands, its hard
+child rewrites one of the parent's lines and lands — reports
+`recorded-descendant-evolution`, but verify still exits 2 at
+`landed-content-absent` (AC-1). AC-2 asks that the parent pass in exactly
+that case, with the historical half still passing on its own and a
+mandatory advisory naming the child. A1 is the minimal slice: one direct
+hard child, ordered by ancestry. Chains (A2), member-level explanation
+(A3, folded into GH #26) and consolidation (B) stay out.
+
+## Decision (Amendment 3, D28–D35)
+
+### D28. Anchor C: present at `HEAD`, or explained by one recorded child
+
+The V8 current half passes when the target's postimage is present at
+`HEAD` (D11/D12, unchanged), **or** when D30's conditions hold. In the
+second case the half reports the new anchor result
+`explained-by-descendant`, never `materialized-clean`, so a reader can
+always tell which claim was made.
+
+### D29. The proof is D22's forward composition, not the PRD's reverse sketch
+
+The PRD §6.1 sketch reverse-applies the descendants from `HEAD` and then
+checks the target. A1 uses Amendment 2's D22 procedure unchanged instead,
+because it proves more: step 5 shows the target's postimage was present at
+its own landing commit `T` (the PRD's step 5), and step 7 shows `HEAD`'s
+bytes on every target path equal `T`'s bytes evolved by the recorded
+descendants' captured patches and nothing else (the PRD's step 6). A
+reverse round-trip from `HEAD` proves only that the hunks invert there; it
+cannot see an unrecorded edit outside them, which is why Amendment 2 rev-1
+was rejected. A1 adds no Git surface.
+
+### D30. Promotion conditions
+
+The V8 current half is promoted only when **all** of these hold. When any
+fails, the run is exactly what Amendment 2 reports.
+
+- **P1. Class.** `overlap_assessment.class` is
+  `recorded-descendant-evolution`: D22 steps 1–8 succeeded, with E1, E2,
+  E4, E5 and E6 for every candidate.
+- **P2. Not dropped.** The assessment survived D21's two drop rules: the
+  inventory re-statement found no instability, and `HEAD` still resolves
+  to the run's captured commit. Promotion therefore runs after both checks
+  (D33), never inside `foldAnchorC`.
+- **P3. Not nested.** A nested E6 verify never assesses (D21/D23), so it
+  can never promote: the explaining child must pass its own verify
+  natively, as the PRD requires for A1. This holds by construction: a
+  child whose own anchor C is red because its own child rewrote it
+  cannot be built end to end, since that grandchild's closure
+  arbitration already fails on the rewritten child. A unit guard runs the
+  nested verify of a promotable target directly and requires it to stay
+  blocked with no assessment.
+- **P4. One descendant.** The assessment lists exactly one descendant.
+  Several overlapping descendants, ordered or not, stay explanation-only
+  (A2).
+- **P5. A direct child.** That descendant has a `hard` `depends_on` edge
+  naming the target in the run inventory. A descendant that reaches the
+  target only through intermediates stays explanation-only (A2), even
+  though E4 bound every edge.
+- **P6. Exact target.** The target's own landing evidence is `exact`. A
+  `duplicate-equivalent` target is not promoted, mirroring Q11 for
+  descendants.
+- **P7. Historical half passed.** V8's `anchor_results.historical` is
+  `passed` — not `skipped`, not `failed`.
+- **P8. Nothing else failed.** Anchor C's block is the run's only failure:
+  `failed_at` is `landed-content-absent` and was set by the anchor-C fold,
+  and no other non-skipped `block` or `block-abort` check failed. If the
+  run is red for another reason it stays red, and `failed_at` keeps
+  pointing at the first failure.
+- **P9. The child is clean with full context.** The child's own nested
+  verify (E6) reported `anchor_results.current: materialized-clean`.
+  E6 accepts a child whose ladder passed only with reduced context (a
+  `context-drift` advisory); that child's own hunks are present but its
+  surroundings changed after it landed, so its paths are not proven to be
+  exactly what it recorded. Such a child can still explain the target's
+  block (Amendment 2), but it cannot pass the target's check.
+- **P10. No merge in `T..H`.** `git rev-list --merges --max-count=1
+  T..H` at the captured `H` lists nothing. GH #25 Q2 refuses merge
+  topologies in v1: a child that reaches `H` through a merge's second
+  parent, and an unrelated merge anywhere in `T..H`, both refuse. A Git
+  error refuses (fail-closed). This is the only Git query promotion adds;
+  it reads the captured commit, never the live `HEAD`.
+
+"Linear ancestry" (PRD slice plan) is E5 for the single descendant (its
+attestation commit differs from `T`, descends from `T` and is an ancestor
+of `H`) together with P10. Revision 1 allowed merges elsewhere in `T..H`
+on the strength of step 7's byte compare; design review round 1 (F2)
+rejected that, because Q2 refuses merge topologies outright and the
+byte compare does not show which side of a merge an edit came from.
+
+### D31. What promotion changes
+
+- **V8.** `passed: true`, `skipped: false`, `anchor_results.current:
+  explained-by-descendant`, `anchor_results.historical` unchanged
+  (`passed`), and no remediation (a passing check carries none).
+- **`failed_at`.** Cleared, together with `parent_slug` (P8 guarantees
+  that anchor C set it).
+- **Advisory.** One `warn` advisory, code `explained-by-descendant`,
+  `slug` the target, appended after every other advisory. Its message
+  (R27) names the child, the child's attestation commit and the target's
+  landing commit, and says not to re-land or reconcile the target and to
+  change those paths through the child.
+- **`overlap_assessment.verdict_effect`.** `current-anchor-passed`
+  instead of `none`. The rest of the object is unchanged.
+- **Verdict.** Recomputed from the checks as always, so a promoted run
+  exits 0 and its persisted `VerifyRecord` has `passed: true`.
+
+### D32. Vocabulary, schema and text
+
+- The report `schema_version` moves `1.2` → `1.3`. The change is
+  additive: one new `anchor_results.current` value, one new
+  `verdict_effect` value and one new advisory code. Consumers that refuse
+  unknown majors are unaffected.
+- D12's closed advisory set gains `explained-by-descendant`, still
+  `warn`, still unable to flip `passed` on its own. It exists only next to
+  a promoted V8.
+- **R25** (a `recorded-descendant-evolution` assessment that is not
+  promoted) now states why the explanation cannot pass the check: several
+  descendants (P4), a descendant that is not a direct child (P5), the
+  target's evidence (P6), the historical half (P7), the child's own
+  context drift (P9), a merge in `T..H` or a merge query that could not
+  answer (P10), or another failure in the run (P8). It keeps naming the
+  descendants and keeps "do NOT re-land or reconcile".
+- The human line reads `(explains the current anchor; V8 passes)` for a
+  promoted assessment and stays `(explanation only; verdict unchanged)`
+  otherwise.
+
+### D33. Where promotion runs
+
+`RunVerify` promotes after the instability re-statement and the
+`HEAD`-still-captured check, and before the verdict is computed. The fold
+records whether P4–P7 held and whether it set `failed_at`; the promotion
+step checks P1, P2 and P8 on the finished report. `verify --all` runs the
+same pipeline per entry, so a promoted entry is the same report on its own
+and under `--all` (D37 keeps an earlier entry's arbitration state out of
+a later one). The fold checks P1, P4–P7 and P9 in that order, then P10,
+and records the first reason that fails; R25 states it. Amendment 2's boundary stays: only verify reads the
+assessment (`TestOverlapAssessmentHasNoConsumers`); other commands see
+only the verdict and the persisted record.
+
+### D34. Persisted record and other readers
+
+The persisted `VerifyRecord` keeps its shape. A promoted target records
+`passed: true`, so its freshness label becomes `verified-fresh`. That label
+already ignores later `HEAD` changes until verify runs again; a change to
+the child (for example a re-record without a re-land, N6) turns the target
+red on the next verify (E4), not before. `verify --all` counts a promoted
+entry as passed (Q12 kept C's counts unchanged; A1 changes the verdict on
+purpose). PRD §9.3 M1–M5 hold: no trailer key, no evidence writer, no
+`status.json` field, and the record never claims a historical-anchor pass
+that was not computed in the same run (M3).
+
+### D35. What this amendment does not do
+
+No chains or multiple descendants (A2). No member-level or Fusion
+explanation (A3; GH #26 Amendment 4). No consolidation (B). No change to
+D22's classes or steps, to E1–E6, or to the advisory severity. Revision 1
+also excluded any change to how the ordinary pipeline resolves `HEAD`;
+D36 withdraws that exclusion.
+
+### D36. The whole run reads the captured `HEAD`
+
+Design review round 1 (F1) found that D21's drop check compares only the
+start and the end of the run: `HEAD` can move to another commit and back
+(A→B→A) in between. Before A1 a run that read B in one check stayed red
+or produced only an explanation; with promotion it could turn green on a
+mixture of two commits. So every `HEAD`-dependent read of the ordinary
+pipeline now uses the commit captured when the run context is built:
+
+- V4's ancestry adapter answers the validator's `HEAD` with the captured
+  commit.
+- V5's `satisfied_by` reachability and the blocked-ladder diagnostics
+  already use `headRev()`, which now returns the captured commit whenever
+  one was captured, and `HEAD` only when the capture failed (an empty or
+  broken repository keeps the shipped handling).
+- The landing-evidence trailer enumeration lists commits reachable from
+  the captured commit (`EnumerateCommitTrailersAt`), so a commit added
+  while the run starts is never evidence for it.
+
+D21's end-of-run check stays: it still drops an assessment when `HEAD`
+did not come back. With D36, a run that observed A→B→A has read only A.
+
+### D37. Arbitration state is drained on both paths
+
+D13's closure arbitration collects member advisories and member baselines
+on the run context. Its fail-fast path returned before they were cleared,
+so under `verify --all` the next entry inherited the previous entry's
+member advisories (F4; the arbitration fail-fast leak from the backlog).
+The dynamic phase now takes and clears both immediately after the
+arbitration returns, whichever path it took. This is a pre-existing
+defect, fixed here because promotion makes cross-entry state
+verdict-relevant.
+
+## Amendment 3 — tests (PRD §9, mutation-sensitive)
+
+| # | Case | Expected | Mutation it catches |
+|---|---|---|---|
+| A3-T1 (AC-2) | Minimal case | Parent exits 0; V8 current `explained-by-descendant`, historical `passed`; `failed_at` empty; one `explained-by-descendant` advisory naming the child and its commit; `verdict_effect: current-anchor-passed`; the persisted record passes | No promotion; promotion without the advisory; `failed_at` kept |
+| A3-T2 (AC-3) | Child verify | Unchanged, exit 0, no assessment | — |
+| A3-T3 (AC-5/AC-6) | Same state twice | Byte-identical JSON; no write to the tree, index, `.tpatch/` or worktrees | — |
+| A3-T4 (P4) | Two direct children, ordered: the first edits the parent's path outside its hunks, the second rewrites a parent line (each passes its own verify) | `recorded-descendant-evolution`, exit 2, R25 names the P4 reason | Promotion without the single-descendant check |
+| A3-T5 (P5) | Grandchild through a non-overlapping intermediate | `recorded-descendant-evolution`, exit 2, R25 names the P5 reason | Promotion without the direct-edge check |
+| A3-T6 (P3) | The nested verify of the minimal case's promotable parent, run directly | Blocked, no assessment, no promotion | Assessment or promotion inside a nested verify |
+| A3-T7 (P2) | `HEAD` moves during the run; inventory changes during the run | Assessment dropped, exit 2, R1/R2 or R20 | Promotion before the drop checks |
+| A3-T8 (P1/P4–P9) | The promotion conditions and the promotion step on synthetic inputs: each condition broken alone | No promotion, and the condition's own reason | Each condition removed |
+| A3-T8b (P8) | Minimal case plus a malformed `recipe-coverage.json` (V11 fails at `block`) | Exit 2, R25 names the P8 reason | Promotion without checking the rest of the run |
+| A3-T9 (N-matrix) | N1, N2, N5, N6, N7, N9, N12, N19, parallel landings, E5 execution failure | Unchanged: exit 2, Amendment 2's class | Promotion ignoring the class |
+| A3-T10 | `verify --all` on the minimal case | Both pass; each entry equals its single run | Nested or cross-entry state leaking into promotion |
+| A3-T11 (P9) | The child drifted in context on its own second path; it passes its own verify with `context-drift` | Parent exit 2, R25 names the P9 reason | Promotion without P9 |
+| A3-T12 (P10) | The child reaches `HEAD` as a merge's second parent; separately, an unrelated merge after the child | Exit 2, R25 names the P10 merge reason | Promotion without P10 |
+| A3-T13 (P10) | The merge query fails (Git shim) | Exit 2, R25 names the P10 query reason | Treating a failed query as merge-free |
+| A3-T14 (D36) | `HEAD` moved after the run context was captured; a dependency satisfied only at the moved commit | V4 and V5 fail at the captured commit (controls at the moved commit pass) | V4 or V5 reading the live `HEAD` |
+| A3-T15 (D36) | `HEAD` moves right after `rev-parse HEAD` (Git shim) | The trailer enumeration never lists the moved commit | Enumerating the live `HEAD` |
+| A3-T16 (D37) | `verify --all` where one entry's arbitration records a member advisory and then fails fast; the next entry verifies right after | Every entry equals its single run | Draining the pending state only on the success path |
+| A3-T17 (D34) | Minimal case with persistence | `status.json` records `passed: true` | Persisting before the promotion |
+
+## Amendment 3 — consequences
+
+- The GH #25 minimal case passes, with an advisory that tells the operator
+  why and what not to do.
+- A composition bug is now a false green, not a misleading explanation.
+  P1–P8, the N-matrix and the mutants exist to prevent that; the scope is
+  the smallest case D22 already proves byte-exactly.
+- A child that deletes or wholly rewrites the target's file is an
+  explained evolution: the target passes because `HEAD` is exactly what
+  the recorded child made of it.
+- A target now depends on its child's evidence: changing the child without
+  re-landing it turns the target red. This is the coupling the PRD
+  accepted (§6.1 risks).
+- Any merge after the target's landing keeps it red until A2 or a later
+  slice decides merge topologies (P10). This is deliberately conservative.
+- A run reads one commit throughout (D36). A `HEAD` that moves and does
+  not come back still drops the assessment (D21); one that comes back is
+  harmless because no check read the intermediate commit.
+
+---
 
 # Amendment 4 (2026-11-06, PROPOSED — draft) — Attestation-preferred anchor selection and the R14 split — GH #26
 

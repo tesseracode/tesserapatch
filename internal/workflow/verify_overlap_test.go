@@ -76,15 +76,28 @@ func (f *overlapFixture) feature(slug string, hardDeps ...string) {
 // commits everything with the feature's trailer block.
 func (f *overlapFixture) land(slug, path, body string, generation bool) string {
 	f.t.Helper()
-	mustWriteFile(f.t, filepath.Join(f.root, path), body)
-	patch, err := gitutil.CapturePatchScoped(f.root, []string{path})
+	return f.landFiles(slug, generation, path, body)
+}
+
+// landFiles is land over several files, given as path, body pairs.
+func (f *overlapFixture) landFiles(slug string, generation bool, pathBodies ...string) string {
+	f.t.Helper()
+	var paths []string
+	var ops []RecipeOperation
+	for i := 0; i+1 < len(pathBodies); i += 2 {
+		path, body := pathBodies[i], pathBodies[i+1]
+		mustWriteFile(f.t, filepath.Join(f.root, path), body)
+		paths = append(paths, path)
+		ops = append(ops, RecipeOperation{Type: "write-file", Path: path, Content: body})
+	}
+	patch, err := gitutil.CapturePatchScoped(f.root, paths)
 	if err != nil || strings.TrimSpace(patch) == "" {
 		f.t.Fatalf("capture %s: %v", slug, err)
 	}
 	if err := f.s.WriteArtifact(slug, "post-apply.patch", patch); err != nil {
 		f.t.Fatal(err)
 	}
-	recipe := mustJSON(f.t, ApplyRecipe{Feature: slug, Operations: []RecipeOperation{{Type: "write-file", Path: path, Content: body}}})
+	recipe := mustJSON(f.t, ApplyRecipe{Feature: slug, Operations: ops})
 	if err := f.s.WriteArtifact(slug, "apply-recipe.json", recipe); err != nil {
 		f.t.Fatal(err)
 	}
@@ -164,10 +177,51 @@ func overlapAC1(t *testing.T) (f *overlapFixture, parentLanding, childLanding st
 	return f, parentLanding, childLanding
 }
 
+// requireBlocked asserts anchor C's block stands: no Amendment 3
+// promotion happened.
 func requireBlocked(t *testing.T, r *VerifyReport) {
 	t.Helper()
 	if r.Verdict != "failed" || r.ExitCode != 2 || r.FailedAt != FailedAtLandedContentAbsent {
-		t.Fatalf("verdict=%s exit=%d failed_at=%q — the assessment must never change the block", r.Verdict, r.ExitCode, r.FailedAt)
+		t.Fatalf("verdict=%s exit=%d failed_at=%q — the block must stand", r.Verdict, r.ExitCode, r.FailedAt)
+	}
+	if a := r.OverlapAssessment; a != nil && a.VerdictEffect != OverlapVerdictEffectNone {
+		t.Fatalf("a blocked run reports verdict_effect=%q", a.VerdictEffect)
+	}
+	if _, ok := advisoryByCode(r, AdvisoryExplainedByDescendant); ok {
+		t.Fatalf("a blocked run carries the %s advisory", AdvisoryExplainedByDescendant)
+	}
+}
+
+// requireRefused asserts an explained block that Amendment 3 refused to
+// promote: R25 names why.
+func requireRefused(t *testing.T, r *VerifyReport, reason string) {
+	t.Helper()
+	requireBlocked(t, r)
+	requireClass(t, r, OverlapRecordedDescendantEvolution, "")
+	if v8 := checkByID(t, r, CheckPostApplyPatchReplayClean); v8.Passed ||
+		!strings.Contains(v8.Remediation, "the explanation cannot pass this check because "+reason) {
+		t.Fatalf("V8 must stay failed with R25 naming %q: %+v", reason, v8)
+	}
+}
+
+// requirePromoted asserts the Amendment 3 promotion of V8's current half.
+func requirePromoted(t *testing.T, r *VerifyReport) {
+	t.Helper()
+	if r.Verdict != "passed" || r.ExitCode != 0 || r.FailedAt != "" || r.ParentSlug != "" {
+		t.Fatalf("verdict=%s exit=%d failed_at=%q parent=%q v8=%q", r.Verdict, r.ExitCode, r.FailedAt, r.ParentSlug,
+			checkByID(t, r, CheckPostApplyPatchReplayClean).Remediation)
+	}
+	a := requireClass(t, r, OverlapRecordedDescendantEvolution, "")
+	if a.VerdictEffect != OverlapVerdictEffectCurrentAnchorPassed {
+		t.Fatalf("verdict_effect=%q", a.VerdictEffect)
+	}
+	v8 := checkByID(t, r, CheckPostApplyPatchReplayClean)
+	if !v8.Passed || v8.Skipped || v8.Remediation != "" ||
+		v8.AnchorResults["historical"] != "passed" || v8.AnchorResults["current"] != CurrentExplainedByDescendant {
+		t.Fatalf("V8=%+v", v8)
+	}
+	if _, ok := advisoryByCode(r, AdvisoryExplainedByDescendant); !ok {
+		t.Fatalf("missing the %s advisory: %+v", AdvisoryExplainedByDescendant, r.Advisories)
 	}
 }
 
@@ -177,19 +231,21 @@ func requireClass(t *testing.T, r *VerifyReport, class, step string) *VerifyOver
 	if a == nil {
 		t.Fatalf("no overlap assessment; v8=%q", checkByID(t, r, CheckPostApplyPatchReplayClean).Remediation)
 	}
-	if a.Class != class || a.FailedStep != step || a.VerdictEffect != OverlapVerdictEffectNone {
+	if a.Class != class || a.FailedStep != step {
 		t.Fatalf("assessment=%+v want class=%s step=%q", a, class, step)
 	}
 	return a
 }
 
-// AC-1 + AC-3: the minimal case is explained, the verdict is unchanged
-// and the child still passes. Mutation caught: any class/remediation or
-// verdict change in the assessment path.
+// A1 AC-2 + AC-3 (Amendment 3 D28–D34): the minimal case is explained by
+// its single direct hard child, so V8's current half passes, the run
+// exits 0 with the explained-by-descendant advisory, and the child still
+// passes. Mutation caught: dropping the promotion, or any change to the
+// class, the advisory or the anchor result.
 func TestOverlapAC1RecordedDescendantEvolution(t *testing.T) {
 	f, parentLanding, childLanding := overlapAC1(t)
 	r := f.verify("parent")
-	requireBlocked(t, r)
+	requirePromoted(t, r)
 	a := requireClass(t, r, OverlapRecordedDescendantEvolution, "")
 	if len(a.Descendants) != 1 || a.Descendants[0].Slug != "child" ||
 		a.Descendants[0].AttestationCommit != childLanding || a.Descendants[0].Evidence != EvidenceExact ||
@@ -199,14 +255,15 @@ func TestOverlapAC1RecordedDescendantEvolution(t *testing.T) {
 	if !strings.Contains(a.Detail, parentLanding) {
 		t.Errorf("detail must name the landing commit: %q", a.Detail)
 	}
-	v8 := checkByID(t, r, CheckPostApplyPatchReplayClean)
-	if v8.Passed || v8.Skipped || !strings.Contains(v8.Remediation, "child @ "+childLanding) ||
-		!strings.Contains(v8.Remediation, "do NOT re-land parent") {
-		t.Fatalf("V8 must stay failed with R25: %+v", v8)
+	adv, _ := advisoryByCode(r, AdvisoryExplainedByDescendant)
+	if adv.Severity != SeverityWarn || adv.Slug != "parent" ||
+		!strings.Contains(adv.Message, "landing commit "+parentLanding+" evolved by its recorded hard child child @ "+childLanding) ||
+		!strings.Contains(adv.Message, "do NOT re-land parent") {
+		t.Fatalf("advisory=%+v", adv)
 	}
 	var human strings.Builder
 	r.WriteHumanReport(&human)
-	if !strings.Contains(human.String(), "overlap assessment: recorded-descendant-evolution (explanation only; verdict unchanged)") {
+	if !strings.Contains(human.String(), "overlap assessment: recorded-descendant-evolution (explains the current anchor; V8 passes)") {
 		t.Errorf("human report lacks the assessment:\n%s", human.String())
 	}
 
@@ -281,6 +338,7 @@ func TestOverlapN6BindingMismatchIsInvalid(t *testing.T) {
 	f, _, _ := overlapAC1(t)
 	f.rebindGeneration("child", "parent", strings.Repeat("a", 64))
 	r := f.verify("parent")
+	requireBlocked(t, r)
 	a := requireClass(t, r, OverlapInvalidOrMissingEvidence, OverlapStepEligibility)
 	if d := a.Descendants[0]; d.FailedRule != OverlapRuleE4 || !strings.HasPrefix(d.Detail, "its latest patch generation is bound to a different canonical patch of parent") {
 		t.Fatalf("descendant=%+v", d)
@@ -295,6 +353,7 @@ func TestOverlapLegacyChildWithoutManifestIsInvalid(t *testing.T) {
 	f.feature("child", "parent")
 	f.land("child", ovPath, childBody(), false)
 	r := f.verify("parent")
+	requireBlocked(t, r)
 	a := requireClass(t, r, OverlapInvalidOrMissingEvidence, OverlapStepEligibility)
 	if d := a.Descendants[0]; d.FailedRule != OverlapRuleE4 || !strings.Contains(d.Detail, "missing (legacy feature)") {
 		t.Fatalf("descendant=%+v", d)
@@ -316,10 +375,14 @@ func intermediateChain(t *testing.T) *overlapFixture {
 }
 
 // Finding 4 — a bound intermediate that does not touch the paths is not
-// a candidate, and the chain through it explains the block.
+// a candidate, and the chain through it explains the block. The child is
+// not a direct hard child, so the block stands (Amendment 3 D30 P5).
+// Mutation caught: promoting through an intermediate feature.
 func TestOverlapIntermediateChainExplains(t *testing.T) {
 	f := intermediateChain(t)
-	a := requireClass(t, f.verify("parent"), OverlapRecordedDescendantEvolution, "")
+	r := f.verify("parent")
+	requireRefused(t, r, "descendant child reaches this feature only through intermediate features")
+	a := r.OverlapAssessment
 	if len(a.Descendants) != 1 || a.Descendants[0].Slug != "child" {
 		t.Fatalf("only the overlapping descendant is a candidate: %+v", a.Descendants)
 	}
@@ -330,7 +393,9 @@ func TestOverlapIntermediateChainExplains(t *testing.T) {
 func TestOverlapIntermediateBindingIsChecked(t *testing.T) {
 	f := intermediateChain(t)
 	f.rebindGeneration("mid", "parent", strings.Repeat("b", 64))
-	a := requireClass(t, f.verify("parent"), OverlapInvalidOrMissingEvidence, OverlapStepEligibility)
+	r := f.verify("parent")
+	requireBlocked(t, r)
+	a := requireClass(t, r, OverlapInvalidOrMissingEvidence, OverlapStepEligibility)
 	if d := a.Descendants[0]; d.Slug != "child" || d.FailedRule != OverlapRuleE4 ||
 		!strings.HasPrefix(d.Detail, "intermediate feature mid's latest patch generation is bound to a different canonical patch of parent") {
 		t.Fatalf("descendant=%+v", d)
@@ -357,7 +422,9 @@ func TestOverlapN12EdgeLessFeatureIsUnexplained(t *testing.T) {
 	f.land("parent", ovPath, featureBody(nil), true)
 	f.feature("other")
 	f.land("other", ovPath, childBody(), true)
-	requireClass(t, f.verify("parent"), OverlapUnexplainedContentLoss, OverlapStepCandidates)
+	r := f.verify("parent")
+	requireBlocked(t, r)
+	requireClass(t, r, OverlapUnexplainedContentLoss, OverlapStepCandidates)
 }
 
 // Two hard descendants landed on parallel histories cannot be ordered.
@@ -396,7 +463,7 @@ func TestOverlapContextOnlyDrift(t *testing.T) {
 		t.Fatalf("expected the context-drift advisory: %+v", r.Advisories)
 	}
 	a := requireClass(t, r, OverlapContextOnlyDrift, "")
-	if len(a.Descendants) != 0 {
+	if len(a.Descendants) != 0 || a.VerdictEffect != OverlapVerdictEffectNone {
 		t.Fatalf("descendants=%+v", a.Descendants)
 	}
 }
@@ -571,7 +638,7 @@ func TestOverlapGitNeverReadsLiveArtifacts(t *testing.T) {
 	f, _, _ := overlapAC1(t)
 	w := installGitWrapper(t)
 	w.Reset()
-	requireBlocked(t, f.verify("parent"))
+	requirePromoted(t, f.verify("parent"))
 	if r := f.verify("child"); r.Verdict != "passed" {
 		t.Fatalf("child verdict=%s", r.Verdict)
 	}
@@ -633,7 +700,7 @@ func TestOverlapNestedVerifyIsPinnedToCapturedHead(t *testing.T) {
 	if got := ctx.sameRunDescendantVerify(f.s, "child"); !got.passed {
 		t.Fatalf("nested verify followed the live HEAD: %s", got.detail)
 	}
-	if ctx.headRev() != "HEAD" || ctx.overlapNested {
+	if ctx.headRev() != ctx.head || ctx.overlapNested {
 		t.Fatalf("nested mode leaked out of the nested run: headRev=%s nested=%v", ctx.headRev(), ctx.overlapNested)
 	}
 }
@@ -694,8 +761,8 @@ func TestOverlapVerifyAllMatchesSingleRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunVerifyAll: %v", err)
 	}
-	if agg.Summary.Failed != 1 || agg.Summary.Passed != 1 {
-		t.Fatalf("summary=%+v", agg.Summary)
+	if agg.Summary.Failed != 0 || agg.Summary.Passed != 2 {
+		t.Fatalf("summary=%+v — a promoted feature counts as passed (Amendment 3 D34)", agg.Summary)
 	}
 	for _, e := range agg.Features {
 		single := f.verify(e.Slug)
@@ -793,14 +860,14 @@ func TestOverlapRemediationByClass(t *testing.T) {
 		{&VerifyOverlapAssessment{Class: OverlapUnexplainedContentLoss}, fb},
 		{&VerifyOverlapAssessment{Class: OverlapContextOnlyDrift}, fb},
 		{&VerifyOverlapAssessment{Class: OverlapRecordedDescendantEvolution,
-			Descendants: []VerifyOverlapDescendant{{Slug: "c", AttestationCommit: "abc"}}}, "recorded descendant(s) c @ abc rewrote it"},
+			Descendants: []VerifyOverlapDescendant{{Slug: "c", AttestationCommit: "abc"}}}, "recorded descendant(s) c @ abc rewrote it after landing commit sha (overlap assessment: recorded-descendant-evolution) — the explanation cannot pass this check because REASON, so it stays failed"},
 		{&VerifyOverlapAssessment{Class: OverlapInvalidOrMissingEvidence,
 			Descendants: []VerifyOverlapDescendant{{Slug: "ok"}, {Slug: "bad", FailedRule: "E5", Detail: "d"}}}, "recorded descendant bad may explain it but cannot be used as evidence (E5: d)"},
 		{&VerifyOverlapAssessment{Class: OverlapInvalidOrMissingEvidence, FailedStep: OverlapStepReplay, Detail: "git failed"},
 			"could not complete its replay step (git failed) — no descendant was judged"},
 	}
 	for _, tc := range cases {
-		got := overlapRemediation(tc.a, "p", "sha", fb)
+		got := overlapRemediation(tc.a, "p", "sha", fb, "REASON")
 		if (tc.want == fb && got != fb) || !strings.Contains(got, tc.want) {
 			t.Errorf("overlapRemediation(%+v)=%q want %q", tc.a, got, tc.want)
 		}

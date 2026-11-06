@@ -190,7 +190,7 @@ func TestRGAS2GoldenDeltaIsExactAndMutationSensitive(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expected, err = ovExpectedVerifySchemaGolden(name, expected)
+			expected, err = verifySchemaGoldenChain(name, expected)
 			if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
 				t.Fatalf("S2/S4/S5 composed expected delta refused: %v", err)
 			}

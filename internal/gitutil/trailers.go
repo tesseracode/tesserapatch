@@ -288,6 +288,15 @@ func (c CommitRecord) TrailerValues(key string) []string {
 // `%B`. `--first-parent` is never used (E9): a landing reachable only
 // through a merge's non-first parent must still be found.
 func EnumerateCommitTrailers(repoRoot string) ([]CommitRecord, error) {
+	return EnumerateCommitTrailersAt(repoRoot, "")
+}
+
+// EnumerateCommitTrailersAt is EnumerateCommitTrailers over the commits
+// reachable from rev instead of the live HEAD. verify passes the commit
+// it captured, so a HEAD that moves between the capture and the
+// enumeration cannot change what the run sees (ADR-013 Amendment 3).
+// An empty rev means the live HEAD.
+func EnumerateCommitTrailersAt(repoRoot, rev string) ([]CommitRecord, error) {
 	format := strings.Join([]string{
 		"%H",
 		"%P",
@@ -298,8 +307,11 @@ func EnumerateCommitTrailers(repoRoot string) ([]CommitRecord, error) {
 		"%B",
 	}, "%x1f")
 
-	stdout, stderr, err := runEvidenceGit(repoRoot, nil,
-		"log", "--topo-order", "--reverse", "-z", "--format="+format)
+	args := []string{"log", "--topo-order", "--reverse", "-z", "--format=" + format}
+	if rev != "" {
+		args = append(args, "--end-of-options", rev)
+	}
+	stdout, stderr, err := runEvidenceGit(repoRoot, nil, args...)
 	if err != nil {
 		msg := strings.TrimSpace(stderr)
 		// An empty repository (no commits yet) is not a reader failure.

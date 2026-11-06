@@ -357,22 +357,25 @@ base commit that is empty, ill-formed or unresolvable.
 
 Verify requires **git ≥ 2.36** and carries `GIT_NO_LAZY_FETCH=1` on every
 object and materialization command, so it never reaches the network.
-The `--json` report is `schema_version` **1.2** — an additive superset of
+The `--json` report is `schema_version` **1.3** — an additive superset of
 1.0. Version 1.1 added `repository`, `baseline`, `landing_evidence`,
 `target_mode`, `advisories` and `checks[].mode`; 1.2 adds the optional
-`overlap_assessment`.
+`overlap_assessment`; 1.3 adds the `explained-by-descendant` values below.
+Every `HEAD`-dependent read of a run (V4, V5, the trailer enumeration and
+anchor C) uses the commit captured when the run starts.
 
 See `docs/prds/PRD-verify-freshness.md` §3.6,
 `docs/prds/PRD-tpatch-land.md` §3.8 and `docs/adrs/ADR-013-verify-freshness-overlay.md`
 Amendment 1 (D8–D19).
 
-#### Overlap assessment (GH #25, schema 1.2)
+#### Overlap assessment (GH #25, schema 1.2–1.3)
 
 When a landed feature's anchor-C check blocks, verify adds an
-explanation-only `overlap_assessment` to the report. It never changes the
-verdict, the exit code, `failed_at`, any check's pass/skip state, the
-advisories or `status.json`; the only text it may change is the V8
-remediation. Its `class` is one of:
+`overlap_assessment` to the report. Outside the single-child promotion
+below it is explanation-only: it never changes the verdict, the exit
+code, `failed_at`, any check's pass/skip state, the advisories or
+`status.json`, and the only text it may change is the V8 remediation. Its
+`class` is one of:
 
 - `recorded-descendant-evolution` — a hard descendant with exact landing
   evidence, bound generations, a later landing commit and a passing
@@ -393,6 +396,22 @@ The assessment reads only the run's captured artifact bytes and captured
 outside the assessment, is given a staged copy of the captured patch bytes,
 never the artifact file. The assessment is omitted when the inventory or
 `HEAD` changes during the run. See ADR-013 Amendment 2 (D20–D27).
+
+**Single-child promotion (GH #25 A1, schema 1.3).** A
+`recorded-descendant-evolution` assessment passes V8's current half when
+all of these hold: exactly one descendant, which declares a direct `hard`
+edge on the feature; the feature's own landing evidence is `exact`; V8's
+historical half passed; the descendant's own same-run verify reported its
+current anchor `materialized-clean`; no merge commit lies between the
+feature's landing commit and the captured `HEAD` (a Git error refuses);
+the assessment was not dropped; and no other `block` check failed. Then
+V8 passes with `anchor_results.current: explained-by-descendant`,
+`failed_at` is cleared, `overlap_assessment.verdict_effect` becomes
+`current-anchor-passed`, and a `warn` advisory `explained-by-descendant`
+names the child and says not to re-land or reconcile the feature. The run
+can exit 0 and the persisted record passes. Otherwise the run stays red
+and the V8 remediation states which condition failed. See ADR-013
+Amendment 3 (D28–D37).
 
 #### Phase 2 (Post-MVP)
 
@@ -623,7 +642,7 @@ P2's coverage-only checkpoint adds no rewrite reasons.
 
 ##### Verify and doctor
 
-Verify adds `recipe_generation_coverage` without changing the report schema (1.1 at the time; 1.2 since GH #25).
+Verify adds `recipe_generation_coverage` without changing the report schema (1.1 at the time; 1.2 since GH #25, 1.3 since GH #25 A1).
 The first matching D13 rung wins:
 
 | Rung | Condition | Row / report implication |
