@@ -1,3 +1,27 @@
+## Window dispatch — 10-hour window (W0, D, W1 GH #25 A1, W2, R) — 2026-11-06
+
+### Verdict: DISPATCHED
+
+### Notes
+- Operator-authorized 10-hour unattended window, 2026-11-06T16:37:59Z to
+  2026-11-07T02:37:59Z; WAVE_BASE `fddf4bd`. Baseline clean; CI
+  42235898642 green.
+- Operator answers to OV-D2, OV-D13, OV-D17, OV-D18 and to the GH #26 and
+  GH #24 PRDs' §9 are recorded in `docs/handoff/CURRENT.md`.
+- **Correction to the archived OV-D2 note** (HISTORY is append-only, so it
+  is corrected here): a `$(origin …)`/`$(value …)` check cannot make a
+  whitespace-only `WAVE_CLOSE_TEST_LANES` on the make command line fail,
+  because make strips the leading spaces before any Makefile code runs.
+  The operator accepted make's behaviour (serial).
+- Validation machine: 27 orphaned AC-L68/AC-L69 fixture daemons terminated
+  after per-PID checks (NW-D4); the leak itself is W0's repo fix.
+
+### Action Taken
+`Cluster state` set to `IN PROGRESS` in place; W0 dispatched. Decisions
+are recorded as NW-D* in `docs/handoff/CURRENT.md`.
+
+---
+
 ## Release published — v0.19.0 — 2026-11-06
 
 ### Verdict: SHIPPED
