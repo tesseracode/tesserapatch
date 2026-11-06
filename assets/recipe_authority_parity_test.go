@@ -13,7 +13,7 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/patchobs"
 )
 
-const rgaCurrentChangelogRelease = "0.19.0"
+const rgaCurrentChangelogRelease = "0.20.0"
 
 // RGA-359 checks installed bytes and current public guidance with the same
 // validator used by the wrong-input cases below. Changelog releases older
@@ -760,8 +760,8 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	good := string(raw)
-	const heading = "## v0.19.0 — 2026-11-06 — overlap assessment for blocked landed features"
-	boundary := strings.Index(good, "\n## v0.18.0 ")
+	const heading = "## v0.20.0 — 2026-11-06 — single-child explanation passes the current anchor"
+	boundary := strings.Index(good, "\n## v0.19.0 ")
 	if strings.Count(good, heading) != 1 || boundary < 0 {
 		t.Fatal("versioned mutation fixture must pin the actual current and historical headings")
 	}
@@ -771,7 +771,7 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 		t.Fatalf("actual versioned baseline: %v", err)
 	}
 	for _, alternative := range []string{
-		"## v0.19.0", "## [0.19.0]", "## [v0.19.0] - 2026-11-06",
+		"## v0.20.0", "## [0.20.0]", "## [v0.20.0] - 2026-11-06",
 	} {
 		if err := validate(strings.Replace(good, heading, alternative, 1)); err != nil {
 			t.Fatalf("supported version heading %q: %v", alternative, err)
@@ -779,22 +779,22 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	}
 	for name, wrong := range map[string]string{
 		"missing-current":                 "# Changelog\n" + history,
-		"wrong-version":                   strings.Replace(good, heading, "## v0.18.9", 1),
-		"unreleased-only-is-not-v019":     strings.Replace(good, heading, "## Unreleased", 1),
+		"wrong-version":                   strings.Replace(good, heading, "## v0.19.9", 1),
+		"unreleased-only-is-not-v020":     strings.Replace(good, heading, "## Unreleased", 1),
 		"unexpected-unreleased-before":    strings.Replace(good, heading, "## Unreleased\n\n"+heading, 1),
 		"unexpected-unreleased-after":     good + "\n## Unreleased\n",
 		"duplicate-current":               current + "\n" + heading + "\n" + history,
-		"duplicate-current-after-history": good + "\n## [v0.19.0]\n",
-		"linked-current-after-history":    good + "\n## [v0.19.0](#release)\nCoverage is replay-safe.\n",
-		"unsupported-current-suffix":      good + "\n## v0.19.0-rc1\nCoverage is replay-safe.\n",
-		"newer-minor-false-history":       current + "\n## v0.20.0\nCoverage is replay-safe.\n" + history,
-		"newer-patch-false-history":       current + "\n## v0.19.1\nCoverage is replay-safe.\n" + history,
+		"duplicate-current-after-history": good + "\n## [v0.20.0]\n",
+		"linked-current-after-history":    good + "\n## [v0.20.0](#release)\nCoverage is replay-safe.\n",
+		"unsupported-current-suffix":      good + "\n## v0.20.0-rc1\nCoverage is replay-safe.\n",
+		"newer-minor-false-history":       current + "\n## v0.21.0\nCoverage is replay-safe.\n" + history,
+		"newer-patch-false-history":       current + "\n## v0.20.1\nCoverage is replay-safe.\n" + history,
 		"newer-major-false-history":       current + "\n## v1.0.0\nCoverage is replay-safe.\n" + history,
-		"newer-after-history":             good + "\n## v0.20.0\nCoverage is replay-safe.\n",
-		"linked-newer-after-history":      good + "\n## [v0.20.0](#release)\nCoverage is replay-safe.\n",
+		"newer-after-history":             good + "\n## v0.21.0\nCoverage is replay-safe.\n",
+		"linked-newer-after-history":      good + "\n## [v0.21.0](#release)\nCoverage is replay-safe.\n",
 		"numeric-version-overflow":        current + "\n## v999999999999999999999999.0.0\n" + history,
-		"equal-version-leading-zero":      good + "\n## v0.019.0\n",
-		"current-after-older-version":     strings.Replace(good, heading, "## v0.18.9\n\n"+heading, 1),
+		"equal-version-leading-zero":      good + "\n## v0.020.0\n",
+		"current-after-older-version":     strings.Replace(good, heading, "## v0.19.9\n\n"+heading, 1),
 		"unknown-current-boundary":        current + "\n## Release notes\nCoverage is replay-safe.\n" + history,
 		"fenced-current-heading":          strings.Replace(good, heading, "```markdown\n"+heading+"\n```", 1),
 	} {
@@ -807,7 +807,7 @@ func TestRecipeAuthorityVersionedChangelogScope(t *testing.T) {
 	for name, addition := range map[string]string{
 		"versioned-replay-overclaim": "Coverage is replay-safe.",
 		"versioned-editor-overclaim": "tpatch edit exits zero even when the editor process fails.",
-		"fenced-false-history":       "```markdown\n## v0.18.0\nCoverage is replay-safe.\n```",
+		"fenced-false-history":       "```markdown\n## v0.19.0\nCoverage is replay-safe.\n```",
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := validate(current + "\n\n" + addition + "\n" + history); err == nil {

@@ -1,3 +1,30 @@
+## Supervisor decision — W1 close (GH #25 A1) — 2026-11-06
+
+**Task**: W1 — GH #25 A1 (ADR-013 Amendment 3), arbitration leak folded in
+
+### Decision: APPROVED — close commit gated
+
+- Design round 2 APPROVED; code review round 1 NEEDS REVISION (fixed in
+  `e142bfd`), round 2 APPROVED.
+- Local validation passed on the fixed tree (gitutil, workflow, assets,
+  targeted cli, vet, build).
+- The close commit carries the v0.20.0 CHANGELOG section and release-guard
+  pin (release-candidate rule) and sets Cluster state `APPROVED` in place.
+  It is pushed after W0's CI, then CI and the validation-machine gate run
+  with `WAVE_BASE=fddf4bd` (NW-D22). The v0.20.0 tag waits for that gate.
+
+## Review — W1 (GH #25 A1) code review round 2 — 2026-11-06
+
+**Reviewer**: same independent code-review agent (gpt-6.1-sol), static
+review of `e142bfd` and the rest of `2354df9` (no Go runs)
+**Task**: W1 — GH #25 A1
+
+### Verdict: APPROVED
+
+### Notes
+- Round 1's F1 (aggregate persistence error) and F2 (Windows shim rows)
+  are closed; no further findings.
+
 ## Review — W1 (GH #25 A1) code review round 1 — 2026-11-06
 
 **Reviewer**: independent code-review agent (gpt-6.1-sol), static review of

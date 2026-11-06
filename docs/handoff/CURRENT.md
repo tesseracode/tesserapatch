@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **10-hour unattended window dispatched** (operator, 2026-11-06): runs
 **2026-11-06T16:37:59Z** to **2026-11-07T02:37:59Z**. v0.19.0 is published
@@ -28,7 +28,7 @@ Scope, in order (operator-approved):
 - **Task ID**: `window-20261106-w1-gh25-a1`
 - **Milestone**: Post-v0.19 backlog — validation hygiene, GH #25 A1, GH #26/#24 decisions
 - **Description**: W1 — GH #25 A1 under ADR-013 Amendment 3 (W2's arbitration fail-fast leak folded in, NW-D17)
-- **Status**: In progress — design round 1 UNSOUND (F1–F4), round 2 APPROVED (Amendment 3 ACCEPTED); code review pending. W0 pushed (`6eb98a0`); its CI and validation-machine gate are running
+- **Status**: Approved, closing — design round 2 APPROVED (Amendment 3 ACCEPTED); code review round 1 NEEDS REVISION (fixed), round 2 APPROVED; local validation passed. The gated close commit carries the v0.20.0 release candidate. W0 pushed (`6eb98a0`); its CI and validation-machine gate are running
 - **Assigned**: 2026-11-06
 - **WAVE_BASE**: `fddf4bd1483572acbb5208324a376b5d1796e864`
 - **Deadline**: `2026-11-07T02:37:59Z`
@@ -123,6 +123,10 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
   `TestACL108`'s pre-filled memo key `base\x00HEAD`, stale since D36 keys
   reads by the captured commit; fixed in the fixture. Three new mutants
   are killed.
+- **W1 code review round 2: APPROVED** (no findings). Local validation on
+  the fixed tree passed (see Test Results). The W1 close commit carries the
+  v0.20.0 CHANGELOG section and release-guard pin (release-candidate rule)
+  and sets Cluster state `APPROVED` in place for its gate (NW-D13 pattern).
 
 ### Operator answers (2026-11-06)
 
@@ -161,6 +165,7 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 | NW-D19 | The P8 fixture (another block failure keeps the block) uses a malformed `recipe-coverage.json`: V11 fails at `block` after anchor C ran. A static failure such as a missing `spec.md` skips V7/V8, so anchor C never runs and P8 is not exercised. |
 | NW-D20 | Code review F1: fix the `verify --all` persistence-error defect in W1 even though it predates A1. A promoted parent is the first case where a previously failing feature becomes a pass whose record write can fail, and the fix is a single branch plus a portable regression through a package-level write seam (`writeVerifyRecordFrom`) rather than file permissions, which do not behave the same on Windows. A failed verdict whose write failed stays `failed` (its exit code is already non-zero) and keeps the error as its reason. |
 | NW-D21 | Code review F2: skip the two shell-script `git` shim rows on Windows instead of writing a Windows shim. The logic they guard is not OS-specific; Linux and macOS CI run them, and the new gitutil rows (`TestEnumerateCommitTrailersAt*`, no shim) plus `TestA1UnrelatedMergeIsRefused` give Windows portable coverage of D36's pinning and P10. Same pass: an explicit revision that Git cannot resolve is now an enumeration error, not "no commits"; only the live-`HEAD` form keeps the empty-repository tolerance. |
+| NW-D22 | W1's validation-machine gate uses the window's `WAVE_BASE=fddf4bd`, not W0's tip: its trailer walk then covers every commit of the window (W0, D, W1 and their tracking) in one pass, which is a superset of what W0's gate checked and costs nothing extra. |
 
 ## Current State
 
@@ -168,7 +173,9 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 `68142ca`). CI 42268412048 and the validation-machine gate for `6eb98a0`
 are running. W1 (GH #25 A1): Amendment 3 ACCEPTED (design round 2 APPROVED); the
 implementation is committed locally (`2354df9`); code review round 1
-NEEDS REVISION (two findings, fixed; round 2 pending). GH #25 stays open
+NEEDS REVISION (two findings, fixed in `e142bfd`), round 2 APPROVED; the
+close commit with the v0.20.0 release candidate is next (push after W0's
+CI, then CI and the validation-machine gate). GH #25 stays open
 (A1 authorized in this window; B and C3 not). GH #26 and GH #24 have
 operator answers; only GH #26's ADR-013 Amendment 4 draft is authorized,
 no code.
@@ -198,6 +205,8 @@ no code.
   seam), `internal/gitutil/trailers.go`, `internal/gitutil/trailers_at_test.go`
   (new), `internal/workflow/verify_overlap_a1_test.go`,
   `verify_landed_grouph_test.go`; `CHANGELOG.md` (one Fixed bullet).
+- W1 close (gated): `CHANGELOG.md` (v0.20.0 section),
+  `assets/recipe_authority_parity_test.go` (pin 0.20.0), tracking.
 
 ## Test Results
 
@@ -232,15 +241,22 @@ no code.
   unknown-rev row was strengthened (a first version survived: a missing
   object id says "bad object", so a missing ref was added)
   (`bin/nw-20261106/w1-review-fix-mutation.txt`, private).
+- W1 local validation on the fixed tree (dev machine, serial, 60 s
+  admission each): gofmt clean; `./internal/gitutil` ok (11 s),
+  `./internal/workflow` ok (283 s), `./assets` ok (2 s, real CHANGELOG with
+  the v0.20.0 section and pin); `./internal/cli -run
+  'Golden|TestOV|TestA1|Verify|ReleaseCheck'` ok (31 s); `go vet` on the
+  repository packages ok; `go build ./cmd/tpatch` ok. The sharded full
+  suite runs in the validation-machine gate (NW-D12).
 
 ## Next Steps
 
 1. W0: CI 42268412048 and the validation-machine gate (`6eb98a0`,
    `WAVE_BASE=2e44569`, NW-D2) are running; on PASS flip the W0 rows.
 2. D: done (approved; Amendment 4 PROPOSED, awaiting the operator).
-3. W1: code review, local validation, commit, push
-   after W0's CI, CI, gate. The gated close commit carries the v0.20.0
-   CHANGELOG section and pin (release-candidate rule).
+3. W1: approved and closing. Push the close commit after W0's CI
+   finishes, then CI, then the validation-machine gate with
+   `WAVE_BASE=fddf4bd` (NW-D22) once W0's gate is done.
 4. W2: folded into W1 (NW-D17).
 5. R: v0.20.0 if A1 ships (`make release-check` before `git tag -a`).
 

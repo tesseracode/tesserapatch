@@ -2,6 +2,69 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.20.0 — 2026-11-06 — single-child explanation passes the current anchor
+
+### Added
+
+- **A recorded child can pass its parent's current anchor (GH #25, slice
+  A1).** When a landed feature's anchor-C check blocks only because its one
+  direct `hard` child rewrote its lines, `tpatch verify` now passes V8's
+  current half with `anchor_results.current: explained-by-descendant`,
+  clears `failed_at`, sets `overlap_assessment.verdict_effect` to
+  `current-anchor-passed` and adds a `warn` advisory
+  `explained-by-descendant` that names the child and says not to re-land or
+  reconcile the feature. The run can exit 0 and the persisted record passes.
+- The promotion needs all of: a `recorded-descendant-evolution` assessment
+  with exactly one descendant that declares a direct `hard` edge; `exact`
+  landing evidence for the feature; a passing historical half; the child's
+  own same-run current anchor `materialized-clean`; no merge commit between
+  the feature's landing commit and `HEAD` (a Git error refuses); no
+  inventory or `HEAD` change during the run; and no other failing `block`
+  check. Otherwise the run stays red and the V8 remediation says which
+  condition failed. See ADR-013 Amendment 3 (D28–D37).
+- The `--json` report is `schema_version` 1.3, an additive superset of 1.2.
+
+### Fixed
+
+- `tpatch verify` reads one `HEAD` for the whole run: V4's dependency
+  validation, V5's `satisfied_by` reachability and the landing-evidence
+  trailer enumeration now use the commit captured when the run starts, so
+  a `HEAD` that moves and comes back during a run can no longer mix two
+  commits.
+- `tpatch verify --all`: when one feature's closure arbitration failed
+  fast, its member advisories and baselines were left on the run and
+  reported again for the next feature. They are now cleared on both paths.
+- `tpatch verify --all`: a feature whose checks passed but whose verify
+  record could not be written was counted as passed and the write error
+  was dropped. It is now an `error` entry, as single-feature verify's exit
+  2 already was.
+- Test fixture: the AC-L68/AC-L69 partial-clone tests stop the real
+  `git-daemon`; earlier runs left two daemons listening per run.
+- Development: `make release-check RELEASE=vX.Y.Z GATED=<sha>` checks a
+  release candidate before tagging; the CHANGELOG section and the
+  release-guard pin land in gated source.
+
+### Planning only
+
+- ADR-013 Amendment 4 (GH #26, attestation-preferred historical anchor) is
+  drafted and PROPOSED; no implementation is authorized. The operator's
+  answers for GH #26 and GH #24 are recorded in their PRDs.
+
+GH #25 slices A2 (chains and several descendants), A3, B (consolidation) and
+C3 are not part of this release; merge topologies stay red.
+
+### Unchanged safeguards
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally
+returns tpatch exit 1, not the editor's exact exit code.
+
 ## v0.19.0 — 2026-11-06 — overlap assessment for blocked landed features
 
 ### Added
