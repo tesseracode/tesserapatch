@@ -1,9 +1,12 @@
 # PRD - Historical-anchor selection after a genuine re-landing
 
-**Status**: Draft — planning only (2026-11-06). Authorizes no implementation,
-schema change or release. Independent review APPROVED at rev-3 (2026-11-06,
-`docs/supervisor/LOG.md`). Needs operator answers to §9 before any slice is
-scheduled.
+**Status**: Direction accepted — operator answered §9 (2026-11-06): options
+A and C, newest qualifying exact attestation, D after N1–N2, A3 out of
+scope. Independent review APPROVED at rev-3 (2026-11-06,
+`docs/supervisor/LOG.md`). N0 is drafted as ADR-013 Amendment 4
+(PROPOSED, design only). No slice is scheduled and no implementation,
+schema change or release is authorized until that amendment passes design
+review and the operator schedules N1.
 **Date**: 2026-11-06
 **Owner**: Core
 **Issue**: [GH #26](https://github.com/tesseracode/tesserapatch/issues/26)
@@ -196,8 +199,10 @@ When a landed member's ladder blocks at the target's anchor, check whether
 the member's attestation commit is an ancestor of that anchor (via the
 existing gateway).
 
-- If it is **not**, the child's baseline predates the parent's current
-  landing. Return a new remediation (working name **R14b**) naming the
+- If it is **not**, the parent's current landing is not in the history of
+  the child's baseline (the child was applied before it, or on a branch
+  that never contained it; non-ancestry alone does not prove which —
+  ADR-013 Amendment 4 design review, 2026-11-06). Return a new remediation (working name **R14b**) naming the
   child's replay anchor and the parent's attestation, stating that
   verifying the parent will not help, and recommending a genuine
   unapply/re-apply and re-land of the child on the parent's current
@@ -241,7 +246,8 @@ table and is a separate decision (§9 Q5).
 
 1. **N0 — ADR-013 Amendment 4** (Amendment 3 is reserved for GH #25 A1,
    OV-D4): D14 step 4 attestation preference; R14b; the E-series
-   measurements below.
+   measurements below. **Drafted 2026-11-06** as a PROPOSED amendment
+   (D40–D45, measurements A4-E1–A4-E6); awaiting design review.
 2. **N1 — option A** plus its tests.
 3. **N2 — option C** plus its tests.
 4. **N3 — option D** (C3), after N1–N2 ship, with its own design review.
@@ -283,17 +289,22 @@ match the single runs (existing aggregate-equality pattern).
 
 ## 9. Questions for the operator
 
+Operator answers, 2026-11-06 (recorded in `docs/handoff/CURRENT.md`):
+
 1. **Approve option A** (attestation preferred when it qualifies) as the
-   primary fix? Recommended: yes.
+   primary fix? Recommended: yes. **Answer: yes.**
 2. **`duplicate-equivalent`:** with several exact attestations, prefer the
    newest qualifying one (ADR-019's "most recent") or keep oldest-first
-   among them? Recommended: newest qualifying.
+   among them? Recommended: newest qualifying. **Answer: newest
+   qualifying.**
 3. **Approve R14b** (option C) with `failed_at` unchanged? Recommended: yes.
+   **Answer: yes.**
 4. **Fusion explanation (D/C3):** schedule after N1–N2, or defer?
-   Recommended: after.
+   Recommended: after. **Answer: after N1–N2 ship.**
 5. **A3 (authority):** keep out of scope? Recommended: yes, until D has
-   run on real stacks.
+   run on real stacks. **Answer: yes.**
 6. **Numbering:** call the semantics ADR-013 Amendment 4? Recommended: yes.
+   **Answer: yes.**
 
 ## 10. Claims audit
 

@@ -1,7 +1,7 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)**
-**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2)
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 4 PROPOSED 2026-11-06 (draft, design only — GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; not accepted, authorizes no implementation)** · Amendment 3 is reserved for GH #25 A1 (D28–D39)
+**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 4 draft)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-019 (`tpatch land` trailer-block schema — Amendment 1's evidence substrate), ADR-016 (`record` auto-base resolution — owner of `apply.base_commit`), ADR-028 (supersession edge model), ADR-032 (feature-unapply state boundary), `docs/prds/PRD-verify-freshness.md` (successor PRD), `docs/prds/PRD-tpatch-land.md` (Amendment 1 co-amended), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor PRD), `docs/dependencies.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2 fix this amendment must not regress)
@@ -1680,3 +1680,217 @@ run.
   still make the target's own ladder and the assessment observe different
   trees; the post-assessment `HEAD` check catches every movement that is not
   restored. Ordinary verify has the same exposure today.
+
+# Amendment 4 (2026-11-06, PROPOSED — draft) — Attestation-preferred anchor selection and the R14 split — GH #26
+
+**Status of this amendment**: PROPOSED (draft, design only). Not accepted;
+authorizes no implementation. The operator's answers to
+`docs/prds/PRD-historical-anchor-relanding.md` §9 (2026-11-06) approve its
+semantics: option A (Q1), the newest qualifying exact attestation (Q2),
+R14b with `failed_at` unchanged (Q3), A3 out of scope (Q5) and this
+numbering (Q6). It becomes binding only after an independent design review
+approves it and the operator schedules the slices: N1 implements D40, D41
+and D44; N2 implements D42 and D43. Option D (the Fusion member-level
+explanation, C3) follows N1–N2 (Q4) and needs its own amendment text and
+design review; nothing here decides it.
+
+**Issue**: <https://github.com/tesseracode/tesserapatch/issues/26>
+**Numbering**: Amendment 3 is reserved for GH #25 A1 (the anchor-C
+widening, OV-D4) and is drafted after this text. So that neither draft is
+renumbered, Amendment 3 takes **D28–D39** and this amendment takes
+**D40–D45**; numbers Amendment 3 does not use stay unused. Measurements
+are labelled **A4-E1…A4-E6**, so they cannot collide with Amendment 1's
+closed E1–E47 index.
+
+**Changes to prior decisions.** D14 step 4's selection rule changes for one
+case: an exact attestation that qualifies (D40). Rejected alternative 12 is
+narrowed, not reversed (D41). D13's R14 is split on ancestry (D42–D43).
+Every other decision — D10 presence, D12, D14 steps 1–3, D15, D17, D18,
+Amendment 2 — is unchanged.
+
+## A4.0 Context
+
+A child feature lands. Its hard parent later changes and lands again. The
+child is genuinely unapplied, re-applied on the parent's new landing and
+landed again with identical patch and recipe bytes. `tpatch verify <child>`
+still exits 2 with `failed_at: parent-landing-drift` and R14 ("verify the
+parent first"), which cannot help (GH #26; PRD §2.1, reproduced on
+v0.18.0).
+
+Both of the child's landings forward-qualify at `-C1` and have equal D18
+identities, so D14 step 4 picks the **oldest**, the landing made before the
+parent changed. D13 then probes the parent's **current** patch at that old
+tree, where it is absent, and the member ladder blocks (PRD §2.2). Oldest-
+first exists for E30: after a re-land on top of an existing landing, the
+newest landing's parent already contains the patch and cannot be a replay
+baseline. In GH #26 the newest landing's parent does qualify.
+
+## A4.1 Empirical basis (scratch repository, git 2.55.0, macOS; removed afterwards)
+
+Plain Git, reproducing D14's probes: the forward check is
+`GIT_INDEX_FILE=<tmp> git read-tree C^` then
+`git apply --check --cached -C1`; the member ladder's first rung is the
+full-context `--reverse` check.
+
+| ID | Observation | Consequence |
+|---|---|---|
+| A4-E1 | The child landed at `L1`; the parent changed and re-landed; the child was genuinely unapplied, re-applied and re-landed at `L2` with identical patch bytes. The child's patch forward-qualifies at `-C1` at both `L1^` and `L2^`, and the two landings' D18 normalized identities are equal. | Both are equal-identity qualifiers; today's step 4 picks `L1`. (D40) |
+| A4-E2 | The parent's current canonical patch fails the full-context reverse check at `L1^` and passes it at `L2^`. | At the oldest-first anchor the member ladder blocks (R14); at the attestation it does not. (D40) |
+| A4-E3 | E30 restated: after a further landing on top while the child stays applied, the child's patch does not forward-qualify at that landing's parent. | Such an attestation is not a qualifier, so D40 never selects it. (D41) |
+| A4-E4 | The parent's re-landing commit is not an ancestor of `L1^` (`git merge-base --is-ancestor` exit 1) and is an ancestor of `L2^` (exit 0). | Ancestry separates "the parent's current landing is not in the history of the child's baseline" from the R14 case. Non-ancestry does not prove the baseline is older: on a divergent branch the two commits are incomparable. (D42) |
+| A4-E5 | A descendant rewrites the parent's line and a later child lands on top. The parent's current patch blocks at the child's anchor, and the parent's landing **is** an ancestor of that anchor. | The R14 (Fusion) case; R14 stays. (D42) |
+| A4-E6 | `git merge-base --is-ancestor` naming an object the repository lacks exits 128 (`fatal: Not a valid commit name …`), neither 0 nor 1. | An ancestry query can fail to answer; that must not read as "not an ancestor". (D43) |
+
+## Decision (Amendment 4, D40–D45)
+
+### D40. D14 step 4 prefers a qualifying exact attestation
+
+D14 step 4 becomes:
+
+> 4. **Select.** Let *A* be the qualifiers from step 3 that are **exact
+>    attestation commits** of the feature: commits whose patch, recipe and
+>    base-commit trailers all match the snapshot, the test D10 already
+>    applies for `landing_evidence` (one commit for `exact`, each duplicate
+>    for `duplicate-equivalent`;
+>    `internal/workflow/verify_landed.go:870-879`, `:896-928`). If *A* is
+>    non-empty, select its **newest** member: the last in the enumeration's
+>    `--topo-order --reverse` order. Otherwise take the first qualifier in
+>    that order, as before. Final tie-break unchanged.
+
+- **Steps 1–3 are unchanged** (`internal/workflow/verify_landed.go:1247-1306`).
+  Every candidate is collected and qualified, and identities are compared
+  across all qualifiers, before any selection. Non-equivalent qualifiers
+  stay terminal even when an attestation qualifies (PRD T6).
+  Non-equivalent exact attestations are `ambiguous` evidence and terminal
+  before anchor selection runs (PRD T6b).
+- **A probe that cannot run** still aborts resolution
+  (`internal/workflow/verify_landed.go:1271-1276`); it is never read as
+  "does not qualify", so it can never fall back to oldest-first silently
+  (PRD T8).
+- **Merge landings** are never collected (step 1(c)), so a merge-landing
+  attestation is never preferred.
+- **No new Git call.** *A* is computed from the run's single snapshot and
+  enumeration (D17).
+- **Members follow the same rule.** Anchor resolution is shared and
+  memoised per slug, so each landed closure member's anchor, and V10's
+  member baselines (D15), use D40 too.
+- **Reporting is unchanged.** `landing_evidence.attestation_commit` keeps
+  its D10 meaning (for `duplicate-equivalent`, the first exact match), and
+  `baseline.historical_anchor.replay_anchor_commit` names the selected
+  landing. For `exact` with a qualifying attestation they are equal. No
+  field is added and the report schema does not change.
+- **Why the newest exact attestation (Q2).** ADR-019 tells trailer
+  consumers to pick the most recent of a re-landed slug's commits
+  (`ADR-019-tpatch-land-trailer-block-schema.md:64-69`). Every member of
+  *A* carries the recorded base trailer and passed the same forward check,
+  so the newest is the latest landing that still accepts the recorded
+  patch.
+
+### D41. Rejected alternative 12 is narrowed, not reversed
+
+Alternative 12 rejected using the attestation as the replay anchor
+**unconditionally**, because its parent may already contain the patch
+(E30). D40 uses an attestation only after it passes the same `-C1` forward
+qualification as every other candidate. When it does not (E30, A4-E3),
+selection is oldest-first exactly as before. On acceptance, alternative 12
+gains a pointer to D40; until then its text is unchanged.
+
+### D42. R14 splits on ancestry (R14b)
+
+In closure arbitration (D13), when a landed hard member's ladder blocks at
+the target's anchor tree
+(`internal/workflow/verify_anchored.go:705-706`), verify asks, through the
+existing offline ancestry gateway
+(`internal/workflow/verify_gitgate.go:73`), whether **any** of the member's
+exact attestation commits (one for `exact`, each duplicate for
+`duplicate-equivalent`) equals the target's anchor commit or is an
+ancestor of it. The anchor is the replay landing's parent: the tree the
+target was applied on.
+
+- **None is** → **R14b**. It names the target's replay anchor commit and
+  the member's reported attestation commit, states that no exact landing
+  of the member is in the history of the target's replay baseline (the
+  target was applied before that landing, or on a branch that never
+  contained it) and that verifying the member will not help, and
+  recommends genuinely unapplying the target,
+  re-applying it on the member's current landing, and recording and landing
+  it again. Under D40 that new landing's parent qualifies and becomes the
+  anchor (A4-E1, A4-E2).
+- **At least one is** → R14, unchanged: the member's content landed in the
+  anchor's history and is absent there (the Fusion case, A4-E5).
+
+`failed_at` stays `parent-landing-drift`. Verdict, exit code, checks,
+advisories and the persisted record are unchanged; only the remediation
+text changes.
+
+### D43. An ancestry query that cannot answer makes no ancestry claim
+
+If Git cannot answer any of D42's queries (A4-E6: an exit status other
+than 0 or 1, including a missing object under `GIT_NO_LAZY_FETCH=1`),
+verify emits **R14b's undetermined form**: it names the member and the
+target's replay anchor, states that verify could not determine whether
+any exact landing of the member is in the anchor's history and therefore
+judged neither case, and says to restore the repository's history (for example
+`git fetch --refetch`, or unshallow) and run verify again. It never emits
+R14 or R14b's ancestry claim on a failed query. `failed_at` stays
+`parent-landing-drift` (Q3). This mirrors Amendment 2's R26 execution form
+(D26): a query that could not run is never reported as an answer.
+
+### D44. Measure before release (N1)
+
+D40 changes the replay tree of a run whose qualifying exact attestation is
+not the oldest qualifier. Equal identity means both trees accept the same
+change, so such a run can newly fail only if the newer tree breaks the
+target's recipe replay (V7, V8's historical half) or a member's ladder or
+V10 baseline. Before N1 is released:
+
+1. every verify fixture in the repository runs under both selection rules,
+   and every changed verdict is listed in the N1 review;
+2. GH #26's t3code `5ce5d79` reproduction is re-run read-only on the N1
+   build and the four roots' results are recorded.
+
+A previously passing case that now fails blocks the release until the N1
+review explains it.
+
+### D45. What this amendment does not do
+
+- No option B (generation-bound landing observation), no option D (C3
+  member-level explanation, after N1–N2 under its own amendment) and no A3
+  (member-level authority, out of scope).
+- No new trailer, generation kind, persisted field or report field; no
+  report schema change.
+- No change to `landing_evidence` semantics, `-C1` qualification, the
+  identity compare, anchor C, D10 presence or V10's rule.
+- No interaction with Amendment 3: D40 changes only how anchor H is
+  selected, and Amendment 3 (GH #25 A1) concerns anchor C at `HEAD`.
+
+## Amendment 4 — tests (PRD §7, mutation-sensitive)
+
+Each fixture must fail under the named mutation. T1–T4 also run under
+`verify --all`, and each embedded report must equal its single run.
+
+| # | Fixture | Expected | Mutation that must fail it | Decision |
+|---|---|---|---|---|
+| T1 | GH #26: child genuinely unapplied, re-applied and re-landed with identical bytes after the parent re-landed. | Pass; replay anchor = attestation. | Oldest-first restored. | D40 |
+| T2 | E30: a further landing on top of an existing landing. | Pass; replay anchor = the earlier landing. | Attestation used without qualification. | D41 |
+| T3 | Parent re-landed; child not re-landed. | Exit 2, `parent-landing-drift`, R14b naming both commits. | Ancestry query dropped (R14 always). | D42 |
+| T4 | Member ladder blocks and the member's attestation is an ancestor of the anchor. | R14 unchanged. | R14b always. | D42 |
+| T5 | T1 plus a later unrecorded edit at `HEAD` on the child's path. | Exit 2 at the current anchor. | Anchor C skipped when anchor H passes. | D45 |
+| T6 | A qualifying exact attestation plus a stale-trailer landing that forward-qualifies with a non-equivalent identity. | Terminal `historical-anchor-unavailable`. | Identity compare skipped when the attestation qualifies. | D40 |
+| T6b | Two exact attestations with non-equivalent identities. | `failed_at: landing-evidence`, R7; D40 never runs. | D40 runs before evidence classification. | D40 |
+| T7 | `duplicate-equivalent`: two exact attestations, both qualifying. | Replay anchor = the newer. | Oldest among *A*. | D40 |
+| T8 | The forward check cannot run on the attestation candidate. | Reader-failure state, as today. | The error read as "does not qualify". | D40 |
+| T10 | Divergent branch: the target was applied and landed on a branch that never contained the member's current landing, then merged (the member landing reachable only through a merge's non-first parent, `internal/gitutil/trailers.go:286-289`). | R14b; its text claims only that no exact member landing is in the baseline's history, never that the baseline is older. | R14b text restored to "predates". | D42 |
+| T9 | T3 with D42's ancestry query failing (simulated Git failure). | R14b's undetermined form; `failed_at` unchanged. | The failure read as "not an ancestor" (R14b's claim) or as "ancestor" (R14). | D43 |
+
+## Amendment 4 — consequences
+
+- A genuinely re-landed child (GH #26) verifies against the base it was
+  landed on.
+- A child that really is older than its parent's current landing gets a
+  remediation that names both commits and an action that works.
+- Some passing runs replay at a newer tree; D44 measures them before
+  release.
+- Cost: D40 adds no Git call; D42 adds one ancestry query per exact
+  attestation of a member, and only when that member's ladder has already
+  blocked.

@@ -86,9 +86,14 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 - **Makefile placement:** the `release-check` target had landed inside the
   `wave-close-check` comment block; it now sits right after `all:` (no
   behaviour change).
-- **D drafted (uncommitted, separate commit after its own review):** the
-  GH #26 and GH #24 PRDs record the operator's §9 answers, and ADR-013
-  gains a PROPOSED Amendment 4 draft for GH #26 N0.
+- **D done (own commit after its own review):** the GH #26 and GH #24 PRDs
+  record the operator's §9 answers, and ADR-013 gains a PROPOSED
+  Amendment 4 draft for GH #26 N0 (D40–D45, T1–T10). Design review
+  (gpt-6.1-sol) round 1 NEEDS REVISION, F1 (MEDIUM): the R14b text claimed
+  the replay baseline "predates" the member's landing, but non-ancestry
+  also covers divergent branches. Fixed (the text now says whether an
+  exact landing is in the baseline's history; new test row T10); round 2
+  APPROVED. Amendment 4 stays PROPOSED until the operator accepts it.
 - **Validation-host automation (private, OV-D17 answer):** a runner
   pre-flight and automatic serial fallback, kept outside the repository
   (NW-D9, NW-D10).
@@ -124,9 +129,11 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 
 ## Current State
 
-`main` is at `edd72a3` (window dispatch; v0.19.0 tag on `68142ca`). W0 is
-approved by independent review and passed local validation; commit, CI and
-the validation-machine gate follow. GH #25 stays open
+`origin/main` is at `edd72a3` (window dispatch; v0.19.0 tag on `68142ca`).
+W0 is approved by independent review, passed local validation and is
+committed locally as `583f7dc`; push (after `edd72a3`'s CI finishes), CI
+and the validation-machine gate follow. D is approved and committed on its
+own. GH #25 stays open
 (A1 authorized in this window; B and C3 not). GH #26 and GH #24 have
 operator answers; only GH #26's ADR-013 Amendment 4 draft is authorized,
 no code.
@@ -135,12 +142,12 @@ no code.
 
 - `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`:
   window dispatch (`edd72a3`) and W0 tracking.
-- W0 (uncommitted): `internal/workflow/verify_landed_partialclone_test.go`
+- W0 (`583f7dc`): `internal/workflow/verify_landed_partialclone_test.go`
   (fixture fix + guard); `scripts/release-check.sh` (new);
   `internal/cli/release_check_test.go` (new); `Makefile` (`release-check`
   target); `AGENTS.md` (Wave-Close Checklist release item, NW-D10
   lane-stop sentence).
-- D (uncommitted, in review): `docs/prds/PRD-historical-anchor-relanding.md`,
+- D (approved, own commit): `docs/prds/PRD-historical-anchor-relanding.md`,
   `docs/prds/PRD-coverage-operation-domain.md`,
   `docs/adrs/ADR-013-verify-freshness-overlay.md`.
 
@@ -171,7 +178,7 @@ no code.
 
 1. W0: push; CI; validation-machine gate with the new private pre-flight
    (`WAVE_BASE=2e44569`, NW-D2).
-2. D: PRD answers + ADR-013 Amendment 4 draft; independent review.
+2. D: done (approved; Amendment 4 PROPOSED, awaiting the operator).
 3. W1: GH #25 A1 (ADR-013 Amendment 3 first).
 4. W2: arbitration fail-fast reproduction.
 5. R: v0.20.0 if A1 ships.

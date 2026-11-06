@@ -1,10 +1,12 @@
 # PRD - Widening the coverage-complete operation domain
 
-**Status**: Draft — planning only (2026-11-06). Authorizes no
-implementation, schema expansion, consumer integration or release.
+**Status**: Direction accepted, deferred — operator answered §9
+(2026-11-06): option G, but only when a concrete user needs complete
+coverage for replace or append. No slice is scheduled; this PRD authorizes
+no implementation, schema expansion, consumer integration or release.
 Independent review APPROVED at rev-2 (2026-11-06,
-`docs/supervisor/LOG.md`). Needs operator answers to §9. The current conservative
-domain (ADR-039) stays in force until a reviewed decision supersedes it.
+`docs/supervisor/LOG.md`). The current conservative domain (ADR-039) stays
+in force until the new ADR (Q5) is written and accepted.
 **Date**: 2026-11-06
 **Owner**: Core
 **Issue**: [GH #24](https://github.com/tesseracode/tesserapatch/issues/24)
@@ -204,18 +206,24 @@ Each case needs a fixture that fails under the named wrong input.
 
 ## 9. Questions for the operator
 
+Operator answers, 2026-11-06 (recorded in `docs/handoff/CURRENT.md`):
+
 1. **Widen at all?** K (no change) or G (opt-in gates)? Recommended: G, but
    only when a concrete user needs complete coverage for replace/append.
+   **Answer: G, only when a concrete user needs it.** Until then K stays in
+   effect.
 2. **Append support** via gates (G), or never? Recommended: via gates.
+   **Answer: via gates.**
 3. **Admissibility criteria (§3):** accept the four conditions as the
-   definition? Recommended: yes.
+   definition? Recommended: yes. **Answer: yes.**
 4. **Legacy ungated recipes:** stay incomplete, with migration left to
-   GH #19? Recommended: yes.
+   GH #19? Recommended: yes. **Answer: yes.**
 5. **ADR shape:** a new ADR superseding ADR-039's domain, rather than
-   another ADR-036 addendum? Recommended: new ADR.
+   another ADR-036 addendum? Recommended: new ADR. **Answer: new ADR**,
+   written when G is scheduled.
 6. **Supersession:** keep ADR-029 D7's warning downgrade for the new gates,
    identical to gated `write-file`? Recommended: yes; changing it needs
-   its own ADR amending D7.
+   its own ADR amending D7. **Answer: yes.**
 
 ## 10. Claims audit
 

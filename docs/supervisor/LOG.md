@@ -1,3 +1,32 @@
+## Review — D (GH #26/#24 answers, ADR-013 Amendment 4 draft) rounds 1–2 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol), design review
+only (no Go runs)
+**Task**: D — record the operator's GH #26 and GH #24 §9 answers; draft
+ADR-013 Amendment 4 (PROPOSED, design only)
+
+### Verdict: APPROVED (round 1 NEEDS REVISION; round 2 APPROVED)
+
+### Notes
+- Round 1, F1 (MEDIUM): D42's R14b text said the target's replay baseline
+  "predates" the member's landing. Non-ancestry also covers divergent
+  branches, where the two commits are incomparable (a landing reachable
+  only through a merge's non-first parent, `internal/gitutil/trailers.go`
+  286–289), so the text would state something false.
+- Fix: A4-E4's consequence, D42's R14b text and D43's undetermined form
+  now say whether an exact landing of the member is in the history of the
+  baseline, and never that the baseline is older. New test row T10
+  (divergent branch merged through a non-first parent; the mutant restores
+  "predates"). The PRD's §6 option C wording was corrected the same way.
+- Round 2: F1 closed; no further findings.
+
+### Action Taken
+D committed on its own (PRDs + ADR-013 Amendment 4, PROPOSED). No
+implementation is authorized for GH #26 or GH #24; Amendment 4 waits for
+operator acceptance.
+
+---
+
 ## Review — W0 (fixture daemon leak + `make release-check`) rounds 2–3 — 2026-11-06
 
 **Reviewer**: same independent code-review agent (gpt-6.1-sol)
