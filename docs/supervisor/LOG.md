@@ -1,3 +1,32 @@
+## Dispatch — overnight-20261106 — 2026-11-06
+
+**Reviewer**: supervisor (implementation-agent dispatch).
+**Task**: Operator-approved 14-hour unattended window, 2026-11-06T03:24:42Z
+→ 17:24:42Z, WAVE_BASE `2335ccafd9ed17f6bb3b47b57a9e48715776132a`.
+
+### Checklist
+- [x] Baseline — `HEAD` == `origin/main` == `2335cca`; no tracked changes,
+  no stash, one worktree, no in-progress Git operation
+- [x] CI — 42113608021 (`2335cca`) green
+- [x] Handoff — `**Cluster state**: IN PROGRESS` replaced in place (one
+  field); Active Task, operator approvals and the GH #25 §8 answers recorded
+- [x] ROADMAP — 🚧 rows for W1, GH #25 C1–C2, GH #26/#24 planning and the
+  stale-docs cleanup; stale lane-mode text corrected; merge-topology
+  ordering backlog row added (operator, GH #25 Q2)
+
+### Verdict: DISPATCHED
+
+### Notes
+Scope: W1 (empty `WAVE_CLOSE_TEST_LANES` = serial, operator revision of
+LW-D2), W2 (GH #25 C1–C2 read-only overlap assessment), D (GH #26 PRD,
+GH #24 planning draft, stale-docs cleanup), R (minor release if W2 ships).
+Not authorized: GH #25 A1/B/C3, GH #17, migration/coverage implementation.
+
+### Action Taken
+Dispatch committed and pushed; W1 implementation started.
+
+---
+
 ## Wave Close — wave-close-lanes-adoption-and-fv18 — 2026-11-05
 
 **Reviewer**: supervisor (implementation-agent close; Go validation under
