@@ -200,9 +200,10 @@ applies to each code wave.
   Uncommitted until W2's CI and lane gate pass.
 - **W1 lane gate at `e41c474`: PASS** (07:32:53Z, checks 1–8). W1 is
   closed; ROADMAP row ✅.
-- **Lane gate at `2e44569`** (W2 + D track) launched 07:35Z, deadline
-  10:04Z; checks 1–6 passed, including 3 (pushed), 4 (five trailers) and 5
-  (terminal token).
+- **W2 CI 42175737134: green** (07:53Z, all five jobs).
+- **Lane gate at `2e44569`, attempt 1: resource stop** (08:50Z, new swap-outs;
+  no test failure; 31/42 commands passed). Attempt 2 launched 08:53Z,
+  deadline 11:23Z; checks 1–6 passed (OV-D17).
 
 ### Decisions awaiting operator review (OV-D*)
 
@@ -313,6 +314,18 @@ applies to each code wave.
   push. The W2 reviewer approved the draft after one MEDIUM fix: the
   captured-bytes bullet no longer claims a mid-run edit cannot change the
   result, because a detected edit still fails verification.
+- **OV-D17 (lane-gate resource stop, retried in lane mode):** the first
+  lane gate at `2e44569` stopped itself at 08:50Z during [8/8] with
+  `ResourceStop: new system swap-outs observed`. No test had failed (31 of
+  42 commands passed; two CLI shards were interrupted). The two shards in
+  flight, `^TestS7AQ.*$` (about 4.3 GB) and `TestS7ARPurgeProgressGuard`,
+  overlapped the same way in the passing gates at `e41c474` and `7f5f97c`,
+  at the same peak memory (5.3–5.5 GB) with no swap-outs. So I treated the
+  stop as machine state after two back-to-back gates, not a code signal.
+  I archived the attempt by renaming it (evidence kept) and relaunched lane
+  mode once at the same commit (08:53Z). If the retry also stops for
+  resources, the fallback is a serial gate. This is the safe stop GT-D27
+  anticipated; it does not change the lane-mode default.
 
 ## Current State
 
@@ -383,8 +396,8 @@ applies to each code wave.
 ## Next Steps
 
 1. W1: ✅ closed (CI green, lane gate PASS at `e41c474`).
-2. W2 + D track (`2e44569`, pushed 06:38Z): CI 42175737134 and the lane
-   gate at `2e44569` (launched 07:35Z) run in parallel.
+2. W2 + D track (`2e44569`, pushed 06:38Z): CI 42175737134 green; lane
+   gate attempt 2 at `2e44569` running (OV-D17).
 3. R: v0.19.0 (draft APPROVED, uncommitted: CHANGELOG plus the release-guard
    pins; tag before push) once W2's CI and lane gate pass.
 4. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,

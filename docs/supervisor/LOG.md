@@ -1,3 +1,26 @@
+## Validation — W2 + D track lane gate at `2e44569`, attempt 1 — 2026-11-06
+
+**Runner**: old-Mac lane gate (`WAVE_CLOSE_TEST_LANES=2`, 42/39 command
+parity), `WAVE_BASE=2335cca`.
+
+### Verdict: STOPPED (resource stop; not a test failure)
+
+### Notes
+- Checks 1–7 passed. During [8/8] the runner saw new system swap-outs and
+  stopped its own workload at 08:50Z (`ResourceStop`); `make` exited on
+  SIGTERM. 31 of 42 commands had passed; none failed.
+- The two shards in flight (`^TestS7AQ.*$`, `TestS7ARPurgeProgressGuard`)
+  overlapped the same way in the passing gates at `e41c474` and `7f5f97c`,
+  at the same peak memory and with no swap-outs.
+- CI 42175737134 at `2e44569` is green.
+
+### Action Taken
+OV-D17: archived the attempt by renaming it and relaunched lane mode once
+at the same commit (08:53Z). A second resource stop falls back to a serial
+gate.
+
+---
+
 ## Wave close — W1 (empty `WAVE_CLOSE_TEST_LANES` = serial) — 2026-11-06
 
 **Runner**: old-Mac lane gate (`WAVE_CLOSE_TEST_LANES=2`, exact 42/39
