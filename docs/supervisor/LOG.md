@@ -1,3 +1,33 @@
+## Supervisor decision — release consolidation v0.20.0 — 2026-11-06
+
+**Task**: publish W0, D and W1 (GH #25 A1) as v0.20.0
+
+### Decision: release consolidated (tracking only)
+
+- Gated commit `7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`
+  carries the v0.20.0 CHANGELOG section and release-guard pin; the release
+  commit changes only CURRENT, HISTORY, ROADMAP and LOG.
+- The window handoff is archived in HISTORY (append-only, prefix hash
+  recorded in CURRENT). Cluster state `ACCEPTED`.
+- `make release-check RELEASE=v0.20.0 GATED=7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`
+  runs before `git tag -a v0.20.0`.
+
+## Supervisor decision — window close W0/D/W1 accepted — 2026-11-06
+
+**Task**: validation-machine gate at `7b690b2`, `WAVE_BASE=fddf4bd`
+
+### Decision: ACCEPTED
+
+- Gate PASS (serial; swap 1,752M at start, above the lane limit):
+  42/42 top-level commands, 39 timed test commands, 0 concurrent test
+  seconds, 10,868.0 s, fresh isolated caches, evidence verifier PASS.
+- `make wave-close-check WAVE_BASE=fddf4bd` inside the gate: 8/8 (trailer
+  walk 7 commits, Cluster state `APPROVED`).
+- No `git-daemon` process left on the validation machine afterwards (W0's
+  fix confirmed there).
+- With CI 42278212760 green, W0, D and W1 are accepted; W0's failed gate
+  at `6eb98a0` is superseded (NW-D23).
+
 ## Supervisor decision — W0 validation-machine gate FAIL (harness) — 2026-11-06
 
 **Task**: W0 gate at `6eb98a0` (`WAVE_BASE=2e44569`)
