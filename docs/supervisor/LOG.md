@@ -1,3 +1,236 @@
+## Validation — W2 local validation r4 — 2026-11-06
+
+**Runner**: local serial validation (`bin/ov-20261106/local-val-w2.sh`,
+overlay committed inside the scratch clone per OV-D14).
+
+### Verdict: PASS
+
+### Notes
+All steps passed by 05:48:30Z: gofmt; targeted gitutil, workflow and CLI
+tests; the CLI source-guard step (PIB-445, PIB-232, the S6 contract rows,
+S7 AO/AP/AQ, RGAS0 and related, 182 s); the gitutil, workflow and assets
+packages; vet; build. The full `internal/cli` package is left to CI and the
+lane gate.
+
+### Action Taken
+W2 is ready to commit. It will be pushed after the W1 close commit's CI.
+
+---
+
+## Validation — W2 local validation r3 — 2026-11-06
+
+**Runner**: local serial validation (`bin/ov-20261106/local-val-w2.sh`).
+
+### Verdict: FAIL at targeted-cli-guards (harness artifact)
+
+### Notes
+gofmt and the targeted gitutil, workflow and CLI steps passed. The new
+CLI source-guard step failed seven tests with `undefined:
+VerifyOverlapAssessment`, all from the S6 go/types vocabulary baseline.
+That baseline lists production sources with `git ls-files`; the scratch
+clone had the four new W2 files copied in but untracked. CI checks out a
+commit where they are tracked, so this does not indicate a W2 defect.
+
+### Action Taken
+The harness now stages the overlaid paths explicitly and commits them
+inside the scratch clone before testing (OV-D14). r4 launched.
+
+---
+
+## Validation — W2 local validation r2 — 2026-11-06
+
+**Runner**: local serial validation (`bin/ov-20261106/local-val-w2.sh`,
+clean clone plus working-tree overlay).
+
+### Verdict: FAIL at affected-packages
+
+### Notes
+gofmt and the targeted gitutil, workflow and CLI steps passed. The
+`internal/gitutil` package failed `TestRGAS0PatchParserCallsiteInventory`:
+the assessment's two `PathsAffectedByPatchStrict` calls were not registered
+in GH #15's parser call-site inventory. `internal/workflow` and `assets`
+passed. Neither review caught it; the guard did, as designed.
+
+### Action Taken
+Registered both calls (OV-D13; ADR-013 D22 step 1 notes it). Validation r3
+adds a CLI source-guard step (directory-wide source scans such as PIB-445's
+D9 reachability and PIB-232's injection seams) so a CLI guard cannot first
+surface at the lane gate. The W2 reviewer (gpt-6.1-sol, read-only)
+confirmed APPROVED stands: two fail-closed strict-authority calls, explicit
+per-function counts, no PI-14 migration row needed. No findings.
+
+---
+
+## Review — D track (GH #26 PRD, GH #24 PRD) rev-2 and rev-3 — 2026-11-06
+
+**Reviewer**: independent docs-review agent (gpt-6.1-sol), same agent as
+rev-1; read-only.
+**Task**: the revised planning PRDs.
+
+### Verdict: APPROVED (both PRDs)
+
+### Notes
+- Rev-2: GH #24 APPROVED (supersession finding closed, nothing new). GH #26:
+  the three rev-1 findings closed; two new — MEDIUM, option D's
+  reverse-check conflated a negative answer with a check Git could not run
+  (D22 splits them: `unexplained-content-loss` vs
+  `invalid-or-missing-evidence`); LOW, two R14 cites pointed at R11.
+- Rev-3: both closed; GH #26 APPROVED.
+
+### Action Taken
+Docs commit (both PRDs, `docs/CLUSTERS.md`, three status headers) after the
+W2 commit, so the GH #26 PRD's code cites match the committed tree.
+
+---
+
+## Review — W2 GH #25 C1–C2 code review rev-2 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol), same agent as
+rev-1; read-only, no Go run.
+**Task**: rev-2 fixes for F1–F4 and the open design findings 1, 2 and 7.
+
+### Checklist
+- [x] Explanation-only — verdict, exit code, `failed_at`, checks and
+  `status.json` unchanged
+- [x] Captured bytes only — every verify Git probe stages captured bytes;
+  memo keys carry the bytes' SHA-256
+- [x] Closed vocabulary — E5 execution failures are step failures (R26
+  execution form); a drop restores only a replaced remediation
+- [x] Gitlinks compared (`--ignore-submodules=none`)
+- [x] Mutation-sensitive — 23/23 mutants killed (M15–M23 for the fixes)
+
+### Verdict: APPROVED
+
+### Notes
+F1–F4 closed; design findings 1, 2 and 7 closed; no new findings.
+
+### Action Taken
+Local validation, then commit with explicit paths and the old-Mac lane gate
+at the W2 tip after W1's tracking commit has passed CI and its gate.
+
+---
+
+## Review — W2 GH #25 C1–C2 code review rev-1 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol); it also re-checked
+the seven rev-1 design findings against the code.
+**Task**: `overlap_assessment` implementation (ADR-013 Amendment 2 rev-2).
+
+### Checklist
+- [x] Explanation-only — verdict, exit code, `failed_at`, checks and
+  `status.json` unchanged
+- [ ] Captured bytes only — the ordinary probes still named artifact paths
+- [ ] Closed vocabulary applied correctly — E5 and drop handling wrong
+
+### Verdict: NEEDS REVISION
+
+### Notes
+Design findings 3–6 closed; 1, 2 and 7 not closed because of:
+- **F1 HIGH** — `DiffCachedQuiet` honoured `submodule.<name>.ignore=all`,
+  so a changed gitlink compared equal (design finding 1).
+- **F2 HIGH** — the HEAD ladder, member ladders, forward qualification and
+  the historical V8 shadow check passed live artifact paths to Git, and the
+  nested E6 verify shares their memos (design finding 2).
+- **F3 MEDIUM** — an E5 ancestry query Git could not run was recorded as
+  `failed_rule: E5` and named in R26 (design finding 7).
+- **F4 MEDIUM** — dropping a `context-only-drift` assessment cleared V8's
+  remediation.
+
+### Action Taken
+Rev-2: `--ignore-submodules=none`; every verify probe stages captured bytes
+with SHA-256 memo keys (OV-D11); E5 execution failures take R26's execution
+form (OV-D12); the drop restores only a remediation the assessment replaced.
+Six regression tests and mutants M15–M23 added; ADR-013 D21/E5/D24/D27 and
+SPEC updated. Re-review pending.
+
+---
+
+## Review — D track (GH #26 PRD, GH #24 PRD, stale docs) rev-1 — 2026-11-06
+
+**Reviewer**: independent docs-review agent (gpt-6.1-sol).
+**Task**: `docs/prds/PRD-historical-anchor-relanding.md`,
+`docs/prds/PRD-coverage-operation-domain.md`, `docs/CLUSTERS.md`, and the
+status headers of the operation-replay PRD, ADR-037 and ADR-043.
+
+### Verdict: APPROVED (CLUSTERS.md, headers); NEEDS REVISION (both PRDs)
+
+### Notes
+- GH #26: option D removed the member's patch instead of reverse-checking
+  it; T6 could not reach its target because two non-equivalent exact
+  attestations are ambiguous and terminal first; the "identical digests
+  never append" claim ignored ADR-051's candidate-acceptance exception.
+- GH #24: "unconditional executor enforcement" ignored ADR-029 D7's
+  supersession downgrade of the permissive branch.
+
+### Action Taken
+Option D rewritten (seed, reverse-check, replay, compare); T6 split into T6
+(stale-trailer qualifier → `historical-anchor-unavailable`) and T6b (two
+exact attestations → R7); ADR-051 exception scoped; GH #24 §2/§3/Option G
+state the D7 supersession and add fixture A10. Re-review pending.
+
+---
+
+## Gate — W1 lane gate #1 at `3303cc2` — 2026-11-06
+
+**Runner**: old-Mac lane gate, WAVE_BASE `2335cca`.
+
+### Verdict: FAIL at [5/8] (protocol, not code)
+
+### Notes
+The committed CURRENT.md carried `**Cluster state**: IN PROGRESS`; [5/8]
+accepts only a terminal token, and the runner then blocks the Go checks by
+design. No test ran, so no code result was produced.
+
+### Action Taken
+OV-D10: each code wave's close commit sets the single field to `APPROVED`
+in place; the W1 gate re-runs at its tracking commit after CI.
+
+---
+
+## Design review — W2 GH #25 C1–C2 (ADR-013 Amendment 2) — 2026-11-06
+
+**Reviewer**: independent design-review agent (gpt-6.1-sol).
+**Task**: ADR-013 Amendment 2, the read-only `overlap_assessment` in
+`verify --json` (GH #25 slices C1–C2), before implementation.
+
+### Checklist
+- [x] Matches SPEC/PRD — PRD-overlap-verification-consolidation scoped to
+  C1–C2; operator answers Q1–Q12 applied
+- [x] Explanation-only — the field never changes verdict, exit code,
+  `failed_at`, checks, advisories or the persisted record
+- [ ] Sound procedure — rev-1 was not (see Notes)
+
+### Verdict: UNSOUND (rev-1) → rewritten as rev-2 (D20–D27)
+
+### Notes
+Rev-1 findings, each closed by rev-2 (numbering as in CURRENT.md OV-D5–D8):
+1. A HEAD round-trip proved only that the descendants' hunks invert, not
+   that nothing else touched the paths. Rev-2 replays the descendants'
+   captured patches from the target's landing tree in a temporary index
+   and requires equality with `HEAD` on the target's paths (D22, OV-D5).
+2. The composition reread artifact files instead of the bytes the run
+   captured. Rev-2 reads only the captured inventory; a source guard
+   forbids artifact reads (D23, OV-D6).
+3. The nested descendant verify followed the live `HEAD`. Rev-2 pins it to
+   the captured head (D23, OV-D6).
+4. E4 skipped chain intermediates that do not touch the paths. Rev-2 binds
+   every member of every hard chain (D22, OV-D7).
+5. The nested verify pruned the descendant's existing shadow worktrees.
+   Rev-2 names nested shadows `<slug>.overlap-<nonce>` (D23, OV-D6).
+6. The nested verify could mutate shared evidence and arbitration state.
+   Rev-2 runs it on a cloned evidence memo and restores the run's pending
+   state (D23, OV-D6).
+7. R26 could name a descendant for a Git failure. Rev-2 adds an execution
+   form that names no descendant (D26, OV-D8).
+
+The rev-2 design is re-reviewed together with the W2 code review.
+
+### Action Taken
+ADR rewritten to rev-2; implementation reworked to match; OV-D4–OV-D9
+recorded in CURRENT.md for operator review.
+
+---
+
 ## Review — W1 wave-close-empty-serial — 2026-11-06
 
 **Reviewer**: independent code-review agent (gpt-6.1-sol), two rounds.

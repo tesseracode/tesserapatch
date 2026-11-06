@@ -2,7 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+(W1 close commit, OV-D10: W1 is APPROVED and CI 42163688451 is green; the
+lane gate runs at this commit. W2 and the D track are still in flight below;
+W2's close commit keeps `APPROVED`, and the window closeout sets `IDLE`.)
 
 **Operator-approved 14-hour unattended window** from
 **2026-11-06T03:24:42Z** to **2026-11-06T17:24:42Z**.
@@ -84,6 +88,97 @@ applies to each code wave.
   command substitution) and mutations (`switch-not-exported`,
   `condition-interpolated`, `lane-count-interpolated`, `switch-unexported`).
   **Review rev-2: APPROVED** (no findings).
+- **W1 committed locally as `3303cc2`** after local validation r2. It is not
+  pushed yet: CI 42156606008 for the dispatch commit `21bac68` is still
+  running, and the CI workflow cancels an in-progress run per ref.
+- **W2 design (ADR-013 Amendment 2):** rev-1 drafted; the independent design
+  review (gpt-6.1-sol) judged it **UNSOUND** with seven findings (see the ADR's
+  "Design review" paragraph and LOG). Rev-2 (D20–D27) closes all seven; see
+  OV-D4–OV-D9 below.
+- **W2 implemented (04:15Z):** `internal/workflow/verify_overlap.go` (the
+  assessment), wiring in `verify_anchored.go`/`verify.go`, run-owned shadow
+  names and `headStillCaptured` in `verify_gitgate.go`, the HEAD pin in
+  `verify_landed.go`, `TempIndex.ApplyCached`/`DiffCachedQuiet` with
+  literal pathspecs in `internal/gitutil/trailers.go`, schema `1.1` → `1.2`
+  (four pins updated), SPEC verify section. 25 workflow tests and 6 gitutil
+  tests pass; mutation probes in progress.
+- **W2 mutation probes (04:30Z):** 14/14 killed after strengthening the
+  isolation, HEAD-moved and unstable-inventory tests (see Test Results). CLI
+  golden and schema tests pass (12 tests), including the frozen PIB goldens,
+  which confirms compat-verify emits no `overlap_assessment`.
+- **W2 code review dispatched (04:33Z, gpt-6.1-sol):** it also re-reviews the
+  rev-2 design and must mark each of the seven rev-1 findings closed or not.
+- **W1 pushed (04:38Z):** CI 42156606008 for `21bac68` finished green, so
+  `3303cc2` went to `origin/main`; CI 42163688451 is running. The old-Mac
+  lane gate for `3303cc2` (WAVE_BASE `2335cca`) started at 04:40Z.
+- **D track:** GH #26 planning PRD
+  (`docs/prds/PRD-historical-anchor-relanding.md`) and GH #24 planning draft
+  (`docs/prds/PRD-coverage-operation-domain.md`) written, with cites checked
+  against current code. `docs/CLUSTERS.md` refreshed to a 2026-11-06
+  snapshot; the GH #13 PRD, ADR-037 and ADR-043 headers now record the
+  v0.18.0 shipment. Independent review of the D-track docs dispatched
+  (04:45Z).
+- **W1 lane gate #1 (old Mac, `3303cc2`): FAIL at [5/8], protocol only.**
+  The committed CURRENT.md said `**Cluster state**: IN PROGRESS`, which is
+  not a terminal token, so the runner blocked the Go checks by design
+  ([7/8] and [8/8] show the block, not a test failure). See OV-D10.
+- **D-track review (gpt-6.1-sol):** `docs/CLUSTERS.md` and the three status
+  headers **APPROVED**. GH #26 PRD **NEEDS REVISION** (3 MEDIUM: option D
+  removed the member's patch instead of reverse-checking it; T6 could not
+  reach its mutation because two non-equivalent exact attestations are
+  `ambiguous` and terminal first; "identical digests never append" ignored
+  the ADR-051 candidate exception). GH #24 PRD **NEEDS REVISION** (1 MEDIUM:
+  "unconditional executor enforcement" ignored ADR-029 D7's supersession
+  downgrade). All four fixed; re-review pending.
+- **W2 code review rev-1 (gpt-6.1-sol): NEEDS REVISION**, four findings;
+  design findings 3–6 closed, 1, 2 and 7 not closed:
+  - **F1 HIGH** — `DiffCachedQuiet` honoured `submodule.<name>.ignore=all`
+    (from `.git/config` or `.gitmodules`), so a changed gitlink compared
+    equal.
+  - **F2 HIGH** — the ordinary pipeline's probes (HEAD ladder, member
+    ladders, forward qualification, historical V8 apply check) passed the
+    live artifact path to Git; a nested E6 verify shares their memos, so a
+    mid-run rewrite could enter the assessment or a later `--all` entry.
+  - **F3 MEDIUM** — an E5 ancestry query Git could not answer was recorded
+    as the descendant's `failed_rule: E5`.
+  - **F4 MEDIUM** — dropping a `context-only-drift` assessment overwrote
+    V8's remediation (for example a historical failure's) with an empty
+    string.
+- **W2 rev-2 fixes (05:15Z):** F1 adds `--ignore-submodules=none`; F2
+  stages captured bytes for every verify probe and keys their memos by the
+  bytes' SHA-256 (OV-D11); F3 returns R26's execution form with no
+  descendant judged (OV-D12); F4 restores only a remediation the assessment
+  replaced. Six new regression tests; ADR-013 D21/E5/D24/D27 and SPEC
+  updated; nine new mutants (M15–M23) added to the harness.
+- **W2 mutation run rev-2 (05:20Z): 23/23 KILLED**, including M15–M23
+  (M16 is killed by the argv guard, M18 by the `--all` parity test).
+- **W2 code review rev-2 (gpt-6.1-sol): APPROVED.** F1–F4 closed; design
+  findings 1, 2 and 7 now closed too; no new findings.
+- **W2 local validation r2: FAIL** at affected-packages —
+  `TestRGAS0PatchParserCallsiteInventory` caught the two unregistered
+  strict-parser calls (OV-D13). Registered; the W2 reviewer confirmed
+  APPROVED stands (no findings).
+- **W1 CI 42163688451: green** (05:44Z; Windows, macOS, ubuntu and both
+  S7 observer jobs). W1 close commit follows (OV-D10).
+- **W2 local validation r3: FAIL** at a new `targeted-cli-guards` step (CLI
+  guards that scan production sources directory-wide: PIB-445, PIB-232, the
+  S6 contract rows, etc.). Seven tests failed with `undefined:
+  VerifyOverlapAssessment` from the S6 go/types vocabulary baseline. Cause:
+  that baseline discovers sources with `git ls-files`, and the validation
+  clone overlaid the four new W2 files without tracking them. This is a
+  harness artifact (CI checks out a commit where they are tracked), not a W2
+  defect. The harness now commits the overlay inside the scratch clone
+  before testing (OV-D14).
+- **W2 local validation r4: PASS** (05:48:30Z) — gofmt, targeted gitutil,
+  workflow and CLI tests, the CLI source-guard step (182 s), affected
+  packages (gitutil, workflow, assets), vet, build.
+- **D-track re-review:** GH #24 PRD **APPROVED** (finding closed, nothing
+  new). GH #26 PRD: the three rev-1 findings closed; two new ones (MEDIUM:
+  option D's reverse-check must split a negative answer,
+  `unexplained-content-loss`, from a check Git could not run,
+  `invalid-or-missing-evidence`; LOW: R14 cites pointed at R11). Both fixed
+  and confirmed: **GH #26 PRD APPROVED**. Code cites in the GH #26 PRD were
+  re-verified by content against the post-fix code.
 
 ### Decisions awaiting operator review (OV-D*)
 
@@ -102,6 +197,78 @@ applies to each code wave.
   into the shell command. Quotes, backticks and `$` in the value stay
   literal and fail like any other non-`2` value. The banner text the old-Mac
   harness matches is unchanged.
+- **OV-D4 (W2 numbering):** your Q1 put C before A, so C's semantic decisions
+  are ADR-013 **Amendment 2** and A1's anchor-C widening becomes Amendment 3
+  when it is drafted (the PRD's draft plan had them the other way round).
+- **OV-D5 (W2 proof, design-review finding 1):** "explained" requires a
+  provenance replay, not a HEAD round-trip: start from the target's landing
+  commit, check (without applying) that the target's own patch reverses
+  there — its postimage really landed — then apply each descendant's
+  captured canonical patch in landing order (restricted to the target's
+  paths) in an isolated temp index, and require the result to equal `HEAD`
+  on those paths exactly. Any unrecorded edit, including one outside the
+  descendants' hunks, makes it `unexplained-content-loss`. A step that Git
+  answers with "does not apply"/"differs" is unexplained; a step where Git
+  could not run is `invalid-or-missing-evidence`.
+- **OV-D6 (W2 hermetic nested verify, findings 2, 3, 5, 6):** the
+  assessment reads only the run's captured patch bytes and the captured
+  `HEAD` commit (a source guard forbids artifact reads and the literal
+  `"HEAD"` in `verify_overlap.go`). The descendant's same-run verify is
+  pinned to the captured commit, names its shadows `<slug>.overlap-<nonce>`
+  so it never prunes the descendant's own shadows, runs on a deep copy of
+  the landing-evidence memo, and restores the run's pending arbitration
+  state afterwards.
+- **OV-D7 (W2 chain binding, finding 4):** E4 checks the generation
+  bindings of every member on every hard chain from the candidate to the
+  target, including intermediates that do not touch the target's paths.
+- **OV-D8 (W2 R26, finding 7):** R26 names a descendant only when a rule
+  failed for it; a Git execution failure gets the separate R26 execution
+  form that names no descendant.
+- **OV-D9 (W2 snapshot safety):** if `HEAD` moved during the run the
+  assessment is dropped and V8's plain R1/R2 remediation is restored; if the
+  inventory was unstable the field is dropped and R20's remediation stays.
+  Pathspecs in the temp-index replay and compare are literal
+  (`GIT_LITERAL_PATHSPECS=1`) so a file named like a glob cannot widen the
+  comparison.
+- **OV-D10 (gate protocol):** the wave-close gate rejects a non-terminal
+  `Cluster state`, and the committed CURRENT.md said `IN PROGRESS` while W1
+  was gated. From now on each code wave's close commit replaces the single
+  field with `APPROVED` (in place, never a second field) once its review is
+  approved, and the lane gate runs at that commit. W2 keeps `APPROVED`; the
+  window closeout sets `IDLE`. W1's gate is re-run at its tracking commit.
+- **OV-D11 (W2 review F2, captured bytes everywhere):** I closed F2 at the
+  root rather than only for the nested call. Every Git probe verify runs —
+  the HEAD ladder, member ladders, forward qualification and the historical
+  shadow apply check — now applies a run-owned staged copy of the captured
+  patch bytes, and the probe memos are keyed by the bytes' SHA-256. This
+  touches the ordinary pipeline's internals (ADR-013 D24/D27 say so), but
+  output is unchanged unless an artifact changes during the run, which
+  instability detection already fails. A guard asserts that no Git argv in
+  single runs or `--all` names a `.tpatch/features/` path.
+- **OV-D12 (W2 review F3):** when Git cannot answer an E5 ancestry query,
+  the class is `invalid-or-missing-evidence` with `failed_step:
+  eligibility` (E5 is an eligibility rule) and R26's execution form; the
+  detail names the descendant being checked, but no descendant carries a
+  `failed_rule`.
+- **OV-D13 (W2 validation, parser call-site inventory):** local validation
+  r2 failed `TestRGAS0PatchParserCallsiteInventory` (GH #15 S0 guard): the
+  assessment's two `gitutil.PathsAffectedByPatchStrict` calls (target
+  paths, candidate paths) were unregistered. They are direct consumers of
+  the strict authority, not a migrated hand parser like PI-13, so I
+  registered them in the guard's call-site table (total 4 → 6) and in
+  ADR-013 D22, and did **not** add a PI-14 row to GH #15's closed PRD/ADR-036
+  parser inventory, which lists parsers being migrated. Revisit if you want
+  every strict-parser consumer listed there too.
+- **OV-D14 (validation harness commits its overlay):** the local validation
+  harness copies working-tree changes into a scratch clone. New files stayed
+  untracked there, so guards that discover production sources with
+  `git ls-files` (the S6 vocabulary baseline) could not see
+  `verify_overlap.go` and failed. I made the harness stage the overlaid paths
+  explicitly and commit them inside the scratch clone, which matches what CI
+  sees. The repository itself is unaffected (the scratch clone is under a
+  temp dir and is never pushed). Alternative rejected: running these guards
+  only in CI and at the lane gate, which would surface a real failure an
+  hour later.
 
 ## Current State
 
@@ -115,6 +282,31 @@ applies to each code wave.
 - W1: `Makefile`, `internal/cli/wave_close_lanes_test.go`,
   `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
   `scripts/wave-close-test-lanes.sh`, `AGENTS.md`, `docs/REVIEW-PLAYBOOK.md`.
+- W2 (uncommitted): `docs/adrs/ADR-013-verify-freshness-overlay.md`
+  (Amendment 2 rev-2), `SPEC.md`, `internal/workflow/verify_overlap.go`
+  (new), `internal/workflow/verify.go`, `verify_anchored.go`,
+  `verify_landed.go`, `verify_gitgate.go`, `internal/gitutil/trailers.go`;
+  tests `internal/workflow/verify_overlap_test.go` (new),
+  `internal/gitutil/overlap_tempindex_test.go` (new),
+  `internal/cli/verify_overlap_golden_test.go` (new); schema pins in
+  `internal/cli/verify_landed_cli_test.go`,
+  `internal/workflow/verify_landed_grouph_test.go`,
+  `internal/workflow/verify_test.go`; rev-2 test callers in
+  `internal/workflow/verify_landed_fixture_test.go` (`artifactPath` moved
+  here; production no longer builds artifact paths),
+  `verify_landed_groupabc_test.go`, `verify_landed_groupd_test.go`,
+  `verify_rev1_fold_test.go`; parser call-site registration in
+  `internal/gitutil/recipe_authority_s0_pi12_test.go` (OV-D13);
+  golden-delta chain in
+  `internal/cli/prepare_pib_golden_test.go` and
+  `recipe_authority_s{2,4,5}_golden_test.go`;
+  `docs/prds/PRD-overlap-verification-consolidation.md` (Status).
+- D track (uncommitted): `docs/prds/PRD-historical-anchor-relanding.md`
+  (new, GH #26 planning draft), `docs/prds/PRD-coverage-operation-domain.md`
+  (new, GH #24 planning draft), `docs/CLUSTERS.md`, status headers in
+  `docs/prds/PRD-reconcile-operation-replay-candidate.md`,
+  `docs/adrs/ADR-037-reconcile-operation-replay-candidate-authority.md` and
+  `docs/adrs/ADR-043-operation-candidate-capture-evidence.md`.
 
 ## Test Results
 
@@ -125,16 +317,42 @@ applies to each code wave.
   lane/shard/mode/CI-timeout/sentinel-wiring tests and `TestROCS8ScopeTransition`,
   vet, build; the `2335cca` Makefile FAILED the mode-selection and parity
   tests, as required.
+- W2 dev runs: 6 gitutil temp-index tests and 25 `TestOverlap*` workflow
+  tests PASS; vet clean.
+- W2 mutation probes (`bin/ov-20261106/mutate.py`, each must make its
+  named test FAIL): 14/14 KILLED — compare, E4 intermediates, shadow owner,
+  evidence-memo clone, HEAD-moved drop, landing order, E6 verdict, E1
+  evidence, advisory restore, unstable drop, HEAD pin, named R26, plain-V8
+  restore, R20 kept. The first round left M4 (memo clone) alive, because the
+  isolation test's nested verify passed and never wrote; the test now also
+  runs a nested verify whose probes fail and asserts the run's entry is
+  untouched. The HEAD-moved and unstable-inventory tests now pin the exact
+  restored remediation (R1/R2 text; R20 prefix).
+
+- W2 local r2: FAIL at affected-packages (`TestRGAS0PatchParserCallsiteInventory`,
+  OV-D13). r3: FAIL at targeted-cli-guards (untracked overlay files invisible
+  to the `git ls-files` source baseline; OV-D14). r4: ALL PASS at 05:48:30Z
+  (gofmt; targeted gitutil, workflow, CLI and CLI source guards; gitutil,
+  workflow and assets packages; vet; build). The full `internal/cli` package
+  runs in CI and in the lane gate.
 
 ## Next Steps
 
-1. W1: Makefile check 8 maps empty to serial; update guards with failing
-   fixtures and the docs (AGENTS.md, REVIEW-PLAYBOOK §1.8, lane script
-   header); independent review; local validation; push; CI; lane gate.
-2. W2 planning: record the operator answers in the GH #25 PRD, draft the
-   ADR-013 amendment for the C classification, review.
-3. W2 implementation, review, CI, lane gate.
-4. D docs during gate waits; R release; closeout.
+1. W1: CI 42163688451 green (05:44Z). This tracking commit sets
+   `Cluster state` → `APPROVED` (OV-D10). Its CI and the old-Mac lane gate
+   run in parallel (different machines; the gate's check 3 only needs the
+   commit pushed). When both pass, flip the ROADMAP W1 row to ✅.
+2. W2 (review APPROVED, mutants 23/23, local r4 PASS): commit with explicit
+   paths; push only after the W1 close commit's CI finishes (CI cancels
+   in-progress runs per ref) and its gate has passed check 3; CI; lane gate at
+   the W2 tip once the W1 gate frees the old Mac.
+3. D track (all APPROVED): commit the planning drafts and doc cleanup in a
+   separate docs commit after the W2 commit, so the GH #26 PRD's code cites
+   match the tree they are committed with.
+4. R: v0.19.0 (CHANGELOG plus the release-guard pins; tag before push) if W2
+   ships.
+5. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,
+   ROADMAP, push with CI green.
 
 ## Blockers
 
