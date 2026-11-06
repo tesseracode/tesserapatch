@@ -1,3 +1,24 @@
+## Validation — W2 + D track lane gate at `2e44569`, attempt 2 — 2026-11-06
+
+**Runner**: old-Mac lane gate, same commit and parity as attempt 1.
+
+### Verdict: STOPPED (resource stop; not a test failure)
+
+### Notes
+- Stopped at 10:08Z during [8/8] on new swap-outs, at the same shard
+  overlap as attempt 1 (`^TestS7AQ.*$` with `TestS7ARPurgeProgressGuard`).
+  31 of 42 commands passed; none failed.
+- Two stops at the same point mean lane mode is not reliable on the
+  validation machine in its current memory state.
+
+### Action Taken
+OV-D17 fallback: serial gate at `2e44569`, launched 10:12Z. Its runner is
+the reviewed lane runner with four asserted edits (serial mode, serial
+announcement, zero test overlap, verdict label); an independent review of
+the derivation runs in parallel.
+
+---
+
 ## Validation — W2 + D track lane gate at `2e44569`, attempt 1 — 2026-11-06
 
 **Runner**: old-Mac lane gate (`WAVE_CLOSE_TEST_LANES=2`, 42/39 command

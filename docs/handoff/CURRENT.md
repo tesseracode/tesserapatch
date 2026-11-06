@@ -204,6 +204,9 @@ applies to each code wave.
 - **Lane gate at `2e44569`, attempt 1: resource stop** (08:50Z, new swap-outs;
   no test failure; 31/42 commands passed). Attempt 2 launched 08:53Z,
   deadline 11:23Z; checks 1–6 passed (OV-D17).
+- **Attempt 2: resource stop** at the same overlap (10:08Z; 31/42 passed, no
+  failure). **Serial gate** launched 10:12Z (OV-D17 fallback), deadline
+  15:11Z; checks 1–6 passed.
 
 ### Decisions awaiting operator review (OV-D*)
 
@@ -326,6 +329,14 @@ applies to each code wave.
   mode once at the same commit (08:53Z). If the retry also stops for
   resources, the fallback is a serial gate. This is the safe stop GT-D27
   anticipated; it does not change the lane-mode default.
+  **Outcome:** the retry stopped at the same overlap (10:08Z, new
+  swap-outs, 31/42 passed, no failure), so I fell back to serial. The serial
+  runner is the reviewed lane runner with four asserted edits: make runs
+  with `WAVE_CLOSE_TEST_LANES=0`, the log must announce serial mode, PASS
+  requires zero overlap between test commands, and the verdict line says
+  SERIAL. Admission, runtime stops, command parity and cleanup are
+  unchanged. The serial gate launched 10:12Z (deadline 15:11Z); an
+  independent reviewer checks the derivation in parallel.
 
 ## Current State
 
@@ -396,8 +407,9 @@ applies to each code wave.
 ## Next Steps
 
 1. W1: ✅ closed (CI green, lane gate PASS at `e41c474`).
-2. W2 + D track (`2e44569`, pushed 06:38Z): CI 42175737134 green; lane
-   gate attempt 2 at `2e44569` running (OV-D17).
+2. W2 + D track (`2e44569`, pushed 06:38Z): CI 42175737134 green; two lane
+   attempts stopped for resources; the serial gate at `2e44569` is running
+   (OV-D17), due about 14:00Z.
 3. R: v0.19.0 (draft APPROVED, uncommitted: CHANGELOG plus the release-guard
    pins; tag before push) once W2's CI and lane gate pass.
 4. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,
