@@ -322,6 +322,10 @@ func TestRGAS5GoldenCaptureEventDeltaAndSensitivities(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			expected, err = ovExpectedVerifySchemaGolden(name, expected)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if err := preparePIBGoldenDelta(name, string(expected)); err != nil {
 				t.Fatalf("S2/S4/S5 composed expectation refused: %v", err)
 			}
@@ -520,12 +524,22 @@ func TestRGAS5VerifyGoldenDeltaAndSensitivities(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected, err := rgaS5ExpectedVerifyGolden(name, previous)
-	if err != nil || preparePIBGoldenDelta(name, string(expected)) != nil {
+	if err != nil {
 		t.Fatalf("exact new verify row was rejected: %v", err)
 	}
-	current := string(expected)
+	// Later rows (GH #25 W2's schema bump) apply on top, so the row's
+	// sensitivities are judged against the final expected report.
+	final, err := ovExpectedVerifySchemaGolden(name, expected)
+	if err != nil || preparePIBGoldenDelta(name, string(final)) != nil {
+		t.Fatalf("exact new verify row was rejected: %v", err)
+	}
+	missingRow, err := ovExpectedVerifySchemaGolden(name, previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := string(final)
 	for name, wrong := range map[string]string{
-		"missing-row":           string(previous),
+		"missing-row":           string(missingRow),
 		"wrong-id":              strings.Replace(current, `"id": "recipe_generation_coverage"`, `"id": "coverage"`, 1),
 		"wrong-severity":        strings.Replace(current, rgaS5GoldenVerifyRow, strings.Replace(rgaS5GoldenVerifyRow, `"block"`, `"warn"`, 1), 1),
 		"failed-new-row":        strings.Replace(current, rgaS5GoldenVerifyRow, strings.Replace(rgaS5GoldenVerifyRow, `"passed": true`, `"passed": false`, 1), 1),

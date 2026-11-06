@@ -25,8 +25,12 @@ package workflow
 // gateway below.
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
@@ -92,6 +96,21 @@ func (ctx *verifyRunContext) isAncestor(ancestor, descendant string) bool {
 	return v
 }
 
+// headStillCaptured re-resolves HEAD and reports whether it still names
+// the run's captured commit. The overlap assessment is dropped when it
+// does not (Amendment 2 D21), so it never describes a tree the run did
+// not hold.
+func (ctx *verifyRunContext) headStillCaptured() bool {
+	if err := ctx.gitGate(); err != nil {
+		return false
+	}
+	if ctx.headErr != nil || ctx.head == "" {
+		return false
+	}
+	now, err := gitutil.HeadCommitOffline(ctx.root)
+	return err == nil && now == ctx.head
+}
+
 // ── Object reads ─────────────────────────────────────────────────────────
 
 // blobAtTree is the gateway form of `git cat-file blob <tree>:<path>`.
@@ -122,7 +141,7 @@ func (ctx *verifyRunContext) createShadow(slug, commitish string) (string, error
 	if err := ctx.gitGate(); err != nil {
 		return "", err
 	}
-	return gitutil.CreateShadowEnv(ctx.root, slug, commitish, ctx.offlineEnv())
+	return gitutil.CreateShadowEnv(ctx.root, ctx.shadowOwner(slug), commitish, ctx.offlineEnv())
 }
 
 // pruneShadow is the gateway form of `git worktree remove` + `prune`.
@@ -132,7 +151,28 @@ func (ctx *verifyRunContext) pruneShadow(slug string) error {
 	if err := ctx.gitGate(); err != nil {
 		return nil
 	}
-	return gitutil.PruneShadowEnv(ctx.root, slug, ctx.offlineEnv())
+	return gitutil.PruneShadowEnv(ctx.root, ctx.shadowOwner(slug), ctx.offlineEnv())
+}
+
+// shadowOwner is the name a shadow worktree is allocated and pruned
+// under. The ordinary pipeline uses the feature slug, exactly as shipped.
+// A nested E6 verify (Amendment 2 D23) uses `<slug>.overlap-<run nonce>`:
+// shadow listing matches `<name>-<timestamp>`, so that name can never
+// list, reuse or prune a shadow owned by the feature itself or by another
+// run.
+func (ctx *verifyRunContext) shadowOwner(slug string) string {
+	if !ctx.overlapNested {
+		return slug
+	}
+	if ctx.overlapNonce == "" {
+		var b [6]byte
+		if _, err := rand.Read(b[:]); err == nil {
+			ctx.overlapNonce = hex.EncodeToString(b[:])
+		} else {
+			ctx.overlapNonce = fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+		}
+	}
+	return slug + ".overlap-" + ctx.overlapNonce
 }
 
 // runShadowGit runs a git command INSIDE a shadow worktree under the
@@ -151,11 +191,46 @@ func (ctx *verifyRunContext) runShadowGit(shadowPath string, args ...string) (st
 // INSIDE a shadow worktree, with the exit code retained so the caller
 // can tell "the patch does not apply" (exit 1 — the answer V8 wants)
 // from "git could not run the check" (rev-2 adjudication finding 3).
-func (ctx *verifyRunContext) shadowApplyCheck(shadowPath, patchPath string) gitutil.OfflineGitResult {
+// git reads the run's captured bytes, never the artifact file.
+func (ctx *verifyRunContext) shadowApplyCheck(shadowPath string, patchBytes []byte) gitutil.OfflineGitResult {
 	if err := ctx.gitGate(); err != nil {
 		return gitutil.OfflineGitResult{ExitCode: -1, Err: err}
 	}
+	patchPath, cleanup, err := ctx.stageCapturedPatch(patchBytes)
+	if err != nil {
+		return gitutil.OfflineGitResult{ExitCode: -1, Err: err, Stderr: err.Error()}
+	}
+	defer cleanup()
 	return gitutil.RunOfflineGitInResult(shadowPath, "apply", "--check", patchPath)
+}
+
+// stageCapturedPatch writes captured patch bytes to a run-owned temporary
+// file in the D11 directory and returns its path and a cleanup. Every
+// patch the verify pipeline hands to git goes through here, so git reads
+// exactly the bytes the run captured (D17) and never an artifact file that
+// a concurrent writer could change and restore between the capture and
+// the run's instability re-statement (Amendment 2 D24).
+func (ctx *verifyRunContext) stageCapturedPatch(patchBytes []byte) (string, func(), error) {
+	dir := ctx.tempIndexDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", func() {}, fmt.Errorf("stage captured patch: %w", err)
+	}
+	f, err := os.CreateTemp(dir, "captured-patch-*")
+	if err != nil {
+		return "", func() {}, fmt.Errorf("stage captured patch: %w", err)
+	}
+	name := f.Name()
+	cleanup := func() { _ = os.Remove(name) }
+	if _, err := f.Write(patchBytes); err != nil {
+		_ = f.Close()
+		cleanup()
+		return "", func() {}, fmt.Errorf("stage captured patch: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		return "", func() {}, fmt.Errorf("stage captured patch: %w", err)
+	}
+	return name, cleanup, nil
 }
 
 // normalizedIdentity is the gateway form of the D18 identity diff.

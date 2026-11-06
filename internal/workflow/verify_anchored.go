@@ -19,7 +19,6 @@ package workflow
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
@@ -37,6 +36,14 @@ type dynamicPhase struct {
 	advisories  []VerifyAdvisory
 	baseline    VerifyBaseline
 	memberNotes map[string]string
+	// overlap is the Amendment 2 explanation-only assessment (D20/D21).
+	// When overlapReplacedV8 is set the assessment chose V8's remediation
+	// (blocked ladders only) and plainV8Remediation is the one the run
+	// would carry without it, restored if the assessment is dropped (D21).
+	// A context-only-drift assessment replaces nothing.
+	overlap            *VerifyOverlapAssessment
+	overlapReplacedV8  bool
+	plainV8Remediation string
 }
 
 // anchoredInput carries everything the dynamic phase needs. Nothing here
@@ -198,11 +205,9 @@ func attestationSHAs(ctx *verifyRunContext, slug string) []string {
 func landedPhase(in anchoredInput, baseline VerifyBaseline) dynamicPhase {
 	ctx := in.ctx
 	anchor := ctx.resolveAnchor(in.slug)
-	patchPath := artifactPath(ctx.root, in.slug, "post-apply.patch")
-
 	// Anchor C runs regardless of the historical half — the report says
 	// what the tree looks like even when the run fails for other reasons.
-	ladder := ctx.runLadder("HEAD", patchPath, in.entry.Patch.Bytes)
+	ladder := ctx.runLadder(ctx.headRev(), in.entry.Patch.Bytes)
 
 	// D16: an object that is missing LOCALLY is `history-incomplete`,
 	// never "the content is absent". The distinction is only detectable
@@ -303,11 +308,20 @@ func foldAnchorC(out *dynamicPhase, in anchoredInput, ladder ladderOutcome) {
 		if path == "" && in.recipePresent {
 			// Diagnostics only (D13): localise which op and path the
 			// failure concerns. This never decides presence.
-			path = diagnosePathForBlockedLadder(in.ctx, "HEAD", in.recipe)
+			path = diagnosePathForBlockedLadder(in.ctx, in.ctx.headRev(), in.recipe)
 		}
 		rem := remediationR1(attestation)
 		if ladder.ZeroContextHunks > 0 {
 			rem = remediationR2(attestation, path)
+		}
+		// Amendment 2 D21/D26: explain the block without changing it. A
+		// nested E6 verify never assesses.
+		plain := appendRemediation(out.v8.Remediation, rem)
+		if !in.ctx.overlapNested {
+			out.overlap = assessBlockedOverlap(in)
+			out.overlapReplacedV8 = true
+			out.plainV8Remediation = plain
+			rem = overlapRemediation(out.overlap, in.slug, attestation, rem)
 		}
 		out.v8.Remediation = appendRemediation(out.v8.Remediation, rem)
 		if out.failedAt == "" {
@@ -317,6 +331,9 @@ func foldAnchorC(out *dynamicPhase, in anchoredInput, ladder ladderOutcome) {
 		out.advisories = append(out.advisories, warnAdvisory(
 			AdvisoryContextDrift, in.slug, ladder.Path,
 			remediationR3(attestation, ladder.Path)))
+		if !in.ctx.overlapNested {
+			out.overlap = contextOnlyDriftAssessment(ladder.Path)
+		}
 	}
 }
 
@@ -341,7 +358,6 @@ func forwardPhase(in anchoredInput, baseline VerifyBaseline) dynamicPhase {
 // replay. anchorCommit == "" means forward mode (shadow at HEAD).
 func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBaseline) dynamicPhase {
 	ctx := in.ctx
-	s := in.store
 	slug := in.slug
 	landed := anchorCommit != ""
 
@@ -552,8 +568,7 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 			return out
 		}
 	}
-	patchPath := artifactPath(s.Root, slug, "post-apply.patch")
-	applyRes := ctx.shadowApplyCheck(shadowPath, patchPath)
+	applyRes := ctx.shadowApplyCheck(shadowPath, in.entry.Patch.Bytes)
 	if !applyRes.Answered() {
 		// rev-2 adjudication finding 3: `git apply --check` exiting 1 is
 		// the ANSWER V8 wants ("the patch does not apply"); anything else
@@ -597,10 +612,6 @@ func ctxAnchorCommit(anchor string) *string {
 	return &a
 }
 
-func artifactPath(root, slug, name string) string {
-	return filepath.Join(root, ".tpatch", "features", slug, "artifacts", name)
-}
-
 func skipV10Because(reason string) store.VerifyCheckResult {
 	return store.VerifyCheckResult{
 		ID:       CheckWriteFilePreimageFresh,
@@ -622,7 +633,7 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 	ctx := in.ctx
 	slug := in.slug
 	if anchorTreeish == "" {
-		anchorTreeish = "HEAD"
+		anchorTreeish = ctx.headRev()
 	}
 
 	fail := func(failedAt, parent, remediation string) *dynamicPhase {
@@ -681,7 +692,7 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 			if !memberPatchPresent {
 				return fail(FailedAtLandedArtifacts, member, remediationR19(member))
 			}
-			ladder := ctx.runLadder(anchorTreeish, artifactPath(ctx.root, member, "post-apply.patch"), entry.Patch.Bytes)
+			ladder := ctx.runLadder(anchorTreeish, entry.Patch.Bytes)
 			if ladder.MissingObject {
 				return fail(FailedAtLandingEvidence, member, remediationR22(member))
 			}
@@ -720,7 +731,7 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 
 		// evidence `none`
 		if memberPatchPresent {
-			ladder := ctx.runLadder(anchorTreeish, artifactPath(ctx.root, member, "post-apply.patch"), entry.Patch.Bytes)
+			ladder := ctx.runLadder(anchorTreeish, entry.Patch.Bytes)
 			// rev-2 adjudication finding 4: an UNANSWERABLE presence
 			// probe is terminal. Rev-1 fell through to recipe replay,
 			// which silently converts "we could not determine whether

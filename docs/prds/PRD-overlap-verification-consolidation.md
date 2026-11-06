@@ -1,6 +1,11 @@
 # PRD - Overlap verification and consolidation for independently landed features
 
-**Status**: Draft (not accepted; planning only — no implementation is authorized by this document)
+**Status**: Accepted for slices C1–C2 only (2026-11-06). The operator answered
+§8 Q1–Q12 (recorded in `docs/handoff/CURRENT.md`, "Operator
+approvals") and authorized C1–C2; options A, B and C3 remain planning only.
+The semantics for C1–C2 are ADR-013 **Amendment 2** (D20–D27). Because Q1
+puts C before A, the A1 anchor-C widening that §6 calls "Amendment 2"
+becomes **Amendment 3** when it is drafted.
 **Date**: 2026-11-05
 **Owner**: Core
 **Issue**: [GH #25](https://github.com/tesseracode/tesserapatch/issues/25)

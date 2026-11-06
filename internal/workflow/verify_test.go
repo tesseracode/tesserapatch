@@ -479,8 +479,10 @@ func TestRunVerify_JSONShape(t *testing.T) {
 	// ADDITIVE semantic compatibility, not byte identity (AC-L113): every
 	// 1.0 key retains its name, type and position, and the landed blocks
 	// are added alongside.
-	if m["schema_version"] != "1.1" {
-		t.Errorf("schema_version=1.1 expected, got %v", m["schema_version"])
+	// ADR-013 Amendment 2 (schema 1.2) adds only the optional
+	// `overlap_assessment`, absent from this report.
+	if m["schema_version"] != "1.2" {
+		t.Errorf("schema_version=1.2 expected, got %v", m["schema_version"])
 	}
 	checks, ok := m["checks"].([]any)
 	if !ok || len(checks) != 12 {

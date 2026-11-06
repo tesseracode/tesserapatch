@@ -1,7 +1,7 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)**
-**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1)
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)**
+**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-019 (`tpatch land` trailer-block schema — Amendment 1's evidence substrate), ADR-016 (`record` auto-base resolution — owner of `apply.base_commit`), ADR-028 (supersession edge model), ADR-032 (feature-unapply state boundary), `docs/prds/PRD-verify-freshness.md` (successor PRD), `docs/prds/PRD-tpatch-land.md` (Amendment 1 co-amended), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor PRD), `docs/dependencies.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2 fix this amendment must not regress)
@@ -1412,3 +1412,271 @@ unsupported (`internal/workflow/verify.go:1030`). None of these certifies.
 - `internal/gitutil/patch_paths_strict.go:253` — `FilesInPatchStrict` (D18)
 - `internal/workflow/verify_closure_replay_test.go:275` —
   `TestRunVerify_EquivalentRecipeAndPatchBothPass`, the GH #2 regression
+
+---
+
+# Amendment 2 (2026-11-06) — Read-only overlap assessment — GH #25 slices C1–C2
+
+**Status of this amendment**: ACCEPTED for implementation by the operator's
+GH #25 answers (2026-11-06, PRD
+`docs/prds/PRD-overlap-verification-consolidation.md` §8 Q1–Q12). Adds
+**D20–D27**. **No prior decision is reversed.** D12 (the `(0/0)` block), D13
+(arbitration), D14 (anchor collection), D17 (one inventory, one
+enumeration) and the persisted record (D3, `internal/store/types.go`
+`VerifyRecord`) are unchanged. The D12 advisory vocabulary stays closed:
+the assessment is a separate report field, not an advisory.
+
+**Issue**: <https://github.com/tesseracode/tesserapatch/issues/25>
+**Numbering**: the PRD's draft slice plan called Option A's semantic
+amendment "Amendment 2". The operator ordered C before A (Q1), so C takes
+Amendment 2 and A1's widening of anchor C, when it is drafted, becomes
+Amendment 3.
+
+## A2.0 Context
+
+A parent feature creates a file; a hard-dependent child later rewrites it.
+Both land with `exact` evidence. `tpatch verify <parent>` then fails at
+`landed-content-absent`, because anchor C (D11/D12) correctly finds the
+parent's postimage missing at `HEAD`. Verify cannot say why, and its R1
+remediation tells the operator to re-record and re-land the parent, which is
+wrong for this case. Amendment 2 adds an explanation that is computed in the
+same run and never changes the verdict.
+
+## Decision (Amendment 2, D20–D27)
+
+**Design review.** Rev-1 of this amendment (2026-11-06) was judged UNSOUND by
+an independent design review: a HEAD round-trip proved only that the
+descendants' hunks are invertible, not that nothing else touched the paths;
+the composition reread artifact files instead of the captured bytes; the
+nested verify followed the live `HEAD`, pruned the descendant's existing
+shadow worktrees and mutated shared evidence; E4 skipped non-overlapping
+intermediates; and R26 could name a descendant for a Git failure. Rev-2,
+below, closes each of those.
+
+### D20. `overlap_assessment` is an explanation-only report field
+
+`tpatch verify --json` gains an optional top-level object
+`overlap_assessment` (omitted when no assessment ran). The report
+`schema_version` moves `1.1` → `1.2` (additive). The object has:
+
+| Field | Meaning |
+|---|---|
+| `class` | One of the four D22 classes. |
+| `verdict_effect` | Always the constant `"none"`, so a reader cannot mistake the field for authority. |
+| `detail` | A deterministic one-line explanation. |
+| `failed_step` | Present only when a procedure step decided the class: `target-paths`, `candidates`, `eligibility`, `order`, `baseline`, `replay` or `compare`. |
+| `descendants` | The candidates considered: `slug`, `attestation_commit` (when known), `evidence` (its landing-evidence state), and `failed_rule` + `detail` when that candidate is ineligible. |
+
+The assessment **never** changes `verdict`, `exit_code`, `failed_at`,
+`parent_slug`, any check's `passed`/`skipped`/`severity`/`anchor_results`,
+the advisories, or the persisted `VerifyRecord`. It is **never written to
+`status.json`** and no other command (apply, land, reconcile, status,
+amend) reads it. The only check-row text it may change is the V8
+remediation (D26). `verify --all` reports it inside each entry's embedded
+report; aggregate counts and the aggregate exit code are unchanged (Q12).
+
+### D21. Trigger: only a blocked anchor-C ladder on a landed target
+
+The assessment runs only inside `foldAnchorC`
+(`internal/workflow/verify_anchored.go`), after the target's own anchor-C
+ladder has run, and never inside a nested E6 verify:
+
+- `ladder.Blocked` → the full D22 procedure;
+- `ladder.ContextDrift` → `class: context-only-drift` with no candidates
+  (the existing R3 advisory is unchanged);
+- every other outcome — materialized clean, a probe that could not run, a
+  terminal evidence state, absent artifacts, an unavailable historical
+  anchor, a static block failure, forward mode — emits **no** field.
+
+The field is dropped (omitted) when the run's inventory re-statement
+reports instability (D17) or when `HEAD` no longer resolves to the run's
+captured commit after the assessment, so an assessment is never reported
+against a state the run did not hold. Dropping a blocked ladder's
+assessment restores the R1/R2 remediation it replaced (D26). A
+`context-only-drift` assessment replaced no remediation, so dropping it
+leaves V8's remediation as the run computed it — for example a
+historical-anchor failure's text (code review rev-1 F4).
+
+### D22. The closed class vocabulary and the procedure
+
+Four classes: `recorded-descendant-evolution`, `context-only-drift`,
+`unexplained-content-loss`, `invalid-or-missing-evidence`. For a blocked
+ladder the class is decided by these steps, in order; the first step that
+decides wins. `H` is the run's captured `HEAD` commit (D17) and `T` is the
+target's attestation commit.
+
+1. **Target paths** (`target-paths`). The target's canonical-patch paths
+   are read with the strict parser
+   (`gitutil.PathsAffectedByPatchStrict`) from the run's captured
+   inventory bytes. A parse failure or an empty set →
+   `unexplained-content-loss`. This call and step 2's are direct consumers
+   of the GH #15 strict authority, registered by name in its parser
+   call-site inventory (`TestRGAS0PatchParserCallsiteInventory`); they
+   parse nothing themselves.
+2. **Candidates** (`candidates`). A candidate is a feature, other than the
+   target, that reaches the target through a chain of `hard` `depends_on`
+   edges in the run inventory (Q4) **and** whose canonical patch touches at
+   least one target path (E2/E3). A descendant whose patch is absent or
+   empty changed nothing and is not a candidate; one whose patch cannot be
+   read or parsed is a candidate that fails E2. No candidate →
+   `unexplained-content-loss`. Edge-less features, soft edges, `supersedes`
+   edges and later-touch advisories never make a candidate.
+3. **Eligibility** (`eligibility`). Every candidate must pass, in this
+   order:
+   - **E1** — landing evidence `exact` with artifacts present.
+     `duplicate-equivalent` does not qualify (Q11).
+   - **E2** — its canonical patch parses (paths were needed in step 2).
+   - **E4** — every hard edge on every chain from the candidate to the
+     target is bound (Q3). For each chain member `X` (the candidate and
+     every intermediate, overlapping or not): `X`'s captured
+     `patch-generations.json` parses and validates, has at least one
+     generation, its latest generation's `patch_sha256` equals the SHA-256
+     of `X`'s captured canonical patch, and for each hard parent `Y` of `X`
+     on such a chain the latest generation records a `hard` dependency
+     whose `parent_patch_sha256` equals the SHA-256 of `Y`'s captured
+     canonical patch. A missing manifest is a legacy feature and fails E4
+     with that reason.
+   - **E5** — its attestation commit differs from `T`, descends from `T`,
+     and is an ancestor of `H`. If Git cannot answer either ancestry query,
+     the step could not run: the class is `invalid-or-missing-evidence`
+     with `failed_step: eligibility`, no descendant carries
+     `failed_rule: E5`, and R26's execution form applies (D26; code review
+     rev-1 F3).
+   - **E6** — its own verify, run in the same run context under D23, has
+     verdict `passed`. A persisted or earlier result is never used.
+   Any ineligible candidate → `invalid-or-missing-evidence`, with every
+   candidate listed in slug order and each failure named.
+4. **Order** (`order`). The candidates are sorted by ancestry of their
+   attestation commits. If any pair is not ordered by ancestry (parallel
+   landings joined by a merge, or two candidates sharing one commit) →
+   `unexplained-content-loss`; merge topologies are refused in v1 (Q2).
+5. **Baseline** (`baseline`). A temp index (D11) is seeded from `T`, and
+   the target's captured patch must pass the plain full-context reverse
+   check there: the recorded postimage was present at its own landing. If
+   it is not → `unexplained-content-loss` (no descendant can explain a
+   postimage that never landed, so R1/R2 stay the answer).
+6. **Replay** (`replay`). In landing order, each candidate's captured
+   patch is applied forward to that index with full context, limited to
+   the target paths (`git apply --cached --include=<literal path>`).
+7. **Compare** (`compare`). The index must equal `H` on every target
+   path. This binds provenance: `H`'s bytes on the target's paths are
+   exactly `T`'s bytes evolved by the recorded descendants and nothing
+   else, so a non-tpatch edit, a partial revert, or a landing commit that
+   carried more than its patch on those paths is never explained.
+
+   A step that answers "does not apply" or "differs" →
+   `unexplained-content-loss` naming the step and, where relevant, the
+   candidate. A Git command that could not run (an execution failure, a
+   missing object) → `invalid-or-missing-evidence` naming the step.
+8. Otherwise → `recorded-descendant-evolution`, with the descendants in
+   landing order.
+
+No step accepts `-C0`, `(0/0)` or any reduced-context match. No permutation
+search is attempted. A candidate patch that renames a target path out of
+the target set is not followed, so the compare step fails closed
+(`unexplained-content-loss`).
+
+### D23. Same-run nested verify is hermetic and read-only
+
+E6 calls the ordinary single-feature pipeline with `NoWrite`. The nested
+call:
+
+- shares the run's immutable captures (D17) — inventory, enumeration,
+  preflight and the probe memo tables — so the run's instability
+  re-statement covers it;
+- resolves every `HEAD` reference to `H`, the run's captured commit, rather
+  than the live `HEAD`;
+- works on a private deep copy of the landing-evidence memo, discarded
+  afterwards, so no evidence state it writes can change how a later
+  `verify --all` entry is classified;
+- allocates its shadow worktrees under a run-owned name
+  (`<slug>.overlap-<run nonce>`), so it never lists, reuses or prunes a
+  shadow that belongs to the descendant or to another run;
+- runs with the assessment disabled, so it cannot recurse;
+- saves, clears and restores the run context's pending arbitration state
+  around the call, so neither run sees the other's advisories or member
+  baselines;
+- is memoized per slug for the rest of the run.
+
+### D24. Git surface
+
+The procedure uses two new methods on the isolated temp index, both
+through the offline evidence runner (`GIT_NO_LAZY_FETCH=1`, `LC_ALL=C`):
+`git apply --cached --whitespace=nowarn [--include=<path>]... <patch>` and
+`git diff-index --cached --quiet --ignore-submodules=none <rev> -- <paths>`,
+plus the existing `read-tree` and `apply --check --cached --reverse`.
+Gitlinks always compare: a `submodule.<name>.ignore` setting in
+`.git/config` or `.gitmodules` cannot hide a changed submodule commit
+(code review rev-1 F1). Every patch the
+procedure applies or checks is the run's **captured** inventory bytes,
+written to a run-owned temporary file in the D11 directory — never the
+artifact file — so bytes that change mid-run cannot enter the assessment.
+Every commit it names is `T`, `H` or a captured attestation commit, never
+the symbolic `HEAD`. The temp index and the temporary patch files are
+removed on every exit path. The working tree, the real index and
+`.tpatch/` are never written (AC-6).
+
+The same rule holds for the ordinary pipeline's own probes (code review
+rev-1 F2): the anchor-C ladder at `HEAD`, the closure members' ladders,
+D14 forward qualification and the historical V8 shadow apply check all
+stage the run's captured bytes instead of passing the artifact path to
+Git, and their memo keys include the bytes' SHA-256. A nested E6 verify
+shares those memos with the run, so an artifact rewritten mid-run can
+enter no probe and no memo entry that the nested verify or a later
+`verify --all` entry reuses. Output is unchanged whenever the artifacts do
+not change during the run.
+
+### D25. Determinism
+
+Same repository state → byte-identical `overlap_assessment` (AC-5).
+Candidates are sorted by slug, then by landing order on success; `detail`
+strings contain slugs, commit SHAs, rule names and repository-relative
+paths only — never raw Git stderr, temp-file paths, the run nonce or
+wall-clock time.
+
+### D26. Remediation branches on the class (C2, Q8)
+
+For a blocked ladder the V8 remediation that R1/R2 would carry is chosen by
+class:
+
+- `recorded-descendant-evolution` → **R25**: names the descendants and their
+  attestation commits, states that verify still requires the feature's own
+  postimage at `HEAD`, and says not to re-land or reconcile the feature to
+  restore it.
+- `invalid-or-missing-evidence` with an ineligible descendant → **R26**:
+  names the first ineligible descendant and its rule, and says to verify or
+  repair it first.
+- `invalid-or-missing-evidence` from a step that could not run → **R26**'s
+  execution form: names the step, states that no descendant was judged, and
+  says to fix the repository or tool failure and re-run verify before
+  deciding whether to re-land.
+- `unexplained-content-loss` → R1/R2, unchanged.
+
+The human report prints one line after the advisories,
+`  ~ overlap assessment: <class> (explanation only; verdict unchanged)`,
+followed by one line per descendant.
+
+### D27. What this amendment does not do
+
+It does not implement Option A (no verdict ever turns green), Option B
+(consolidation), member-level explanation (C3, folded into GH #26, Q9), or
+the warn-class downgrade for superseded originals (Q6). It adds no trailer
+key, no evidence writer and no persisted field (PRD §9.3 M1–M5). It does not
+change how the ordinary (non-nested) pipeline resolves `HEAD` or allocates
+shadows. Its only change to the ordinary pipeline is D24's captured-bytes
+staging, which changes no output for an artifact that is stable during the
+run.
+
+## Amendment 2 — consequences
+
+- A blocked landed parent whose content was rewritten by a recorded,
+  verified, generation-bound hard descendant now says so, and stops telling
+  the operator to re-land it.
+- A blocked run pays for one nested verify per candidate plus one temp-index
+  replay. Unblocked runs pay nothing.
+- Readers may still treat a class as authority. `verdict_effect: "none"`,
+  the unchanged exit code and the R25 text exist to prevent that.
+- A concurrent writer that moves `HEAD` and restores it within one run can
+  still make the target's own ladder and the assessment observe different
+  trees; the post-assessment `HEAD` check catches every movement that is not
+  restored. Ordinary verify has the same exposure today.

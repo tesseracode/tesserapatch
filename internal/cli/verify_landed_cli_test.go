@@ -183,8 +183,8 @@ func TestACL2CLI_LandedFeaturePasses(t *testing.T) {
 	if anchors["historical"] != "passed" || anchors["current"] != "materialized-clean" {
 		t.Errorf("anchor_results=%v", anchors)
 	}
-	if report["schema_version"] != "1.1" {
-		t.Errorf("schema_version=%v want 1.1", report["schema_version"])
+	if report["schema_version"] != "1.2" {
+		t.Errorf("schema_version=%v want 1.2", report["schema_version"])
 	}
 }
 

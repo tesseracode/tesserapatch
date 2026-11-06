@@ -357,13 +357,42 @@ base commit that is empty, ill-formed or unresolvable.
 
 Verify requires **git ≥ 2.36** and carries `GIT_NO_LAZY_FETCH=1` on every
 object and materialization command, so it never reaches the network.
-The `--json` report is `schema_version` **1.1** — an additive superset of
-1.0 adding `repository`, `baseline`, `landing_evidence`, `target_mode`,
-`advisories` and `checks[].mode`.
+The `--json` report is `schema_version` **1.2** — an additive superset of
+1.0. Version 1.1 added `repository`, `baseline`, `landing_evidence`,
+`target_mode`, `advisories` and `checks[].mode`; 1.2 adds the optional
+`overlap_assessment`.
 
 See `docs/prds/PRD-verify-freshness.md` §3.6,
 `docs/prds/PRD-tpatch-land.md` §3.8 and `docs/adrs/ADR-013-verify-freshness-overlay.md`
 Amendment 1 (D8–D19).
+
+#### Overlap assessment (GH #25, schema 1.2)
+
+When a landed feature's anchor-C check blocks, verify adds an
+explanation-only `overlap_assessment` to the report. It never changes the
+verdict, the exit code, `failed_at`, any check's pass/skip state, the
+advisories or `status.json`; the only text it may change is the V8
+remediation. Its `class` is one of:
+
+- `recorded-descendant-evolution` — a hard descendant with exact landing
+  evidence, bound generations, a later landing commit and a passing
+  same-run verify, replayed on this feature's paths from its landing
+  commit in landing order, reproduces `HEAD` on those paths. The V8
+  remediation warns not to re-land or reconcile the feature.
+- `unexplained-content-loss` — no such chain reproduces `HEAD`, including
+  any unrecorded edit, parallel landings and renames out of the paths.
+- `invalid-or-missing-evidence` — a descendant that touches the paths
+  cannot be used as evidence, and `descendants[].failed_rule` names the
+  failed eligibility rule; or Git could not run a step, and `failed_step`
+  names it while no descendant carries a `failed_rule`.
+- `context-only-drift` — the ladder matched with drifted context; no
+  descendant was considered.
+
+The assessment reads only the run's captured artifact bytes and captured
+`HEAD` commit, in an isolated index. Every Git probe verify runs, inside or
+outside the assessment, is given a staged copy of the captured patch bytes,
+never the artifact file. The assessment is omitted when the inventory or
+`HEAD` changes during the run. See ADR-013 Amendment 2 (D20–D27).
 
 #### Phase 2 (Post-MVP)
 
@@ -594,7 +623,7 @@ P2's coverage-only checkpoint adds no rewrite reasons.
 
 ##### Verify and doctor
 
-Verify adds `recipe_generation_coverage` without changing report schema 1.1.
+Verify adds `recipe_generation_coverage` without changing the report schema (1.1 at the time; 1.2 since GH #25).
 The first matching D13 rung wins:
 
 | Rung | Condition | Row / report implication |

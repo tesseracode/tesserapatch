@@ -286,15 +286,15 @@ func TestACL112_InventoryOrderIsDeterministic(t *testing.T) {
 	}
 }
 
-// AC-L113 — schema_version is "1.1" and a no-evidence report is a
-// SEMANTIC superset of "1.0": every 1.0 key retains name, type and
-// position.
+// AC-L113 — a no-evidence report is a SEMANTIC superset of "1.0":
+// every 1.0 key retains name, type and position. The version is "1.2"
+// since ADR-013 Amendment 2 added the optional `overlap_assessment`.
 func TestACL113_SchemaIsAdditiveSuperset(t *testing.T) {
 	f := newLandedFixture(t, "forward-shape")
 	f.Implement("l1\nl2\nCHANGED\nl4\nl5\nl6\nl7\nl8\nl9\nl10\nl11\nl12\nl13\nl14\nl15\n")
 	r := f.Verify()
-	if r.SchemaVersion != "1.1" {
-		t.Fatalf("schema_version=%q want 1.1", r.SchemaVersion)
+	if r.SchemaVersion != "1.2" {
+		t.Fatalf("schema_version=%q want 1.2", r.SchemaVersion)
 	}
 	data, err := json.Marshal(r)
 	if err != nil {

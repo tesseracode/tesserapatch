@@ -514,6 +514,90 @@ func (t *TempIndex) ApplyCheck(opts ApplyCheckOptions) ApplyCheckResult {
 // IntPtr is a small helper for ApplyCheckOptions.Context.
 func IntPtr(n int) *int { return &n }
 
+// ApplyCached runs `git apply --cached --whitespace=nowarn
+// [--include=<path>]... <patch>` against the isolated index, forward and
+// with git's default (full) context. It updates ONLY the isolated index —
+// never the working tree or the real index — and is the replay step of the
+// overlap assessment (ADR-013 Amendment 2 D22/D24). `--whitespace=nowarn`
+// pins the applied bytes regardless of the `apply.whitespace` config.
+// Each include path is matched literally (see WildmatchLiteral); with no
+// include path the whole patch applies. The result uses the same
+// answer/failure split as ApplyCheck.
+func (t *TempIndex) ApplyCached(patchPath string, include []string) ApplyCheckResult {
+	args := []string{"apply", "--cached", "--whitespace=nowarn"}
+	for _, p := range include {
+		args = append(args, "--include="+WildmatchLiteral(p))
+	}
+	args = append(args, patchPath)
+	_, stderr, err := runEvidenceGit(t.repoRoot, t.Env(), args...)
+	res := ApplyCheckResult{OK: err == nil, Stderr: stderr, Args: args}
+	if err != nil {
+		res.ExitCode = -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			res.ExitCode = exitErr.ExitCode()
+		}
+	}
+	return res
+}
+
+// WildmatchLiteral escapes the wildmatch metacharacters `\`, `*`, `?` and
+// `[` so a `git apply --include`/`--exclude` pattern matches exactly one
+// literal path.
+func WildmatchLiteral(path string) string {
+	var b strings.Builder
+	for _, r := range path {
+		switch r {
+		case '\\', '*', '?', '[':
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// LiteralPathspecsEnv makes every pathspec of a git command literal.
+const LiteralPathspecsEnv = "GIT_LITERAL_PATHSPECS=1"
+
+// DiffCachedResult is one `git diff-index --cached --quiet` outcome.
+type DiffCachedResult struct {
+	// Equal is meaningful only when Answered is true.
+	Equal    bool
+	Answered bool
+	ExitCode int
+	Stderr   string
+}
+
+// DiffCachedQuiet runs `git diff-index --cached --quiet <rev> -- <paths>`
+// against the isolated index: exit 0 means the index equals rev on
+// paths, exit 1 means it differs, anything else is an execution failure
+// (Answered == false). Paths are literal (`GIT_LITERAL_PATHSPECS=1`), so a
+// path containing a glob character names only itself. Gitlinks always
+// compare (`--ignore-submodules=none`): a `submodule.<name>.ignore` setting
+// in `.git/config` or `.gitmodules` must not hide a changed submodule
+// commit. An empty path list is refused rather than silently comparing the
+// whole tree.
+func (t *TempIndex) DiffCachedQuiet(rev string, paths []string) DiffCachedResult {
+	if len(paths) == 0 {
+		return DiffCachedResult{ExitCode: -1, Stderr: "diff-index: no paths to compare"}
+	}
+	args := append([]string{"diff-index", "--cached", "--quiet", "--ignore-submodules=none", rev, "--"}, paths...)
+	env := append(t.Env(), LiteralPathspecsEnv)
+	_, stderr, err := runEvidenceGit(t.repoRoot, env, args...)
+	if err == nil {
+		return DiffCachedResult{Equal: true, Answered: true, Stderr: stderr}
+	}
+	res := DiffCachedResult{ExitCode: -1, Stderr: stderr}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		res.ExitCode = exitErr.ExitCode()
+	}
+	if res.ExitCode == 1 {
+		res.Answered = true
+	}
+	return res
+}
+
 // ── Missing-object classification ────────────────────────────────────────
 
 // missingObjectPatterns are the LOCAL failure forms git produces under

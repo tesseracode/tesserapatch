@@ -318,6 +318,13 @@ func advisoryByCode(r *VerifyReport, code string) (VerifyAdvisory, bool) {
 	return VerifyAdvisory{}, false
 }
 
+// artifactPath is a feature artifact's on-disk path. Production verify
+// code never builds one: it reads the captured inventory and stages those
+// bytes for git (Amendment 2 D24).
+func artifactPath(root, slug, name string) string {
+	return filepath.Join(root, ".tpatch", "features", slug, "artifacts", name)
+}
+
 // ── PATH git wrapper ─────────────────────────────────────────────────────
 
 // gitWrapper installs a shim named `git` first on PATH that forwards to

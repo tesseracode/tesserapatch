@@ -572,12 +572,11 @@ func TestACL26_C0StepRunsUnderLCAllC(t *testing.T) {
 func TestACL27_LadderIsMemoised(t *testing.T) {
 	f := newLadderFixture(t)
 	ctx := newVerifyRunContext(f.Store)
-	patchPath := artifactPath(f.Root, f.Slug, "post-apply.patch")
 	w := installGitWrapper(t)
 	w.Reset()
-	first := ctx.runLadder("HEAD", patchPath, f.PatchBytes())
+	first := ctx.runLadder("HEAD", f.PatchBytes())
 	afterFirst := len(callsWithSubcommand(w.Calls(), "apply"))
-	second := ctx.runLadder("HEAD", patchPath, f.PatchBytes())
+	second := ctx.runLadder("HEAD", f.PatchBytes())
 	afterSecond := len(callsWithSubcommand(w.Calls(), "apply"))
 	if first.Result != second.Result {
 		t.Fatalf("memo returned a different result: %v vs %v", first, second)

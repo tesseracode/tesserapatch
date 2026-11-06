@@ -558,7 +558,9 @@ func TestRGAS0PatchHeaderReaderScannerIsSensitive(t *testing.T) {
 //
 // After GH #15 S1 the shape is: PI-12's five shipped b-side callers plus
 // the one registered adapter that projects the same b-side list for PI-3
-// and PI-4; PI-7's three call sites on the strict both-side union; the
+// and PI-4; the strict both-side union's callers (PI-7's three call sites,
+// PI-13, and GH #25's overlap assessment, a direct consumer of the
+// authority rather than a migrated parser); the
 // small set of functions allowed to touch the normalizer directly; and
 // the two functions allowed to call the unexported shared parse.
 // `FilesInPatch` and `PathsAffectedByPatch` have ZERO production callers
@@ -583,6 +585,11 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 			"internal/cli/cobra.go|validateReapplyMaterialization":         1,
 			"internal/cli/feature_unapply.go|runFeatureUnapplyWithRuntime": 1,
 			"internal/workflow/reconcile.go|extractUpstreamContext":        1,
+			// GH #25 (ADR-013 Amendment 2 D22 steps 1–2): the target's
+			// paths and each candidate's paths. A parse failure is
+			// `unexplained-content-loss` for the target and an E2
+			// failure for a candidate, never a short path list.
+			"internal/workflow/verify_overlap.go|assessBlockedOverlap": 2,
 		},
 		"NormalizePatchEffects": {
 			"internal/candidate/derivation.go|derive":                                    1,
@@ -614,7 +621,7 @@ func TestRGAS0PatchParserCallsiteInventory(t *testing.T) {
 	}
 	wantTotals := map[string]int{
 		"FilesInPatchStrict":         6,
-		"PathsAffectedByPatchStrict": 4,
+		"PathsAffectedByPatchStrict": 6,
 		"NormalizePatchEffects":      13,
 		"normalizePatchEffects":      2,
 		"FilesInPatch":               0,

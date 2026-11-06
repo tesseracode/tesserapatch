@@ -600,6 +600,26 @@ type verifyRunContext struct {
 	// pass's outputs, drained by the caller immediately after the walk.
 	pendingAdvisories      []VerifyAdvisory
 	pendingMemberBaselines map[string]string
+
+	// Overlap assessment state (ADR-013 Amendment 2 D23). overlapNested
+	// is true only while an E6 same-run descendant verify runs; it pins
+	// HEAD to the captured commit, makes shadow names run-owned and
+	// disables the assessment. overlapNonce is the run-owned shadow
+	// suffix, drawn once per run.
+	overlapVerifyMemo map[string]overlapNestedVerify
+	overlapNested     bool
+	overlapNonce      string
+}
+
+// headRev is the revision every HEAD reference in the verify pipeline
+// resolves to. The ordinary pipeline keeps the symbolic `HEAD`; a nested
+// E6 verify pins it to the run's captured commit so it can never observe
+// a HEAD that moved after the run started (Amendment 2 D23).
+func (ctx *verifyRunContext) headRev() string {
+	if ctx.overlapNested && ctx.head != "" {
+		return ctx.head
+	}
+	return "HEAD"
 }
 
 func newVerifyRunContext(s *store.Store) *verifyRunContext {
@@ -932,7 +952,7 @@ func (ctx *verifyRunContext) classifyEvidenceUncached(slug string) *landingEvide
 	if ev.AttestationCommit != "" {
 		base := firstValue(recordBySHA(wellFormed, ev.AttestationCommit), gitutil.TrailerBaseCommit)
 		if base != "" {
-			reachable := ctx.isAncestor(base, "HEAD")
+			reachable := ctx.isAncestor(base, ctx.headRev())
 			ev.BaseCommitReachable = boolPtr(reachable)
 			if !reachable {
 				out.Advisories = append(out.Advisories, warnAdvisory(
@@ -1064,18 +1084,20 @@ type ladderOutcome struct {
 
 // runLadder probes whether the patch's postimage is materialized in
 // treeish, using the D12 hardened ladder through an isolated temp index
-// (D11). Memoised per `(tree, patch, reverse, context)`.
-func (ctx *verifyRunContext) runLadder(treeish string, patchPath string, patchBytes []byte) ladderOutcome {
-	key := treeish + "\x00" + patchPath + "\x00reverse"
+// (D11). patchBytes are the run's captured bytes; git reads a staged copy
+// of them, never the artifact file. Memoised per `(tree, patch content,
+// reverse, context)`.
+func (ctx *verifyRunContext) runLadder(treeish string, patchBytes []byte) ladderOutcome {
+	key := treeish + "\x00" + sha256Hex(patchBytes) + "\x00reverse"
 	if cached, ok := ctx.ladderMemo[key]; ok {
 		return cached
 	}
-	out := ctx.runLadderUncached(treeish, patchPath, patchBytes)
+	out := ctx.runLadderUncached(treeish, patchBytes)
 	ctx.ladderMemo[key] = out
 	return out
 }
 
-func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchBytes []byte) ladderOutcome {
+func (ctx *verifyRunContext) runLadderUncached(treeish string, patchBytes []byte) ladderOutcome {
 	idx, err := ctx.newTempIndex()
 	if err != nil {
 		return ladderOutcome{Result: CurrentSkipped, Err: err}
@@ -1085,6 +1107,11 @@ func (ctx *verifyRunContext) runLadderUncached(treeish, patchPath string, patchB
 	if err := idx.ReadTree(treeish); err != nil {
 		return ladderOutcome{Result: CurrentSkipped, Err: err, MissingObject: gitutil.IsMissingObjectError(err.Error())}
 	}
+	patchPath, cleanup, err := ctx.stageCapturedPatch(patchBytes)
+	if err != nil {
+		return ladderOutcome{Result: CurrentSkipped, Err: err}
+	}
+	defer cleanup()
 
 	// Step 1 — plain reverse check.
 	step1 := idx.ApplyCheck(gitutil.ApplyCheckOptions{PatchPath: patchPath, Reverse: true})
@@ -1217,8 +1244,6 @@ func (ctx *verifyRunContext) resolveAnchorUncached(slug string) *anchorResolutio
 	if entry == nil || entry.Err != nil || entry.Patch.Presence != PresenceNonEmpty {
 		return &anchorResolution{Reason: "no canonical post-apply.patch to qualify a candidate against"}
 	}
-	patchPath := filepath.Join(ctx.root, ".tpatch", "features", slug, "artifacts", "post-apply.patch")
-
 	// 1. Collect EVERY reachable single-parent exact-slug landing. No
 	//    stop-at-first: a second, non-equivalent qualifier can only be
 	//    observed by collecting all of them.
@@ -1242,7 +1267,7 @@ func (ctx *verifyRunContext) resolveAnchorUncached(slug string) *anchorResolutio
 	// 2. Qualify by FORWARD apply at -C1 against `C^`.
 	var qualified []gitutil.CommitRecord
 	for _, rec := range collected {
-		ok, failState, qErr := ctx.forwardQualifies(rec.SHA, patchPath)
+		ok, failState, qErr := ctx.forwardQualifies(rec.SHA, entry.Patch.Bytes)
 		if qErr != nil {
 			res.FailState = failState
 			res.FailDetail = qErr.Error()
@@ -1319,8 +1344,11 @@ func sameEnumerationPosition(commits []gitutil.CommitRecord, a, b string) bool {
 // (rev-1 adjudication finding 3). A tree or blob that is missing
 // locally is `history-incomplete`; any other execution failure is
 // `unavailable`. Neither is ever reported as "no candidate qualified".
-func (ctx *verifyRunContext) forwardQualifies(commit, patchPath string) (bool, string, error) {
-	key := commit + "^\x00" + patchPath + "\x00forward-C1"
+//
+// git reads a staged copy of the run's captured patch bytes, never the
+// artifact file (Amendment 2 D24).
+func (ctx *verifyRunContext) forwardQualifies(commit string, patchBytes []byte) (bool, string, error) {
+	key := commit + "^\x00" + sha256Hex(patchBytes) + "\x00forward-C1"
 	if v, ok := ctx.forwardMemo[key]; ok {
 		return v, "", nil
 	}
@@ -1338,6 +1366,11 @@ func (ctx *verifyRunContext) forwardQualifies(commit, patchPath string) (bool, s
 		// silent non-qualifier: surface it.
 		return false, EvidenceUnavailable, rtErr
 	}
+	patchPath, cleanup, err := ctx.stageCapturedPatch(patchBytes)
+	if err != nil {
+		return false, EvidenceUnavailable, err
+	}
+	defer cleanup()
 	res := idx.ApplyCheck(gitutil.ApplyCheckOptions{
 		PatchPath: patchPath,
 		Context:   gitutil.IntPtr(1),
@@ -1384,7 +1417,7 @@ func (ctx *verifyRunContext) resolveProvenance(entry *inventoryEntry) provenance
 	if !gitutil.IsLowercaseHexOfLen(prov.BaseCommit, ctx.facts.CommitIDHexLen) {
 		return provenanceResolution{Reason: "malformed"}
 	}
-	reachable := prov.BaseCommit == ctx.head || ctx.isAncestor(prov.BaseCommit, "HEAD")
+	reachable := prov.BaseCommit == ctx.head || ctx.isAncestor(prov.BaseCommit, ctx.headRev())
 	if !reachable {
 		return provenanceResolution{Reason: "unreachable", BaseCommit: prov.BaseCommit}
 	}

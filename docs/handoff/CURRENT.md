@@ -172,6 +172,13 @@ applies to each code wave.
 - **W2 local validation r4: PASS** (05:48:30Z) — gofmt, targeted gitutil,
   workflow and CLI tests, the CLI source-guard step (182 s), affected
   packages (gitutil, workflow, assets), vet, build.
+- **W1 close commit `e41c474`** pushed 05:49Z (tracking only, `Cluster
+  state: APPROVED`). CI 42170715937 and the old-Mac lane gate at `e41c474`
+  (launched 05:51Z, deadline 08:20Z) run in parallel; gate checks 1–7
+  passed, including 3 (pushed) and 5 (terminal token).
+- **W2 committed** locally with explicit paths (code, tests, SPEC, ADR-013
+  Amendment 2, the GH #25 PRD status, tracking). Push waits for CI
+  42170715937, because CI cancels in-progress runs per ref.
 - **D-track re-review:** GH #24 PRD **APPROVED** (finding closed, nothing
   new). GH #26 PRD: the three rev-1 findings closed; two new ones (MEDIUM:
   option D's reverse-check must split a negative answer,
@@ -338,14 +345,12 @@ applies to each code wave.
 
 ## Next Steps
 
-1. W1: CI 42163688451 green (05:44Z). This tracking commit sets
-   `Cluster state` → `APPROVED` (OV-D10). Its CI and the old-Mac lane gate
-   run in parallel (different machines; the gate's check 3 only needs the
-   commit pushed). When both pass, flip the ROADMAP W1 row to ✅.
-2. W2 (review APPROVED, mutants 23/23, local r4 PASS): commit with explicit
-   paths; push only after the W1 close commit's CI finishes (CI cancels
-   in-progress runs per ref) and its gate has passed check 3; CI; lane gate at
-   the W2 tip once the W1 gate frees the old Mac.
+1. W1: close commit `e41c474` pushed; CI 42170715937 and the old-Mac lane
+   gate (checks 1–7 passed) run in parallel. When both pass, flip the ROADMAP
+   W1 row to ✅.
+2. W2 (review APPROVED, mutants 23/23, local r4 PASS, committed): push after
+   CI 42170715937 finishes; CI; lane gate at the W2 tip once the W1 gate
+   frees the old Mac.
 3. D track (all APPROVED): commit the planning drafts and doc cleanup in a
    separate docs commit after the W2 commit, so the GH #26 PRD's code cites
    match the tree they are committed with.

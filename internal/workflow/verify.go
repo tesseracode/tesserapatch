@@ -79,7 +79,7 @@ const (
 
 // verifySchemaVersion is the PRD §4.3 schema_version field for the
 // `--json` report. Bumping is a breaking change for harness consumers.
-const verifySchemaVersion = "1.1"
+const verifySchemaVersion = "1.2"
 
 // VerifyOptions controls a single `RunVerify` invocation.
 type VerifyOptions struct {
@@ -168,6 +168,12 @@ type VerifyReport struct {
 	// Advisories is the closed warn-severity vocabulary of §4.3.9.
 	// No advisory ever flips `passed` or the exit code.
 	Advisories []VerifyAdvisory `json:"advisories,omitempty"`
+
+	// OverlapAssessment (schema 1.2, ADR-013 Amendment 2 D20) explains a
+	// blocked anchor-C ladder on a landed target. It never changes the
+	// verdict, the exit code, any check's state or the persisted record,
+	// and it is never written to status.json.
+	OverlapAssessment *VerifyOverlapAssessment `json:"overlap_assessment,omitempty"`
 
 	// Persisted is the trimmed record that gets written to status.json.
 	// It is NOT a separate JSON field on the report — RunVerify uses it
@@ -329,10 +335,16 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	// FeatureState.
 	report.ParentSnapshot = parentSnapshot(ctx, status)
 
+	report.OverlapAssessment = phase.overlap
+
 	// Instability detection (D17): re-state the inventory and fail the
 	// run if any feature was added, removed or changed while it ran.
 	if unstable := inventoryInstability(s, ctx.inv); unstable != "" {
 		markSnapshotUnstable(report, slug, unstable)
+		// R20 already replaced the V8 remediation; only the field goes.
+		report.OverlapAssessment = nil
+	} else if report.OverlapAssessment != nil && !ctx.headStillCaptured() {
+		dropOverlapAssessment(report, phase)
 	}
 
 	// Verdict: failed if any non-skipped, non-warn check failed.
@@ -363,6 +375,25 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 	_ = recipe
 
 	return report, nil
+}
+
+// dropOverlapAssessment removes an overlap assessment the run can no
+// longer stand behind (Amendment 2 D21) and restores the V8 remediation
+// it replaced, if it replaced one: a context-only-drift assessment leaves
+// V8's remediation (for example a historical R5) untouched.
+func dropOverlapAssessment(report *VerifyReport, phase dynamicPhase) {
+	if report.OverlapAssessment == nil {
+		return
+	}
+	report.OverlapAssessment = nil
+	if !phase.overlapReplacedV8 {
+		return
+	}
+	for i := range report.Checks {
+		if report.Checks[i].ID == CheckPostApplyPatchReplayClean {
+			report.Checks[i].Remediation = phase.plainV8Remediation
+		}
+	}
 }
 
 // WriteJSONReport emits the report to w with stable indentation.
@@ -405,6 +436,7 @@ func (r *VerifyReport) WriteHumanReport(w io.Writer) {
 	for _, a := range r.Advisories {
 		fmt.Fprintf(w, "  ! [warn] %s — %s\n", a.Code, a.Message)
 	}
+	writeOverlapAssessment(w, r.OverlapAssessment)
 }
 
 // ── Real checks ──────────────────────────────────────────────────────────
@@ -776,7 +808,7 @@ func checkSatisfiedByReachable(ctx *verifyRunContext, s *store.Store, slug strin
 		// 2.36 floor this refuses WITHOUT issuing a git command, so a
 		// below-floor run still spawns nothing but `git --version`
 		// (rev-1 adjudication finding 1).
-		ok, err := ctx.isAncestorChecked(dep.SatisfiedBy, "HEAD")
+		ok, err := ctx.isAncestorChecked(dep.SatisfiedBy, ctx.headRev())
 		if errors.Is(err, errGitBelowFloor) {
 			return store.VerifyCheckResult{
 				ID:          CheckSatisfiedByReachable,

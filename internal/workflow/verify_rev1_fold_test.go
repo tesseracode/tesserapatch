@@ -326,10 +326,8 @@ func TestRev1_PersistenceDoesNotReload(t *testing.T) {
 func TestRev1_QualificationFailureIsNotSwallowed(t *testing.T) {
 	f := newLadderFixture(t)
 	ctx := newVerifyRunContext(f.Store)
-	patchPath := artifactPath(f.Root, f.Slug, "post-apply.patch")
-
 	// A candidate whose parent revision cannot be resolved at all.
-	ok, state, err := ctx.forwardQualifies(strings.Repeat("0", 40), patchPath)
+	ok, state, err := ctx.forwardQualifies(strings.Repeat("0", 40), f.PatchBytes())
 	if ok {
 		t.Fatalf("an unresolvable candidate must not qualify")
 	}
