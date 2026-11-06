@@ -335,8 +335,16 @@ applies to each code wave.
   with `WAVE_CLOSE_TEST_LANES=0`, the log must announce serial mode, PASS
   requires zero overlap between test commands, and the verdict line says
   SERIAL. Admission, runtime stops, command parity and cleanup are
-  unchanged. The serial gate launched 10:12Z (deadline 15:11Z); an
-  independent reviewer checks the derivation in parallel.
+  unchanged. The serial gate launched 10:12Z (deadline 15:11Z). The
+  independent review (gpt-6.1-sol) confirmed the mode switch, the command
+  parity and the other checks, with one MEDIUM finding: the runner's overlap
+  sum skips stages without timestamps, so `overlap == 0` alone does not prove
+  serial execution. Rather than restart a 3.5-hour run, I added a fail-closed
+  post-run verifier: all 42 stages present and passed, the exact command
+  multiset, finite start and end times on every stage, 39 timed tests, and
+  no two stages overlapping. It FAILs on real lane evidence and on a copy
+  with one end time removed, and PASSes on a sequential copy. Re-review:
+  APPROVED. Serial acceptance = runner PASS and verifier PASS.
 
 ## Current State
 

@@ -1,3 +1,26 @@
+## Review — serial gate runner derivation (OV-D17) — 2026-11-06
+
+**Reviewer**: rubber-duck agent (gpt-6.1-sol, read-only)
+**Task**: the serial runner derived from the reviewed lane runner by four
+asserted edits.
+
+### Verdict: APPROVED (after one fix)
+
+### Notes
+- Confirmed: make runs the serial shard script; serial and lane modes run
+  identical commands; the other PASS checks are unchanged; the two-slot
+  wrapper allows but does not create concurrency.
+- MEDIUM, fixed: test stages without timestamps drop out of the overlap sum,
+  so `overlap == 0` could pass on incomplete timing. Fixed with a fail-closed
+  post-run evidence verifier (every stage present, passed and timed; exact
+  command multiset; 39 timed tests; no overlapping stages), proven to fail on
+  lane evidence and on a missing end time. Re-review: APPROVED.
+
+### Action Taken
+Serial acceptance requires both the runner's PASS and the verifier's PASS.
+
+---
+
 ## Validation — W2 + D track lane gate at `2e44569`, attempt 2 — 2026-11-06
 
 **Runner**: old-Mac lane gate, same commit and parity as attempt 1.
