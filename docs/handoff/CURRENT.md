@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **10-hour unattended window dispatched** (operator, 2026-11-06): runs
 **2026-11-06T16:37:59Z** to **2026-11-07T02:37:59Z**. v0.19.0 is published
@@ -28,7 +28,7 @@ Scope, in order (operator-approved):
 - **Task ID**: `window-20261106-w0-fixture-leak-release-check`
 - **Milestone**: Post-v0.19 backlog — validation hygiene, GH #25 A1, GH #26/#24 decisions
 - **Description**: W0 — partial-clone fixture daemon leak + `make release-check`
-- **Status**: In progress
+- **Status**: Approved (three review rounds) and locally validated; push, CI and validation-machine gate pending
 - **Assigned**: 2026-11-06
 - **WAVE_BASE**: `fddf4bd1483572acbb5208324a376b5d1796e864`
 - **Deadline**: `2026-11-07T02:37:59Z`
@@ -126,6 +126,7 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 | NW-D10 | After a lane resource stop, the private runner falls back to serial at once instead of retrying lanes first (operator OV-D17: "automatic serial fallback after a lane resource stop"). The stopped attempt is renamed, not deleted. AGENTS.md's "retry lanes once" sentence is updated to match. A lane stop at the deadline, or any non-resource failure, is a final FAIL. |
 | NW-D11 | ADR-013 numbering: Amendment 3 is reserved for GH #25 A1 (decisions D28–D39), which comes later in this window; GH #26's draft takes Amendment 4 (D40–D45) and labels its measurements A4-E1–A4-E6, so neither draft renumbers the other whichever is accepted first. |
 | NW-D12 | Local validation runs on repository files only. The ignored `bin/` directory holds private evidence, including old source snapshots with `.go` files. `gofmt -l .`, `go vet ./...` and `TestS7CIFullSuiteTimeoutGuard`'s filesystem walk all read them and fail locally (`TestS7ARExitSixRouteGuard` found again in a snapshot). None of them exist in CI or in the validation machine's clean checkout, where the unscoped commands still run. So locally: gofmt on `git ls-files -co --exclude-standard`, vet on `go list ./...` minus `/bin/`, and that one guard left to CI and the gate. Backlog row added (keep private snapshots from looking like Go source). |
+| NW-D13 | Cluster state for the W0 gate: W0 and D are both approved, so the single `**Cluster state**` field is set to `APPROVED` in place before W0's gate, as OV-D10 prescribes (the gate's `[5/8]` rejects a mid-cycle token, and the gate runs at the tip, which also carries D's docs). When W1's ADR draft is committed, the field goes back to `IN PROGRESS` in place, and W1's close commit sets `APPROVED` again. |
 
 ## Current State
 
