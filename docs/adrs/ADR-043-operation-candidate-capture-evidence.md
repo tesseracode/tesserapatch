@@ -1,6 +1,6 @@
 # ADR-043 — Operation-candidate capture-evidence identity binding
 
-**Status**: Accepted — operator-selected direction; independent planning review approved 2026-09-22
+**Status**: Accepted — operator-selected direction; independent planning review approved 2026-09-22; shipped in v0.18.0 (2026-11-04)
 **Date**: 2026-09-22
 **Owner**: Core
 **Issue**: [GH #13](https://github.com/tesseracode/tesserapatch/issues/13)

@@ -17,7 +17,7 @@ backlog items, and accepted planning gates.
 - **Shipped** — all approved waves shipped; closed to new scope.
 - **Closed** — superseded or rejected without shipping.
 
-## Snapshot — 2026-09-22
+## Snapshot — 2026-11-06
 
 ### Shipped cluster lineage
 
@@ -28,6 +28,7 @@ backlog items, and accepted planning gates.
 | WP-003 | [whitepaper](./whitepapers/WP-003-reconcile-safety-and-middle-pass.md) | **Shipped** | ADR-025 is accepted/live; all 9 PRDs shipped in the v0.11.0 lineage, followed by v0.11.1 stabilization. No active ADR blocker remains. |
 | WP-005 | [whitepaper](./whitepapers/WP-005-spec-driven-workflows.md) | **Graduated / shipped implementation** | Optional preparation workflow graduated to GH #16/#23; v0.16.0 shipped the intent-bundle and archive work. |
 | GH #15 | [recipe authority PRD](./prds/PRD-recipe-generation-authority.md) | **Shipped — v0.17.0** | Exact preimage/coverage/evidence authority shipped; no persisted anchors or GH #13 candidate implementation is implied. |
+| GH #13 | [operation replay candidate PRD](./prds/PRD-reconcile-operation-replay-candidate.md) + ADR-037/ADR-043/ADR-044 | **Shipped — v0.18.0** | Opt-in (`operation_candidate_enabled`), default-off operation replay for reconcile; slices S0–S9 shipped 2026-11-04. |
 
 ### Paper-only research / backlog
 
@@ -47,11 +48,13 @@ backlog items, and accepted planning gates.
 | [PRD-skill-doc-strategy](./prds/PRD-skill-doc-strategy.md) / ADR-020 | Shipped in May 2026; not a pending implementation. |
 | [Intent-VCS evaluation](./prds/PRD-intent-version-control-evaluation.md), [Git primitive mapping](./prds/PRD-tpatch-git-primitive-mapping.md), [feature slices](./prds/PRD-feature-slices-and-nested-changes.md) | Superseded exploration preserved under WP-001; not reopened by this snapshot. |
 
-### Accepted sequential planning queue
+### In-flight and drafting clusters
 
-| Artifact | Status | Gate cleared | Next bounded step |
+| Artifact | Status | Current constraint | Next bounded step |
 |---|---|---|---|
-| [PRD-reconcile-operation-replay-candidate](./prds/PRD-reconcile-operation-replay-candidate.md) + [ADR-037](./adrs/ADR-037-reconcile-operation-replay-candidate-authority.md) + [ADR-043](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Accepted rev-7 planning — wave CLOSED 2026-10-08** | v0.17.0 shipped GH #15; independent review, full 8/8 local gate and exact-checkpoint native CI pass at `bd13671`; owned-helper cleanup complete. | Obtain a separate bounded GH #13 implementation assignment; no runtime work dispatched. |
+| GH #25 — [overlap verification PRD](./prds/PRD-overlap-verification-consolidation.md) + ADR-013 Amendment 2 | **Implementing** — slices C1–C2 (read-only `overlap_assessment` in `verify --json`) | Only C1–C2 are accepted. Consolidation (A-track) and anything that writes stays unauthorized. | Ship C1–C2; plan A1 as ADR-013 Amendment 3. |
+| GH #26 — [historical-anchor re-landing PRD](./prds/PRD-historical-anchor-relanding.md) | **Drafting** (2026-11-06) | Planning only; needs operator answers and independent review. Proposed numbering: ADR-013 Amendment 4. | Operator answers to the PRD questions, then review. |
+| GH #24 — [coverage operation domain PRD](./prds/PRD-coverage-operation-domain.md) | **Drafting** (2026-11-06) | Planning only and explicitly non-blocking; legacy migration stays with GH #19. | Operator answers to the PRD questions, then review. |
 
 ### ADR snapshot relevant to active/backlog work
 
@@ -62,11 +65,16 @@ backlog items, and accepted planning gates.
 | [ADR-026 patch amendment policy](./adrs/ADR-026-patch-amendment-policy.md) | **Shipped / live** | WP-002 Wave γ amendment policy; no longer pending. |
 | [ADR-041 independent capture-event evidence](./adrs/ADR-041-independent-capture-event-evidence.md) | **Accepted rev-1** | GH #15 planning amendment accepted; §7 names the follow-up dependency for GH #13 consumer planning. |
 | [ADR-042 ordered recipe no-op proof](./adrs/ADR-042-ordered-recipe-noop-proof.md) | **Accepted** | Shipped in v0.17.0. |
-| [ADR-043 operation-candidate capture-evidence identity](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Accepted** | Operator-selected direction; independent planning review approved 2026-09-22. No runtime implementation. |
+| [ADR-043 operation-candidate capture-evidence identity](./adrs/ADR-043-operation-candidate-capture-evidence.md) | **Shipped / live** | Shipped with GH #13 in v0.18.0. |
+| [ADR-013 Amendment 2 overlap assessment](./adrs/ADR-013-verify-freshness-overlay.md) | **Accepted 2026-11-06** | GH #25 C1–C2 (D20–D27); implementation in flight. |
 | Capture-context privacy boundary (unassigned) | **Deferred** | Historical WP-002 v2 proposal, not an active blocker; any renewed work must reconcile with shipped ADR-027 rather than assume privacy design is absent. |
 
 ### Housekeeping notes
 
+- 2026-11-06 — Snapshot refreshed: GH #13 shipped in v0.18.0, so the
+  accepted planning queue is empty. The next unused ADR number is **052**.
+  ADR-013 amendment numbering: Amendment 2 is GH #25 C1–C2, Amendment 3 is
+  reserved for GH #25 A1, and Amendment 4 is proposed for GH #26.
 - 2026-09-22 — The previous pending-ADR block was stale. `ADR-024`,
   `ADR-025`, and `ADR-026` are already accepted/live, and the next available
   ADR number at intake was **043**, not 024; it is now assigned to the accepted

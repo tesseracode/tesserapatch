@@ -179,6 +179,11 @@ applies to each code wave.
 - **W2 committed** locally with explicit paths (code, tests, SPEC, ADR-013
   Amendment 2, the GH #25 PRD status, tracking). Push waits for CI
   42170715937, because CI cancels in-progress runs per ref.
+- **D track committed** separately (docs only): the GH #26 and GH #24
+  planning PRDs (headers now record their review approvals),
+  `docs/CLUSTERS.md`, the three status headers and the ROADMAP rows. It is
+  pushed together with W2 so one CI run and one lane gate cover both
+  (OV-D15).
 - **D-track re-review:** GH #24 PRD **APPROVED** (finding closed, nothing
   new). GH #26 PRD: the three rev-1 findings closed; two new ones (MEDIUM:
   option D's reverse-check must split a negative answer,
@@ -276,6 +281,12 @@ applies to each code wave.
   temp dir and is never pushed). Alternative rejected: running these guards
   only in CI and at the lane gate, which would surface a real failure an
   hour later.
+- **OV-D15 (push W2 and the D track together):** CI cancels in-progress runs
+  per ref and the lane gate must run at the pushed tip, so pushing the
+  docs-only D-track commit separately would cost a second CI run and a
+  second 1 h 45 m gate. I pushed both commits together; CI and the lane gate
+  run once at the D-track tip, which contains W2 unchanged. W2 keeps its own
+  commit, and the code cites in the GH #26 PRD match that tree.
 
 ## Current State
 
@@ -351,9 +362,7 @@ applies to each code wave.
 2. W2 (review APPROVED, mutants 23/23, local r4 PASS, committed): push after
    CI 42170715937 finishes; CI; lane gate at the W2 tip once the W1 gate
    frees the old Mac.
-3. D track (all APPROVED): commit the planning drafts and doc cleanup in a
-   separate docs commit after the W2 commit, so the GH #26 PRD's code cites
-   match the tree they are committed with.
+3. D track (all APPROVED): committed after W2; pushed with it (OV-D15).
 4. R: v0.19.0 (CHANGELOG plus the release-guard pins; tag before push) if W2
    ships.
 5. Closeout: HISTORY archive, Cluster state → IDLE, LOG wave-close entry,

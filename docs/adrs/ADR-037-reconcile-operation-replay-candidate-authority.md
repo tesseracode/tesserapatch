@@ -1,6 +1,6 @@
 # ADR-037 - Reconcile Operation-Replay Candidate Authority
 
-**Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implementation undispatched
+**Status**: Accepted rev-7 — independent planning review approved 2026-09-22; implemented in slices S0–S9 and shipped in v0.18.0 (2026-11-04)
 **Date**: 2026-09-22
 **S1 API amendment (2026-10-29)**:
 [ADR-044](ADR-044-candidate-caller-held-lock-capabilities.md) is accepted;
