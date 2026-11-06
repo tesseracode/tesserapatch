@@ -61,8 +61,9 @@ func TestACL107_InventoryCoversEveryFeatureViaListFeatureEntries(t *testing.T) {
 func TestACL108_ClassificationIsPureOverTheInventory(t *testing.T) {
 	f := newLadderFixture(t)
 	ctx := newVerifyRunContext(f.Store)
-	// Pre-fill the reachability memo so the pure pass needs no git.
-	ctx.ancestorMemo[f.BaseCommit+"\x00HEAD"] = true
+	// Pre-fill the reachability memo so the pure pass needs no git. The
+	// key names the captured commit every HEAD read resolves to (D36).
+	ctx.ancestorMemo[f.BaseCommit+"\x00"+ctx.headRev()] = true
 
 	w := installGitWrapper(t)
 	w.Reset()

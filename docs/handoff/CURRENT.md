@@ -110,6 +110,19 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
   fail-closed). Report schema `1.3`; new advisory `explained-by-descendant`
   (R27). Focused tests pass; 16 manual mutants all killed. Design round 2
   **APPROVED**; Amendment 3 is ACCEPTED.
+- **W1 committed locally as `2354df9`; code review round 1: NEEDS
+  REVISION** (gpt-6.1-sol). F1 HIGH: `verify --all` counted a passed
+  report whose record write failed as passed and dropped the error, where
+  single-feature verify exits 2; A1 is the first path that can turn a
+  previously red parent green, so it is fixed in W1 (NW-D20). F2 MEDIUM:
+  two A1 rows inject failures through a shell script named `git`, which
+  native Windows never runs. Both are skipped on Windows; a new portable
+  gitutil test covers the captured-rev pinning (NW-D21). While fixing F2,
+  the explicit-rev enumeration stopped treating an unresolvable revision as
+  an empty repository (fail-closed). The package run also exposed
+  `TestACL108`'s pre-filled memo key `base\x00HEAD`, stale since D36 keys
+  reads by the captured commit; fixed in the fixture. Three new mutants
+  are killed.
 
 ### Operator answers (2026-11-06)
 
@@ -146,13 +159,16 @@ WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
 | NW-D17 | W2 folded into W1: the arbitration fail-fast leak reproduces (a test fails without the fix) and promotion makes cross-entry state verdict-relevant, so it is fixed under Amendment 3 D37 and reviewed with W1 rather than separately. |
 | NW-D18 | P3 (a nested verify never promotes) cannot be built end to end: a grandchild's closure arbitration already fails once its parent was rewritten. It is recorded as holding by construction plus a unit guard that runs the nested verify of a promotable target directly. |
 | NW-D19 | The P8 fixture (another block failure keeps the block) uses a malformed `recipe-coverage.json`: V11 fails at `block` after anchor C ran. A static failure such as a missing `spec.md` skips V7/V8, so anchor C never runs and P8 is not exercised. |
+| NW-D20 | Code review F1: fix the `verify --all` persistence-error defect in W1 even though it predates A1. A promoted parent is the first case where a previously failing feature becomes a pass whose record write can fail, and the fix is a single branch plus a portable regression through a package-level write seam (`writeVerifyRecordFrom`) rather than file permissions, which do not behave the same on Windows. A failed verdict whose write failed stays `failed` (its exit code is already non-zero) and keeps the error as its reason. |
+| NW-D21 | Code review F2: skip the two shell-script `git` shim rows on Windows instead of writing a Windows shim. The logic they guard is not OS-specific; Linux and macOS CI run them, and the new gitutil rows (`TestEnumerateCommitTrailersAt*`, no shim) plus `TestA1UnrelatedMergeIsRefused` give Windows portable coverage of D36's pinning and P10. Same pass: an explicit revision that Git cannot resolve is now an enumeration error, not "no commits"; only the live-`HEAD` form keeps the empty-repository tolerance. |
 
 ## Current State
 
 `origin/main` is at `6eb98a0` (W0, D and their tracking; v0.19.0 tag on
 `68142ca`). CI 42268412048 and the validation-machine gate for `6eb98a0`
 are running. W1 (GH #25 A1): Amendment 3 ACCEPTED (design round 2 APPROVED); the
-implementation is committed locally and in code review. GH #25 stays open
+implementation is committed locally (`2354df9`); code review round 1
+NEEDS REVISION (two findings, fixed; round 2 pending). GH #25 stays open
 (A1 authorized in this window; B and C3 not). GH #26 and GH #24 have
 operator answers; only GH #26's ADR-013 Amendment 4 draft is authorized,
 no code.
@@ -178,6 +194,10 @@ no code.
   `verify_test.go`; `internal/cli/verify_landed_cli_test.go`,
   `verify_overlap_golden_test.go` and four golden call sites;
   `SPEC.md`; `docs/prds/PRD-overlap-verification-consolidation.md`.
+- W1 review fixes: `internal/workflow/verify_all.go`, `verify.go` (write
+  seam), `internal/gitutil/trailers.go`, `internal/gitutil/trailers_at_test.go`
+  (new), `internal/workflow/verify_overlap_a1_test.go`,
+  `verify_landed_grouph_test.go`; `CHANGELOG.md` (one Fixed bullet).
 
 ## Test Results
 
@@ -206,6 +226,12 @@ no code.
   `internal/cli` golden/verify tests ok (17 s). Manual mutants: 16/16
   killed, restore verified (`bin/nw-20261106/w1-a1-mutation.txt`,
   private).
+- W1 package run (`./internal/gitutil ./internal/workflow`, serial): one
+  failure, `TestACL108` (stale memo key, see Session Summary); fixed.
+  Review-fix focused tests pass; 3/3 review-fix mutants killed after the
+  unknown-rev row was strengthened (a first version survived: a missing
+  object id says "bad object", so a missing ref was added)
+  (`bin/nw-20261106/w1-review-fix-mutation.txt`, private).
 
 ## Next Steps
 

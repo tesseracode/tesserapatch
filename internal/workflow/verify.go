@@ -195,6 +195,10 @@ func RunVerify(s *store.Store, slug string, opts VerifyOptions) (*VerifyReport, 
 	return runVerifyWithContext(s, slug, opts, newVerifyRunContext(s))
 }
 
+// writeVerifyRecordFrom is the record write, a variable only so tests can
+// make persistence fail portably.
+var writeVerifyRecordFrom = (*store.Store).WriteVerifyRecordFrom
+
 // runVerifyWithContext is the single-feature pipeline over a run context
 // that may be SHARED across a `verify --all` run (D10/D17: one git
 // enumeration, one inventory, one preflight for the whole invocation).
@@ -366,7 +370,7 @@ func runVerifyWithContext(s *store.Store, slug string, opts VerifyOptions, ctx *
 		// exact persisted value back into the capture, so a shared
 		// `verify --all` context never reads its own documented write as
 		// instability (D17, rev-1 adjudication finding 2).
-		persisted, werr := s.WriteVerifyRecordFrom(status, report.Persisted)
+		persisted, werr := writeVerifyRecordFrom(s, status, report.Persisted)
 		if werr != nil {
 			return report, fmt.Errorf("verify ran but persistence failed: %w", werr)
 		}

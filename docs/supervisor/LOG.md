@@ -1,3 +1,27 @@
+## Review — W1 (GH #25 A1) code review round 1 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol), static review of
+`6eb98a0..2354df9` plus the uncommitted v0.20.0 CHANGELOG section and pin
+(no Go runs)
+**Task**: W1 — GH #25 A1
+
+### Verdict: NEEDS REVISION
+
+### Findings
+1. HIGH — `internal/workflow/verify_all.go`: a report whose checks passed
+   but whose record write failed counted as `passed` and the error was
+   dropped; single-feature verify exits 2. Pre-existing, but A1 makes a
+   previously red parent green. Fixed: such an entry is `error` (NW-D20),
+   with a persistence-enabled regression through a write seam.
+2. MEDIUM — `internal/workflow/verify_overlap_a1_test.go`: the two
+   shell-script `git` shim rows never inject on native Windows. Fixed:
+   skipped on Windows, with portable gitutil rows for the captured-rev
+   pinning (NW-D21).
+
+### Action Taken
+Fixes applied with mutation evidence (3/3 killed); the package run's
+`TestACL108` stale memo key fixed in the fixture; round 2 requested.
+
 ## Review — W1 (GH #25 A1, ADR-013 Amendment 3 rev-2) design round 2 — 2026-11-06
 
 **Reviewer**: same independent code-review agent (gpt-6.1-sol), design and

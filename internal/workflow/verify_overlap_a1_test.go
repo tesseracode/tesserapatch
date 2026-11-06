@@ -10,11 +10,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/tesseracode/tesserapatch/internal/store"
 )
+
+// skipWithoutPOSIXGitShim skips a row whose injected failure is an
+// extensionless shell script named git: native Windows resolves git.exe
+// first, so the row would run against real Git and prove nothing. The
+// portable halves are TestEnumerateCommitTrailersAtFollowsTheGivenRev
+// (gitutil) and TestA1UnrelatedMergeIsRefused.
+func skipWithoutPOSIXGitShim(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell git shim: Windows resolves git.exe first")
+	}
+}
 
 // A1-T: two direct hard children explain the block together (P4). The
 // first edits the parent's path away from its hunks, so the second still
@@ -122,6 +135,7 @@ func TestA1UnrelatedMergeIsRefused(t *testing.T) {
 // A1-T: an unanswerable merge probe refuses (P10 fails closed). Mutation
 // caught: treating a Git failure as a merge-free history.
 func TestA1MergeProbeFailureRefuses(t *testing.T) {
+	skipWithoutPOSIXGitShim(t)
 	f, landing, _ := overlapAC1(t)
 	realGit := mustLookGit(t)
 	dir := t.TempDir()
@@ -298,6 +312,7 @@ func TestA1HeadDependentChecksUseCapturedHead(t *testing.T) {
 // commit the run never captured. Mutation caught: enumerating the live
 // HEAD.
 func TestA1EnumerationUsesCapturedHead(t *testing.T) {
+	skipWithoutPOSIXGitShim(t)
 	f := newOverlapFixture(t)
 	h := gitHeadOf(t, f.root)
 	k := strings.TrimSpace(mustGit(t, f.root, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "moved"))
@@ -379,5 +394,40 @@ func TestA1VerifyAllArbitrationFailFastDoesNotLeak(t *testing.T) {
 		if string(ja) != string(jb) {
 			t.Errorf("%s differs under --all:\n%s\n%s", e.Slug, ja, jb)
 		}
+	}
+}
+
+// A1-T (code review F1): a promoted parent whose record write fails is an
+// aggregate error, as single-feature verify's exit 2 is, never a pass.
+// Mutation caught: counting a passed report with a run error as passed.
+func TestA1VerifyAllPersistenceFailureIsAnError(t *testing.T) {
+	f, _, _ := overlapAC1(t)
+	orig := writeVerifyRecordFrom
+	t.Cleanup(func() { writeVerifyRecordFrom = orig })
+	writeVerifyRecordFrom = func(s *store.Store, st store.FeatureStatus, rec store.VerifyRecord) (store.FeatureStatus, error) {
+		if st.Slug == "parent" {
+			return store.FeatureStatus{}, fmt.Errorf("simulated read-only feature directory")
+		}
+		return orig(s, st, rec)
+	}
+
+	agg, err := RunVerifyAll(f.s, VerifyOptions{})
+	if err != nil {
+		t.Fatalf("RunVerifyAll: %v", err)
+	}
+	var parent *AggregateFeatureEntry
+	for i := range agg.Features {
+		if agg.Features[i].Slug == "parent" {
+			parent = &agg.Features[i]
+		}
+	}
+	if parent == nil || parent.Report == nil || parent.Report.Verdict != "passed" {
+		t.Fatalf("precondition: the parent's checks must pass (promoted): %+v", parent)
+	}
+	if parent.Status != AggregateStatusError || !strings.Contains(parent.Reason, "persistence failed") {
+		t.Fatalf("a failed record write must be an aggregate error: status=%s reason=%q", parent.Status, parent.Reason)
+	}
+	if agg.Summary.Error != 1 || agg.Summary.Passed != len(agg.Features)-1 {
+		t.Fatalf("summary=%+v over %d features", agg.Summary, len(agg.Features))
 	}
 }

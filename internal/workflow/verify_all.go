@@ -255,6 +255,14 @@ func RunVerifyAll(s *store.Store, opts VerifyOptions) (*AggregateReport, error) 
 			status := AggregateStatusPassed
 			switch rep.Verdict {
 			case "passed":
+				if runErr != nil {
+					// The checks passed but the run did not finish (its
+					// record write failed): single-feature verify exits 2
+					// here, so the aggregate must not count a pass.
+					status = AggregateStatusError
+					report.Summary.Error++
+					break
+				}
 				status = AggregateStatusPassed
 				report.Summary.Passed++
 			case "failed":

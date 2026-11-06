@@ -295,7 +295,9 @@ func EnumerateCommitTrailers(repoRoot string) ([]CommitRecord, error) {
 // reachable from rev instead of the live HEAD. verify passes the commit
 // it captured, so a HEAD that moves between the capture and the
 // enumeration cannot change what the run sees (ADR-013 Amendment 3).
-// An empty rev means the live HEAD.
+// An empty rev means the live HEAD. Only the live-HEAD form treats a
+// missing revision as an empty repository: an explicit rev that Git
+// cannot resolve is an enumeration failure, never "no commits".
 func EnumerateCommitTrailersAt(repoRoot, rev string) ([]CommitRecord, error) {
 	format := strings.Join([]string{
 		"%H",
@@ -315,9 +317,9 @@ func EnumerateCommitTrailersAt(repoRoot, rev string) ([]CommitRecord, error) {
 	if err != nil {
 		msg := strings.TrimSpace(stderr)
 		// An empty repository (no commits yet) is not a reader failure.
-		if strings.Contains(msg, "does not have any commits yet") ||
+		if rev == "" && (strings.Contains(msg, "does not have any commits yet") ||
 			strings.Contains(msg, "unknown revision or path not in the working tree") ||
-			strings.Contains(msg, "bad default revision") {
+			strings.Contains(msg, "bad default revision")) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("git log enumeration: %v: %s", err, msg)
