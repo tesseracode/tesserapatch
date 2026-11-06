@@ -1,3 +1,55 @@
+## Release consolidation — v0.19.0 — 2026-11-06
+
+### Verdict: APPROVED — window work ACCEPTED; release consolidated
+
+### Notes
+- Accepted: W1 (`2335cca..e41c474`), W2 and the D track (`e41c474..2e44569`).
+- The window handoff was archived byte-for-byte in `docs/handoff/HISTORY.md`
+  under **2026-11-06T13:15:03Z - Overnight window: W1, GH #25 C1–C2 and D track accepted**:
+  - Archive block (header plus terminal body): 28,701 bytes,
+    SHA256 `bcba373875f6623f73b103aa5efff38e1159a370c2ab1a0c111943ba84e656cc`.
+  - Prior HISTORY prefix: 1,246,586 bytes, SHA256
+    `78da364acd5694b4c9af80be754675b42072deec39b6ed0b9630883a117c90ef`,
+    preserved unchanged.
+  - HISTORY after this archive: 1,275,287 bytes, SHA256
+    `b893a6815ccc93ea5c792b55c2f42eab46472da019feaaa55a758a95f2ff79e5`.
+- The release commit carries the approved CHANGELOG section and the
+  release-guard pin bump as well as tracking (OV-D18). Local release checks
+  passed; main and tag CI cover the full suite.
+
+### Action Taken
+CURRENT now scopes `release-overlap-assessment-v0-19-0`. The annotated tag
+`v0.19.0` is created on this commit before `main` and the tag are pushed.
+Shipment is claimed only after both CI runs and the automatic release
+succeed. GH #25 stays open (A1, B and C3 not authorized).
+
+---
+
+## Wave close — W2 (GH #25 C1–C2) and the D track — 2026-11-06
+
+**Runner**: old-Mac serial gate (`WAVE_CLOSE_TEST_LANES=0`, exact 42/39
+command parity with CI) at `2e44569`, `WAVE_BASE=2335cca`.
+
+### Verdict: PASS
+
+### Notes
+- Checks 1–8 passed; `SERIAL GATE: PASS` at 13:12:27Z after 10,816.3 s
+  (3 h 0 m). 42/42 commands with exact multiset and preflight-order parity;
+  39 uncached test commands with zero concurrent test seconds; no resource
+  stop across 6,693 samples; source clean afterwards; release tag unchanged.
+- The fail-closed evidence verifier (the OV-D17 review fix) printed
+  `SERIAL EVIDENCE: PASS`: 42 timed stages, 39 timed tests, 0 overlapping
+  pairs.
+- The runner's SHA-256 (`02f97f83…`) matches the reviewed serial runner.
+- CI 42175737134 (`2e44569`): all five jobs green.
+
+### Action Taken
+W2 and the D track are accepted. ROADMAP GH #25 row flipped to ✅ C1–C2
+accepted; the D-track cleanup note flipped to ✅. The v0.19.0 consolidation
+follows.
+
+---
+
 ## Review — serial gate runner derivation (OV-D17) — 2026-11-06
 
 **Reviewer**: rubber-duck agent (gpt-6.1-sol, read-only)

@@ -2,6 +2,62 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.19.0 — 2026-11-06 — overlap assessment for blocked landed features
+
+### Added
+
+- **Read-only overlap assessment in `tpatch verify` (GH #25, slices C1–C2).**
+  When a landed feature's anchor-C check blocks because another landed
+  feature changed the same content, `verify --json` adds an explanation-only
+  `overlap_assessment`. The report is now `schema_version` 1.2, an additive
+  superset of 1.1. The assessment's `class` is `recorded-descendant-evolution`,
+  `unexplained-content-loss`, `invalid-or-missing-evidence` or
+  `context-only-drift`; an ineligible descendant names its `failed_rule`, and
+  a Git step that could not run is named by `failed_step`.
+- The assessment never changes the verdict, the exit code, `failed_at`, any
+  check's pass/skip state, the advisories or `status.json`. Only the V8
+  remediation text changes: for `recorded-descendant-evolution` it names the
+  descendants and warns not to re-land or reconcile the feature, and for
+  `invalid-or-missing-evidence` it says what to verify, repair or re-run
+  first. The human report adds one `~ overlap assessment:` line after the
+  advisories.
+- It reads only the run's captured artifact bytes and captured `HEAD` commit
+  in an isolated index, and is omitted when the feature inventory or `HEAD`
+  changes during the run. See ADR-013 Amendment 2 (D20–D27).
+
+### Changed
+
+- Every Git probe `tpatch verify` runs now receives a staged copy of the
+  captured patch bytes instead of the artifact file, so a live edit never
+  enters a Git probe or a memoized probe result. An edit that is detected
+  still marks the snapshot unstable and fails verification, as before.
+  Output is unchanged for an artifact that is stable during the run.
+- Development: `make wave-close-check` treats an empty
+  `WAVE_CLOSE_TEST_LANES` as serial, like `0`; `2` selects lanes, and any
+  other value still fails closed.
+
+### Planning only
+
+- Planning PRDs for GH #26 (historical-anchor selection after a genuine
+  re-landing) and GH #24 (widening the coverage-complete operation domain).
+  Neither authorizes implementation.
+
+GH #25 options A (ordered-stack verify), B (consolidation) and C3
+(member-level explanation, folded into GH #26) are not part of this release;
+no verdict turns green because of the assessment.
+
+### Unchanged safeguards
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally
+returns tpatch exit 1, not the editor's exact exit code.
+
 ## v0.18.0 — 2026-11-04 — reviewed operation replay candidates
 
 ### Added
