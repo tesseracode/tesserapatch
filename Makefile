@@ -1,4 +1,4 @@
-.PHONY: build test fmt install clean lint all wave-close-test-shards wave-close-check
+.PHONY: build test fmt install clean lint all wave-close-test-shards wave-close-check release-check
 
 BINARY=bin/tpatch
 BUILD_DIR=./cmd/tpatch
@@ -34,6 +34,15 @@ clean:
 	rm -rf bin/
 
 all: fmt lint test build
+
+# Release-candidate check (AGENTS.md → Wave-Close Checklist). Run on the
+# release commit before `git tag -a`: the CHANGELOG section and release-guard
+# pin must be in the gated commit, and the tag commit may differ from it only
+# in tracking files. RELEASE and GATED reach the script through the
+# environment (make exports command-line variables), never pasted into the
+# shell command. RELEASE, not VERSION: VERSION is the build's ldflags value.
+release-check:
+	@sh scripts/release-check.sh "$$RELEASE" "$$GATED"
 
 # Mechanical Wave-Close Checklist gate. Verifies the subset of the
 # checklist (AGENTS.md → Wave-Close Checklist) that can be checked

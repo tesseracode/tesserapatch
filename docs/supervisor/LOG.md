@@ -1,3 +1,58 @@
+## Review — W0 (fixture daemon leak + `make release-check`) rounds 2–3 — 2026-11-06
+
+**Reviewer**: same independent code-review agent (gpt-6.1-sol)
+**Task**: `window-20261106-w0-fixture-leak-release-check`
+
+### Verdict: APPROVED (round 2 APPROVED WITH NOTES; round 3 APPROVED)
+
+### Notes
+- Round 2: F1 and F2 closed. One LOW: the `tracking-prefix-allowed`
+  mutant's inline `case` did not parse under macOS `/bin/sh`, so the
+  mutant was killed by a syntax error rather than by the case it targets.
+- Fix: parenthesized `case` patterns in that mutant, and
+  `TestReleaseCheckScriptMutations` now runs `sh -n` on every mutant
+  before its case and fails with "mutant does not parse". Proof the new
+  check can fail: with the old mutant restored temporarily, the subtest
+  failed "mutant does not parse: exit status 2". With the fix,
+  `TestReleaseCheck*` is 66 PASS, 0 SKIP.
+- Round 3: the LOW is closed; no remaining findings.
+
+### Action Taken
+W0 moved to local validation, then commit, CI and the validation-machine
+gate. The `release-check` Makefile target was moved out of the
+`wave-close-check` comment block (placement only; no behaviour change).
+
+---
+
+## Review — W0 (fixture daemon leak + `make release-check`) round 1 — 2026-11-06
+
+**Reviewer**: independent code-review agent (gpt-6.1-sol)
+**Task**: `window-20261106-w0-fixture-leak-release-check`
+
+### Verdict: NEEDS REVISION
+
+### Notes
+- **F1 (MEDIUM):** `release-check [4/9]` filtered the diff with
+  `:(exclude,literal)` pathspecs. `GIT_LITERAL_PATHSPECS=1` in the caller's
+  environment turns them into plain file names, so the diff came back empty
+  and the whole check passed. Reproduced on the real v0.19.0 case
+  (`2e44569` → `68142ca`).
+- **F2 (MEDIUM):** a literal exclude of a tracking file also hides files
+  under a directory that replaces it (`docs/ROADMAP.md/extra.go`).
+- Fixture fix and guard: no findings.
+
+### Action Taken
+Fixed in place: `[4/9]` now runs `git diff --no-renames --name-only` with
+no pathspecs and compares each path exactly against the four tracking
+names; `--no-renames` is load-bearing again. New cases for the environment
+variable, the replacing directory and a tracking-name prefix, plus four
+mutants (pathspec filter restored ×2, rename detection restored, prefix
+match allowed), all killed. `TestReleaseCheck*`: 66 PASS, 0 SKIP. AGENTS.md
+lane-stop sentence updated for the operator's OV-D17 answer (NW-D10).
+Re-review dispatched to the same reviewer.
+
+---
+
 ## Window dispatch — 10-hour window (W0, D, W1 GH #25 A1, W2, R) — 2026-11-06
 
 ### Verdict: DISPATCHED

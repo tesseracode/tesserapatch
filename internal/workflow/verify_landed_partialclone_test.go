@@ -25,6 +25,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,10 +34,44 @@ import (
 	"github.com/tesseracode/tesserapatch/internal/gitutil"
 )
 
+// gitDaemonProgram returns the real `git-daemon` program from Git's exec
+// path. `git daemon` runs that program as a child of the `git` process (and
+// macOS's /usr/bin/git adds an xcrun shim in between), so killing the
+// started process left the listening daemon orphaned. Starting the program
+// directly makes the started process the daemon itself.
+func gitDaemonProgram() (string, error) {
+	out, err := exec.Command("git", "--exec-path").Output()
+	if err != nil {
+		return "", fmt.Errorf("git --exec-path: %w", err)
+	}
+	name := "git-daemon"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	program := filepath.Join(strings.TrimSpace(string(out)), name)
+	if _, err := os.Stat(program); err != nil {
+		return "", err
+	}
+	return program, nil
+}
+
+// fixtureGitDaemon is a running `git-daemon` started by startGitDaemon.
+type fixtureGitDaemon struct {
+	url     string
+	addr    string
+	pid     int
+	pidFile string
+	stop    func()
+}
+
 // startGitDaemon serves `root` over the git:// transport with
-// `uploadpack.allowFilter=true` and returns the base URL plus a stopper.
-func startGitDaemon(t *testing.T, root string) (string, func()) {
+// `uploadpack.allowFilter=true`. The caller must call stop().
+func startGitDaemon(t *testing.T, root string) *fixtureGitDaemon {
 	t.Helper()
+	program, err := gitDaemonProgram()
+	if err != nil {
+		t.Skipf("git daemon is not available: %v", err)
+	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve a port: %v", err)
@@ -45,8 +81,10 @@ func startGitDaemon(t *testing.T, root string) (string, func()) {
 		t.Fatalf("release the port: %v", err)
 	}
 
-	cmd := exec.Command("git", "daemon",
+	pidFile := filepath.Join(t.TempDir(), "git-daemon.pid")
+	cmd := exec.Command(program,
 		"--reuseaddr",
+		"--pid-file="+pidFile,
 		"--listen=127.0.0.1",
 		fmt.Sprintf("--port=%d", port),
 		"--export-all",
@@ -67,18 +105,19 @@ func startGitDaemon(t *testing.T, root string) (string, func()) {
 	}
 
 	url := fmt.Sprintf("git://127.0.0.1:%d/%s", port, filepath.Base(root))
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
-		conn, dialErr := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond)
+		conn, dialErr := net.DialTimeout("tcp", addr, 200*time.Millisecond)
 		if dialErr == nil {
 			_ = conn.Close()
-			return url, stop
+			return &fixtureGitDaemon{url: url, addr: addr, pid: cmd.Process.Pid, pidFile: pidFile, stop: stop}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 	stop()
 	t.Fatalf("git daemon did not accept connections on port %d: %s", port, stderr.String())
-	return "", stop
+	return nil
 }
 
 // newFilteredClone builds a REAL blobless clone of the fixture through a
@@ -99,11 +138,11 @@ func newFilteredClone(t *testing.T, f *landedFixture) string {
 	mustGit(t, origin, "config", "uploadpack.allowFilter", "true")
 	mustGit(t, origin, "config", "uploadpack.allowAnySHA1InWant", "true")
 
-	url, stop := startGitDaemon(t, origin)
-	t.Cleanup(stop)
+	daemon := startGitDaemon(t, origin)
+	t.Cleanup(daemon.stop)
 
 	clone := filepath.Join(t.TempDir(), "clone")
-	out, err := tryGit(filepath.Dir(clone), "clone", "-q", "--filter=blob:none", url, clone)
+	out, err := tryGit(filepath.Dir(clone), "clone", "-q", "--filter=blob:none", daemon.url, clone)
 	if err != nil {
 		t.Fatalf("filtered clone from a real remote failed: %v: %s", err, out)
 	}
@@ -116,6 +155,73 @@ func newFilteredClone(t *testing.T, f *landedFixture) string {
 		t.Fatalf("backfill through the real filtered remote failed: %v: %s", err, out)
 	}
 	return clone
+}
+
+// readDaemonPID returns the pid `git-daemon` recorded in its --pid-file.
+func readDaemonPID(t *testing.T, pidFile string) int {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		data, err := os.ReadFile(pidFile)
+		if err == nil {
+			if pid, convErr := strconv.Atoi(strings.TrimSpace(string(data))); convErr == nil && pid > 0 {
+				return pid
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("git-daemon did not record a pid in %s (last error: %v)", pidFile, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// The fixture daemon must not outlive its test. Launched as `git daemon`,
+// the real daemon was a child of the started process, so stop() killed only
+// the wrapper and every full test run left two daemons listening on
+// 127.0.0.1. This guard fails on that launch: the started process must be
+// the one that wrote the daemon's pid file, and after stop() nothing may
+// accept connections on the daemon's port.
+func TestPartialCloneFixtureDaemonStopEndsDaemon(t *testing.T) {
+	repo := filepath.Join(t.TempDir(), "served", "origin.git")
+	if out, err := tryGit(t.TempDir(), "init", "-q", "--bare", repo); err != nil {
+		t.Fatalf("init the served repository: %v: %s", err, out)
+	}
+	daemon := startGitDaemon(t, repo)
+	stopped := false
+	t.Cleanup(func() {
+		if !stopped {
+			daemon.stop()
+		}
+	})
+
+	recorded := readDaemonPID(t, daemon.pidFile)
+	// If the guard fails, end the daemon it recorded so the failing run
+	// does not leave a listener behind.
+	t.Cleanup(func() {
+		if t.Failed() {
+			if p, err := os.FindProcess(recorded); err == nil {
+				_ = p.Kill()
+			}
+		}
+	})
+	if recorded != daemon.pid {
+		t.Errorf("the fixture owns pid %d but the daemon recorded pid %d: stop() would orphan the daemon", daemon.pid, recorded)
+	}
+
+	daemon.stop()
+	stopped = true
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		conn, err := net.DialTimeout("tcp", daemon.addr, 200*time.Millisecond)
+		if err != nil {
+			return
+		}
+		_ = conn.Close()
+		if time.Now().After(deadline) {
+			t.Fatalf("%s still accepts connections after stop(): the fixture leaks its git-daemon", daemon.addr)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // AC-L68 — Wave C acceptance gate. A partial (blobless) clone built
