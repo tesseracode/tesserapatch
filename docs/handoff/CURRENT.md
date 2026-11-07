@@ -39,7 +39,7 @@ serial validation-machine gate with `WAVE_BASE=7a8f00b`.
   and CI hygiene
 - **Description**: Amendment 4 design review; ADR status fix; `[3/8]`
   ancestor check; hosted observer limits; backlog rows
-- **Status**: In progress — tracking dispatched
+- **Status**: In progress — local validation passed; push, CI and gate pending
 - **Assigned**: 2026-11-07
 - **WAVE_BASE**: `7a8f00bccfeb1e89f947c1c24590788541860691`
 
@@ -66,8 +66,9 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 | HK-D3 | New hosted limits: double the inner limit of each category whose child has used more than half of it in any recorded environment, keeping the 4-minute outer margin. AM–AO 8 m inner / 12 m outer (was 4/8; old-Mac serial process 268–274 s), AP 16/20 (was 8/12; 371–374 s), AQ 16/20 (was 8/12; 444–449 s old Mac, killed at 480 s on hosted macOS). AR (527 s of 37 m) and AS–AX (≤ 51 s of 4 m) are unchanged. Cost: a hung child in those three categories takes up to 20 minutes longer to fail. |
 | HK-D4 | Private runner (untracked): the preparation step now requires the gated commit to be contained in `origin/main` (`git merge-base --is-ancestor`, any non-zero status refuses) and checks it out detached, instead of requiring `origin/main` to equal it; the run itself already pinned only the checked-out commit. Serial is the default; lanes run only when explicitly requested with the exact value `1`, so an empty or other value stays serial. The stub harness gained three cases (serial by default; `yes` and empty stay serial) and fails three of fifteen against the previous runner; the ancestry steps were exercised against a fresh clone (equal and behind accepted, unpushed refused). Previous copies are kept beside the new ones on the machine. |
 | HK-D5 | Spotlight: a `.metadata_never_index` marker in the validation folder is **not honoured** on the validation machine's macOS (a probe file in the folder was still indexed after 90 s), so the marker was removed again. Renaming the folder with `.noindex` would break every pinned path. The working option is adding the folder to System Settings → Spotlight → Privacy on that machine, an operator action (an OS setting; not done by the agent). |
-| HK-D7 | Amendment 4 is marked ACCEPTED once design review rev-4 APPROVED: its own acceptance condition was an approving independent design review plus the operator scheduling the slices, and the operator's answer scheduled N1 for the next window. N2 is recorded as not yet scheduled. |
 | HK-D6 | No CHANGELOG entry in HK: the file has no Unreleased section, and the next release entry will describe the gate and limit changes. |
+| HK-D7 | Amendment 4 is marked ACCEPTED once design review rev-4 APPROVED: its own acceptance condition was an approving independent design review plus the operator scheduling the slices, and the operator's answer scheduled N1 for the next window. N2 is recorded as not yet scheduled. |
+| HK-D8 | The local package step for `./internal/cli` is the targeted test set, not one unsharded `go test ./internal/cli` process: that process ran 60 minutes without a failure and was stopped by its own limit inside the AR observer (`TestS7ARPurgeProgressGuard`), as the unsharded package is known to exceed a single-process limit (the reason for the 22-process partition). The whole package is covered by the hosted CI shards and the serial validation-machine gate, as in W1. |
 
 ## Session Summary
 
@@ -100,8 +101,10 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 ## Current State
 
 `origin/main` is `4b92559` (HK dispatch). Local commits `9aaf136` (HK1
-code) and `6bbdf7c` (Amendment 4 rev-2) are not pushed yet; rev-3 follows.
-HK1 is implemented; its code review and validation are pending.
+code), `6bbdf7c`/`ee265a3`/`4a6b280` (Amendment 4 rev-2 to rev-4) and
+`5bbdb2d` (Amendment 4 ACCEPTED) are being pushed. HK1 is reviewed
+APPROVED and passes local validation; CI and the validation-machine gate
+are pending.
 
 ## Files Changed
 
@@ -109,14 +112,19 @@ HK1 is implemented; its code review and validation are pending.
   `docs/supervisor/LOG.md`.
 - HK1: `Makefile`, `internal/cli/wave_close_pushed_test.go` (new),
   `internal/cli/prepare_s7_registration_test.go`, `AGENTS.md`.
-- Design: `docs/adrs/ADR-013-verify-freshness-overlay.md`.
+- Design: `docs/adrs/ADR-013-verify-freshness-overlay.md`,
+  `docs/prds/PRD-historical-anchor-relanding.md`.
 
 ## Test Results
 
 - Local (`9aaf136`): `TestWaveCloseHeadPushedAncestry`,
   `TestGH9WaveCloseSentinelMakefileWiring`,
   `TestS7ObservedRegistrationWrongInputs` pass; the new test fails on the
-  pre-HK recipe. Package, vet, build, CI and gate pending.
+  pre-HK recipe.
+- Local (`5bbdb2d`, `dev-go.sh` admission each run): gofmt on tracked Go
+  files clean; `go vet` on all repository packages ok; `go build
+  ./cmd/tpatch` ok. The unsharded `./internal/cli` process was stopped by
+  its own 60-minute limit with no failure (HK-D8). CI and gate pending.
 - Private runner stub harness: 15/15 locally and on the machine; 3/15 fail
   against the previous runner.
 
