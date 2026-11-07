@@ -39,7 +39,7 @@ serial validation-machine gate with `WAVE_BASE=7a8f00b`.
   and CI hygiene
 - **Description**: Amendment 4 design review; ADR status fix; `[3/8]`
   ancestor check; hosted observer limits; backlog rows
-- **Status**: In progress — local validation passed; push, CI and gate pending
+- **Status**: In progress — CI passed at `ac65af4`; serial gate running
 - **Assigned**: 2026-11-07
 - **WAVE_BASE**: `7a8f00bccfeb1e89f947c1c24590788541860691`
 
@@ -100,11 +100,10 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 
 ## Current State
 
-`origin/main` is `4b92559` (HK dispatch). Local commits `9aaf136` (HK1
-code), `6bbdf7c`/`ee265a3`/`4a6b280` (Amendment 4 rev-2 to rev-4) and
-`5bbdb2d` (Amendment 4 ACCEPTED) are being pushed. HK1 is reviewed
-APPROVED and passes local validation; CI and the validation-machine gate
-are pending.
+`origin/main` is `ac65af4` (HK1 code, Amendment 4 rev-2 to rev-4 and
+ACCEPTED, local validation record). HK1 is reviewed APPROVED, passes local
+validation and hosted CI; the serial validation-machine gate at `ac65af4`
+is running.
 
 ## Files Changed
 
@@ -124,7 +123,12 @@ are pending.
 - Local (`5bbdb2d`, `dev-go.sh` admission each run): gofmt on tracked Go
   files clean; `go vet` on all repository packages ok; `go build
   ./cmd/tpatch` ok. The unsharded `./internal/cli` process was stopped by
-  its own 60-minute limit with no failure (HK-D8). CI and gate pending.
+  its own 60-minute limit with no failure (HK-D8).
+- Hosted CI run 42336508316 at `ac65af4`: success (ubuntu, macOS, Windows
+  test jobs; S7 observers on ubuntu and macOS).
+- Validation machine: serial gate at `ac65af4` with `WAVE_BASE=7a8f00b`
+  started 2026-11-07T05:00:03Z (serial by default, HK-D4; preparation
+  passed the new ancestor check). Result pending.
 - Private runner stub harness: 15/15 locally and on the machine; 3/15 fail
   against the previous runner.
 
