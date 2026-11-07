@@ -1,3 +1,48 @@
+## Review — GH #26 ADR-013 Amendment 4 design review rev-3 — 2026-11-07
+
+**Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
+**Task**: ADR-013 Amendment 4 rev-3 (`ee265a3`) full re-review (HK, A4R)
+
+### Verdict: NEEDS REVISION
+
+Rev-2 F1 (aggregation) and F3 (T14 feasibility and E6 isolation) closed;
+F2 partially. T14 is buildable and its D40 control pin is correct. No new
+false green, ancestry contradiction or unsafe N1/N2 intermediate state.
+
+- **F1 MEDIUM (blocking)**: the oldest-first pins treated an arbitration
+  failure as stopping the whole dynamic phase. In the code V7 fails, only
+  V8's historical half is skipped, and the current anchor and the overlap
+  assessment still run (`verify_anchored.go:276-280`, `:311-328`,
+  `:669-674`), so the T1, T5 and T14 oldest-first pins were wrong.
+- **F2 LOW**: dropping E6 from eligibility would not promote T14's control:
+  a failed nested verify never records its current anchor clean
+  (`verify_overlap.go:601-614`), so P9 keeps it red; the class changes
+  instead.
+
+### Action Taken
+
+Both confirmed in the code. Rev-4 restates the T1, T5 and T14 oldest-first
+pins with V7, both anchor results and the assessment class, and T14's
+control detects the E6 mutation by class and failing rule. Sent back to
+the same reviewer.
+
+## Review — HK1 code review (`9aaf136`) — 2026-11-07
+
+**Reviewer**: independent code reviewer (gpt-6.1-sol, static, no Go)
+**Task**: `[3/8]` ancestor check and its behavioural test, AGENTS.md note,
+AM–AO/AP/AQ hosted observer limits (HK-D2, HK-D3)
+
+### Verdict: APPROVED
+
+No findings.
+
+### Action Taken
+
+Supervisor spot-check of the limits' scope: the budget map is consumed
+only by the observer tests themselves, and each observer runs as its own
+CI process under `-timeout 40m`, so the new 20-minute outer limit stays
+inside the package limit. Local validation continues.
+
 ## Review — GH #26 ADR-013 Amendment 4 design review rev-2 — 2026-11-07
 
 **Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)

@@ -86,7 +86,11 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
   closed; three new blocking MEDIUM findings, no false green). Rev-3 makes
   D43 aggregate-aware, pins each allowed D44 difference with both rules'
   results (including T5), and gives T14 an explicit graph whose control
-  fails E6 only; rev-3 is back with the reviewer.
+  fails E6 only.
+- Amendment 4 design review rev-3: **NEEDS REVISION** (one blocking
+  MEDIUM: oldest-first pins did not match the code's fail-fast shape; one
+  LOW). Rev-4 corrects the pins; back with the reviewer.
+- HK1 code review (`9aaf136`): **APPROVED**, no findings.
 - Private runner relaxed and serial made the default (HK-D4); Spotlight
   marker tried and removed (HK-D5).
 
@@ -117,8 +121,7 @@ HK1 is implemented; its code review and validation are pending.
 
 1. Amendment 4 rev-3 re-review; iterate to approval, then flip it to
    ACCEPTED (N1 stays for the next window).
-2. Independent code review of `9aaf136`.
-3. Local serial validation, push, CI, serial gate with
+2. Local serial validation, push, CI, serial gate with
    `WAVE_BASE=7a8f00b`, close.
 
 ## Blockers
