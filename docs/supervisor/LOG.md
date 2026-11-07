@@ -1,3 +1,19 @@
+## Supervisor decision — post-v0.20.0 housekeeping dispatch (HK) — 2026-11-07
+
+**Task**: operator review answers to NW-D20, NW-D24, NW-D25, Amendment 4,
+lane mode, the ADR-013 status line and Spotlight
+
+### Decision: HK dispatched (`WAVE_BASE=7a8f00b`)
+
+- Amendment 4: independent design review now; N1 next window.
+- NW-D20 accepted as shipped.
+- NW-D24: ancestor check instead of equality (HK-D2: `[3/8]` and the
+  private runner), plus a push-during-gate note and a validation-run queue
+  backlog row.
+- NW-D25: double the inner limits of AM–AO, AP and AQ (HK-D3), plus a
+  test-time profiling backlog row.
+- Serial gates on the validation machine until the operator's cleanup.
+
 ## Supervisor decision — v0.20.0 shipped; window closed (IDLE) — 2026-11-07
 
 **Task**: verify the v0.20.0 publication and close the 10-hour window

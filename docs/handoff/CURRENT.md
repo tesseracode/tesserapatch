@@ -2,166 +2,98 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-**v0.20.0 shipped; the window is closed (IDLE).** W0, D and W1 (GH #25
-A1) are accepted. The validated source `7b690b2` passed independent
-review, CI 42278212760 (all five jobs) and a complete serial
-validation-machine gate with `WAVE_BASE=fddf4bd` (42/42 commands,
-10,868.0 s, evidence verifier PASS). The release commit `495ca59` changes
-only tracking files (release-candidate rule; `make release-check` 9/9).
-Tag CI 42311466816 passed all six jobs including `release`; the GitHub
-release was published at 2026-11-07T00:32:31Z:
-https://github.com/tesseracode/tesserapatch/releases/tag/v0.20.0.
-Main CI 42311467064 on the same commit failed one hosted-runner observer
-budget (NW-D25); this close commit's main CI reruns the full matrix on the
-identical source tree.
+**Post-v0.20.0 housekeeping wave (HK) dispatched** by the operator's review
+answers at 2026-11-07T02:30Z. The operator is present; this is not an
+unattended window. v0.20.0 is published (tag on `495ca59`); the wave starts
+from `7a8f00b`. No release is authorized.
 
-The operator's 10-hour unattended window runs **2026-11-06T16:37:59Z** to
-**2026-11-07T02:37:59Z**. The operator authorized v0.20.0 if A1 shipped.
+Scope (operator answers, 2026-11-07):
+
+1. **A4R**: independent design review of ADR-013 Amendment 4 (GH #26) now;
+   implementation slice N1 is for the next window, not this wave.
+2. **HK1** (tracked, one reviewed wave):
+   - fix ADR-013's stale status line (Amendment 3 is ACCEPTED; Amendment 4
+     per the review outcome);
+   - `make wave-close-check` `[3/8]` accepts a `HEAD` that is contained in
+     `origin/main` instead of requiring equality, with an AGENTS.md note
+     that pushing during a gate run can still affect it (HK-D2);
+   - raise the hosted observer limits for AM–AO, AP and AQ (NW-D25 answer,
+     HK-D3);
+   - backlog rows: a queue for validation runs of several versions while
+     `main` advances; a test-time profiling task; serial gates on the
+     validation machine until the operator's cleanup.
+3. **Private** (untracked, validation machine): the gate runner's
+   `origin/main` check becomes an ancestor check; serial is the default
+   there; the validation folder is excluded from Spotlight if the marker
+   works.
+
+Close: independent code review, local serial validation, push, CI and a
+serial validation-machine gate with `WAVE_BASE=7a8f00b`.
 
 ## Active Task
 
-- **Task ID**: `release-single-child-current-anchor-v0-20-0`
-- **Milestone**: Post-v0.19 backlog — GH #25 A1 / v0.20.0
-- **Description**: Publish the accepted window work as v0.20.0, verify
-  main and tag CI and the GitHub release, then close the window
-- **Status**: Shipped — v0.20.0 tagged on `495ca59`, tag CI green,
-  release published; window closed
-- **Assigned**: 2026-11-06
-- **WAVE_BASE**: `fddf4bd1483572acbb5208324a376b5d1796e864`
-- **Validated source**: `7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`
-- **Deadline**: `2026-11-07T02:37:59Z`
+- **Task ID**: `post-v0-20-housekeeping`
+- **Milestone**: Post-v0.20 operator review — GH #26 design review, gate
+  and CI hygiene
+- **Description**: Amendment 4 design review; ADR status fix; `[3/8]`
+  ancestor check; hosted observer limits; backlog rows
+- **Status**: In progress — tracking dispatched
+- **Assigned**: 2026-11-07
+- **WAVE_BASE**: `7a8f00bccfeb1e89f947c1c24590788541860691`
 
-WAVE_BASE = fddf4bd1483572acbb5208324a376b5d1796e864
+WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 
-## Session Summary
+### Operator answers (2026-11-07)
 
-- **W0** (`583f7dc`): the AC-L68/AC-L69 partial-clone fixture starts the
-  real `git-daemon` and stops it (it orphaned two per run), with a guard
-  that fails on the old launch; `make release-check` enforces the
-  release-candidate rule before tagging. Review round 3 APPROVED.
-- **D** (`d6d2008`): the operator's GH #26 and GH #24 answers recorded in
-  both PRDs; ADR-013 Amendment 4 (GH #26 N0) drafted, PROPOSED, no code.
-  Design review round 2 APPROVED.
-- **W1** (`2354df9`, `e142bfd`, closed at `7b690b2`): GH #25 A1 under
-  ADR-013 Amendment 3 (ACCEPTED). A single recorded direct hard child with
-  exact evidence, a clean historical half, a full-context-clean child and
-  a merge-free `T..H` passes V8's current half as
-  `explained-by-descendant`; schema 1.3. Every `HEAD` read in a verify run
-  uses the captured commit (D36), and the arbitration fail-fast leak (W2)
-  is fixed (D37). Design round 1 UNSOUND → round 2 APPROVED; code review
-  round 1 NEEDS REVISION (a `verify --all` persistence-error defect and
-  Windows shim rows) → round 2 APPROVED. 19/19 manual mutants killed.
-- **Gates:** W0's gate at `6eb98a0` failed at serial preparation after a
-  lane resource stop because `7b690b2` was pushed during the run; no test
-  failed (NW-D23, NW-D24). W1's gate at `7b690b2` covered the whole window:
-  serial PASS, 42/42, 10,868.0 s, wave-close-check 8/8, no fixture daemon
-  left afterwards.
+| Item | Answer |
+|---|---|
+| ADR-013 Amendment 4 (GH #26) | Design review now, N1 in the next window. |
+| NW-D20 (`verify --all` record-write fix) | Accept as shipped. |
+| NW-D24 (no push during a gate) | "Relax the runner to an ancestor check, but still put a note that pushing could affect the gate runs"; also add a mechanism to queue validation runs for different versions even if `origin/main` advances. |
+| NW-D25 (hosted observer limits) | Small reviewed wave raising the hosted limits; also queue a task to time the tests that take longest and check whether that comes from too many tests running, unoptimized tests, or genuinely needed computation. |
+| Lane mode on the validation machine | Keep serial for now; the operator will report when the machine is cleaned up. |
+| ADR-013 status line | Fix it. |
+| Spotlight on the validation folder | Exclude it. |
 
-The full window handoff is archived **byte-for-byte** in
-`docs/handoff/HISTORY.md` under
-**2026-11-06T23:21:12Z - 10-hour window: W0, D and W1 (GH #25 A1) accepted**:
-
-- Archive block (header plus terminal body): 24,591 bytes,
-  SHA256 `cbff1f032c6898f6aeb5807c2ed9fa10fd63415324fb278ae384ab35c6f164d5`.
-- Prior HISTORY prefix: 1,275,287 bytes, SHA256
-  `b893a6815ccc93ea5c792b55c2f42eab46472da019feaaa55a758a95f2ff79e5`,
-  preserved unchanged.
-- HISTORY after this archive: 1,299,878 bytes, SHA256
-  `3c0fdcf2f1a94c9ecb4511a748e1c6159cc8b23bc9108495173177c047e19f5c`.
-
-Do not archive this window again; append a separate entry only if needed
-after publication.
-
-### Decisions for morning review
-
-Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
+### Decisions (HK-D*)
 
 | ID | Decision |
 |---|---|
-| NW-D1 | The window started at the baseline check (16:37:59Z); WAVE_BASE `fddf4bd`. |
-| NW-D2 | No retro gate at `fddf4bd`; a later gate on a descendant tree covers it. |
-| NW-D3 | The validation machine was reached over a LAN address with its recorded host key pinned; the address stays out of tracked files. |
-| NW-D4 | Terminated 27 orphaned fixture daemons on the validation machine after per-PID checks. |
-| NW-D5 | Terminated 84 orphaned fixture daemons on the dev machine after the same checks. |
-| NW-D6 | The make variable is `RELEASE` (not `VERSION`, already used for ldflags), read from the environment. |
-| NW-D7 | `release-check` accepts the gate's terminal Cluster-state tokens and runs by hand before `git tag -a`. |
-| NW-D8 | The fixture starts the real `git-daemon` binary rather than killing a process group (Windows build). |
-| NW-D9 | Private runner pre-flight: one runner at a time, reap only our own orphans, start serial when swap is high. |
-| NW-D10 | After a lane resource stop, fall back to serial at once; AGENTS.md updated to match. |
-| NW-D11 | ADR-013 numbering: Amendment 3 = GH #25 A1, Amendment 4 = GH #26. |
-| NW-D12 | Local whole-tree checks are scoped to repository files (private `bin/` snapshots break them); backlog row added. |
-| NW-D13 | Cluster state set to `APPROVED` in place before each gate, back to `IN PROGRESS` for the next wave. |
-| NW-D14 | A1 F1: pin every `HEAD`-dependent read to the captured commit (D36) instead of adding re-checks. |
-| NW-D15 | A1 F2: refuse promotion when any merge is in `T..H` or the query fails (P10). |
-| NW-D16 | A1 F3: the child's own V8 must be `materialized-clean` (P9). |
-| NW-D17 | W2 (arbitration fail-fast leak) folded into W1 as D37. |
-| NW-D18 | P3 (nested verify never promotes) holds by construction, with a unit guard. |
-| NW-D19 | The P8 fixture uses a malformed `recipe-coverage.json` (V11 fails after anchor C). |
-| NW-D20 | Fixed the pre-existing `verify --all` persistence-error count in W1: a pass whose record write failed is now `error`. |
-| NW-D21 | The two shell-shim A1 rows skip on Windows; portable gitutil rows cover the pinning; an unresolvable explicit rev now fails. |
-| NW-D22 | W1's gate used the window's `WAVE_BASE=fddf4bd`. |
-| NW-D23 | W0's gate was not rerun; W1's gate on a tree containing W0 covers it. |
-| NW-D24 | Never push while a validation-machine gate runs (its serial fallback needs `origin/main` == the gated commit). |
+| HK-D1 | WAVE_BASE is `7a8f00b`, `origin/main` at dispatch. |
+| HK-D2 | The ancestor check must also change `make wave-close-check` `[3/8]`, not only the private runner: `[3/8]` requires `HEAD == origin/main`, and the gate runs it in its own checkout, so a push during a gate would still fail it there. The new rule: `HEAD` must be contained in `origin/main` (pushed). A `HEAD` ahead of or diverged from `origin/main` still fails, and so does an ancestry query that cannot answer. |
+| HK-D3 | New hosted limits: double the inner limit of each category whose child has used more than half of it in any recorded environment, keeping the 4-minute outer margin. AM–AO 8 m inner / 12 m outer (was 4/8; old-Mac serial process 268–274 s), AP 16/20 (was 8/12; 371–374 s), AQ 16/20 (was 8/12; 444–449 s old Mac, killed at 480 s on hosted macOS). AR (527 s of 37 m) and AS–AX (≤ 51 s of 4 m) are unchanged. Cost: a hung child in those three categories takes up to 20 minutes longer to fail. |
 
-| NW-D25 | Main CI 42311467064 on `495ca59` failed only `TestS7ObservedAQRegistrationAuthority` on the hosted macOS runner: the child passed its 480 s inner budget (513.5 s, still in the PIB-487 mutation row). Not a code failure: nothing AQ observes changed in this window, the tag run on the same commit passed AQ in 309.7 s, and the gate passed. I did not rerun the job (a later push would cancel the rerun); this tracking-only close commit's main CI reruns the whole matrix on the same source. Budgets stay unchanged (guard-pinned; needs its own reviewed wave); the evidence is added to the "Observer child-budget headroom" backlog row. |
+## Session Summary
 
-Open for the operator: ADR-013 Amendment 4 (GH #26 N0) is PROPOSED and
-needs acceptance before any code; NW-D20 (a pre-existing defect fixed
-inside an A1 wave); NW-D24 (a new push rule while a gate runs). The
-validation machine started this gate with 1,752M of swap in use and no
-gate running, so it went straight to serial (see the OV-D17 discussion).
-NW-D25: hosted observer budgets (AQ now, AM-AO before) can fail on slow
-runners; the backlog row needs a decision before it recurs.
+- v0.20.0 shipped (see the release entry in `docs/supervisor/LOG.md`); the
+  window handoff is archived in `docs/handoff/HISTORY.md` under
+  2026-11-06T23:21:12Z. The release handoff that followed it is replaced
+  here, as at the previous window start.
+- Operator answers recorded above; HK dispatched.
 
 ## Current State
 
-Idle. `main` is at this close commit; `v0.20.0` is tagged on `495ca59`
-and published. No implementation is authorized.
-
-GH #25 stays open: C1–C2 and A1 shipped; B and C3 are not authorized.
-GH #26 has an ADR-013 Amendment 4 draft (PROPOSED) and GH #24 an approved
-PRD with operator answers; neither has implementation authorization.
+`origin/main` is `7a8f00b` (v0.20.0 tag on `495ca59`). Close-commit main
+CI 42319994055 passed all five test jobs. Nothing implemented yet in HK.
 
 ## Files Changed
 
-Release consolidation `495ca59` and this close commit (tracking files only):
-
-- `docs/handoff/CURRENT.md`: this release handoff.
-- `docs/handoff/HISTORY.md`: the window archive.
-- `docs/ROADMAP.md`: W0, A1 and the arbitration row accepted; release
-  pending.
-- `docs/supervisor/LOG.md`: gate, wave close and release entries.
-
-The v0.20.0 CHANGELOG section and release-guard pin are in the gated
-commit `7b690b2`.
+- Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`.
 
 ## Test Results
 
-- CI 42278212760 (`7b690b2`): green on all five jobs.
-- Validation-machine gate at `7b690b2`, `WAVE_BASE=fddf4bd`: **PASS
-  (serial)**; 42/42 top-level commands, 39 timed test commands, 0
-  concurrent test seconds, 10,868.0 s, evidence verifier PASS,
-  wave-close-check 8/8.
-- `make release-check RELEASE=v0.20.0 GATED=7b690b2…`: **PASS 9/9** at
-  `495ca59`, before the tag.
-- Tag CI 42311466816 (`v0.20.0`, `495ca59`): all six jobs green, including
-  `release`. Install smoke and `Verify tag version` printed exactly
-  `tpatch v0.20.0` on Linux and macOS; the Windows install smoke printed it
-  too.
-- Main CI 42311467064 (`495ca59`): four of five test jobs green (`release`
-  is tag-only and skipped); `S7 observers (macos-latest)` failed the AQ hosted budget (513.5 s > 480 s inner),
-  NW-D25. The close commit's main CI is the rerun of record.
+- None yet for HK.
 
 ## Next Steps
 
-1. Check this close commit's main CI (full matrix on the v0.20.0 source).
-2. Operator decisions: ADR-013 Amendment 4 (GH #26 N0); NW-D20 and
-   NW-D24; whether to schedule the observer budget headroom row (NW-D25);
-   lane mode on the validation machine (swap).
-3. Next window candidates: GH #26 N0 code (if Amendment 4 is accepted),
-   GH #24, GH #25 B/C3 (not authorized).
+1. Dispatch the Amendment 4 design review (independent, gpt-6.1-sol).
+2. Implement HK1 with mutation-sensitive guards; private runner changes on
+   the validation machine.
+3. Code review, local serial validation, push, CI, serial gate with
+   `WAVE_BASE=7a8f00b`, close.
 
 ## Blockers
 
@@ -170,12 +102,12 @@ commit `7b690b2`.
 ## Context for Next Agent
 
 - **Old Mac:** reach it as in the archived handoff (host key pinned with
-  `HostKeyAlias`; any LAN address stays in private notes).
+  `HostKeyAlias`; any LAN address stays in private notes). Run gates serial
+  (`WAVE_CLOSE_TEST_LANES=0`) until the operator reports the cleanup.
 - **Validation root:** `R=/Users/jbencardino/tpatch-validation-s5-fBIN5H09`.
-- **Gates and pushes:** do not push to `main` while its CI is running
-  (in-progress runs are cancelled per ref) or while a validation-machine
-  gate is running (NW-D24).
+- **Pushes:** do not push to `main` while its CI is running (in-progress
+  runs are cancelled per ref). Until HK lands, also not while a
+  validation-machine gate runs (NW-D24).
 - **Release guards:** `assets/recipe_authority_parity_test.go:16` pins
-  `0.20.0`; the next release moves the pin with the CHANGELOG heading in
-  gated source, and `make release-check` runs before `git tag -a`.
-- **Private evidence for this window:** `bin/nw-20261106/` (ignored).
+  `0.20.0`; `make release-check` runs before any `git tag -a`.
+- **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
