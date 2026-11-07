@@ -77,6 +77,11 @@ release-check:
 # parent's ignore rules and the same pathspec/allowlist matching, and fails
 # closed (instead of reading as clean) when Git or enumeration fails.
 # Exit status: 0 OK, 3 WARN, anything else FAIL.
+# Post-v0.20.0 housekeeping (2026-11-07, HK-D2): [3/8] passes when HEAD is
+# contained in origin/main (`git merge-base --is-ancestor`), not only when
+# the two are equal, so a gate validating a pushed commit still passes after
+# main advances during its run. A HEAD that is ahead of or diverged from
+# origin/main fails, and so does an ancestry answer other than yes or no.
 # Gate-time reduction (2026-11-05): check 8 runs scripts/wave-close-test-lanes.sh,
 # which runs the same serial commands in two concurrent lanes under a static,
 # guarded partition, then a short solo tail of the observer shards one at a
@@ -116,20 +121,28 @@ wave-close-check:
 		echo "  FAIL: untracked-source sentinel exited $$sentinel_status"; \
 		fail=1; \
 	fi; \
-	echo "[3/8] HEAD pushed to origin/main..."; \
+	echo "[3/8] HEAD pushed (contained in origin/main)..."; \
 	if ! git fetch --quiet origin main 2>/dev/null; then \
 		echo "  FAIL: could not fetch origin/main; durability cannot be verified offline"; \
 		echo "  Rerun with network available before closing the wave."; \
 		fail=1; \
 	else \
-		local_head=$$(git rev-parse HEAD); \
-		remote_head=$$(git rev-parse origin/main 2>/dev/null || echo none); \
-		if [ "$$local_head" != "$$remote_head" ]; then \
-			echo "  FAIL: HEAD ($$local_head) != origin/main ($$remote_head)"; \
+		local_head=$$(git rev-parse --verify --quiet HEAD || echo none); \
+		remote_head=$$(git rev-parse --verify --quiet origin/main || echo none); \
+		git merge-base --is-ancestor HEAD origin/main 2>/dev/null; \
+		pushed_status=$$?; \
+		if [ "$$pushed_status" -eq 0 ] && [ "$$local_head" = "$$remote_head" ]; then \
+			echo "  OK ($$local_head)"; \
+		elif [ "$$pushed_status" -eq 0 ]; then \
+			echo "  OK ($$local_head is contained in origin/main $$remote_head)"; \
+			echo "  NOTE: origin/main has advanced; this gate validates $$local_head only."; \
+		elif [ "$$pushed_status" -eq 1 ]; then \
+			echo "  FAIL: HEAD ($$local_head) is not contained in origin/main ($$remote_head)"; \
 			echo "  A wave is not durably closed until pushed. Run: git push origin main"; \
 			fail=1; \
 		else \
-			echo "  OK ($$local_head)"; \
+			echo "  FAIL: cannot tell whether HEAD is in origin/main (git merge-base exited $$pushed_status)"; \
+			fail=1; \
 		fi; \
 	fi; \
 	echo "[4/8] Every wave commit carries the Rule 18 trailer..."; \

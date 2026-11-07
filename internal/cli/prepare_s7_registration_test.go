@@ -109,15 +109,15 @@ type s7ObservedHostedBudget struct {
 
 var s7ObservedHostedBudgets = map[s7ObservedCategory]s7ObservedHostedBudget{
 	s7ObservedCategoryAMThroughAO: {
-		outer: 8 * time.Minute, inner: 4 * time.Minute, cleanup: time.Minute,
+		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
 		first: 395, last: 448, targets: 65,
 	},
 	s7ObservedCategoryAP: {
-		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
+		outer: 20 * time.Minute, inner: 16 * time.Minute, cleanup: time.Minute,
 		first: 449, last: 482, targets: 34,
 	},
 	s7ObservedCategoryAQ: {
-		outer: 12 * time.Minute, inner: 8 * time.Minute, cleanup: time.Minute,
+		outer: 20 * time.Minute, inner: 16 * time.Minute, cleanup: time.Minute,
 		first: 483, last: 505, targets: 23,
 	},
 	s7ObservedCategoryAR: {
@@ -169,15 +169,15 @@ func validateS7ObservedHostedBudgets(
 	}
 	want := map[s7ObservedCategory]s7ObservedHostedBudget{
 		s7ObservedCategoryAMThroughAO: {
-			outer: 480 * time.Second, inner: 240 * time.Second, cleanup: 60 * time.Second,
+			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
 			first: 395, last: 448, targets: 65,
 		},
 		s7ObservedCategoryAP: {
-			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
+			outer: 1200 * time.Second, inner: 960 * time.Second, cleanup: 60 * time.Second,
 			first: 449, last: 482, targets: 34,
 		},
 		s7ObservedCategoryAQ: {
-			outer: 720 * time.Second, inner: 480 * time.Second, cleanup: 60 * time.Second,
+			outer: 1200 * time.Second, inner: 960 * time.Second, cleanup: 60 * time.Second,
 			first: 483, last: 505, targets: 23,
 		},
 		s7ObservedCategoryAR: {
@@ -725,6 +725,21 @@ func TestS7ObservedRegistrationWrongInputs(t *testing.T) {
 					aq := budgets[s7ObservedCategoryAQ]
 					aq.inner = 12 * time.Minute
 					budgets[s7ObservedCategoryAQ] = aq
+				},
+			},
+			{
+				// HK-D3 (2026-11-07) doubled these three inner limits.
+				name: "pre-hk-d3-limits-restored",
+				mutate: func(budgets map[s7ObservedCategory]s7ObservedHostedBudget) {
+					for category, inner := range map[s7ObservedCategory]time.Duration{
+						s7ObservedCategoryAMThroughAO: 4 * time.Minute,
+						s7ObservedCategoryAP:          8 * time.Minute,
+						s7ObservedCategoryAQ:          8 * time.Minute,
+					} {
+						budget := budgets[category]
+						budget.inner, budget.outer = inner, inner+4*time.Minute
+						budgets[category] = budget
+					}
 				},
 			},
 			{
