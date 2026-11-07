@@ -3,10 +3,10 @@
 **Status**: Direction accepted — operator answered §9 (2026-11-06): options
 A and C, newest qualifying exact attestation, D after N1–N2, A3 out of
 scope. Independent review APPROVED at rev-3 (2026-11-06,
-`docs/supervisor/LOG.md`). N0 is drafted as ADR-013 Amendment 4
-(PROPOSED, design only). No slice is scheduled and no implementation,
-schema change or release is authorized until that amendment passes design
-review and the operator schedules N1.
+`docs/supervisor/LOG.md`). N0 is ADR-013 Amendment 4, ACCEPTED
+2026-11-07 (design review rev-4 APPROVED). The operator scheduled N1 for
+the next window; N2 is not scheduled. No implementation, schema change or
+release is authorized before then.
 **Date**: 2026-11-06
 **Owner**: Core
 **Issue**: [GH #26](https://github.com/tesseracode/tesserapatch/issues/26)
@@ -246,8 +246,9 @@ table and is a separate decision (§9 Q5).
 
 1. **N0 — ADR-013 Amendment 4** (Amendment 3 is reserved for GH #25 A1,
    OV-D4): D14 step 4 attestation preference; R14b; the E-series
-   measurements below. **Drafted 2026-11-06** as a PROPOSED amendment
-   (D40–D45, measurements A4-E1–A4-E6); awaiting design review.
+   measurements below. **Drafted 2026-11-06** (D40–D45, measurements
+   A4-E1–A4-E6); **ACCEPTED 2026-11-07** at rev-4, after a design review
+   that added tests T11–T16 and D44's pinned pass criterion.
 2. **N1 — option A** plus its tests.
 3. **N2 — option C** plus its tests.
 4. **N3 — option D** (C3), after N1–N2 ship, with its own design review.

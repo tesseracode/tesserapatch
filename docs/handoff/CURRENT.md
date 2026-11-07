@@ -66,6 +66,7 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 | HK-D3 | New hosted limits: double the inner limit of each category whose child has used more than half of it in any recorded environment, keeping the 4-minute outer margin. AM–AO 8 m inner / 12 m outer (was 4/8; old-Mac serial process 268–274 s), AP 16/20 (was 8/12; 371–374 s), AQ 16/20 (was 8/12; 444–449 s old Mac, killed at 480 s on hosted macOS). AR (527 s of 37 m) and AS–AX (≤ 51 s of 4 m) are unchanged. Cost: a hung child in those three categories takes up to 20 minutes longer to fail. |
 | HK-D4 | Private runner (untracked): the preparation step now requires the gated commit to be contained in `origin/main` (`git merge-base --is-ancestor`, any non-zero status refuses) and checks it out detached, instead of requiring `origin/main` to equal it; the run itself already pinned only the checked-out commit. Serial is the default; lanes run only when explicitly requested with the exact value `1`, so an empty or other value stays serial. The stub harness gained three cases (serial by default; `yes` and empty stay serial) and fails three of fifteen against the previous runner; the ancestry steps were exercised against a fresh clone (equal and behind accepted, unpushed refused). Previous copies are kept beside the new ones on the machine. |
 | HK-D5 | Spotlight: a `.metadata_never_index` marker in the validation folder is **not honoured** on the validation machine's macOS (a probe file in the folder was still indexed after 90 s), so the marker was removed again. Renaming the folder with `.noindex` would break every pinned path. The working option is adding the folder to System Settings → Spotlight → Privacy on that machine, an operator action (an OS setting; not done by the agent). |
+| HK-D7 | Amendment 4 is marked ACCEPTED once design review rev-4 APPROVED: its own acceptance condition was an approving independent design review plus the operator scheduling the slices, and the operator's answer scheduled N1 for the next window. N2 is recorded as not yet scheduled. |
 | HK-D6 | No CHANGELOG entry in HK: the file has no Unreleased section, and the next release entry will describe the gate and limit changes. |
 
 ## Session Summary
@@ -89,7 +90,9 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
   fails E6 only.
 - Amendment 4 design review rev-3: **NEEDS REVISION** (one blocking
   MEDIUM: oldest-first pins did not match the code's fail-fast shape; one
-  LOW). Rev-4 corrects the pins; back with the reviewer.
+  LOW). Rev-4 corrects the pins.
+- Amendment 4 design review rev-4: **APPROVED** (all findings closed, no
+  false green). Amendment 4 ACCEPTED (HK-D7); PRD and ROADMAP updated.
 - HK1 code review (`9aaf136`): **APPROVED**, no findings.
 - Private runner relaxed and serial made the default (HK-D4); Spotlight
   marker tried and removed (HK-D5).
@@ -119,9 +122,7 @@ HK1 is implemented; its code review and validation are pending.
 
 ## Next Steps
 
-1. Amendment 4 rev-3 re-review; iterate to approval, then flip it to
-   ACCEPTED (N1 stays for the next window).
-2. Local serial validation, push, CI, serial gate with
+1. Local serial validation, push, CI, serial gate with
    `WAVE_BASE=7a8f00b`, close.
 
 ## Blockers

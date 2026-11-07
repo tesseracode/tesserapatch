@@ -1,7 +1,7 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 PROPOSED 2026-11-06, rev-4 2026-11-07 (draft, design only — GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design reviews rev-1 to rev-3 NEEDS REVISION, answered in rev-2 to rev-4; not accepted, authorizes no implementation)**
-**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4)
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 scheduled for the next window, N2 not yet scheduled; not implemented)**
+**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4, accepted)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-019 (`tpatch land` trailer-block schema — Amendment 1's evidence substrate), ADR-016 (`record` auto-base resolution — owner of `apply.base_commit`), ADR-028 (supersession edge model), ADR-032 (feature-unapply state boundary), `docs/prds/PRD-verify-freshness.md` (successor PRD), `docs/prds/PRD-tpatch-land.md` (Amendment 1 co-amended), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor PRD), `docs/dependencies.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2 fix this amendment must not regress)
@@ -1223,6 +1223,9 @@ unsupported (`internal/workflow/verify.go:1030`). None of these certifies.
 11. **Skip-and-pass when anchor H is unavailable (rev-1)** — an unverifiable
     historical half is an unverified feature.
 12. **Using the attestation candidate as the replay anchor (rev-1)** — E30.
+    Narrowed by Amendment 4 D40: an exact attestation that passes the same
+    `-C1` forward qualification is preferred; an unqualified attestation is
+    still never used.
 13. **Stop-at-first anchor selection (rev-2)** — contradicts the ambiguity
     rule it was paired with; D14 collects every qualifier first.
 14. **Qualifying anchor candidates with the reverse ladder (rev-2)** — E34:
@@ -1946,10 +1949,13 @@ verdict-relevant.
 
 ---
 
-# Amendment 4 (2026-11-06, PROPOSED — draft) — Attestation-preferred anchor selection and the R14 split — GH #26
+# Amendment 4 (2026-11-06, ACCEPTED 2026-11-07) — Attestation-preferred anchor selection and the R14 split — GH #26
 
-**Status of this amendment**: PROPOSED (draft, design only). Not accepted;
-authorizes no implementation. The operator's answers to
+**Status of this amendment**: ACCEPTED 2026-11-07 at rev-4, after the
+design review the operator requested on 2026-11-07 APPROVED it
+(`docs/supervisor/LOG.md`); the operator scheduled slice N1 for the next
+window. Nothing is implemented yet, and N2 still needs scheduling. The
+text below keeps the conditions it was proposed under. The operator's answers to
 `docs/prds/PRD-historical-anchor-relanding.md` §9 (2026-11-06) approve its
 semantics: option A (Q1), the newest qualifying exact attestation (Q2),
 R14b with `failed_at` unchanged (Q3), A3 out of scope (Q5) and this
@@ -2085,8 +2091,8 @@ Alternative 12 rejected using the attestation as the replay anchor
 **unconditionally**, because its parent may already contain the patch
 (E30). D40 uses an attestation only after it passes the same `-C1` forward
 qualification as every other candidate. When it does not (E30, A4-E3),
-selection is oldest-first exactly as before. On acceptance, alternative 12
-gains a pointer to D40; until then its text is unchanged.
+selection is oldest-first exactly as before. Alternative 12 carries a
+pointer to D40 since acceptance (2026-11-07).
 
 ### D42. R14 splits on ancestry (R14b)
 

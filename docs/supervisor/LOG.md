@@ -1,3 +1,25 @@
+## Review — GH #26 ADR-013 Amendment 4 design review rev-4 — 2026-11-07
+
+**Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
+**Task**: ADR-013 Amendment 4 rev-4 (`4a6b280`) full re-review (HK, A4R)
+
+### Verdict: APPROVED
+
+Rev-3 F1 (oldest-first pins) and F2 (T14's E6 mutation) closed. T14 is
+buildable and its control correctly pinned. D40 keeps exhaustive
+qualification, terminal errors and current-anchor authority; D42/D43
+aggregate order-independently, with shallow negatives and execution
+failures undetermined; Amendment 3's conditions are unchanged; D44 is an
+explicit blocking release gate for N1. No false green or contradiction with
+Amendments 1–3 or the operator's answers.
+
+### Action Taken
+
+Amendment 4 flipped to ACCEPTED (ADR-013 status line, heading and status
+paragraph; alternative 12 points to D40 per D41); PRD and ROADMAP updated
+(HK-D7). N1 is scheduled for the next window by the operator's answer; N2
+is not scheduled.
+
 ## Review — GH #26 ADR-013 Amendment 4 design review rev-3 — 2026-11-07
 
 **Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
