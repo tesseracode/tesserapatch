@@ -1,3 +1,32 @@
+## Review — GH #26 ADR-013 Amendment 4 design review rev-2 — 2026-11-07
+
+**Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
+**Task**: ADR-013 Amendment 4 rev-2 (`6bbdf7c`) full re-review (HK, A4R)
+
+### Verdict: NEEDS REVISION
+
+Rev-1 F1 (shallow), F4 (forward mode) and F5 (citations) closed; F2 and F3
+partially closed. No new false green. Findings:
+
+- **F1 MEDIUM (blocking)**: D43 still said R14 is never emitted "on a
+  failed query", contradicting D42/T15's `{failure, yes}` → R14.
+- **F2 MEDIUM (blocking)**: D44's allowlist (T1/T7/T11/T14) excluded T5,
+  whose correct red-to-red change (`parent-landing-drift` →
+  `landed-content-absent`) would block N1.
+- **F3 MEDIUM (blocking)**: T14's control (child not re-landed) fails E5
+  before E6 runs, so it cannot detect promotion without E6; the positive
+  case's E4 bindings were not established.
+
+### Action Taken
+
+All three confirmed against the ADR and code (arbitration failure returns
+before V7/V8 at `verify_anchored.go:513-519`; E4 checks only the
+child-to-target chain). Rev-3: D43 restated over the aggregate; D44 pins
+T1, T5, T7 and T14 (main and control) with both rules' results; T14
+specifies a P → T → C graph with unchanged T and C bytes, and a control
+whose child attestation lands on top of a trailer-less re-application, so
+it passes E1/E4/E5 and fails E6 only. Sent back to the same reviewer.
+
 ## Review — GH #26 ADR-013 Amendment 4 design review rev-1 — 2026-11-07
 
 **Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
