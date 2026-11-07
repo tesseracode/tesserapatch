@@ -1,3 +1,38 @@
+## Review — GH #26 ADR-013 Amendment 4 design review rev-1 — 2026-11-07
+
+**Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)
+**Task**: ADR-013 Amendment 4 (D40–D45) design review (HK, A4R)
+
+### Verdict: NEEDS REVISION
+
+No D40-specific false green was found. Findings:
+
+- **F1 MEDIUM (blocking)**: in a shallow repository `--is-ancestor` can
+  exit 1 because traversal stops at the graft boundary, so D43 would make a
+  false "not in the baseline's history" claim.
+- **F2 MEDIUM (blocking)**: D45's "no interaction with Amendment 3" is
+  wrong: D40 feeds P7 (historical half) and E6/P9 (the child's nested
+  verify), so a red run can newly be promoted; D44 must measure promotions
+  and anchor results and define which differences are acceptable.
+- **F3 MEDIUM (blocking)**: tests do not separate "newest qualifier" from
+  "newest exact attestation", nor "query only `attestation_commit`" from
+  "query every exact duplicate"; mixed failed/answered ancestry queries
+  need order-independent precedence.
+- **F4 MEDIUM (blocking)**: forward-mode targets (evidence `none`)
+  arbitrate at captured `HEAD` and have no replay anchor for R14b to name.
+- **F5 LOW**: four code citations drifted (R14 is at
+  `verify_anchored.go:735-736`; landed-evidence cites moved).
+
+### Action Taken
+
+All five confirmed against the code. Rev-2 (2026-11-07): D43 treats a
+shallow "no" as undetermined; D45/D44 state the Amendment 3 inputs and a
+pass criterion; D42 restricts the split to landed targets and defines
+order-independent aggregation (yes > undetermined > no); D40 pins selection
+among exact attestations only; citations refreshed; tests T11–T16 added.
+ADR-013's status line now records Amendment 3 as ACCEPTED (it said
+PROPOSED in v0.20.0's docs). Rev-2 sent back to the same reviewer.
+
 ## Supervisor decision — post-v0.20.0 housekeeping dispatch (HK) — 2026-11-07
 
 **Task**: operator review answers to NW-D20, NW-D24, NW-D25, Amendment 4,

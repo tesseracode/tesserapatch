@@ -72,6 +72,13 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
   2026-11-06T23:21:12Z. The release handoff that followed it is replaced
   here, as at the previous window start.
 - Operator answers recorded above; HK dispatched.
+- HK1 code committed at `9aaf136` (`[3/8]` ancestor check with a
+  behavioural test, AGENTS.md note, AM–AO/AP/AQ limits). Targeted tests
+  passed locally, and the new test fails on the pre-HK `[3/8]` recipe
+  (behind-advanced-main case).
+- Amendment 4 design review rev-1: **NEEDS REVISION** (F1–F4 MEDIUM, F5
+  LOW; no false green). Rev-2 answers all five and fixes ADR-013's status
+  line (Amendment 3 ACCEPTED); rev-2 is back with the reviewer.
 
 ## Current State
 
