@@ -1,3 +1,24 @@
+## Supervisor decision — v0.20.0 shipped; window closed (IDLE) — 2026-11-07
+
+**Task**: verify the v0.20.0 publication and close the 10-hour window
+
+### Decision: SHIPPED — Cluster state `IDLE`
+
+- `make release-check RELEASE=v0.20.0 GATED=7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`:
+  PASS 9/9 at `495ca59`; annotated tag `v0.20.0` on `495ca59`.
+- Tag CI 42311466816: all six jobs green including `release`; install
+  smoke and `Verify tag version` print `tpatch v0.20.0`. Release:
+  https://github.com/tesseracode/tesserapatch/releases/tag/v0.20.0
+  (published 2026-11-07T00:32:31Z).
+- Main CI 42311467064 (`495ca59`): `S7 observers (macos-latest)` failed
+  `TestS7ObservedAQRegistrationAuthority` on its hosted budget (513.5 s >
+  480 s inner, in PIB-487); the other four test jobs passed (`release`
+  is tag-only). Not a code failure:
+  nothing AQ observes changed, and the same commit passed AQ on tag CI in
+  309.7 s. NW-D25: no job rerun; the tracking-only close commit's main CI
+  reruns the whole matrix on the identical source. The evidence is added to
+  the "Observer child-budget headroom" backlog row.
+
 ## Supervisor decision — release consolidation v0.20.0 — 2026-11-06
 
 **Task**: publish W0, D and W1 (GH #25 A1) as v0.20.0

@@ -2,16 +2,20 @@
 
 ## Status
 
-**Cluster state**: ACCEPTED
+**Cluster state**: IDLE
 
-**W0, D and W1 (GH #25 A1) are accepted; v0.20.0 publication is pending
-tag CI.** The validated source `7b690b2` passed independent review, CI
-42278212760 (all five jobs) and a complete serial validation-machine gate
-with `WAVE_BASE=fddf4bd` (42/42 commands, 10,868.0 s, evidence verifier
-PASS). `7b690b2` already carries the v0.20.0 CHANGELOG section and the
-release-guard pin (release-candidate rule); this release commit changes
-only tracking files. Do not claim shipment until the tag CI and the
-automatic GitHub release succeed.
+**v0.20.0 shipped; the window is closed (IDLE).** W0, D and W1 (GH #25
+A1) are accepted. The validated source `7b690b2` passed independent
+review, CI 42278212760 (all five jobs) and a complete serial
+validation-machine gate with `WAVE_BASE=fddf4bd` (42/42 commands,
+10,868.0 s, evidence verifier PASS). The release commit `495ca59` changes
+only tracking files (release-candidate rule; `make release-check` 9/9).
+Tag CI 42311466816 passed all six jobs including `release`; the GitHub
+release was published at 2026-11-07T00:32:31Z:
+https://github.com/tesseracode/tesserapatch/releases/tag/v0.20.0.
+Main CI 42311467064 on the same commit failed one hosted-runner observer
+budget (NW-D25); this close commit's main CI reruns the full matrix on the
+identical source tree.
 
 The operator's 10-hour unattended window runs **2026-11-06T16:37:59Z** to
 **2026-11-07T02:37:59Z**. The operator authorized v0.20.0 if A1 shipped.
@@ -22,8 +26,8 @@ The operator's 10-hour unattended window runs **2026-11-06T16:37:59Z** to
 - **Milestone**: Post-v0.19 backlog — GH #25 A1 / v0.20.0
 - **Description**: Publish the accepted window work as v0.20.0, verify
   main and tag CI and the GitHub release, then close the window
-- **Status**: Release consolidation committed — `make release-check`,
-  annotated tag and pushes next
+- **Status**: Shipped — v0.20.0 tagged on `495ca59`, tag CI green,
+  release published; window closed
 - **Assigned**: 2026-11-06
 - **WAVE_BASE**: `fddf4bd1483572acbb5208324a376b5d1796e864`
 - **Validated source**: `7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`
@@ -101,17 +105,20 @@ Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
 | NW-D23 | W0's gate was not rerun; W1's gate on a tree containing W0 covers it. |
 | NW-D24 | Never push while a validation-machine gate runs (its serial fallback needs `origin/main` == the gated commit). |
 
+| NW-D25 | Main CI 42311467064 on `495ca59` failed only `TestS7ObservedAQRegistrationAuthority` on the hosted macOS runner: the child passed its 480 s inner budget (513.5 s, still in the PIB-487 mutation row). Not a code failure: nothing AQ observes changed in this window, the tag run on the same commit passed AQ in 309.7 s, and the gate passed. I did not rerun the job (a later push would cancel the rerun); this tracking-only close commit's main CI reruns the whole matrix on the same source. Budgets stay unchanged (guard-pinned; needs its own reviewed wave); the evidence is added to the "Observer child-budget headroom" backlog row. |
+
 Open for the operator: ADR-013 Amendment 4 (GH #26 N0) is PROPOSED and
 needs acceptance before any code; NW-D20 (a pre-existing defect fixed
 inside an A1 wave); NW-D24 (a new push rule while a gate runs). The
 validation machine started this gate with 1,752M of swap in use and no
 gate running, so it went straight to serial (see the OV-D17 discussion).
+NW-D25: hosted observer budgets (AQ now, AM-AO before) can fail on slow
+runners; the backlog row needs a decision before it recurs.
 
 ## Current State
 
-All window work is accepted. Remaining: tag v0.20.0, push main and the tag,
-verify both CI runs and the automatic release, then close the window
-(`Cluster state` → `IDLE`).
+Idle. `main` is at this close commit; `v0.20.0` is tagged on `495ca59`
+and published. No implementation is authorized.
 
 GH #25 stays open: C1–C2 and A1 shipped; B and C3 are not authorized.
 GH #26 has an ADR-013 Amendment 4 draft (PROPOSED) and GH #24 an approved
@@ -119,7 +126,7 @@ PRD with operator answers; neither has implementation authorization.
 
 ## Files Changed
 
-Release consolidation only (tracking files):
+Release consolidation `495ca59` and this close commit (tracking files only):
 
 - `docs/handoff/CURRENT.md`: this release handoff.
 - `docs/handoff/HISTORY.md`: the window archive.
@@ -137,15 +144,24 @@ commit `7b690b2`.
   (serial)**; 42/42 top-level commands, 39 timed test commands, 0
   concurrent test seconds, 10,868.0 s, evidence verifier PASS,
   wave-close-check 8/8.
-- `make release-check RELEASE=v0.20.0 GATED=7b690b2…`: run before the tag
-  (result in LOG).
+- `make release-check RELEASE=v0.20.0 GATED=7b690b2…`: **PASS 9/9** at
+  `495ca59`, before the tag.
+- Tag CI 42311466816 (`v0.20.0`, `495ca59`): all six jobs green, including
+  `release`. Install smoke and `Verify tag version` printed exactly
+  `tpatch v0.20.0` on Linux and macOS; the Windows install smoke printed it
+  too.
+- Main CI 42311467064 (`495ca59`): four of five test jobs green (`release`
+  is tag-only and skipped); `S7 observers (macos-latest)` failed the AQ hosted budget (513.5 s > 480 s inner),
+  NW-D25. The close commit's main CI is the rerun of record.
 
 ## Next Steps
 
-1. `make release-check RELEASE=v0.20.0 GATED=7b690b2e5cf92c7007c7f21175ecf0b7b05e27a9`.
-2. `git tag -a v0.20.0`; push main and the tag.
-3. Verify main CI, tag CI, the tagged install version and the GitHub
-   release; then close the window (`IDLE`) by `2026-11-07T02:37:59Z`.
+1. Check this close commit's main CI (full matrix on the v0.20.0 source).
+2. Operator decisions: ADR-013 Amendment 4 (GH #26 N0); NW-D20 and
+   NW-D24; whether to schedule the observer budget headroom row (NW-D25);
+   lane mode on the validation machine (swap).
+3. Next window candidates: GH #26 N0 code (if Amendment 4 is accepted),
+   GH #24, GH #25 B/C3 (not authorized).
 
 ## Blockers
 
