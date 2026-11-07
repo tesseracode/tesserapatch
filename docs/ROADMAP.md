@@ -39,8 +39,9 @@ present): ✅ ADR-013 Amendment 4 design review (GH #26; rev-4 APPROVED,
 Amendment 4 ACCEPTED 2026-11-07; N1 next window); ✅ ADR-013 status line
 fix; ✅ `wave-close-check [3/8]` ancestor check; ✅ hosted observer
 limits (NW-D25); HK1 at `9aaf136` (code review APPROVED, CI 42336508316
-green), serial validation-machine gate at the close commit. No release
-authorized. Decisions are
+green). ✅ **HK accepted** at close commit `41f2538` (CI 42341338991 green;
+serial validation-machine gate PASS, 42/42, wave-close-check 8/8). No
+release authorized; the changes ship with the next release. Decisions are
 HK-D* in `docs/handoff/CURRENT.md`.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.

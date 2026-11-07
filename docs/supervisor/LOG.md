@@ -1,3 +1,18 @@
+## Gate — HK close commit `41f2538` — 2026-11-07
+
+**Validation machine**, serial, `WAVE_BASE=7a8f00b`: **PASS**
+(2026-11-07T05:07:21Z to 08:09:14Z, 10,912.7 s). 42/42 top-level
+commands with exact command-multiset and preflight-order parity;
+wave-close-check 8/8 (`[3/8]` ancestor rule reported `41f2538` contained in
+`origin/main`; `[4/8]` nine wave commits with the trailer); no resource
+stop, no new swap-outs; no fixture daemon left. Hosted CI 42341338991 at
+`41f2538`: green on every job.
+
+### Action Taken
+
+HK accepted. Handoff archived byte-for-byte in HISTORY under
+2026-11-07T08:09:14Z; canonical field `IDLE`; ROADMAP flipped.
+
 ## Supervisor decision — HK wave close — 2026-11-07
 
 **Wave**: post-v0.20.0 housekeeping (HK), WAVE_BASE `7a8f00b`
