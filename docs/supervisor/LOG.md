@@ -1,3 +1,27 @@
+## Supervisor decision — HK wave close — 2026-11-07
+
+**Wave**: post-v0.20.0 housekeeping (HK), WAVE_BASE `7a8f00b`
+
+### Record
+
+- ADR-013 Amendment 4 design review: rev-1 to rev-3 NEEDS REVISION, rev-4
+  APPROVED; Amendment 4 ACCEPTED (HK-D7). N1 next window.
+- HK1 (`9aaf136`: `[3/8]` ancestor check, AGENTS.md note, AM–AO/AP/AQ
+  limits): code review APPROVED, no findings.
+- Local: gofmt, vet and build ok; targeted tests ok (HK-D8 for the
+  unsharded package process).
+- Hosted CI 42336508316 at `ac65af4`: success, including both S7 observer
+  jobs.
+- Validation-machine gate, first attempt at `ac65af4`: refused at `[5/8]`
+  (canonical field still `IN PROGRESS`); no Go step ran (HK-D9).
+
+### Decision: APPROVED
+
+Canonical field set to `APPROVED` in the close commit; the serial gate runs
+again at it. The gate result, HISTORY archive and `IDLE` follow in one
+tracking commit. Private runner changes (HK-D4) and the Spotlight finding
+(HK-D5) are recorded in the handoff.
+
 ## Review — GH #26 ADR-013 Amendment 4 design review rev-4 — 2026-11-07
 
 **Reviewer**: independent design reviewer (gpt-6.1-sol, static, no Go)

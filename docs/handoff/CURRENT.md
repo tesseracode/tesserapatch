@@ -2,7 +2,15 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**HK approved at its close commit (2026-11-07T05:10Z)**: ADR-013
+Amendment 4 design review rev-4 APPROVED and Amendment 4 ACCEPTED; HK1
+code review APPROVED; local validation and hosted CI 42336508316
+(`ac65af4`) pass. The serial validation-machine gate runs at this close
+commit (the first attempt at `ac65af4` was refused before any Go ran,
+HK-D9); its result is recorded by the next tracking commit, which also
+archives this handoff.
 
 **Post-v0.20.0 housekeeping wave (HK) dispatched** by the operator's review
 answers at 2026-11-07T02:30Z. The operator is present; this is not an
@@ -39,7 +47,7 @@ serial validation-machine gate with `WAVE_BASE=7a8f00b`.
   and CI hygiene
 - **Description**: Amendment 4 design review; ADR status fix; `[3/8]`
   ancestor check; hosted observer limits; backlog rows
-- **Status**: In progress — CI passed at `ac65af4`; serial gate running
+- **Status**: Approved — reviews and CI pass; serial gate at the close commit pending
 - **Assigned**: 2026-11-07
 - **WAVE_BASE**: `7a8f00bccfeb1e89f947c1c24590788541860691`
 
@@ -68,6 +76,7 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 | HK-D5 | Spotlight: a `.metadata_never_index` marker in the validation folder is **not honoured** on the validation machine's macOS (a probe file in the folder was still indexed after 90 s), so the marker was removed again. Renaming the folder with `.noindex` would break every pinned path. The working option is adding the folder to System Settings → Spotlight → Privacy on that machine, an operator action (an OS setting; not done by the agent). |
 | HK-D6 | No CHANGELOG entry in HK: the file has no Unreleased section, and the next release entry will describe the gate and limit changes. |
 | HK-D7 | Amendment 4 is marked ACCEPTED once design review rev-4 APPROVED: its own acceptance condition was an approving independent design review plus the operator scheduling the slices, and the operator's answer scheduled N1 for the next window. N2 is recorded as not yet scheduled. |
+| HK-D9 | The first validation-machine gate ran at `ac65af4`, whose handoff still read `IN PROGRESS`; `[5/8]` refused it after 63 s and the runner blocked every Go step that followed (its `[6/8]`–`[8/8]` failures are that block, not test results). A gate must run at the close commit, whose canonical field is terminal, as at earlier closes (W1 at `7b690b2`). Fix forward: this close commit sets `APPROVED` and the gate runs again at it. Because the only change since the green CI at `ac65af4` is tracking documents, the gate starts as soon as the close commit is pushed, in parallel with its CI, instead of waiting for that CI. |
 | HK-D8 | The local package step for `./internal/cli` is the targeted test set, not one unsharded `go test ./internal/cli` process: that process ran 60 minutes without a failure and was stopped by its own limit inside the AR observer (`TestS7ARPurgeProgressGuard`), as the unsharded package is known to exceed a single-process limit (the reason for the 22-process partition). The whole package is covered by the hosted CI shards and the serial validation-machine gate, as in W1. |
 
 ## Session Summary
@@ -102,8 +111,8 @@ WAVE_BASE = 7a8f00bccfeb1e89f947c1c24590788541860691
 
 `origin/main` is `ac65af4` (HK1 code, Amendment 4 rev-2 to rev-4 and
 ACCEPTED, local validation record). HK1 is reviewed APPROVED, passes local
-validation and hosted CI; the serial validation-machine gate at `ac65af4`
-is running.
+validation and hosted CI. The close commit (tracking only) follows; the
+serial validation-machine gate runs at it (HK-D9).
 
 ## Files Changed
 
@@ -128,14 +137,25 @@ is running.
   test jobs; S7 observers on ubuntu and macOS).
 - Validation machine: serial gate at `ac65af4` with `WAVE_BASE=7a8f00b`
   started 2026-11-07T05:00:03Z (serial by default, HK-D4; preparation
-  passed the new ancestor check). Result pending.
+  passed the new ancestor check). **Refused at `[5/8]`** after 63 s:
+  the canonical field read `IN PROGRESS` (HK-D9). `[1/8]`–`[4/8]` passed
+  (the ancestor check reported `ac65af4` contained in `origin/main`, and
+  seven wave commits carry the trailer); no Go step ran.
+- Validation machine, second attempt: serial gate at the close commit;
+  result recorded by the next tracking commit.
 - Private runner stub harness: 15/15 locally and on the machine; 3/15 fail
   against the previous runner.
 
 ## Next Steps
 
-1. Local serial validation, push, CI, serial gate with
-   `WAVE_BASE=7a8f00b`, close.
+1. Serial validation-machine gate at the close commit with
+   `WAVE_BASE=7a8f00b`; hosted CI at the close commit.
+2. On PASS: record the result, archive this handoff to HISTORY under a
+   dated header, set the canonical field to `IDLE`, push.
+3. Report to the operator: HK-D1..HK-D9; the Spotlight exclusion needs a
+   System Settings entry on the validation machine (HK-D5); CHANGELOG is
+   deferred to the next release (HK-D6); GH #26 N1 is ready for the next
+   window.
 
 ## Blockers
 
