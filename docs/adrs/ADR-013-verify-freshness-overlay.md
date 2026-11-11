@@ -1,6 +1,6 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 (D40, D41, D44) implemented 2026-11-11 and approved on code review; its D44 measurement found differences rev-4's pins did not name, so rev-5 (2026-11-11, D44 only) answers them, design review rev-5 APPROVED; N1's release waits for D44 item 2 and the release gates; N2 not yet scheduled)**
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 (D40, D41, D44) implemented 2026-11-11 and approved on code review; its D44 measurement found differences rev-4's pins did not name, so rev-5 (2026-11-11, D44 only) answers them, design review rev-5 APPROVED; N1 shipped in v0.21.0; slice N2 (D42, D43) scheduled and implemented 2026-11-11, approved on code review, not yet released)**
 **Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4, accepted) · 2026-11-11 (Amendment 4 rev-5, D44 only)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
@@ -1961,8 +1961,12 @@ window. N1 was implemented on 2026-11-11 (`internal/workflow/verify_landed.go`,
 tests in `internal/workflow/verify_anchor_selection_test.go`) and its code
 review approved it. Its D44 measurement found differences that rev-4's
 pins did not name; revision 5 answers them, and its design review
-APPROVED it on 2026-11-11. N1's release waits for D44 item 2 and the
-release gates. N2 still needs scheduling. The text below keeps the conditions it was proposed under. The operator's answers to
+APPROVED it on 2026-11-11. N1 shipped in v0.21.0. The operator
+scheduled N2 on 2026-11-11 and it was implemented that day
+(`internal/workflow/verify_anchored.go`, remediation strings in
+`internal/workflow/verify_landed.go`, tests in
+`internal/workflow/verify_r14b_test.go`); its code review approved it and
+it is not yet released. The text below keeps the conditions it was proposed under. The operator's answers to
 `docs/prds/PRD-historical-anchor-relanding.md` §9 (2026-11-06) approve its
 semantics: option A (Q1), the newest qualifying exact attestation (Q2),
 R14b with `failed_at` unchanged (Q3), A3 out of scope (Q5) and this
@@ -2122,7 +2126,7 @@ pointer to D40 since acceptance (2026-11-07).
 
 In closure arbitration (D13), when a landed hard member's ladder blocks at
 the target's anchor tree
-(`internal/workflow/verify_anchored.go:735-736`), verify asks, through the
+(`internal/workflow/verify_anchored.go:740-742`), verify asks, through the
 existing offline ancestry gateway
 (`internal/workflow/verify_gitgate.go:73`), whether **any** of the member's
 exact attestation commits (one for `exact`, each duplicate for
