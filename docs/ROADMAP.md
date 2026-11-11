@@ -54,7 +54,9 @@ inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*
 decisions are archived in `docs/handoff/HISTORY.md`. N1 progress: code
 `6bb6d13` APPROVED on review; D44 item 1 measured — it blocks under
 Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review
-rev-5 APPROVED. D44 item 2 (t3code) and the release gates remain.
+rev-5 APPROVED. D44 item 2 (t3code, SW-D10): N1 moves `attention-notifications`
+to the genuine new base; every verdict is unchanged, and the remaining block
+is D42's R14b case for N2. The release gates remain.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.

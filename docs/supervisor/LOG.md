@@ -1,3 +1,23 @@
+## Implementation — GH #26 N1 D44 item 2 (t3code) — 2026-11-11
+
+**Implementer**: implementation agent (SW window).
+
+### Notes
+
+Read-only re-run of the five GH #26 roots at t3code `5ce5d79` with the
+pre-N1 base (`c5bc3f8`) and N1 (`6bb6d13`); clone unchanged afterwards.
+Exit codes and `failed_at` are identical under both. N1 changes only
+`attention-notifications`' anchor, from `75bfc26` to the genuine new base
+`19785c6`. All four failing roots still block on closure member
+`copilot-cli-provider`, whose only exact attestation (`92e65de`) is in
+none of their anchors' history: D42's R14b case, for N2. Recorded as
+SW-D10.
+
+### Action Taken
+
+D44 is complete. The release proceeds to the `bin/` fix and the release
+gates; GH #26 stays open for N2.
+
 ## Design review — ADR-013 Amendment 4 rev-5 (D44 only) — 2026-11-11
 
 **Reviewer**: independent static review (gpt-6.1-sol; no Go run).
