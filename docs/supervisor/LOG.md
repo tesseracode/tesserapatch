@@ -1,3 +1,27 @@
+## Code review — `bin/` local checks (SW-D11, `c80c0bb`) — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+
+No bug and no CI risk. The extracted walk preserves the old pruning,
+filters and error propagation, and fails closed on a `go.mod` stat error;
+the nested-module skip cannot hide a test the root module's CI runs (the
+only tracked `go.mod` is the root's; CI and the wave-close shards run `./...`
+or `./internal/cli`). MB1–MB3 must fail the fixture. Two plausible
+mutations would escape it: skipping `bin/` by name (every nested module in
+the fixture sat under `bin/`), and reading a `go.mod` stat error as absent.
+
+### Action Taken
+
+Fixed forward: the fixture adds a nested module outside `bin/`, and a
+self-referencing `go.mod` symlink (not on Windows) that must fail the walk.
+MB4 (skip by name) and MB5 (stat error swallowed) are caught on their
+intended assertions; MB1–MB3 still caught; the end-to-end check is
+unchanged.
+
 ## Implementation — `bin/` local checks (SW-D11) — 2026-11-11
 
 **Implementer**: implementation agent (SW window).

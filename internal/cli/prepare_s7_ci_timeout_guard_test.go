@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -1264,6 +1265,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		"bin/loose_test.go":         "package bin\n\nfunc TestS7ARLoose() {}\n",
 		"bin/snapshot/go.mod":       "module example.invalid/snapshot\n",
 		"bin/snapshot/internal/cli/skipped_test.go":   "package cli\n\nfunc TestS7ARSkipped() {}\n",
+		"tools/nested/go.mod":                         "module example.invalid/nested\n",
+		"tools/nested/internal/cli/nested_test.go":    "package cli\n\nfunc TestS7ARNested() {}\n",
 		"tools/go.mod/README":                         "a directory named go.mod is not a module\n",
 		"tools/internal/cli/kept_directory_test.go":   "package cli\n\nfunc TestS6AKept() {}\n",
 		"internal/store/unrelated_test.go":            "package store\n\nfunc TestUnrelated() {}\n",
@@ -1290,6 +1293,20 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 		"internal/cli/kept_test.go", "tools/internal/cli/kept_directory_test.go",
 	}; !slices.Equal(visited, want) {
 		t.Fatalf("S7 partition walk visited %q, want %q (root module only)", visited, want)
+	}
+	// A go.mod that cannot be read must fail the walk, not be taken as
+	// absent. A self-referencing symlink makes the stat fail with ELOOP.
+	if runtime.GOOS != "windows" {
+		loopTree := t.TempDir()
+		if err := os.Mkdir(filepath.Join(loopTree, "loop"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("go.mod", filepath.Join(loopTree, "loop", "go.mod")); err != nil {
+			t.Fatal(err)
+		}
+		if err := walkS7PartitionTestFiles(loopTree, func(string, []byte) error { return nil }); err == nil {
+			t.Fatal("S7 partition walk read an unreadable go.mod as absent (want the walk to fail)")
+		}
 	}
 	if err := validateS7ARPartitionTestOwner(
 		"internal/store/injected_test.go", "TestS7ARInjected",

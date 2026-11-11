@@ -40,7 +40,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix validated (SW-D11), awaiting static review. Still to do: release.
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Still to do: release.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -98,7 +98,8 @@ D44 item 1 (every verify fixture under both rules) is measured: see SW-D9.
 ADR-013 Amendment 4 rev-5 (D44 only) answers it; its design review
 APPROVED it. D44 item 2 (the t3code reproduction) is recorded: see SW-D10.
 
-The `bin/` local-check fix (SW-D11) is validated and awaits static review.
+The `bin/` local-check fix (SW-D11) is validated; its static review
+APPROVED it with notes, answered by two more fixtures (MB4, MB5).
 Its mutation proofs, run on the validation machine's development clone:
 
 | # | Mutation | Result |
@@ -106,6 +107,11 @@ Its mutation proofs, run on the validation machine's development clone:
 | MB1 | Nested modules walked | `TestS7CIFullSuiteTimeoutGuard` fails |
 | MB2 | Root module itself treated as nested | `TestS7CIFullSuiteTimeoutGuard` fails |
 | MB3 | A directory named `go.mod` read as a module | `TestS7CIFullSuiteTimeoutGuard` fails |
+| MB4 | `bin/` skipped by name instead of by module detection | `TestS7CIFullSuiteTimeoutGuard` fails (nested module outside `bin/` visited) |
+| MB5 | A `go.mod` stat error read as "absent" | `TestS7CIFullSuiteTimeoutGuard` fails (self-referencing `go.mod` symlink) |
+
+MB4 and MB5 answer the static review of `c80c0bb` (APPROVED WITH NOTES),
+which named both as mutations the first fixture would not catch.
 
 ### N1 mutation proofs (validation machine, development clone)
 
@@ -168,9 +174,10 @@ file was restored afterwards.
   SHA-256 base `7353284f…`, N1 `3c53c08e…`; private summary
   `7ed28cfa…`.
 - `bin/` fix (SW-D11; validation machine, development clone, guard file
-  checked identical, SHA-256 `bffc4401…`): gofmt clean;
-  `go vet ./internal/cli/` clean; `TestS7CIFullSuiteTimeoutGuard` `ok`;
-  MB1–MB3 caught. End-to-end, with scratch copies of the operator's local
+  checked identical, SHA-256 `022c39cc…` after the review fixtures):
+  gofmt clean; `go vet ./internal/cli/` clean;
+  `TestS7CIFullSuiteTimeoutGuard` `ok`; MB1–MB5 caught, each on its
+  intended assertion. End-to-end, with scratch copies of the operator's local
   failure shapes under an ignored `bin/` (removed afterwards): without the
   stub the guard fails on the loose `bin/` test ("outside internal/cli"),
   and the nested snapshot module is skipped; with the stub it passes and
@@ -178,8 +185,9 @@ file was restored afterwards.
 
 ## Next Steps
 
-1. `bin/` fix: static review, commit.
-2. Release candidate; push; CI; serial gate; release check; tag.
+1. Release candidate (CHANGELOG v0.21.0, release-guard pin, Cluster state
+   APPROVED); local doc and asset checks; push; CI; serial gate; release
+   check; tag.
 
 ## Blockers
 
