@@ -47,7 +47,8 @@ release authorized; the changes ship with the next release.
 unattended window (SW, deadline 2026-11-11T16:41:56Z, WAVE_BASE
 `c5bc3f8`): 🚧 GH #26 N1 (Amendment 4 D40/D41/D44); ⬜ test-time
 profiling (measure only); ✅ validation-run queue (private runner, SW-D7);
-⬜ `bin/` snapshots and local whole-tree checks; ⬜ v0.21.0 after N1 if
+🚧 `bin/` snapshots and local whole-tree checks (SW-D11, in review; SW-Q1
+open); ⬜ v0.21.0 after N1 if
 every gate passes. Follow-ups if time allows: GH #26 N2, GH #18–#20
 read-only rebaseline, low-risk profiling fixes, GH #25 B design, GH #17
 inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*

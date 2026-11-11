@@ -1256,6 +1256,41 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 	if err := validateS7ARPartitionTestOwners(avpRepoRoot(t)); err != nil {
 		t.Fatal(err)
 	}
+	moduleTree := t.TempDir()
+	for rel, body := range map[string]string{
+		"go.mod":                    "module example.invalid/root\n",
+		"internal/cli/kept_test.go": "package cli\n\nfunc TestS7AXKept() {}\n",
+		"bin/go.mod":                "module example.invalid/private\n",
+		"bin/loose_test.go":         "package bin\n\nfunc TestS7ARLoose() {}\n",
+		"bin/snapshot/go.mod":       "module example.invalid/snapshot\n",
+		"bin/snapshot/internal/cli/skipped_test.go":   "package cli\n\nfunc TestS7ARSkipped() {}\n",
+		"tools/go.mod/README":                         "a directory named go.mod is not a module\n",
+		"tools/internal/cli/kept_directory_test.go":   "package cli\n\nfunc TestS6AKept() {}\n",
+		"internal/store/unrelated_test.go":            "package store\n\nfunc TestUnrelated() {}\n",
+		"internal/store/.tpatch/hidden_state_test.go": "package store\n\nfunc TestS7AXHidden() {}\n",
+	} {
+		path := filepath.Join(moduleTree, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var visited []string
+	if err := walkS7PartitionTestFiles(moduleTree, func(path string, _ []byte) error {
+		rel, err := filepath.Rel(moduleTree, path)
+		visited = append(visited, filepath.ToSlash(rel))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(visited)
+	if want := []string{
+		"internal/cli/kept_test.go", "tools/internal/cli/kept_directory_test.go",
+	}; !slices.Equal(visited, want) {
+		t.Fatalf("S7 partition walk visited %q, want %q (root module only)", visited, want)
+	}
 	if err := validateS7ARPartitionTestOwner(
 		"internal/store/injected_test.go", "TestS7ARInjected",
 	); err == nil {
@@ -1827,28 +1862,7 @@ func validateS7ARPartitionTestOwners(root string) error {
 		"linux":  make([]int, len(shards)),
 		"darwin": make([]int, len(shards)),
 	}
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == ".git" || entry.Name() == ".tpatch" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(entry.Name(), "_test.go") {
-			return nil
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		if !strings.Contains(string(content), "TestS6") &&
-			!strings.Contains(string(content), "TestS7") &&
-			!strings.Contains(string(content), "TestAVP") {
-			return nil
-		}
+	err := walkS7PartitionTestFiles(root, func(path string, content []byte) error {
 		file, err := parser.ParseFile(token.NewFileSet(), path, content, 0)
 		if err != nil {
 			return err
@@ -1902,6 +1916,57 @@ func validateS7ARPartitionTestOwners(root string) error {
 		}
 	}
 	return nil
+}
+
+// walkS7PartitionTestFiles visits the root module's `_test.go` files that
+// mention S6, S7 or AVP tests. Like `go test ./...`, it never descends into
+// a nested module (a directory below root with its own go.mod): the root
+// module's CI never runs those tests.
+func walkS7PartitionTestFiles(root string, visit func(path string, content []byte) error) error {
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == ".tpatch" {
+				return filepath.SkipDir
+			}
+			if path != root {
+				nested, err := s7IsNestedModuleRoot(path)
+				if err != nil {
+					return err
+				}
+				if nested {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(content), "TestS6") &&
+			!strings.Contains(string(content), "TestS7") &&
+			!strings.Contains(string(content), "TestAVP") {
+			return nil
+		}
+		return visit(path, content)
+	})
+}
+
+func s7IsNestedModuleRoot(dir string) (bool, error) {
+	info, err := os.Stat(filepath.Join(dir, "go.mod"))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return !info.IsDir(), nil
 }
 
 func s7ARPartitionNonWindowsEligibility(path string) (map[string]bool, error) {

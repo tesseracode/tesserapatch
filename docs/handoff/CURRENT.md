@@ -40,7 +40,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). Still to do: `bin/` fix, release.
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix validated (SW-D11), awaiting static review. Still to do: release.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -72,6 +72,13 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | SW-D8 | The D44 harness is private and never committed. It runs an oldest-first shadow beside D40 on a separate run context and records only the runs that differ or whose anchor moved. Tests that count Git calls may fail under it (the shadow doubles them); only the recorded differences count. As D44 requires, any difference outside the pinned fixtures blocks, even one shaped like T7 (both exit 0, only the replay anchor moved); it is resolved by revising Amendment 4 and repeating its design review. (Review of `6bb6d13` caught an earlier draft that exempted the T7 shape.) |
 | SW-D9 | **D44 item 1 result: blocks under rev-4, passes under rev-5.** 406 recorded runs (252 tests; `internal/workflow` whole, plus 39 cli verify tests). Fourteen runs had a moved anchor. Every pinned run (T1, T5, T14 main, T14 control) matches its pin's exit code, `failed_at`, V7/V8 results, overlap class and promotion, checked by script. Rev-4 still blocks, for three reasons. Six runs of four unpinned fixtures differ exactly as T7 does: AC-L29, AC-L36 and the precondition run of the two rev-2 duplicate-attestation tests, all built by `RelandIdentical`, so every qualifier is an exact attestation of one identity. T7's own run also moves the historical anchor's `commit` and the target's V10 member baseline, which record the same selection. T14 main's run of the child's own verify is implied by its pin but not named. So I revised Amendment 4 to rev-5 instead of declaring a pass: it names all three, and states the A/A rule for harness artifacts; D40, the rest of the criterion and every other pin are unchanged. Nine runs differ without a moved anchor (seven in workflow, two in cli). An A/A control run (the harness with D40 on both sides) reproduces each one with the same report values, apart from commit IDs and temporary paths, which change with every fixture build. The causes are one-shot fault hooks consumed by the shadow, the shadow's `NoWrite`, `verify --all`'s shared shadow context seeing the real run's writes, and a temporary path. The seven tests that fail only under the harness (two Git-call counters, five one-shot hooks) fail identically under A/A. Under rev-5's rules no run blocks. I did not ask the operator, because Amendment 4 (D44) already makes a revision plus a repeated design review the remedy. Design review rev-5 APPROVED it (no findings). |
 | SW-D10 | **D44 item 2 (t3code `5ce5d79`, read-only) does not block the release.** I ran the five GH #26 roots with the pre-N1 base (`c5bc3f8`) and N1 (`6bb6d13`), both built from `git archive`; the clone's state hash was unchanged afterwards. `copilot-cli-provider` exits 0 under both, identical apart from the timestamp. The four failing roots exit 2 at `parent-landing-drift` under both. Three have a single qualifier, so D40 cannot change them. For `attention-notifications`, N1 moves the anchor from `75bfc26` (replay `55fd4d7`) to `19785c6` (replay `964529c`), the genuine new base GH #26 names; nothing else in its report changes. All four still block on the closure member `copilot-cli-provider`: its only exact attestation `92e65de` is in none of their anchors' history, so its canonical patch is absent there. That is D42's R14b case, which N2 addresses (better remediation, same verdict). No passing root fails and no verdict changes, so I let the release proceed and left GH #26 open for N2. I posted no comment; a draft is in the morning report. |
+| SW-D11 | **`bin/` local checks (NW-D12): match Go's module boundary, plus a private stub.** Tracked part: the S7 partition-owner walk (`walkS7PartitionTestFiles` in `internal/cli/prepare_s7_ci_timeout_guard_test.go`) no longer descends into a nested module, that is a directory below the root that holds a `go.mod` file, because `go test ./...` never runs those tests either. A directory named `go.mod` is not a module; any other stat error fails the walk. I did not skip `bin/` by name: that would also hide a tracked test file placed there. Private part: an untracked, ignored `bin/go.mod` stub (`module tpatch.invalid/private-bin`) makes the whole private tree one nested module, so locally `go vet ./...`, `go test ./...` and the S7 walk skip it. `gofmt -l .` still lists 72 private files under `bin/` (copies of third-party module sources inside old snapshots); removing them deletes private data, so I held that as SW-Q1. Gates are unaffected: the validation machine's clean clone has no `bin/`. |
+
+### Open questions (SW-Q*)
+
+| ID | Question |
+|---|---|
+| SW-Q1 | May I delete the 72 unformatted third-party files under the private `bin/` snapshots (or the snapshots that hold them), so that local `gofmt -l .` is clean? Nothing has been deleted. |
 
 ## Session Summary
 
@@ -90,6 +97,15 @@ reports and the schema are unchanged, and no Git call was added.
 D44 item 1 (every verify fixture under both rules) is measured: see SW-D9.
 ADR-013 Amendment 4 rev-5 (D44 only) answers it; its design review
 APPROVED it. D44 item 2 (the t3code reproduction) is recorded: see SW-D10.
+
+The `bin/` local-check fix (SW-D11) is validated and awaits static review.
+Its mutation proofs, run on the validation machine's development clone:
+
+| # | Mutation | Result |
+|---|---|---|
+| MB1 | Nested modules walked | `TestS7CIFullSuiteTimeoutGuard` fails |
+| MB2 | Root module itself treated as nested | `TestS7CIFullSuiteTimeoutGuard` fails |
+| MB3 | A directory named `go.mod` read as a module | `TestS7CIFullSuiteTimeoutGuard` fails |
 
 ### N1 mutation proofs (validation machine, development clone)
 
@@ -122,6 +138,7 @@ file was restored afterwards.
   `docs/prds/PRD-historical-anchor-relanding.md`.
 - Amendment 4 rev-5 (D44 only): `docs/adrs/ADR-013-verify-freshness-overlay.md`,
   `docs/prds/PRD-historical-anchor-relanding.md` (status line).
+- `bin/` fix (SW-D11): `internal/cli/prepare_s7_ci_timeout_guard_test.go`.
 
 ## Test Results
 
@@ -150,10 +167,18 @@ file was restored afterwards.
   `6bb6d13`, darwin/arm64, from `git archive`): see SW-D10. Binary
   SHA-256 base `7353284f…`, N1 `3c53c08e…`; private summary
   `7ed28cfa…`.
+- `bin/` fix (SW-D11; validation machine, development clone, guard file
+  checked identical, SHA-256 `bffc4401…`): gofmt clean;
+  `go vet ./internal/cli/` clean; `TestS7CIFullSuiteTimeoutGuard` `ok`;
+  MB1–MB3 caught. End-to-end, with scratch copies of the operator's local
+  failure shapes under an ignored `bin/` (removed afterwards): without the
+  stub the guard fails on the loose `bin/` test ("outside internal/cli"),
+  and the nested snapshot module is skipped; with the stub it passes and
+  `go list ./...` lists no `bin/` package.
 
 ## Next Steps
 
-1. `bin/` local-check fix (mutation proofs, end-to-end check, review).
+1. `bin/` fix: static review, commit.
 2. Release candidate; push; CI; serial gate; release check; tag.
 
 ## Blockers

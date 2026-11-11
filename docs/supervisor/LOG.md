@@ -1,3 +1,23 @@
+## Implementation — `bin/` local checks (SW-D11) — 2026-11-11
+
+**Implementer**: implementation agent (SW window).
+
+### Notes
+
+The S7 partition-owner walk in `prepare_s7_ci_timeout_guard_test.go` now
+stops at nested modules (a directory below the root holding a `go.mod`
+file), matching `go test ./...`; a directory named `go.mod` is not a
+module, and other stat errors fail the walk. A private, ignored
+`bin/go.mod` stub makes the private snapshots one nested module, so local
+`go vet ./...`, `go test ./...` and the walk skip them. Mutations MB1–MB3
+are caught; the end-to-end check reproduces the local failure without the
+stub and passes with it. `gofmt -l .` still lists 72 private third-party
+files under `bin/`; their deletion is held as SW-Q1 for the operator.
+
+### Action Taken
+
+Committed; static review requested before the release candidate.
+
 ## Implementation — GH #26 N1 D44 item 2 (t3code) — 2026-11-11
 
 **Implementer**: implementation agent (SW window).
