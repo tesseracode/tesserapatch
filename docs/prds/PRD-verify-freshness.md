@@ -1960,9 +1960,9 @@ is proven:
 | AC-L31 | Measured semantics hold: at a clean pre-landing parent tree forward passes and reverse fails; at the landing itself forward fails and reverse passes. Both directions asserted on one fixture. | W |
 | AC-L32 | A candidate parent carrying unrelated drift **inside** the patch's context window does **not** qualify, and the report says so rather than claiming immunity. | W |
 | AC-L33 | **Re-record + re-land**: both landings are collected; the newest **fails** qualification (its parent already contains the feature) and the earlier **qualifies**. `attestation_commit` ≠ `replay_anchor_commit` in the report. | W+C |
-| AC-L34 | Two qualifying candidates with **equal** normalized identity (cherry-pick then merge-back) ⇒ selection proceeds, `candidates_qualified: 2`, topo-oldest chosen. | W |
+| AC-L34 | Two qualifying candidates with **equal** normalized identity (cherry-pick then merge-back) ⇒ selection proceeds, `candidates_qualified: 2`, topo-oldest chosen. **Amended by ADR-013 Amendment 4 D40 (T7):** both qualifiers are exact attestations, so the newer is chosen. | W |
 | AC-L35 | Two qualifying candidates with **differing** normalized identity ⇒ **FAIL `historical-anchor-unavailable`** (R11). Not silently resolved by picking one. | W |
-| AC-L36 | Selection is deterministic across repeated runs: first in `--topo-order --reverse`, then lexicographically smallest commit id. | U+W |
+| AC-L36 | Selection is deterministic across repeated runs: first in `--topo-order --reverse`, then lexicographically smallest commit id (ADR-013 Amendment 4 D40: the newest exact attestation when any qualifier is one). | U+W |
 | AC-L37 | The anchor search never broadens beyond exact-slug trailer commits; a non-trailer commit that introduced the same paths is never selected. Adversarial. | U+W |
 | AC-L38 | A stale-hash qualifying candidate supplies **only** a tree: it never appears as `attestation_commit`, never changes `landing_evidence.state`, and never relaxes the attestation requirement. | W |
 | AC-L39 | **No qualifier ⇒ FAIL `historical-anchor-unavailable`** with R11; V7, V8-historical and V10 all report `passed: false` **with `mode` present** — failed, not skipped. | W+C |

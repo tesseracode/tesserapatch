@@ -40,7 +40,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — dispatched
+- **Status**: In progress — N1 committed (code, tests, docs); mutation proofs 10/10; package and doc guards pass; code review and D44 measurement pending
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -63,6 +63,13 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | ID | Decision |
 |---|---|
 | SW-D1 | Window starts at the baseline check (2026-11-11T00:41:56Z); WAVE_BASE `c5bc3f8`; deadline 16 hours later. |
+| SW-D2 | Amendment 4 test mapping: T2 is AC-L33 (now also checks `verify --all` equality), T6 is AC-L35, T7 is AC-L34. AC-L34 is renamed `TestACL34_EqualIdentityQualifiersSelectNewestAttestation` and now pins the newer attestation; the acceptance ledger and the PRD row say so. T1, T5, T6b, T8, T11 and T14 (main and control) are new, in `internal/workflow/verify_anchor_selection_test.go`. T6b is new because the existing R7 row pins neither `failed_at` nor that no anchor was resolved. |
+| SW-D3 | T6b pins the terminal anchor block (`unavailable`, 0 collected, 0 qualified, no replay anchor) instead of an absent block: the terminal phase always writes one. |
+| SW-D4 | D40 and D10 share one trailer test (`expectedAttestationTrailers`), so "exact attestation" cannot mean different things in evidence and in selection. |
+| SW-D5 | T8's shim fails only `git read-tree <attestation>^`, so the older landing still qualifies; the mutation "error read as does not qualify" then silently selects it and fails the test. |
+| SW-D6 | Local admission did not pass (the development machine was busy). Development test runs moved to the validation machine, in a private development clone under the same 60-second admission. Gates still use the reviewed runner. |
+| SW-D7 | The validation-run queue is private and untracked: first in, first out; one worker at a time; an entry past its deadline is recorded expired, not run; the verdict comes from the gate's own verdict line. Its 15 self-tests pass on both machines and seven mutations are caught. It queues gates; it never changes the reviewed runner. |
+| SW-D8 | The D44 harness is private and never committed. It runs an oldest-first shadow beside D40 on a separate run context and records only the runs that differ or whose anchor moved. Tests that count Git calls may fail under it (the shadow doubles them); only the recorded differences count. A difference outside the pinned fixtures blocks unless it is T7's shape: both exit 0 and only the replay anchor moved. |
 
 ## Session Summary
 
@@ -74,24 +81,64 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 
 ## Current State
 
-Dispatch only; no code yet.
+N1 is implemented and tested, but not yet committed. D14 step 4 now
+prefers the newest qualifying exact attestation (D40). Steps 1–3, the
+reports and the schema are unchanged, and no Git call was added.
+
+Still to do: the whole `internal/workflow` run with the doc edits, the
+D44 measurement, and code review.
+
+### N1 mutation proofs (validation machine, development clone)
+
+Each mutation was applied privately, the named tests were run, and the
+file was restored afterwards.
+
+| # | Mutation | Test that fails |
+|---|---|---|
+| M1 | Oldest-first restored | T1, T5, T14 main, AC-L34 (T11 still passes, as pinned) |
+| M2 | Attestation used without qualification | AC-L33 (T2) |
+| M3 | Identity compare skipped when an attestation qualifies | AC-L35 (T6) |
+| M4 | D40 runs before evidence classification (ambiguous routed to landed) | T6b |
+| M5 | Probe error read as "does not qualify" | T8 |
+| M6 | Newest qualifier whenever an exact attestation qualifies | T11 |
+| M7 | E6 dropped from eligibility | T14 control |
+| M8 | Anchor C skipped when anchor H passes | T5 |
+| M9 | Nested verify selects oldest-first (target unchanged) | T14 main (T1 still passes) |
+| M10 | Oldest among the exact attestations | AC-L34 (T7) |
 
 ## Files Changed
 
 - Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`.
+- N1 (uncommitted): `internal/workflow/verify_landed.go`,
+  `internal/workflow/verify_anchor_selection_test.go` (new),
+  `internal/workflow/verify_landed_groupd_test.go`,
+  `internal/workflow/acceptance_ledger_test.go`, `SPEC.md`,
+  `docs/adrs/ADR-013-verify-freshness-overlay.md`,
+  `docs/prds/PRD-verify-freshness.md`,
+  `docs/prds/PRD-historical-anchor-relanding.md`.
 
 ## Test Results
 
-- None yet.
+- Validation machine, development clone at `cf2db23` plus the N1 diff:
+  gofmt clean; `go vet ./internal/workflow/` clean. The 25 targeted tests
+  pass: `TestA4*`, AC-L33–AC-L37, the rev-2 duplicate-attestation rows and
+  the acceptance ledger. All ten mutations are caught.
+- Whole `internal/workflow` package (same clone, code and tests synced,
+  before the doc edits): `ok` in 1,415 s.
+- Doc guards with the final doc edits (same clone; synced bytes checked
+  identical): gofmt clean; 33 workflow doc and ledger guards `ok`;
+  `./assets` `ok`; 11 cli doc and contract guards `ok`; `go vet ./...`
+  clean; `go build ./cmd/tpatch` ok.
 
 ## Next Steps
 
-1. W1: implement D40 in anchor resolution; tests T1, T2, T5, T6, T6b, T7,
-   T8, T11, T14 with mutation fixtures; D44 measurement harness.
-2. In parallel (no shared files): private validation-run queue; test-time
-   profiling from existing evidence.
-3. Code review; local validation; push; CI; serial gate.
+1. Static code review of N1 (gpt-6.1-sol); fix forward.
+2. D44 measurement on the validation machine (oldest-first shadow beside
+   D40, whole workflow package plus the cli verify tests); compare the
+   pinned fixtures with ADR-013's table.
+3. Read-only `t3code@5ce5d79` reproduction with the N1 binary.
+4. `bin/` local-check fix; release candidate; push; CI; serial gate.
 
 ## Blockers
 

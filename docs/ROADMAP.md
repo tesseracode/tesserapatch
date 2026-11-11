@@ -46,12 +46,12 @@ release authorized; the changes ship with the next release.
 **Update 2026-11-11T00:41:56Z**: the operator authorized a 16-hour
 unattended window (SW, deadline 2026-11-11T16:41:56Z, WAVE_BASE
 `c5bc3f8`): 🚧 GH #26 N1 (Amendment 4 D40/D41/D44); ⬜ test-time
-profiling (measure only); ⬜ validation-run queue (private runner);
+profiling (measure only); ✅ validation-run queue (private runner, SW-D7);
 ⬜ `bin/` snapshots and local whole-tree checks; ⬜ v0.21.0 after N1 if
 every gate passes. Follow-ups if time allows: GH #26 N2, GH #18–#20
 read-only rebaseline, low-risk profiling fixes, GH #25 B design, GH #17
-inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`. Decisions are
-HK-D* in `docs/handoff/CURRENT.md`.
+inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*
+decisions are archived in `docs/handoff/HISTORY.md`.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.

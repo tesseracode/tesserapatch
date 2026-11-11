@@ -339,7 +339,9 @@ switches to a **dual-anchor** model when a feature is landed:
   collected from one `git log --topo-order --reverse -z` enumeration,
   qualified by a forward `git apply --check --cached -C1` at `C^`,
   compared by a normalized zero-context change identity when more than
-  one qualifies, then selected deterministically. V7 replays the recipe
+  one qualifies, then selected deterministically: the newest qualifier
+  that is an exact attestation, otherwise the oldest qualifier (ADR-013
+  Amendment 4 D40). V7 replays the recipe
   there; the shadow is reset to the closure baseline before V8's forward
   check.
 - **Anchor C (current)** — an index-isolated assertion at `HEAD` through

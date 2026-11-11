@@ -1,3 +1,19 @@
+## Implementation — GH #26 N1 (ADR-013 Amendment 4 D40) — 2026-11-11
+
+**Implementer**: SW window agent.
+
+D14 step 4 now prefers the newest qualifying exact attestation, using the
+same trailer test as D10 (`expectedAttestationTrailers`). Tests T1, T5,
+T6b, T8, T11, T14 main and control added; AC-L33 extended to `--all`;
+AC-L34 now pins the newer exact attestation (T7). Ten mutation fixtures,
+all caught. Whole workflow package and the doc guards pass on the
+validation machine; vet and build clean.
+
+### Action Taken
+
+Committed for review. D44 measurement and static code review pending;
+no release until both pass.
+
 ## Supervisor dispatch — 16-hour window (SW) — 2026-11-11
 
 **Window**: 2026-11-11T00:41:56Z to 16:41:56Z, unattended; WAVE_BASE

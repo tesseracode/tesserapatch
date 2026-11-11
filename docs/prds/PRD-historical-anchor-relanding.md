@@ -5,8 +5,9 @@ A and C, newest qualifying exact attestation, D after N1–N2, A3 out of
 scope. Independent review APPROVED at rev-3 (2026-11-06,
 `docs/supervisor/LOG.md`). N0 is ADR-013 Amendment 4, ACCEPTED
 2026-11-07 (design review rev-4 APPROVED). The operator scheduled N1 for
-the next window; N2 is not scheduled. No implementation, schema change or
-release is authorized before then.
+the next window; it was implemented on 2026-11-11 and its code review, the
+D44 measurement and release are pending. N2 is not scheduled. No N2
+implementation, schema change or release is authorized before then.
 **Date**: 2026-11-06
 **Owner**: Core
 **Issue**: [GH #26](https://github.com/tesseracode/tesserapatch/issues/26)

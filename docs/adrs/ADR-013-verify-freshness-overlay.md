@@ -1,6 +1,6 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 scheduled for the next window, N2 not yet scheduled; not implemented)**
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 (D40, D41, D44) implemented 2026-11-11, pending its code review, the D44 measurement and release; N2 not yet scheduled)**
 **Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4, accepted)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
@@ -749,6 +749,9 @@ recorded values match the snapshot (D10). This is the **authority**.
 4. **Select.** Among equal-identity qualifiers, take the **first in the
    enumeration's native `--topo-order --reverse` (oldest-first) order**; final
    tie-break, the lexicographically smallest full commit id.
+   **Amended by Amendment 4 D40**: when any qualifier is an exact attestation
+   (D10's trailer test), select only among those and take the **newest**;
+   oldest-first applies only when no qualifier is an exact attestation.
 
 **No broadening**: the collection is confined to exact-slug trailer commits.
 It never falls back to "any commit that introduced these paths".
@@ -1954,8 +1957,10 @@ verdict-relevant.
 **Status of this amendment**: ACCEPTED 2026-11-07 at rev-4, after the
 design review the operator requested on 2026-11-07 APPROVED it
 (`docs/supervisor/LOG.md`); the operator scheduled slice N1 for the next
-window. Nothing is implemented yet, and N2 still needs scheduling. The
-text below keeps the conditions it was proposed under. The operator's answers to
+window. N1 was implemented on 2026-11-11 (`internal/workflow/verify_landed.go`,
+tests in `internal/workflow/verify_anchor_selection_test.go`); its code
+review, the D44 measurement and release are pending, and N2 still needs
+scheduling. The text below keeps the conditions it was proposed under. The operator's answers to
 `docs/prds/PRD-historical-anchor-relanding.md` §9 (2026-11-06) approve its
 semantics: option A (Q1), the newest qualifying exact attestation (Q2),
 R14b with `failed_at` unchanged (Q3), A3 out of scope (Q5) and this

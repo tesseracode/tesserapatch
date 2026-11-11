@@ -289,17 +289,22 @@ func TestACL33_ReRecordReLandSplitsAttestationFromAnchor(t *testing.T) {
 	if r.LandingEvidence.AttestationCommit != second {
 		t.Errorf("attestation=%s want the NEWEST landing %s", r.LandingEvidence.AttestationCommit, second)
 	}
+	// Amendment 4 T2: D40 never selects an attestation that does not
+	// qualify, and `verify --all` agrees.
+	requireAggregateMatchesSingle(t, f.Store)
 }
 
 // AC-L34 — two qualifying candidates with EQUAL normalized identity ⇒
-// selection proceeds, candidates_qualified: 2, topo-oldest chosen.
-func TestACL34_EqualIdentityQualifiersSelectTopoOldest(t *testing.T) {
+// selection proceeds, candidates_qualified: 2. Both are exact
+// attestations, so ADR-013 Amendment 4 D40 (T7) selects the NEWER; before
+// Amendment 4 this row pinned the topo-oldest.
+func TestACL34_EqualIdentityQualifiersSelectNewestAttestation(t *testing.T) {
 	f := newLadderFixture(t)
 	oldest := f.LandingCommit
 	// Revert-and-re-land reproduces the cherry-pick / merge-back class:
 	// two reachable landings introducing the SAME normalized change,
 	// both attesting the same (unchanged) artifacts.
-	f.RelandIdentical()
+	newest := f.RelandIdentical()
 
 	r := f.Verify()
 	if r.Verdict != "passed" {
@@ -318,8 +323,8 @@ func TestACL34_EqualIdentityQualifiersSelectTopoOldest(t *testing.T) {
 	if ha.CandidatesQualified != 2 {
 		t.Fatalf("candidates_qualified=%d want 2", ha.CandidatesQualified)
 	}
-	if ha.ReplayAnchorCommit != oldest {
-		t.Errorf("selected %s want the topo-oldest qualifier %s", ha.ReplayAnchorCommit, oldest)
+	if ha.ReplayAnchorCommit != newest {
+		t.Errorf("selected %s want the newer exact attestation %s, not %s", ha.ReplayAnchorCommit, newest, oldest)
 	}
 }
 

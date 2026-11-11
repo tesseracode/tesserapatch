@@ -872,19 +872,11 @@ func (ctx *verifyRunContext) classifyEvidenceUncached(slug string) *landingEvide
 	}
 
 	// Digest comparison over the well-formed single-parent candidates.
-	expectedPatchSHA := sha256Hex(entry.Patch.Bytes)
-	expectedRecipeSHA := entry.ExpectedRecipeSHA()
-	expectedBase := ""
-	if entry.Status != nil {
-		expectedBase = entry.Status.Apply.BaseCommit
-	}
-
+	expected := expectedAttestationTrailers(entry)
 	var allMatch []gitutil.CommitRecord
 	lastPatchMatch, lastRecipeMatch, lastBaseMatch := false, false, false
 	for _, rec := range wellFormed {
-		patchOK := firstValue(rec, gitutil.TrailerPatchSHA) == expectedPatchSHA
-		recipeOK := firstValue(rec, gitutil.TrailerRecipeSHA) == expectedRecipeSHA
-		baseOK := firstValue(rec, gitutil.TrailerBaseCommit) == expectedBase
+		patchOK, recipeOK, baseOK := expected.compare(rec)
 		lastPatchMatch, lastRecipeMatch, lastBaseMatch = patchOK, recipeOK, baseOK
 		if patchOK && recipeOK && baseOK {
 			allMatch = append(allMatch, rec)
@@ -1001,6 +993,36 @@ func classifyGitFailure(err error) string {
 		return EvidenceUnavailable
 	}
 	return ""
+}
+
+// attestationTrailers holds the snapshot values an exact attestation's
+// patch, recipe and base-commit trailers must equal. D10 classifies
+// `landing_evidence` with it and D14 step 4 (Amendment 4 D40) selects
+// among qualifiers with it, so the two cannot apply different tests.
+type attestationTrailers struct {
+	patchSHA, recipeSHA, baseCommit string
+}
+
+func expectedAttestationTrailers(entry *inventoryEntry) attestationTrailers {
+	exp := attestationTrailers{
+		patchSHA:  sha256Hex(entry.Patch.Bytes),
+		recipeSHA: entry.ExpectedRecipeSHA(),
+	}
+	if entry.Status != nil {
+		exp.baseCommit = entry.Status.Apply.BaseCommit
+	}
+	return exp
+}
+
+func (exp attestationTrailers) compare(rec gitutil.CommitRecord) (patchOK, recipeOK, baseOK bool) {
+	return firstValue(rec, gitutil.TrailerPatchSHA) == exp.patchSHA,
+		firstValue(rec, gitutil.TrailerRecipeSHA) == exp.recipeSHA,
+		firstValue(rec, gitutil.TrailerBaseCommit) == exp.baseCommit
+}
+
+func (exp attestationTrailers) exact(rec gitutil.CommitRecord) bool {
+	patchOK, recipeOK, baseOK := exp.compare(rec)
+	return patchOK && recipeOK && baseOK
 }
 
 func recordBySHA(recs []gitutil.CommitRecord, sha string) gitutil.CommitRecord {
@@ -1317,10 +1339,24 @@ func (ctx *verifyRunContext) resolveAnchorUncached(slug string) *anchorResolutio
 		}
 	}
 
-	// 4. Select: first in the enumeration's oldest-first order; final
-	//    tie-break, the lexicographically smallest commit id.
-	best := qualified[0]
-	for _, rec := range qualified[1:] {
+	// 4. Select (Amendment 4 D40). When any qualifier is an exact
+	//    attestation (D10's trailer test), select among those only and
+	//    take the NEWEST: the last in the enumeration's oldest-first
+	//    order. Otherwise take the first qualifier in that order. A
+	//    later qualifier that is not an exact attestation never displaces
+	//    one. Final tie-break, the lexicographically smallest commit id.
+	expected := expectedAttestationTrailers(entry)
+	var attested []gitutil.CommitRecord
+	for _, rec := range qualified {
+		if expected.exact(rec) {
+			attested = append(attested, rec)
+		}
+	}
+	pool, best := qualified, qualified[0]
+	if len(attested) > 0 {
+		pool, best = attested, attested[len(attested)-1]
+	}
+	for _, rec := range pool {
 		if rec.SHA < best.SHA && sameEnumerationPosition(ctx.commits, rec.SHA, best.SHA) {
 			best = rec
 		}

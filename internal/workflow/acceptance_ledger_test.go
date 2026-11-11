@@ -158,7 +158,7 @@ func acceptanceLedger() map[string][]string {
 		"AC-L31":  {"TestACL31_ForwardAndReverseAreInverted"},
 		"AC-L32":  {"TestACL32_DriftInsideContextWindowDoesNotQualify"},
 		"AC-L33":  {"TestACL33_ReRecordReLandSplitsAttestationFromAnchor"},
-		"AC-L34":  {"TestACL34_EqualIdentityQualifiersSelectTopoOldest"},
+		"AC-L34":  {"TestACL34_EqualIdentityQualifiersSelectNewestAttestation"},
 		"AC-L35":  {"TestACL35_DifferingIdentityQualifiersFail", "TestRev2_DuplicateAttestationTrueAmbiguityStillUsesR7"},
 		"AC-L36":  {"TestACL36_SelectionIsDeterministic"},
 		"AC-L37":  {"TestACL37_AnchorSearchNeverBroadens"},
