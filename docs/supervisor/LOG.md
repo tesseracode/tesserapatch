@@ -1,3 +1,29 @@
+## Code review — v0.21.0 release candidate (`6a7b274`, `f7beb47`) — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED
+
+### Notes
+
+No findings. The `bin/` review notes are closed: a nested module outside
+`bin/` defeats a skip by name, and the self-referencing `go.mod` symlink
+makes `os.Stat` return ELOOP (not `ErrNotExist`), so a swallowed stat
+error fails the new assertion; Windows skips the symlink. The parity pin
+and versioned fixtures follow `7b690b2`; the heading constant matches the
+CHANGELOG byte for byte, and release-check [5/9] and [6/9] accept these
+bytes. The CHANGELOG claims (D40, schema 1.3, ancestor gate, observer
+limits, nested modules, known limits) match the code and SW-D10; the
+unchanged-safeguard and editor-failure disclosures are present; nothing
+excluded is presented as shipped. Tracking is consistent, with one
+canonical Cluster state line (APPROVED).
+
+### Action Taken
+
+Push after the validation-machine checks; then hosted CI, the serial gate
+at `f7beb47` (later commits before the tag change tracking docs only),
+the release check and the tag.
+
 ## Implementation — v0.21.0 release candidate — 2026-11-11
 
 **Implementer**: implementation agent (SW window).

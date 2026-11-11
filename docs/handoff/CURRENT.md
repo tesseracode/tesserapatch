@@ -193,12 +193,20 @@ file was restored afterwards.
   stub the guard fails on the loose `bin/` test ("outside internal/cli"),
   and the nested snapshot module is skipped; with the stub it passes and
   `go list ./...` lists no `bin/` package.
+- Release candidate `f7beb47` (validation machine, development clone with
+  the `cf2db23..f7beb47` files synced and checked identical): gofmt clean;
+  workflow doc guards `ok`; `./assets` `ok` (release pin and versioned
+  CHANGELOG fixtures); cli doc guards `ok` (235 s); `go vet ./...` clean;
+  `go build ./cmd/tpatch` ok; `TestS7CIFullSuiteTimeoutGuard` and
+  `TestReleaseCheck*` `ok`. Static review of `6a7b274` and `f7beb47`:
+  APPROVED, no findings (LOG).
 
 ## Next Steps
 
-1. Release candidate (this commit): validation-machine checks on its
-   bytes; static review; push; CI; serial gate at this commit; release
-   check; tag; tracking commit (field back to IN PROGRESS).
+1. Release candidate `f7beb47` (validation checks and static review done):
+   push; CI; serial gate at `f7beb47` (later commits before the tag change
+   tracking docs only); release check; tag; tracking commit (field back to
+   IN PROGRESS).
 
 ## Blockers
 
