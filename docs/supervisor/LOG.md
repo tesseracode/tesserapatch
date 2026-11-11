@@ -1,3 +1,23 @@
+## Implementation — v0.21.0 release candidate — 2026-11-11
+
+**Implementer**: implementation agent (SW window).
+
+### Notes
+
+The candidate carries N1 (`6bb6d13`, code review APPROVED; D44 items 1
+and 2 done under Amendment 4 rev-5), the `bin/` fix (`c80c0bb`,
+`6a7b274`; review APPROVED WITH NOTES, answered) and the post-v0.20.0
+housekeeping changes. The v0.21.0 CHANGELOG section and the
+release-guard pin (`0.21.0`, with the versioned heading fixture moved as
+in v0.20.0's `7b690b2`) are in this gated commit (OV-D18). Cluster state
+is APPROVED in place for the gate (HK-D9).
+
+### Action Taken
+
+Validation-machine checks on the candidate's bytes and a static review
+before the push; then hosted CI, the serial gate at this commit, the
+release check and the tag.
+
 ## Code review — `bin/` local checks (SW-D11, `c80c0bb`) — 2026-11-11
 
 **Reviewer**: independent static review (gpt-6.1-sol; no Go run).

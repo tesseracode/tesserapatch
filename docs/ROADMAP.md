@@ -48,7 +48,7 @@ unattended window (SW, deadline 2026-11-11T16:41:56Z, WAVE_BASE
 `c5bc3f8`): 🚧 GH #26 N1 (Amendment 4 D40/D41/D44); ⬜ test-time
 profiling (measure only); ✅ validation-run queue (private runner, SW-D7);
 ✅ `bin/` snapshots and local whole-tree checks (SW-D11, review APPROVED WITH NOTES, answered; SW-Q1
-open); ⬜ v0.21.0 after N1 if
+open); 🚧 v0.21.0 after N1 if
 every gate passes. Follow-ups if time allows: GH #26 N2, GH #18–#20
 read-only rebaseline, low-risk profiling fixes, GH #25 B design, GH #17
 inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*
@@ -57,7 +57,9 @@ decisions are archived in `docs/handoff/HISTORY.md`. N1 progress: code
 Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review
 rev-5 APPROVED. D44 item 2 (t3code, SW-D10): N1 moves `attention-notifications`
 to the genuine new base; every verdict is unchanged, and the remaining block
-is D42's R14b case for N2. The release gates remain.
+is D42's R14b case for N2. Release candidate v0.21.0 committed (CHANGELOG
+and release-guard pin in gated source); push, CI, serial gate, release
+check and tag remain.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.

@@ -2,7 +2,15 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**Release candidate v0.21.0** (2026-11-11): N1 (code review APPROVED; D44
+items 1 and 2 done, SW-D9/SW-D10) and the `bin/` fix (SW-D11, review
+APPROVED WITH NOTES, answered) are approved. This commit carries the
+v0.21.0 CHANGELOG section and the release-guard pin in gated source; the
+canonical field is APPROVED for the serial validation-machine gate
+(HK-D9). After the tag, the field returns to IN PROGRESS for the
+follow-ups.
 
 **16-hour unattended window (SW) dispatched** by the operator at
 2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**.
@@ -40,7 +48,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Still to do: release.
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Release candidate v0.21.0 committed; next: push, CI, serial gate, release check, tag.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -145,6 +153,9 @@ file was restored afterwards.
 - Amendment 4 rev-5 (D44 only): `docs/adrs/ADR-013-verify-freshness-overlay.md`,
   `docs/prds/PRD-historical-anchor-relanding.md` (status line).
 - `bin/` fix (SW-D11): `internal/cli/prepare_s7_ci_timeout_guard_test.go`.
+- Release candidate v0.21.0: `CHANGELOG.md`,
+  `assets/recipe_authority_parity_test.go` (pin `0.21.0` and the versioned
+  heading fixture, as in v0.20.0's `7b690b2`).
 
 ## Test Results
 
@@ -185,9 +196,9 @@ file was restored afterwards.
 
 ## Next Steps
 
-1. Release candidate (CHANGELOG v0.21.0, release-guard pin, Cluster state
-   APPROVED); local doc and asset checks; push; CI; serial gate; release
-   check; tag.
+1. Release candidate (this commit): validation-machine checks on its
+   bytes; static review; push; CI; serial gate at this commit; release
+   check; tag; tracking commit (field back to IN PROGRESS).
 
 ## Blockers
 

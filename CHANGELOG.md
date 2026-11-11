@@ -2,6 +2,65 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.21.0 — 2026-11-11 — historical anchor prefers the newest exact attestation
+
+### Changed
+
+- **The historical anchor prefers the newest exact attestation (GH #26,
+  slice N1).** When several landing commits qualify as a landed feature's
+  historical replay anchor, `tpatch verify` now looks first at the
+  qualifiers that are exact attestations of the feature: commits whose
+  patch, recipe and base-commit trailers all match the recorded snapshot,
+  the same test landing evidence already uses. If there is one or more, it
+  selects the newest of them; otherwise it keeps the oldest qualifier, as
+  before. A feature re-landed with identical trailers on a newer base is
+  therefore anchored at the newest of those landings that qualifies, rather
+  than the first. A later
+  qualifier that is not an exact attestation never displaces one. Closure
+  members and V10's member baselines follow the same rule. See ADR-013
+  Amendment 4 (D40, D41, D44).
+- Candidate collection, qualification and the identity comparison are
+  unchanged: non-equivalent qualifiers still fail, and a probe that cannot
+  run still aborts anchor resolution. No Git call was added, and the
+  `tpatch verify --json` report keeps `schema_version` 1.3.
+
+### Development
+
+- `make wave-close-check`: `[3/8]` passes when `HEAD` is contained in
+  `origin/main`, so a later push to `main` no longer fails a gate that is
+  validating an already-pushed commit. `HEAD` ahead of or diverged from
+  `origin/main`, an undetermined ancestry answer and a failed fetch still
+  fail.
+- CI: the hosted inner time limits of observer categories AM–AO and AP–AQ
+  are doubled, keeping the 4-minute outer margin.
+- The S7 CI-partition guard stops at nested Go modules, as `go test ./...`
+  does, so a private module kept under an ignored directory no longer fails
+  it locally.
+
+### Known limits
+
+- GH #26 stays open. On its t3code reproduction every verdict is
+  unchanged: the four blocked roots still exit 2 at
+  `parent-landing-drift`, because their closure member's only exact
+  attestation is outside their anchors' history. Clearer remediation for
+  that case is slice N2 (ADR-013 Amendment 4 D42, D43), not in this
+  release.
+
+GH #25 slices A2, A3, B and C3 are not part of this release; merge
+topologies stay red.
+
+### Unchanged safeguards
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally
+returns tpatch exit 1, not the editor's exact exit code.
+
 ## v0.20.0 — 2026-11-06 — single-child explanation passes the current anchor
 
 ### Added
