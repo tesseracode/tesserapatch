@@ -1,3 +1,57 @@
+## Supervisor — v0.21.0 serial gate PASS; release — 2026-11-11
+
+**Actor**: implementation agent (SW window).
+
+### Notes
+
+The serial validation-machine gate at the gated release candidate
+`f7beb47` (`WAVE_BASE=c5bc3f8`), started 2026-11-11T17:43:39Z, ended
+2026-11-11T20:45:53Z with `AUTO GATE: PASS (serial)`: 42/42 top-level
+commands, exact command-multiset and pre-flight order parity, fresh
+isolated caches, source clean afterwards, no concurrent test time,
+`wave-close-check` 8/8 (10,934 s). CI on `66ff20e` (tracking only after
+the candidate) passed (43080568301). The commits after `f7beb47` change
+tracking documents only.
+
+### Action Taken
+
+This tracking commit names the gated `f7beb47`; `make release-check
+RELEASE=v0.21.0 GATED=f7beb47` runs at it, then the tag v0.21.0, push of
+main and the tag. The next tracking commit returns the field to IN
+PROGRESS for GH #26 N2.
+
+## Code review — GH #26 N2 (D42, D43) — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED (rev-3)
+
+### Notes
+
+- Rev-1 (`b4c433c`) NEEDS REVISION, one finding (MEDIUM): T10's child
+  landed on the commit it shares with main, so its replay anchor was an
+  ancestor of the parent's re-landing and the fixture could not reach
+  R14b's divergent-branch case. Fix `a40b774`: a side-only commit on the
+  branch before the child lands.
+- Rev-2 APPROVED WITH NOTES, one LOW: at `--depth 4` T16's anchor parent
+  sat on the graft boundary, so the fixture did not match D43's "both
+  present, with their parents, above the boundary". Fix `495c413`:
+  `--depth 5`, plus assertions that the parent's landing, its parent, the
+  anchor and its parent are not in the shallow boundary.
+- Rev-3 APPROVED, no findings. Confirmed statically: both
+  `arbitrateClosure` call sites updated; the queried anchor is the replay
+  landing's parent; a facts error already yields terminal
+  `EvidenceUnavailable` before arbitration; T12/T15 ordering
+  preconditions hold; T13 makes no ancestry query; each test fails under
+  its named mutation (N2-M1..M12, by static trace).
+
+### Action Taken
+
+N2 stays on a local branch until v0.21.0 is tagged (SW-D16). Runtime
+validation on the validation machine follows the release: gofmt, vet,
+targeted tests, mutations N2-M1..M12, the `internal/workflow` package.
+Then the docs commit, push, CI and the serial gate.
+
 ## Supervisor — v0.21.0 serial gate dispatched; window extended — 2026-11-11
 
 **Actor**: implementation agent (SW window).

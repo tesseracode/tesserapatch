@@ -4,13 +4,13 @@
 
 **Cluster state**: APPROVED
 
-**Release candidate v0.21.0** (2026-11-11): N1 (code review APPROVED; D44
-items 1 and 2 done, SW-D9/SW-D10) and the `bin/` fix (SW-D11, review
-APPROVED WITH NOTES, answered) are approved. This commit carries the
-v0.21.0 CHANGELOG section and the release-guard pin in gated source; the
-canonical field is APPROVED for the serial validation-machine gate
-(HK-D9). After the tag, the field returns to IN PROGRESS for the
-follow-ups.
+**Release v0.21.0** (2026-11-11): N1 (code review APPROVED; D44 items 1
+and 2 done, SW-D9/SW-D10) and the `bin/` fix (SW-D11, review APPROVED WITH
+NOTES, answered) are approved. The gated candidate `f7beb47` carries the
+v0.21.0 CHANGELOG section and the release-guard pin; its serial
+validation-machine gate PASSED (42/42, 2026-11-11T20:45:53Z). This
+tracking commit is the release commit (release check, then tag). After
+the tag, the field returns to IN PROGRESS for the follow-ups.
 
 **16-hour unattended window (SW) dispatched** by the operator at
 2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**,
@@ -49,7 +49,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Release candidate v0.21.0 (`f7beb47`) checks pass, review APPROVED, pushed with `536f1a8`; CI green. Serial gate at `f7beb47` running since 2026-11-11T17:43Z (window extended, SW-D12); next: release check, tag.
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Release candidate v0.21.0 (`f7beb47`) checks pass, review APPROVED, pushed with `536f1a8`; CI green. Serial gate at `f7beb47` PASS (42/42, 2026-11-11T17:43:39Z–20:45:53Z; window extended, SW-D12); next: release check, tag. GH #26 N2 code done on a local branch, static review APPROVED rev-3 (SW-D16, SW-D17); runtime validation after the tag.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -86,6 +86,12 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | SW-D13 | **GH #18–#20 rebaseline (read-only follow-up).** I ran the darwin/arm64 build of `6bb6d13` (production code identical to `f7beb47`) against throwaway clones of `tesseracode/copilot-api` at the issues' pin `e2d7ce4` and at its current HEAD: `verify --all --json --no-write`, a dry-run `doctor --json`, and a temp-index check of each canonical patch against its recorded base. All three issues reproduce unchanged at `e2d7ce4` (GH #18: 53 failed, 38/16/6/1, own-base 29/9, V7 classes 10/2/2/2; GH #19: four Path B V10 failures; GH #20: 24 D2 findings, a no-op `refresh` remediation, 6/18 candidate-base split). One new fact for GH #19: the downstream hand-wrote provenance sidecars with an inferred `generated_at`, which verify accepts. The ROADMAP rows record the results; draft issue comments are in the morning report, not posted. |
 | SW-D14 | **Test-time profiling: measured, nothing changed.** One `-json` run of the 04-go command on the validation machine (3,296 s wall, 1.43 GB max RSS), plus the previous gate's per-command times. Proposals, ranked by saving against risk: (1) a build-once-and-copy template for the `internal/workflow` ROCS8 fixture, about 600 s per gate, with a guard that each subtest's copy is independent; (2) merging the S6 shards so `s6ContractBaseline` (188 s, once per process) is built once, which is unmeasured and changes the CI partition, so it is your decision; (3) investigate about 1,050 s of 04-go wall time that is not CPU time. Keep as is: PIB-221's cold cross-builds (the point of the row) and the S7 type-check shards (CPU cost under `GOMAXPROCS=1`; only lane mode helps). The details stay in a private report. I did not schedule any fix: each needs its own reviewed wave. |
 | SW-D15 | **GH #17 Windows inventory (read-only).** From the allowed-failure Windows step of CI 42981546617 (`536f1a8`): 236 top-level failures in 8 packages (cli 112, workflow 44, gitutil 36, rescap 22, store 16, candidate, intentpub and provider 2 each). That number is a lower bound, for two reasons: `internal/cli` panics in `TestAVPPathsAndSlugSafety/AVP-192` (an unchecked type assertion at `internal/cli/prepare_avp2_test.go:391`), which aborts the rest of that test binary, and `internal/workflow` hits the step's 20-minute timeout, which contradicts the CI comment saying no package times out. A complete inventory first needs a checked assertion in AVP-192 and a longer timeout for that step; the step's argv is pinned by two guards, which must change with it. I made neither change: both are outside this window's scope, so they are recorded on the GH #17 ROADMAP row. |
+| SW-D16 | **GH #26 N2 waits on a local branch until the tag.** N2 (D42, D43) started as an operator-approved follow-up while the release gate ran. `make release-check` allows only tracking files between the gated commit and the tagged one, so N2 lives on a local branch (`b4c433c`, review fixes `a40b774` and `495c413`) and is rebased onto `main` after the tag. v0.21.0 does not include N2. |
+| SW-D17 | **N2 was reviewed before it was compiled.** Local admission failed (about 54% free memory, taken by development servers that are not this session's), and no Go may run on the validation machine during a gate. So N2 was written and statically reviewed first: rev-1 NEEDS REVISION (T10 could not reach the divergent-branch case), rev-2 APPROVED WITH NOTES (T16's anchor parent sat on the graft boundary), rev-3 APPROVED (LOG). Runtime validation and mutations N2-M1..M12 run after the gate frees the validation machine; a failure there goes back through review. |
+| SW-D18 | **Low-risk profiling fixes are deferred to the next window.** After the release, only one serial gate (about 3 hours) fits before the deadline, and N2 needs it. A profiling fix also needs its own measured before/after run, which cannot overlap a gate. |
+| SW-D19 | **GH #25 B design is a private planning document.** B is not authorized, so the design (a consolidation workflow) stays untracked under `bin/sw-20261111/b-design/`, with an independent design review. Nothing is tracked except this row. |
+| SW-D20 | **B design review: SOUND WITH NOTES, one MEDIUM, answered.** The replay pre-flight refused the runbook's own uncommitted preparation state (the new feature directory and the re-rendered `FEATURES.md`). Of the two fixes the reviewer offered I chose a narrow allowance: the Git index must equal `HEAD`; the replay phase may have changes only under the new feature's own directory; both phases may have a worktree-only `FEATURES.md` equal to the deterministic render of the captured statuses; anything else refuses. I rejected the alternative (a trailer-free preparation-only commit), because every ancestry check would then have to reason about an extra history object. One positive and two negative test rows were added to the design. Re-review: RESOLVED, no new findings. |
+| SW-D21 | **N2 docs leave CHANGELOG to the next release candidate.** Every earlier pin bump (`c18f025`, `68142ca`, `7b690b2`, `f7beb47`) wrote CHANGELOG only in the release-candidate commit, and the parity guard rejects an `## Unreleased` section beside the pinned v0.21.0 section. N2 therefore updates ADR-013, PRD-verify-freshness (R14b rows, the landed-parent edge case, AC-L117) and PRD-historical-anchor-relanding only. Of the `verify_anchored.go` cites, only D42's own (`:735-736` → `:740-742`) is updated. Several older ADR-013 and PRD-verify-freshness cites into that file (for example `:791-792`, `:796-800`, `:847-850`) were already displaced on `main` before N2; that is recorded for a separate cite refresh, not fixed here. |
 
 ### Open questions (SW-Q*)
 
@@ -205,14 +211,21 @@ file was restored afterwards.
   `go build ./cmd/tpatch` ok; `TestS7CIFullSuiteTimeoutGuard` and
   `TestReleaseCheck*` `ok`. Static review of `6a7b274` and `f7beb47`:
   APPROVED, no findings (LOG).
+- Serial validation-machine gate at `f7beb47` (`WAVE_BASE=c5bc3f8`):
+  **PASS**, 2026-11-11T17:43:39Z–20:45:53Z (10,934 s). 42/42 top-level
+  commands, exact command-multiset and pre-flight order parity, fresh
+  isolated caches, source clean afterwards, `wave-close-check` 8/8. CI on
+  `66ff20e` green (43080568301).
 
 ## Next Steps
 
-1. Release candidate `f7beb47` (validation checks and static review done;
-   pushed with `536f1a8`, CI green): serial gate running (started
-   2026-11-11T17:43Z); then at `f7beb47` (later commits before the tag change
-   tracking docs only); release check; tag; tracking commit (field back to
-   IN PROGRESS).
+1. Release v0.21.0 at this tracking commit: `make release-check
+   RELEASE=v0.21.0 GATED=f7beb47`, tag, push main and the tag; then a
+   tracking commit (field back to IN PROGRESS).
+2. GH #26 N2: rebase the local branch onto `main`; runtime validation on
+   the validation machine (gofmt, vet, targeted tests, N2-M1..M12, the
+   `internal/workflow` package); docs commit (SW-D21); push, CI, serial
+   gate.
 
 ## Blockers
 
@@ -229,7 +242,7 @@ file was restored afterwards.
   during a gate no longer fails `[3/8]` or the runner's preparation, but
   the gated commit's CI must already be complete (AGENTS.md).
 - **Release guards:** `assets/recipe_authority_parity_test.go:16` pins
-  `0.20.0`; the next release moves the pin with the CHANGELOG heading in
+  `0.21.0`; the next release moves the pin with the CHANGELOG heading in
   gated source, and `make release-check` runs before `git tag -a`.
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
 - **Private evidence:** `bin/sw-20261111/` (ignored).
