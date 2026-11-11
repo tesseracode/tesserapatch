@@ -1,3 +1,20 @@
+## Supervisor dispatch — 16-hour window (SW) — 2026-11-11
+
+**Window**: 2026-11-11T00:41:56Z to 16:41:56Z, unattended; WAVE_BASE
+`c5bc3f8` (baseline verified, CI 42359322494 green).
+
+### Scope
+
+W1 GH #26 N1 (ADR-013 Amendment 4 D40/D41/D44, tests T1, T2, T5, T6, T6b,
+T7, T8, T11, T14); test-time profiling (measure only); validation-run
+queue (private runner); `bin/` snapshot local-check fix (NW-D12); v0.21.0
+after N1 if every gate passes. Follow-ups if time allows: N2, GH #18–#20
+rebaseline, profiling fixes, GH #25 B design, GH #17 inventory.
+
+### Action Taken
+
+Handoff and ROADMAP updated; W1 dispatched.
+
 ## Gate — HK close commit `41f2538` — 2026-11-07
 
 **Validation machine**, serial, `WAVE_BASE=7a8f00b`: **PASS**

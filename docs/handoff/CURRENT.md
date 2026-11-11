@@ -2,105 +2,96 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
 
-**Post-v0.20.0 housekeeping wave (HK) accepted; idle.** The operator's
-review answers of 2026-11-07 are implemented: ADR-013 Amendment 4 (GH #26)
-passed its design review at rev-4 and is **ACCEPTED** (slice N1 scheduled
-for the next window, N2 not scheduled); `make wave-close-check` `[3/8]`
-accepts a pushed `HEAD` that `origin/main` has moved past; the hosted
-AM–AO, AP and AQ observer limits are doubled; the private validation
-runner uses the same ancestor rule and runs serial by default. HK1
-(`9aaf136`) passed code review, hosted CI 42336508316 and 42341338991, and
-a serial validation-machine gate at the close commit `41f2538` with
-`WAVE_BASE=7a8f00b` (42/42 commands, 10,912.7 s, wave-close-check 8/8).
-No release was authorized; the CHANGELOG entry waits for the next release
-(HK-D6).
+**16-hour unattended window (SW) dispatched** by the operator at
+2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**.
+`WAVE_BASE=c5bc3f8` (`origin/main` at dispatch, CI green). Decisions are
+recorded as SW-D* below for the operator's review.
+
+Scope (operator, 2026-11-10/11):
+
+1. **W1 — GH #26 N1**: ADR-013 Amendment 4 D40 (D14 step 4 prefers the
+   newest qualifying exact attestation), D41 (already recorded) and D44
+   (measure every verify fixture under both selection rules, plus the
+   read-only t3code `5ce5d79` reproduction) with tests T1, T2, T5, T6,
+   T6b, T7, T8, T11 and T14.
+2. **Test-time profiling**: measure which tests are slowest and why;
+   propose, change nothing (operator, 2026-11-07).
+3. **Validation-run queue**: in the private runner on the validation
+   machine (untracked, operator choice).
+4. **Private snapshots under `bin/`** (NW-D12): local whole-tree checks.
+5. **Release v0.21.0** after N1, only if every gate passes (operator).
+
+Follow-ups if time allows (operator-approved, in order): GH #26 N2 (D42,
+D43; not in v0.21.0 unless it fits before the release gate); read-only
+rebaseline of GH #18/#19/#20; low-risk profiling fixes in a reviewed wave
+(identical coverage only); GH #25 B consolidation-workflow design
+(planning only); GH #17 Windows failure inventory (read-only).
+
+Loop per wave: implement → independent review (gpt-6.1-sol, static, no
+Go) → local serial validation → push → hosted CI → serial
+validation-machine gate at a close commit whose canonical field is
+terminal (HK-D9).
 
 ## Active Task
 
-- **Task ID**: none (idle)
-- **Milestone**: Post-v0.20 backlog
-- **Description**: Awaiting the operator's next window
-- **Status**: Idle — HK accepted at `41f2538`
-- **Assigned**: 2026-11-07
-- **WAVE_BASE** (HK, closed): `7a8f00bccfeb1e89f947c1c24590788541860691`
+- **Task ID**: `sw-gh26-n1`
+- **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
+- **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
+  measurement before release
+- **Status**: In progress — dispatched
+- **Assigned**: 2026-11-11
+- **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
+- **Deadline**: `2026-11-11T16:41:56Z`
 
-## Session Summary
+WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 
-- **A4R**: ADR-013 Amendment 4 design review rev-1 to rev-3 NEEDS
-  REVISION (shallow repositories, the Amendment 3 interaction, aggregation
-  of ancestry answers, forward mode, release pins), rev-4 APPROVED.
-  Amendment 4 ACCEPTED (`5bbdb2d`); the PRD and ROADMAP say N1 next window.
-- **HK1** (`9aaf136`): `[3/8]` ancestor check with a behavioural test that
-  fails on the old recipe; AGENTS.md note on pushing during a gate;
-  AM–AO 8/12 m, AP and AQ 16/20 m hosted limits with a mutation fixture.
-  Code review APPROVED, no findings.
-- **Private runner** (untracked, validation machine): ancestor rule in
-  preparation, serial by default, stub harness 15/15 (3/15 fail on the
-  previous runner).
-- **Gates:** the first attempt at `ac65af4` was refused at `[5/8]` because
-  the handoff still read `IN PROGRESS` (HK-D9, no Go ran); the close
-  commit `41f2538` passed.
+### Operator answers (2026-11-10)
 
-The full HK handoff is archived **byte-for-byte** in
-`docs/handoff/HISTORY.md` under
-**2026-11-07T08:09:14Z - Post-v0.20.0 housekeeping wave (HK) accepted**:
+| Item | Answer |
+|---|---|
+| Window | 16 hours if time allows, unattended, decisions recorded. |
+| Release | v0.21.0 after N1, only if every gate passes. |
+| Validation-run queue | Private runner on the validation machine (untracked). |
+| Follow-ups | N2, rebaseline #18–#20, profiling fixes, GH #25 B design, GH #17 inventory. |
+| Spotlight (HK-D5) | The operator adds it later; keep working with the machine as it is. |
+| Lane mode on the validation machine | Stays serial until the operator reports the cleanup. |
 
-- Archive block (header plus terminal body): 12,315 bytes,
-  SHA256 `d6784717aedcf200b56fbce7a41dbe6731632dd296ca8f2b1e7901974eef675d`.
-- Prior HISTORY prefix: 1,299,878 bytes, SHA256
-  `3c0fdcf2f1a94c9ecb4511a748e1c6159cc8b23bc9108495173177c047e19f5c`, preserved unchanged.
-- HISTORY after this archive: 1,312,193 bytes, SHA256
-  `1b511c3915b27148f33e6243ecf98491e7f4225861b29dadcf1e8bb4f5590eba`.
-
-### Decisions for operator review
-
-Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
+### Decisions (SW-D*)
 
 | ID | Decision |
 |---|---|
-| HK-D1 | WAVE_BASE `7a8f00b`, `origin/main` at dispatch. |
-| HK-D2 | The ancestor rule also changes the tracked `[3/8]` check, not only the private runner; ahead, diverged or unanswerable still fails. |
-| HK-D3 | Double the inner limit of each hosted observer category whose child used more than half of it (AM–AO, AP, AQ); others unchanged. |
-| HK-D4 | Private runner: ancestor rule in preparation, detached checkout of the gated commit; serial unless lanes are requested with exactly `1`. |
-| HK-D5 | Spotlight ignores the folder marker on the validation machine; the exclusion needs a System Settings → Spotlight → Privacy entry (operator action). |
-| HK-D6 | No CHANGELOG entry until the next release. |
-| HK-D7 | Amendment 4 ACCEPTED on design review rev-4 APPROVED plus the operator's scheduling answer (N1 next window). |
-| HK-D8 | The local `./internal/cli` step is the targeted set; the unsharded package process exceeds 60 minutes and is covered by CI shards and the gate. |
-| HK-D9 | Gate at the close commit (terminal canonical field), not mid-cycle; it ran in parallel with the tracking-only close commit's CI. |
+| SW-D1 | Window starts at the baseline check (2026-11-11T00:41:56Z); WAVE_BASE `c5bc3f8`; deadline 16 hours later. |
 
-Open for the operator: the Spotlight setting on the validation machine
-(HK-D5); when the validation machine is cleaned up, so lane mode can be
-retried there.
+## Session Summary
+
+- Baseline verified: `HEAD` == `origin/main` == `c5bc3f8`, no tracked
+  changes, no stash, one worktree, no in-progress Git operation; main CI
+  42359322494 green.
+- The HK handoff stays archived in `docs/handoff/HISTORY.md` under
+  2026-11-07T08:09:14Z; the IDLE handoff that followed it is replaced here.
 
 ## Current State
 
-Idle. `main` is at this tracking commit; `v0.20.0` is the latest release
-(tag on `495ca59`). HK changes are unreleased.
-
-GH #26: Amendment 4 ACCEPTED; N1 is scheduled for the next window, N2 is
-not scheduled. GH #25 stays open (B and C3 not authorized); GH #24 has an
-approved PRD with operator answers and no implementation authorization.
+Dispatch only; no code yet.
 
 ## Files Changed
 
-This close (tracking files only): `docs/handoff/CURRENT.md`,
-`docs/handoff/HISTORY.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
+- Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`.
 
 ## Test Results
 
-- Hosted CI 42336508316 (`ac65af4`) and 42341338991 (`41f2538`): green on
-  every job.
-- Validation-machine gate at `41f2538`, `WAVE_BASE=7a8f00b`: **PASS
-  (serial)**, 42/42, 10,912.7 s, wave-close-check 8/8.
+- None yet.
 
 ## Next Steps
 
-1. Check this tracking commit's main CI.
-2. Next window candidates: GH #26 N1 (scheduled by the operator), the
-   validation-run queue and test-time profiling backlog rows, GH #24,
-   GH #25 B/C3 (not authorized).
+1. W1: implement D40 in anchor resolution; tests T1, T2, T5, T6, T6b, T7,
+   T8, T11, T14 with mutation fixtures; D44 measurement harness.
+2. In parallel (no shared files): private validation-run queue; test-time
+   profiling from existing evidence.
+3. Code review; local validation; push; CI; serial gate.
 
 ## Blockers
 
@@ -120,4 +111,4 @@ This close (tracking files only): `docs/handoff/CURRENT.md`,
   `0.20.0`; the next release moves the pin with the CHANGELOG heading in
   gated source, and `make release-check` runs before `git tag -a`.
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
-- **Private evidence:** `bin/nw-20261106/` (ignored).
+- **Private evidence:** `bin/sw-20261111/` (ignored).

@@ -41,7 +41,16 @@ fix; ✅ `wave-close-check [3/8]` ancestor check; ✅ hosted observer
 limits (NW-D25); HK1 at `9aaf136` (code review APPROVED, CI 42336508316
 green). ✅ **HK accepted** at close commit `41f2538` (CI 42341338991 green;
 serial validation-machine gate PASS, 42/42, wave-close-check 8/8). No
-release authorized; the changes ship with the next release. Decisions are
+release authorized; the changes ship with the next release.
+
+**Update 2026-11-11T00:41:56Z**: the operator authorized a 16-hour
+unattended window (SW, deadline 2026-11-11T16:41:56Z, WAVE_BASE
+`c5bc3f8`): 🚧 GH #26 N1 (Amendment 4 D40/D41/D44); ⬜ test-time
+profiling (measure only); ⬜ validation-run queue (private runner);
+⬜ `bin/` snapshots and local whole-tree checks; ⬜ v0.21.0 after N1 if
+every gate passes. Follow-ups if time allows: GH #26 N2, GH #18–#20
+read-only rebaseline, low-risk profiling fixes, GH #25 B design, GH #17
+inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`. Decisions are
 HK-D* in `docs/handoff/CURRENT.md`.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
