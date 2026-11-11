@@ -50,9 +50,11 @@ unattended window (SW, deadline 2026-11-11T16:41:56Z, extended to
 profiling (measure only, SW-D14); ✅ validation-run queue (private runner, SW-D7);
 ✅ `bin/` snapshots and local whole-tree checks (SW-D11, review APPROVED WITH NOTES, answered; SW-Q1
 open); ✅ **v0.21.0** released (gated `f7beb47`, serial validation-machine
-gate PASS 42/42 at 2026-11-11T20:45:53Z, CI green; tagged at the tracking
-commit that logs the PASS). Follow-ups if time allows: 🚧 GH #26 N2 (code
-on a local branch, static review APPROVED rev-3; SW-D16, SW-D17), ✅ GH #18–#20
+gate PASS 42/42 at 2026-11-11T20:45:53Z, CI green; tag `v0.21.0` at
+`fc6e80f`, the tracking commit that logs the PASS; tag CI 43098407794
+queued behind a GitHub Actions outage, SW-D23). Follow-ups if time allows: 🚧 GH #26 N2 (code
+on a local branch, static review APPROVED rev-3; runtime validation
+started 2026-11-11T20:51Z; SW-D16, SW-D17), ✅ GH #18–#20
 read-only rebaseline (SW-D13), ⬜ low-risk profiling fixes (deferred, SW-D18),
 ✅ GH #25 B design (private, reviewed; SW-D19, SW-D20), GH #17
 inventory (✅ read-only, SW-D15). Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*
