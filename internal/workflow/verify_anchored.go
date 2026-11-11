@@ -510,7 +510,11 @@ func runAnchoredClosure(in anchoredInput, anchorCommit string, baseline VerifyBa
 	//    paths: a fail-fast that left it on the run context would hand
 	//    this feature's member advisories and baselines to the next
 	//    `--all` entry (ADR-013 Amendment 3 D37).
-	arb := arbitrateClosure(in, order, shadowRoot, shadowPath, v7Mode, v8Mode, v10Mode)
+	replayAnchor := ""
+	if landed && baseline.HistoricalAnchor != nil {
+		replayAnchor = baseline.HistoricalAnchor.ReplayAnchorCommit
+	}
+	arb := arbitrateClosure(in, order, shadowRoot, replayAnchor, shadowPath, v7Mode, v8Mode, v10Mode)
 	advisories := in.ctx.pendingAdvisories
 	in.ctx.pendingAdvisories = nil
 	memberBaselines := in.ctx.pendingMemberBaselines
@@ -658,8 +662,9 @@ func skipV10Because(reason string) store.VerifyCheckResult {
 // skips, replays, or fail-fasts each member. It returns a non-nil
 // dynamicPhase ONLY on a fail-fast; otherwise it mutates the shadow with
 // the members that must be replayed and records advisories and member
-// baselines on the run context.
-func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPath, v7Mode, v8Mode, v10Mode string) *dynamicPhase {
+// baselines on the run context. replayAnchor is the target's selected
+// replay landing in landed mode and empty in forward mode.
+func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, replayAnchor, shadowPath, v7Mode, v8Mode, v10Mode string) *dynamicPhase {
 	ctx := in.ctx
 	slug := in.slug
 	if anchorTreeish == "" {
@@ -733,7 +738,8 @@ func arbitrateClosure(in anchoredInput, order []string, anchorTreeish, shadowPat
 					remediationR10(member, fmt.Sprintf("the presence probe for hard parent %s could not run: %v", member, ladder.Err)))
 			}
 			if ladder.Blocked {
-				return fail(FailedAtParentLandingDrift, member, remediationR14(member, mev.Evidence.AttestationCommit))
+				return fail(FailedAtParentLandingDrift, member,
+					memberLandingDriftRemediation(ctx, slug, member, entry, mev, anchorTreeish, replayAnchor))
 			}
 			if ladder.ContextDrift {
 				ctx.pendingAdvisories = append(ctx.pendingAdvisories, warnAdvisory(
@@ -805,6 +811,81 @@ func loadParentRecipeFromInventory(entry *inventoryEntry) (ApplyRecipe, error) {
 		return ApplyRecipe{}, fmt.Errorf("parse parent recipe: apply-recipe.json is empty or unparseable")
 	}
 	return r, nil
+}
+
+// ── Parent landing drift (Amendment 4 D42–D43) ──────────────────────────
+
+// ancestryOutcome is the aggregate answer to D42's question: is any exact
+// landing of a member the target's anchor commit or one of its ancestors?
+type ancestryOutcome int
+
+const (
+	ancestryNotInHistory ancestryOutcome = iota // every query answered a determined no
+	ancestryInHistory                           // at least one query answered yes
+	ancestryUndetermined                        // no yes, and some query could not answer
+)
+
+// memberLandingInAnchorHistory aggregates D42's ancestry queries. The
+// outcome depends only on the set of answers: any yes decides
+// ancestryInHistory and may stop the remaining queries; a query that
+// fails supplies no answer (D43) and never stops them. In a shallow
+// repository a no is undetermined, because traversal stops at the graft
+// boundary; a yes stays decisive. An empty attestation set makes no claim.
+func memberLandingInAnchorHistory(attestations []string, anchor string, shallow bool,
+	isAncestor func(ancestor, descendant string) (bool, error)) (ancestryOutcome, string) {
+	if len(attestations) == 0 {
+		return ancestryUndetermined, "no exact landing of the parent is known"
+	}
+	detail := ""
+	for _, att := range attestations {
+		yes, err := isAncestor(att, anchor)
+		switch {
+		case err != nil:
+			if detail == "" {
+				detail = fmt.Sprintf("an ancestry query could not answer: %v", err)
+			}
+		case yes:
+			return ancestryInHistory, ""
+		case shallow:
+			if detail == "" {
+				detail = "this is a shallow clone, so Git's \"not an ancestor\" answer stops at the graft boundary and is not conclusive"
+			}
+		}
+	}
+	if detail != "" {
+		return ancestryUndetermined, detail
+	}
+	return ancestryNotInHistory, ""
+}
+
+// memberLandingDriftRemediation chooses the remediation when a landed hard
+// member's ladder blocks at the target's anchor tree. In forward mode
+// there is no replay anchor and R14 stands with no ancestry query (D42).
+// In landed mode, every exact attestation of the member (D10's trailer
+// test) is asked whether it is in the anchor's history: a yes keeps R14;
+// determined noes give R14b; anything else gives R14b's undetermined form.
+func memberLandingDriftRemediation(ctx *verifyRunContext, target, member string, entry *inventoryEntry,
+	mev *landingEvidenceResult, anchor, replayAnchor string) string {
+	if replayAnchor == "" {
+		return remediationR14(member, mev.Evidence.AttestationCommit)
+	}
+	expected := expectedAttestationTrailers(entry)
+	var attestations []string
+	for _, rec := range mev.wellFormed {
+		if expected.exact(rec) {
+			attestations = append(attestations, rec.SHA)
+		}
+	}
+	shallow := ctx.facts.Shallow || ctx.factsErr != nil
+	outcome, detail := memberLandingInAnchorHistory(attestations, anchor, shallow, ctx.isAncestorChecked)
+	switch outcome {
+	case ancestryInHistory:
+		return remediationR14(member, mev.Evidence.AttestationCommit)
+	case ancestryNotInHistory:
+		return remediationR14b(member, mev.Evidence.AttestationCommit, target, replayAnchor)
+	default:
+		return remediationR14bUndetermined(member, target, replayAnchor, detail)
+	}
 }
 
 // ── V10 (D15) ────────────────────────────────────────────────────────────

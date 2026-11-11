@@ -1585,6 +1585,21 @@ func remediationR14(parent, sha string) string {
 	return fmt.Sprintf("hard parent %s landed at %s but its canonical patch is not present at the verification baseline; verify %s first — do not re-apply it into the shadow", parent, sha, parent)
 }
 
+// remediationR14b is ADR-013 Amendment 4 D42: no exact landing of the
+// parent is in the history of the target's replay baseline. It claims
+// only that, never that the baseline is older (T10).
+func remediationR14b(parent, sha, target, replayAnchor string) string {
+	return fmt.Sprintf("hard parent %s landed at %s but its canonical patch is not present at the verification baseline, and no exact landing of %s is in the history of that baseline, the parent of %s's replay anchor %s: %s was applied before that landing, or on a branch that never contained it, so verifying %s will not help — genuinely unapply %s (tpatch feature unapply %s), re-apply it on %s's current landing (tpatch apply %s), then run tpatch record %s and tpatch land %s",
+		parent, sha, parent, target, replayAnchor, target, parent, target, target, parent, target, target, target)
+}
+
+// remediationR14bUndetermined is ADR-013 Amendment 4 D43: an ancestry
+// query could not answer, so verify judges neither R14 nor R14b.
+func remediationR14bUndetermined(parent, target, replayAnchor, detail string) string {
+	return fmt.Sprintf("hard parent %s's canonical patch is not present at the verification baseline, the parent of %s's replay anchor %s, and verify could not determine whether any exact landing of %s is in that baseline's history (%s), so it judged neither case — restore the repository's history (for example git fetch --refetch, or git fetch --unshallow in a shallow clone) and run tpatch verify %s again",
+		parent, target, replayAnchor, parent, detail, target)
+}
+
 func remediationR15(parent, state, target string) string {
 	return fmt.Sprintf("hard parent %s has %s landing evidence; verify %s first — replaying or skipping it would validate %s against an unknown baseline", parent, state, parent, target)
 }

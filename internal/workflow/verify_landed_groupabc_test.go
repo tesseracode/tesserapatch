@@ -599,6 +599,7 @@ func TestACL28_LandedRemediationsNeverRouteToReconcile(t *testing.T) {
 		remediationR8("s", "c"), remediationR9("s", "c", 2), remediationR10("s", "err"),
 		remediationR11("s"), remediationR12(1, "p", "e", "b", "o", "s"),
 		remediationR13("later", "p", "s"), remediationR14("p", "c"),
+		remediationR14b("p", "c", "t", "a"), remediationR14bUndetermined("p", "t", "a", "d"),
 		remediationR15("p", "stale", "t"), remediationR16("p", "t"),
 		remediationR17("p", "t"), remediationR18("p"), remediationR19("s"),
 		remediationR20("s", "p", "t"), remediationR21("s", "c"), remediationR22("s"),

@@ -449,7 +449,8 @@ func TestACL116_ModePresenceRule(t *testing.T) {
 	}
 }
 
-// AC-L117 — every R1–R22 and R24 remediation string is emitted verbatim.
+// AC-L117 — every R1–R22, R14b (both forms) and R24 remediation string is
+// emitted verbatim.
 func TestACL117_RemediationGoldenStrings(t *testing.T) {
 	golden := map[string]string{
 		"R1":  "landed feature: post-apply.patch postimage is not present at HEAD; landing commit SHA is reachable but the content is absent — inspect with git diff SHA HEAD, then re-record and re-land. Do NOT run tpatch reconcile: this is local drift, not upstream drift",
@@ -508,6 +509,18 @@ func TestACL117_RemediationGoldenStrings(t *testing.T) {
 	}
 	if len(got) != 23 {
 		t.Errorf("expected 23 remediation templates (R1–R22 + R24), got %d", len(got))
+	}
+	// ADR-013 Amendment 4 D42–D43: R14's split, in both forms.
+	r14b := map[string][2]string{
+		"R14b": {remediationR14b("PARENT", "SHA", "TARGET", "ANCHOR"),
+			"hard parent PARENT landed at SHA but its canonical patch is not present at the verification baseline, and no exact landing of PARENT is in the history of that baseline, the parent of TARGET's replay anchor ANCHOR: TARGET was applied before that landing, or on a branch that never contained it, so verifying PARENT will not help — genuinely unapply TARGET (tpatch feature unapply TARGET), re-apply it on PARENT's current landing (tpatch apply TARGET), then run tpatch record TARGET and tpatch land TARGET"},
+		"R14b undetermined": {remediationR14bUndetermined("PARENT", "TARGET", "ANCHOR", "DETAIL"),
+			"hard parent PARENT's canonical patch is not present at the verification baseline, the parent of TARGET's replay anchor ANCHOR, and verify could not determine whether any exact landing of PARENT is in that baseline's history (DETAIL), so it judged neither case — restore the repository's history (for example git fetch --refetch, or git fetch --unshallow in a shallow clone) and run tpatch verify TARGET again"},
+	}
+	for id, gw := range r14b {
+		if gw[0] != gw[1] {
+			t.Errorf("%s not verbatim:\n got %q\nwant %q", id, gw[0], gw[1])
+		}
 	}
 }
 

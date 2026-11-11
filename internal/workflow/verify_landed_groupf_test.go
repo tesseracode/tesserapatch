@@ -427,7 +427,7 @@ func TestACL84_RejectedParentFailsWithR17(t *testing.T) {
 	}
 	in := anchoredInput{ctx: ctx, store: c.Store, slug: child, status: status,
 		entry: inventoryEntryOrEmpty(ctx, child), evidence: ctx.classifyEvidence(child)}
-	got := arbitrateClosure(in, []string{"parent", child}, "HEAD", c.Root, ModeForward, ModeForward, ModeForward)
+	got := arbitrateClosure(in, []string{"parent", child}, "HEAD", "", c.Root, ModeForward, ModeForward, ModeForward)
 	if got == nil {
 		t.Fatalf("arbitration did not fail-fast on a rejected hard parent")
 	}
