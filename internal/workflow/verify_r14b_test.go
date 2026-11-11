@@ -150,6 +150,9 @@ func TestA4T10DivergentBranchR14bClaimsOnlyAncestry(t *testing.T) {
 	mustGit(t, f.root, "add", "-A")
 	mustGit(t, f.root, "commit", "-q", "-m", "register child")
 	mustGit(t, f.root, "switch", "-q", "-c", "side")
+	// A side-only commit, so the child's replay anchor is not shared with
+	// main (otherwise the parent's re-landing would descend from it).
+	f.edit("src/side.txt", "side-only\n")
 	childLanding := f.land("child", ovPath, a4ChildBody(), true)
 	mustGit(t, f.root, "switch", "-q", "main")
 	f.edit(a4ParentPath, ladderBody(nil))
