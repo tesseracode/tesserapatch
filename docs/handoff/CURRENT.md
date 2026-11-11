@@ -40,7 +40,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (code, tests, docs); mutation proofs 10/10; package and doc guards pass; code review and D44 measurement pending
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. Still to do: t3code reproduction, `bin/` fix, release.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -70,6 +70,7 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | SW-D6 | Local admission did not pass (the development machine was busy). Development test runs moved to the validation machine, in a private development clone under the same 60-second admission. Gates still use the reviewed runner. |
 | SW-D7 | The validation-run queue is private and untracked: first in, first out; one worker at a time; an entry past its deadline is recorded expired, not run; the verdict comes from the gate's own verdict line. Its 15 self-tests pass on both machines and seven mutations are caught. It queues gates; it never changes the reviewed runner. |
 | SW-D8 | The D44 harness is private and never committed. It runs an oldest-first shadow beside D40 on a separate run context and records only the runs that differ or whose anchor moved. Tests that count Git calls may fail under it (the shadow doubles them); only the recorded differences count. As D44 requires, any difference outside the pinned fixtures blocks, even one shaped like T7 (both exit 0, only the replay anchor moved); it is resolved by revising Amendment 4 and repeating its design review. (Review of `6bb6d13` caught an earlier draft that exempted the T7 shape.) |
+| SW-D9 | **D44 item 1 result: blocks under rev-4, passes under rev-5.** 406 recorded runs (252 tests; `internal/workflow` whole, plus 39 cli verify tests). Fourteen runs had a moved anchor. Every pinned run (T1, T5, T14 main, T14 control) matches its pin's exit code, `failed_at`, V7/V8 results, overlap class and promotion, checked by script. Rev-4 still blocks, for three reasons. Six runs of four unpinned fixtures differ exactly as T7 does: AC-L29, AC-L36 and the precondition run of the two rev-2 duplicate-attestation tests, all built by `RelandIdentical`, so every qualifier is an exact attestation of one identity. T7's own run also moves the historical anchor's `commit` and the target's V10 member baseline, which record the same selection. T14 main's run of the child's own verify is implied by its pin but not named. So I revised Amendment 4 to rev-5 instead of declaring a pass: it names all three, and states the A/A rule for harness artifacts; D40, the rest of the criterion and every other pin are unchanged. Nine runs differ without a moved anchor (seven in workflow, two in cli). An A/A control run (the harness with D40 on both sides) reproduces each one with the same report values, apart from commit IDs and temporary paths, which change with every fixture build. The causes are one-shot fault hooks consumed by the shadow, the shadow's `NoWrite`, `verify --all`'s shared shadow context seeing the real run's writes, and a temporary path. The seven tests that fail only under the harness (two Git-call counters, five one-shot hooks) fail identically under A/A. Under rev-5's rules no run blocks. I did not ask the operator, because Amendment 4 (D44) already makes a revision plus a repeated design review the remedy. Design review rev-5 APPROVED it (no findings). |
 
 ## Session Summary
 
@@ -81,12 +82,13 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 
 ## Current State
 
-N1 is implemented and tested, but not yet committed. D14 step 4 now
-prefers the newest qualifying exact attestation (D40). Steps 1–3, the
+N1 is committed (`6bb6d13`, pushed) and approved on code review. D14 step 4
+now prefers the newest qualifying exact attestation (D40). Steps 1–3, the
 reports and the schema are unchanged, and no Git call was added.
 
-Still to do: the whole `internal/workflow` run with the doc edits, the
-D44 measurement, and code review.
+D44 item 1 (every verify fixture under both rules) is measured: see SW-D9.
+ADR-013 Amendment 4 rev-5 (D44 only) answers it; its design review
+APPROVED it. D44 item 2 (the t3code reproduction) is in progress.
 
 ### N1 mutation proofs (validation machine, development clone)
 
@@ -110,13 +112,15 @@ file was restored afterwards.
 
 - Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
   `docs/supervisor/LOG.md`.
-- N1 (uncommitted): `internal/workflow/verify_landed.go`,
+- N1 (`6bb6d13`): `internal/workflow/verify_landed.go`,
   `internal/workflow/verify_anchor_selection_test.go` (new),
   `internal/workflow/verify_landed_groupd_test.go`,
   `internal/workflow/acceptance_ledger_test.go`, `SPEC.md`,
   `docs/adrs/ADR-013-verify-freshness-overlay.md`,
   `docs/prds/PRD-verify-freshness.md`,
   `docs/prds/PRD-historical-anchor-relanding.md`.
+- Amendment 4 rev-5 (D44 only): `docs/adrs/ADR-013-verify-freshness-overlay.md`,
+  `docs/prds/PRD-historical-anchor-relanding.md` (status line).
 
 ## Test Results
 
@@ -130,15 +134,24 @@ file was restored afterwards.
   identical): gofmt clean; 33 workflow doc and ledger guards `ok`;
   `./assets` `ok`; 11 cli doc and contract guards `ok`; `go vet ./...`
   clean; `go build ./cmd/tpatch` ok.
+- D44 measurement (validation machine; private harness, restored after
+  each run, with clone bytes checked identical to `6bb6d13`). A/B run:
+  `internal/workflow` exits 1 on the seven harness-only failures; the 39
+  cli verify tests `ok`. A/A control on the nine flagged workflow tests
+  and two cli tests: the same seven failures, with identical messages;
+  cli `ok`. Under rev-5: no blocking run. Evidence SHA-256: A/B workflow
+  dump `ebe7a199…`, A/B cli `e14b01e7…`, A/A workflow `be139efa…`,
+  A/A cli `d1d2ba11…`.
+- Doc guards with the rev-5 ADR/PRD text (validation machine, synced bytes
+  checked identical): gofmt clean; workflow doc and ledger guards `ok`;
+  `./assets` `ok`; cli doc guards `ok`; `go vet ./...` clean; build ok.
 
 ## Next Steps
 
-1. Static code review of N1 (gpt-6.1-sol); fix forward.
-2. D44 measurement on the validation machine (oldest-first shadow beside
-   D40, whole workflow package plus the cli verify tests); compare the
-   pinned fixtures with ADR-013's table.
-3. Read-only `t3code@5ce5d79` reproduction with the N1 binary.
-4. `bin/` local-check fix; release candidate; push; CI; serial gate.
+1. Read-only `t3code@5ce5d79` reproduction with the N1 binary (D44 item 2),
+   beside the pre-N1 base `c5bc3f8`.
+2. `bin/` local-check fix.
+3. Release candidate; push; CI; serial gate; release check; tag.
 
 ## Blockers
 

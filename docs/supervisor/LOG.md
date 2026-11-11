@@ -1,3 +1,79 @@
+## Design review — ADR-013 Amendment 4 rev-5 (D44 only) — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED
+
+### Notes
+
+No findings. The reviewer answered each question with citations: rev-5
+changes only D44 and the status/date lines (D40–D43, D45, other pins and
+the tests table unchanged), as D44's own remedy prescribes; each T7-class
+test is built with `RelandIdentical` (AC-L29 `verify_landed_groupd_test.go:36-37`,
+AC-L36 `:373`, the rev-2 helper `verify_rev2_fold_test.go:142`), and "As
+T7" admits only T7's three fields; the historical anchor and V10 member
+baseline are filled from the selected anchor (`verify_anchored.go:268-272`,
+`:852-855`); the T14 child-`c` pin follows from the fixture
+(`verify_anchor_selection_test.go:250-291`) and D45. The A/A rule cannot
+mask a selection-rule difference, because a run whose anchors did not move
+had the same inputs under both rules; normalizing commit IDs and temporary
+paths is acceptable for the cross-build comparison only, and "fail the
+same way" means the same failing assertion and message (the measured A/A
+failures have identical messages). No docs-guard pattern is introduced.
+A first reply ("no significant issues", 39 s) was too thin to record; the
+reviewer was asked to answer each question with citations.
+
+### Action Taken
+
+Rev-5 recorded as APPROVED in ADR-013 and the PRD status. N1's release
+now waits for D44 item 2 (t3code) and the release gates.
+
+## Implementation — GH #26 N1 D44 item 1; Amendment 4 rev-5 drafted — 2026-11-11
+
+**Implementer**: implementation agent (SW window).
+
+### Notes
+
+D44 item 1 measured on the validation machine with a private harness (an
+oldest-first shadow beside D40; clone restored and checked identical to
+`6bb6d13` after each run). 406 runs recorded; 14 with a moved anchor.
+Every pinned run matches its pin (checked by script, with tamper tests).
+Rev-4's criterion blocks on three gaps: six unpinned runs differ exactly
+as T7 does (AC-L29, AC-L36, two rev-2 duplicate-attestation tests); T7's
+own run also moves the historical anchor and the target's V10 member
+baseline; T14 main's verify of child `c` is implied but not named. Nine
+runs differ without a moved anchor; an A/A control (D40 on both sides)
+reproduces each on the same report values (commit IDs and temporary
+paths aside), so they are harness artifacts.
+
+Amendment 4 rev-5 (D44 only) names the T7 class, T7's full set of moved
+fields and T14 main's child run, and states the A/A rule. D40, the other
+pins and the tests are unchanged. Recorded as SW-D9.
+
+### Action Taken
+
+Rev-5 design review requested. The release stays gated on it and on D44
+item 2 (t3code).
+
+## Re-review — GH #26 N1 `6bb6d13` + `0ee0c99` — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED
+
+### Notes
+
+The corrected SW-D8 now matches D44: a difference outside the pinned
+fixtures blocks, whatever its shape, and is resolved only by revising
+Amendment 4 and repeating its design review. No new findings. D44's
+measurement and the t3code reproduction are still owed before any
+release.
+
+### Action Taken
+
+N1 code accepted on review. The D44 measurement is running on the
+validation machine; a release stays gated on its result.
+
 ## Review — GH #26 N1 `6bb6d13` — 2026-11-11
 
 **Reviewer**: independent static review (gpt-6.1-sol; no Go run).

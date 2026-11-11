@@ -1,7 +1,7 @@
 # ADR-013 — Verify Freshness Overlay
 
-**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 (D40, D41, D44) implemented 2026-11-11, pending its code review, the D44 measurement and release; N2 not yet scheduled)**
-**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4, accepted)
+**Status**: Accepted (M15 Wave 3 design — Git-like freshness redesign; PRD: `docs/prds/PRD-verify-freshness.md`) · **Amendment 1 rev-7 (final) ACCEPTED 2026-08-12 (v0.15.1 Wave B / GH #8 — landed-evidence semantics; D8–D19 below)** · **Amendment 2 ACCEPTED 2026-11-06 (GH #25 C1–C2 — read-only overlap assessment; D20–D27 below)** · **Amendment 3 ACCEPTED 2026-11-06 (GH #25 A1 — the current anchor explained by one recorded child; D28–D35 below; shipped in v0.20.0)** · **Amendment 4 ACCEPTED 2026-11-07 (rev-4; GH #26 attestation-preferred anchor selection and the R14 split; D40–D45 below; design review rev-4 APPROVED; slice N1 (D40, D41, D44) implemented 2026-11-11 and approved on code review; its D44 measurement found differences rev-4's pins did not name, so rev-5 (2026-11-11, D44 only) answers them, design review rev-5 APPROVED; N1's release waits for D44 item 2 and the release gates; N2 not yet scheduled)**
+**Date**: 2026-04-27 (original) · 2026-08-12 (Amendment 1) · 2026-11-06 (Amendment 2) · 2026-11-06 (Amendment 3) · 2026-11-06 (Amendment 4 draft) · 2026-11-07 (Amendment 4 rev-2 to rev-4, accepted) · 2026-11-11 (Amendment 4 rev-5, D44 only)
 **Deciders**: Core (M15 Wave 3 design — second revision after re-review); Amendment 1 — v0.15.1 Wave B planning writer
 **Supersedes**: ADR-012 (in full — every D1–D7 either replaced, retained, or dropped; see the supersession map below). The first-revision design (commit `8c3d72e`) extended `FeatureState` with a `tested` value; that approach is abandoned. The re-review of `8c3d72e` (findings F1, F2, F3, F4) is the trigger.
 **Related**: ADR-010 (M12 resolver), ADR-011 (feature DAG), ADR-019 (`tpatch land` trailer-block schema — Amendment 1's evidence substrate), ADR-016 (`record` auto-base resolution — owner of `apply.base_commit`), ADR-028 (supersession edge model), ADR-032 (feature-unapply state boundary), `docs/prds/PRD-verify-freshness.md` (successor PRD), `docs/prds/PRD-tpatch-land.md` (Amendment 1 co-amended), `docs/prds/PRD-verify-and-tested-state.md` (superseded predecessor PRD), `docs/dependencies.md`, CHANGELOG v0.6.1, CHANGELOG v0.11.3 (GH #2 fix this amendment must not regress)
@@ -1958,9 +1958,11 @@ verdict-relevant.
 design review the operator requested on 2026-11-07 APPROVED it
 (`docs/supervisor/LOG.md`); the operator scheduled slice N1 for the next
 window. N1 was implemented on 2026-11-11 (`internal/workflow/verify_landed.go`,
-tests in `internal/workflow/verify_anchor_selection_test.go`); its code
-review, the D44 measurement and release are pending, and N2 still needs
-scheduling. The text below keeps the conditions it was proposed under. The operator's answers to
+tests in `internal/workflow/verify_anchor_selection_test.go`) and its code
+review approved it. Its D44 measurement found differences that rev-4's
+pins did not name; revision 5 answers them, and its design review
+APPROVED it on 2026-11-11. N1's release waits for D44 item 2 and the
+release gates. N2 still needs scheduling. The text below keeps the conditions it was proposed under. The operator's answers to
 `docs/prds/PRD-historical-anchor-relanding.md` §9 (2026-11-06) approve its
 semantics: option A (Q1), the newest qualifying exact attestation (Q2),
 R14b with `failed_at` unchanged (Q3), A3 out of scope (Q5) and this
@@ -1992,6 +1994,23 @@ follow the code, where an arbitration failure skips only V8's historical
 half while the current anchor and the overlap assessment still run (rev-3
 F1); T14's E6 mutation is detected by the control's class and failing
 rule, not its exit code, because P9 keeps it red either way (rev-3 F2).
+
+**Revision 5 (2026-11-11)** answers N1's D44 measurement
+(`docs/handoff/CURRENT.md`, SW-D9) and changes only D44. Every pinned
+fixture matched its pin's verdict, `failed_at`, V7/V8 results and overlap
+class, and no run changed its verdict without a moved anchor. The
+measurement still blocked under rev-4, for three reasons that rev-5 now
+names: (a) six runs of four unpinned fixtures differ exactly as T7 does:
+AC-L29, AC-L36 and the two rev-2 duplicate-attestation tests. All four are
+built by `RelandIdentical`, so every qualifier is an exact attestation of
+one identity. (b) T7's own run also differs in two fields that rev-4's
+"nothing else differs" did not name: the historical anchor's `commit` and
+the target's own V10 member baseline. Both record the same selection as
+the replay anchor. (c) T14 main also runs the child C's own verify. Its
+change was implied, since E6 reads that verify, but not pinned. Rev-5 also
+states how a difference in a run whose anchors did not move is told apart
+from a harness artifact: by an A/A control. D40, the rest of the pass
+criterion and every other pin are unchanged.
 
 **Issue**: <https://github.com/tesseracode/tesserapatch/issues/26>
 **Numbering**: Amendment 3 is reserved for GH #25 A1 (the anchor-C
@@ -2197,12 +2216,27 @@ changed verdict, anchor result, `failed_at` or remediation that no pin
 names. A blocking difference is resolved by revising this amendment and
 repeating its design review, not by the N1 code review alone.
 
+**Harness artifacts (rev-5).** Running both rules on one fixture needs a
+shadow run beside the real one, and the shadow can change what the real
+run sees. It consumes a fault that a test injects only once. It never
+writes, while the real run persists. In `verify --all` it can also observe
+the real run's writes. A difference in a run whose anchors did not move
+counts as such an artifact, not as a rule difference, only when an A/A
+control reproduces it. The A/A control is the same harness with D40 on both
+sides; it must record a difference for the same test, feature, mode and call
+number, with each side's report equal to the measured run's, field for
+field, apart from commit IDs and temporary paths, which change with every
+fixture build. Any other such difference blocks. A test that fails only under the harness must fail the
+same way in the A/A control.
+
 | Fixture | Oldest-first (today) | D40 |
 |---|---|---|
 | T1 | Exit 2, `parent-landing-drift`, R14. Arbitration fails before the historical half replays (`internal/workflow/verify_anchored.go:513-519`, `:669-674`): V7 failed, V8's historical half `skipped`. The current anchor is still evaluated (`:276-280`): `materialized-clean`. | Exit 0. V7 passed; V8 historical `passed`, current `materialized-clean`; replay anchor = the attestation. |
 | T5 | Exit 2, `parent-landing-drift`, R14. V7 failed; V8 failed with historical `skipped`, current `absent`; the overlap assessment runs (`:311-328`) and finds no recorded descendant (`unexplained-content-loss`). | Exit 2, `landed-content-absent`. V7 passed; V8 failed with historical `passed`, current `absent`; the same assessment. |
-| T7 | Exit 0; replay anchor = the older exact attestation. | Exit 0; replay anchor = the newer. Nothing else differs. |
+| T7 | Exit 0; replay anchor = the older exact attestation. | Exit 0; replay anchor = the newer. The historical anchor's `commit` and the target's own V10 member baseline record the same selection and move with it (rev-5). Nothing else differs. |
+| T7-class (rev-5) | AC-L29 (two identical re-landings, so three qualifiers), AC-L36 (one identical re-landing, verified three times) and the precondition run of `newDuplicateAttestationFixture` (`TestRev2_DuplicateAttestationGenericDiffFailureIsUnavailable`, `TestRev2_DuplicateAttestationMissingObjectIsHistoryIncomplete`). `RelandIdentical` re-lands the same change with the same trailer block, so every qualifier is an exact attestation of one identity. As T7, at the oldest. | As T7, at the newest. |
 | T14 main | Exit 2, `parent-landing-drift`: the target's arbitration fails at T1, where P2's patch is absent. V7 failed; V8 failed with historical `skipped`, current `absent`. The assessment runs: C passes E1, E2, E4 and E5 and fails E6 (its nested verify also selects C1 and fails), so the class is `invalid-or-missing-evidence`. No promotion. | Exit 0, promoted: V8 historical `passed`, current `explained-by-descendant`; `failed_at` empty. |
+| T14 main, C's own verify (rev-5) | Exit 2, `parent-landing-drift`: C's anchor is C1, where P2's patch is absent. V7 failed; V8 historical `skipped`, current `materialized-clean`. This is the verify E6 reads. | Exit 0; replay anchor = C2. V7 passed; V8 historical `passed`, current `materialized-clean`. |
 | T14 control | As T14 main. | Exit 2, `landed-content-absent`. V8 failed with historical `passed`, current `absent`; class `invalid-or-missing-evidence`, with E6 the child's only failing rule. |
 
 T11 needs no pin: its exact attestation is also its oldest qualifier, so

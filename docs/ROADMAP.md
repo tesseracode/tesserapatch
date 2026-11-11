@@ -51,7 +51,10 @@ profiling (measure only); ✅ validation-run queue (private runner, SW-D7);
 every gate passes. Follow-ups if time allows: GH #26 N2, GH #18–#20
 read-only rebaseline, low-risk profiling fixes, GH #25 B design, GH #17
 inventory. Decisions are SW-D* in `docs/handoff/CURRENT.md`; the HK-D*
-decisions are archived in `docs/handoff/HISTORY.md`.
+decisions are archived in `docs/handoff/HISTORY.md`. N1 progress: code
+`6bb6d13` APPROVED on review; D44 item 1 measured — it blocks under
+Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review
+rev-5 APPROVED. D44 item 2 (t3code) and the release gates remain.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.
