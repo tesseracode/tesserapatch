@@ -1,3 +1,20 @@
+## Supervisor — v0.21.0 serial gate dispatched; window extended — 2026-11-11
+
+**Actor**: implementation agent (SW window).
+
+### Notes
+
+CI on `536f1a8` (tracking only after the candidate) passed. The serial
+validation-machine gate at `f7beb47` (`WAVE_BASE=c5bc3f8`) started at
+2026-11-11T17:43Z. The operator extended the window by 10 hours to
+2026-11-12T02:41:56Z (SW-D12, which also records an idle gap between the
+CI pass and the gate dispatch).
+
+### Action Taken
+
+On a gate PASS: tracking commit naming the gated `f7beb47`, release check,
+tag v0.21.0, push, then the field returns to IN PROGRESS for follow-ups.
+
 ## Code review — v0.21.0 release candidate (`6a7b274`, `f7beb47`) — 2026-11-11
 
 **Reviewer**: independent static review (gpt-6.1-sol; no Go run).

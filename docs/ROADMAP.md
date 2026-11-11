@@ -44,7 +44,8 @@ serial validation-machine gate PASS, 42/42, wave-close-check 8/8). No
 release authorized; the changes ship with the next release.
 
 **Update 2026-11-11T00:41:56Z**: the operator authorized a 16-hour
-unattended window (SW, deadline 2026-11-11T16:41:56Z, WAVE_BASE
+unattended window (SW, deadline 2026-11-11T16:41:56Z, extended to
+2026-11-12T02:41:56Z by the operator (SW-D12), WAVE_BASE
 `c5bc3f8`): 🚧 GH #26 N1 (Amendment 4 D40/D41/D44); ⬜ test-time
 profiling (measure only); ✅ validation-run queue (private runner, SW-D7);
 ✅ `bin/` snapshots and local whole-tree checks (SW-D11, review APPROVED WITH NOTES, answered; SW-Q1
@@ -59,7 +60,8 @@ rev-5 APPROVED. D44 item 2 (t3code, SW-D10): N1 moves `attention-notifications`
 to the genuine new base; every verdict is unchanged, and the remaining block
 is D42's R14b case for N2. Release candidate v0.21.0 committed (CHANGELOG
 and release-guard pin in gated source); push, CI, serial gate, release
-check and tag remain.
+check and tag remain. Candidate checks pass, review APPROVED, CI green
+(`536f1a8`); serial gate at `f7beb47` running since 2026-11-11T17:43Z.
 
 This dated snapshot supersedes the September 22 post-v0.17 queue below.
 It is **analysis and prioritization, not implementation authorization**.

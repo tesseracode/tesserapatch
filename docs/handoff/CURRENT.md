@@ -13,7 +13,8 @@ canonical field is APPROVED for the serial validation-machine gate
 follow-ups.
 
 **16-hour unattended window (SW) dispatched** by the operator at
-2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**.
+2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**,
+extended by the operator by 10 hours to **2026-11-12T02:41:56Z** (SW-D12).
 `WAVE_BASE=c5bc3f8` (`origin/main` at dispatch, CI green). Decisions are
 recorded as SW-D* below for the operator's review.
 
@@ -48,7 +49,7 @@ terminal (HK-D9).
 - **Milestone**: Post-v0.20 backlog — GH #26 N1 / v0.21.0
 - **Description**: ADR-013 Amendment 4 D40/D41/D44 with tests; D44
   measurement before release
-- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Release candidate v0.21.0 committed; next: push, CI, serial gate, release check, tag.
+- **Status**: In progress — N1 committed (`6bb6d13`); code review APPROVED after a tracking fix (`0ee0c99`). D44 measurement done: it blocks under Amendment 4 rev-4 and passes under rev-5 (D44 only, SW-D9); design review rev-5 APPROVED. D44 item 2 (t3code) recorded (SW-D10). `bin/` fix (SW-D11) APPROVED WITH NOTES on review; notes answered by two fixtures. Release candidate v0.21.0 (`f7beb47`) checks pass, review APPROVED, pushed with `536f1a8`; CI green. Serial gate at `f7beb47` running since 2026-11-11T17:43Z (window extended, SW-D12); next: release check, tag.
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-11T16:41:56Z`
@@ -81,6 +82,7 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | SW-D9 | **D44 item 1 result: blocks under rev-4, passes under rev-5.** 406 recorded runs (252 tests; `internal/workflow` whole, plus 39 cli verify tests). Fourteen runs had a moved anchor. Every pinned run (T1, T5, T14 main, T14 control) matches its pin's exit code, `failed_at`, V7/V8 results, overlap class and promotion, checked by script. Rev-4 still blocks, for three reasons. Six runs of four unpinned fixtures differ exactly as T7 does: AC-L29, AC-L36 and the precondition run of the two rev-2 duplicate-attestation tests, all built by `RelandIdentical`, so every qualifier is an exact attestation of one identity. T7's own run also moves the historical anchor's `commit` and the target's V10 member baseline, which record the same selection. T14 main's run of the child's own verify is implied by its pin but not named. So I revised Amendment 4 to rev-5 instead of declaring a pass: it names all three, and states the A/A rule for harness artifacts; D40, the rest of the criterion and every other pin are unchanged. Nine runs differ without a moved anchor (seven in workflow, two in cli). An A/A control run (the harness with D40 on both sides) reproduces each one with the same report values, apart from commit IDs and temporary paths, which change with every fixture build. The causes are one-shot fault hooks consumed by the shadow, the shadow's `NoWrite`, `verify --all`'s shared shadow context seeing the real run's writes, and a temporary path. The seven tests that fail only under the harness (two Git-call counters, five one-shot hooks) fail identically under A/A. Under rev-5's rules no run blocks. I did not ask the operator, because Amendment 4 (D44) already makes a revision plus a repeated design review the remedy. Design review rev-5 APPROVED it (no findings). |
 | SW-D10 | **D44 item 2 (t3code `5ce5d79`, read-only) does not block the release.** I ran the five GH #26 roots with the pre-N1 base (`c5bc3f8`) and N1 (`6bb6d13`), both built from `git archive`; the clone's state hash was unchanged afterwards. `copilot-cli-provider` exits 0 under both, identical apart from the timestamp. The four failing roots exit 2 at `parent-landing-drift` under both. Three have a single qualifier, so D40 cannot change them. For `attention-notifications`, N1 moves the anchor from `75bfc26` (replay `55fd4d7`) to `19785c6` (replay `964529c`), the genuine new base GH #26 names; nothing else in its report changes. All four still block on the closure member `copilot-cli-provider`: its only exact attestation `92e65de` is in none of their anchors' history, so its canonical patch is absent there. That is D42's R14b case, which N2 addresses (better remediation, same verdict). No passing root fails and no verdict changes, so I let the release proceed and left GH #26 open for N2. I posted no comment; a draft is in the morning report. |
 | SW-D11 | **`bin/` local checks (NW-D12): match Go's module boundary, plus a private stub.** Tracked part: the S7 partition-owner walk (`walkS7PartitionTestFiles` in `internal/cli/prepare_s7_ci_timeout_guard_test.go`) no longer descends into a nested module, that is a directory below the root that holds a `go.mod` file, because `go test ./...` never runs those tests either. A directory named `go.mod` is not a module; any other stat error fails the walk. I did not skip `bin/` by name: that would also hide a tracked test file placed there. Private part: an untracked, ignored `bin/go.mod` stub (`module tpatch.invalid/private-bin`) makes the whole private tree one nested module, so locally `go vet ./...`, `go test ./...` and the S7 walk skip it. `gofmt -l .` still lists 72 private files under `bin/` (copies of third-party module sources inside old snapshots); removing them deletes private data, so I held that as SW-Q1. Gates are unaffected: the validation machine's clean clone has no `bin/`. |
+| SW-D12 | **Window extension and an idle gap.** At 2026-11-11T17:42Z the operator asked to "extend the window 10 more hours". I read it as the old deadline plus 10 hours, 2026-11-12T02:41:56Z (the shorter reading; 10 hours from the request would be 03:42Z). The gap: after pushing `536f1a8` at 07:43Z I ended my turn to wait for CI instead of waiting inside it, so nothing ran after the profiling measurement finished (08:39Z) and CI passed (08:55Z); the serial gate at `f7beb47` started only at 17:43Z. Nothing was lost, but about nine hours of window time sat idle. From now on, in an unattended window I wait for long jobs inside the turn and never end it while work is queued. |
 
 ### Open questions (SW-Q*)
 
@@ -203,8 +205,9 @@ file was restored afterwards.
 
 ## Next Steps
 
-1. Release candidate `f7beb47` (validation checks and static review done):
-   push; CI; serial gate at `f7beb47` (later commits before the tag change
+1. Release candidate `f7beb47` (validation checks and static review done;
+   pushed with `536f1a8`, CI green): serial gate running (started
+   2026-11-11T17:43Z); then at `f7beb47` (later commits before the tag change
    tracking docs only); release check; tag; tracking commit (field back to
    IN PROGRESS).
 
