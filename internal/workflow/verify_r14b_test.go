@@ -340,15 +340,19 @@ func TestA4T16ShallowNoIsUndetermined(t *testing.T) {
 	mustGit(t, f.root, "reset", "-q", "--hard", m)
 
 	clone := t.TempDir()
-	if out, err := tryGit(clone, "clone", "-q", "--depth", "4", "file://"+f.root, "."); err != nil {
+	if out, err := tryGit(clone, "clone", "-q", "--depth", "5", "file://"+f.root, "."); err != nil {
 		t.Fatalf("shallow clone: %v\n%s", err, out)
 	}
-	if facts, err := gitutil.ReadRepoFacts(clone); err != nil || !facts.Shallow {
+	facts, err := gitutil.ReadRepoFacts(clone)
+	if err != nil || !facts.Shallow {
 		t.Fatalf("precondition: the clone must be shallow (%v)", err)
 	}
 	anchor := mustGit(t, clone, "rev-parse", childLanding+"^")
-	for _, c := range []string{parentLanding + "^", anchor + "^"} {
-		mustGit(t, clone, "cat-file", "-e", c+"^{commit}")
+	for _, c := range []string{parentLanding, parentLanding + "^", anchor, anchor + "^"} {
+		sha := mustGit(t, clone, "rev-parse", "--verify", c+"^{commit}")
+		if facts.ShallowBoundary[sha] {
+			t.Fatalf("precondition: %s (%s) must be above the graft boundary, not on it", c, sha)
+		}
 	}
 	requireAncestry(t, clone, parentLanding, anchor, false)
 	s, err := storeOpen(clone)
