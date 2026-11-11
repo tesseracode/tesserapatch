@@ -1,3 +1,21 @@
+## Supervisor — v0.21.0 GitHub Release published by hand (SW-D24) — 2026-11-11
+
+**Actor**: implementation agent (SW window).
+
+### Notes
+
+CI on the N2 close commit `a37e512` passed (43105851377, 23:03Z). The
+v0.21.0 `main` and tag runs were still queued with no jobs, and both
+cancel and force-cancel returned 409. The CI release job can only run
+inside the tag's own run.
+
+### Action Taken
+
+Published the GitHub Release under RELEASING.md Step 3: CHANGELOG notes
+from the tag, the title from the tag annotation, `--latest --verify-tag`.
+Published 23:04:16Z. Tracking is committed locally, not pushed, while the
+`a37e512` gate runs (NW-D24).
+
 ## Supervisor — GH #26 N2 close commit; serial gate dispatched — 2026-11-11
 
 **Actor**: implementation agent (SW window).
