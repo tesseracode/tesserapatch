@@ -2,12 +2,19 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
+
+**GH #26 N2 close commit** (2026-11-11): N2 (ADR-013 Amendment 4 D42,
+D43) is code-review APPROVED (rev-3) and docs-review APPROVED, and passed
+runtime validation on the validation machine (all 12 mutations caught after
+SW-D22's correction, confirmed by the reviewer). The canonical field is
+APPROVED for the serial validation-machine gate at this commit (HK-D9).
+N2 is not released; it ships with the next release.
 
 **v0.21.0 released** (2026-11-11T20:50Z): tag `v0.21.0` at the tracking
 commit `fc6e80f`, gated candidate `f7beb47` (serial validation-machine gate
 PASS, 42/42; `make release-check` 9/9). It ships N1 (D40, D41, D44) and the
-housekeeping wave. The field is back to IN PROGRESS for GH #26 N2.
+housekeeping wave.
 
 **16-hour unattended window (SW) dispatched** by the operator at
 2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**,
@@ -48,7 +55,7 @@ terminal (HK-D9).
   landing is outside the anchor's history) and D43 (shallow and failed
   ancestry answers are undetermined), with tests T3, T4, T9, T10, T12,
   T13, T15 and T16
-- **Status**: In progress — code on a local branch (`b4c433c`, review fixes `a40b774`, `495c413`; SW-D16), static review APPROVED rev-3 (SW-D17). Runtime validation on the validation machine started 2026-11-11T20:51Z. N1 shipped in v0.21.0 (`fc6e80f`).
+- **Status**: Approved — code (`de17a87`, review fixes `79ea861`, `4bc690b`, rebased onto `main` after the tag; SW-D16) static review APPROVED rev-3 (SW-D17); docs `881b383` review APPROVED. Runtime validation passed on the validation machine (SW-D22). Close commit pushed; serial gate at it next. N1 shipped in v0.21.0 (`fc6e80f`).
 - **Assigned**: 2026-11-11
 - **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 - **Deadline**: `2026-11-12T02:41:56Z` (extended, SW-D12)
@@ -91,8 +98,8 @@ WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
 | SW-D19 | **GH #25 B design is a private planning document.** B is not authorized, so the design (a consolidation workflow) stays untracked under `bin/sw-20261111/b-design/`, with an independent design review. Nothing is tracked except this row. |
 | SW-D20 | **B design review: SOUND WITH NOTES, one MEDIUM, answered.** The replay pre-flight refused the runbook's own uncommitted preparation state (the new feature directory and the re-rendered `FEATURES.md`). Of the two fixes the reviewer offered I chose a narrow allowance: the Git index must equal `HEAD`; the replay phase may have changes only under the new feature's own directory; both phases may have a worktree-only `FEATURES.md` equal to the deterministic render of the captured statuses; anything else refuses. I rejected the alternative (a trailer-free preparation-only commit), because every ancestry check would then have to reason about an extra history object. One positive and two negative test rows were added to the design. Re-review: RESOLVED, no new findings. |
 | SW-D21 | **N2 docs leave CHANGELOG to the next release candidate.** Every earlier pin bump (`c18f025`, `68142ca`, `7b690b2`, `f7beb47`) wrote CHANGELOG only in the release-candidate commit, and the parity guard rejects an `## Unreleased` section beside the pinned v0.21.0 section. N2 therefore updates ADR-013, PRD-verify-freshness (R14b rows, the landed-parent edge case, AC-L117) and PRD-historical-anchor-relanding only. Of the `verify_anchored.go` cites, only D42's own (`:735-736` → `:740-742`) is updated. Several older ADR-013 and PRD-verify-freshness cites into that file (for example `:791-792`, `:796-800`, `:847-850`) were already displaced on `main` before N2; that is recorded for a separate cite refresh, not fixed here. |
-| SW-D22 | **N2-M12's expected-failure list was wrong; the mutation is caught.** First runtime run (validation machine, 2026-11-11T20:51Z): gofmt and vet clean; all 20 targeted tests pass; N2-M1..M11 caught as specified. N2-M12 (the ancestry query's arguments reversed) made T3, T4, T9, T12, T15 and T16 fail, but the harness reported it NOT CAUGHT because its list also named T10, which passed. T10 cannot catch that mutation by construction: it asserts that neither commit is an ancestor of the other (`verify_r14b_test.go:169-170`), so reversing the query gives the same "no". The rev-3 static trace that listed T10 was wrong. I corrected the private spec to T3, T4 and T12. T3 has the anchor below the attestation, so the reversed query answers yes. T4 and T12 have an attestation below the anchor, so the reversed query answers no. No code or test changed. The complete run was repeated, and the reviewer was asked to confirm. |
-| SW-D23 | **GitHub Actions outage at the release.** A GitHub incident affecting Actions began at 2026-11-11T20:48Z, two minutes before the v0.21.0 push. The CI runs for `main` (43098404929) and the tag (43098407794) stayed queued, so the release workflow had not yet published the GitHub Release. The tag itself is valid: its content passed the serial gate and `make release-check`. I did not re-push or re-tag. Tracking commits wait locally until those runs finish, because nothing is pushed while main CI is pending. The N2 gate needs its own CI to complete first. |
+| SW-D22 | **N2-M12's expected-failure list was wrong; the mutation is caught.** First runtime run (validation machine, 2026-11-11T20:51Z): gofmt and vet clean; all 20 targeted tests pass; N2-M1..M11 caught as specified. N2-M12 (the ancestry query's arguments reversed) made T3, T4, T9, T12, T15 and T16 fail, but the harness reported it NOT CAUGHT because its list also named T10, which passed. T10 cannot catch that mutation by construction: it asserts that neither commit is an ancestor of the other (`verify_r14b_test.go:169-170`), so reversing the query gives the same "no". The rev-3 static trace that listed T10 was wrong. I corrected the private spec to T3, T4 and T12. T3 has the anchor below the attestation, so the reversed query answers yes. T4 and T12 have an attestation below the anchor, so the reversed query answers no. No code or test changed. The reviewer CONFIRMED the correction (T3 catches no→yes; T4 and T12 catch yes→no; the rev-3 approval stands, and its claim about T10 is retracted). The complete rerun caught all 12. |
+| SW-D23 | **GitHub Actions outage at the release.** A GitHub incident affecting Actions began at 2026-11-11T20:48Z, two minutes before the v0.21.0 push. The CI runs for `main` (43098404929) and the tag (43098407794) stayed queued, so the release workflow had not yet published the GitHub Release. The tag itself is valid: its content passed the serial gate and `make release-check`. I did not re-push or re-tag. Tracking commits wait locally until those runs finish, because nothing is pushed while main CI is pending. The N2 gate needs its own CI to complete first. GitHub resolved the incident at 21:21Z, but both runs were still queued with no jobs at 21:44Z, and the cancel API refused them ("not been queued yet"). The CI workflow has no manual trigger, so I pushed the N2 close commit instead. Its `main` run covers the release tree, because the release tree differs from the close commit only by N2. The tag run is left alone. If it never runs, the GitHub Release is published by hand under RELEASING.md once the close commit's CI passes; that is recorded at window close. |
 
 ### Open questions (SW-Q*)
 
@@ -168,6 +175,16 @@ file was restored afterwards.
 - Release candidate v0.21.0: `CHANGELOG.md`,
   `assets/recipe_authority_parity_test.go` (pin `0.21.0` and the versioned
   heading fixture, as in v0.20.0's `7b690b2`).
+- GH #26 N2 (`de17a87`, `79ea861`, `4bc690b`):
+  `internal/workflow/verify_anchored.go`,
+  `internal/workflow/verify_landed.go`,
+  `internal/workflow/verify_r14b_test.go` (new),
+  `internal/workflow/verify_landed_groupabc_test.go`,
+  `internal/workflow/verify_landed_groupf_test.go`,
+  `internal/workflow/verify_landed_grouph_test.go`. Docs (`881b383`):
+  `docs/adrs/ADR-013-verify-freshness-overlay.md`,
+  `docs/prds/PRD-verify-freshness.md`,
+  `docs/prds/PRD-historical-anchor-relanding.md`.
 
 ## Test Results
 
@@ -217,15 +234,28 @@ file was restored afterwards.
   commands, exact command-multiset and pre-flight order parity, fresh
   isolated caches, source clean afterwards, `wave-close-check` 8/8. CI on
   `66ff20e` green (43080568301).
+- GH #26 N2 (validation machine, development clone at `495c413`, whose
+  code and tests are byte-identical to the rebased `4bc690b`): gofmt clean;
+  `go vet ./internal/workflow/` clean; the 20 targeted tests pass (T3, T4,
+  T9, T10, T12, T13, T15, T16, the aggregation unit test, AC-L28, AC-L76,
+  AC-L84, AC-L117 and the N1 rows T1, T5, T6b, T8, T11, T14 main and
+  control). Mutations N2-M1..M12: all caught on the second run (the first
+  run's M12 expectation error is SW-D22). Whole `internal/workflow`
+  package `ok` in 1,438 s (2026-11-11T21:31:59Z).
+- N2 docs `881b383` (same clone, checked out at `881b383`): gofmt clean;
+  workflow doc and ledger guards `ok`; `./assets` `ok`; cli doc guards
+  `ok` (233 s); `go vet ./...` clean; `go build ./cmd/tpatch` ok
+  (2026-11-11T21:39:07Z).
 
 ## Next Steps
 
-1. GH #26 N2: runtime validation on the validation machine (gofmt, vet,
-   targeted tests, N2-M1..M12, the `internal/workflow` package), running
-   since 2026-11-11T20:51Z; then rebase the local branch onto `main`, the
-   docs commit (SW-D21), push, CI and the serial gate at a close commit
-   with a terminal field.
-2. Window close by 2026-11-12T02:41:56Z: archive this handoff to HISTORY,
+1. GH #26 N2: hosted CI on the close commit, and the serial
+   validation-machine gate at it (`WAVE_BASE=c5bc3f8`). No push until
+   that CI completes.
+2. v0.21.0 tag CI (43098407794), stranded by the outage (SW-D23): if it
+   never runs, publish the GitHub Release by hand under RELEASING.md
+   after the close commit's CI passes.
+3. Window close by 2026-11-12T02:41:56Z: archive this handoff to HISTORY,
    terminal field, push, morning report.
 
 ## Blockers

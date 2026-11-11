@@ -1,3 +1,56 @@
+## Supervisor — GH #26 N2 close commit; serial gate dispatched — 2026-11-11
+
+**Actor**: implementation agent (SW window).
+
+### Notes
+
+N2 passed runtime validation on the validation machine: gofmt and vet
+clean, the 20 targeted tests pass, N2-M1..M12 all caught (after SW-D22's
+correction of M12's expected-failure list, which the reviewer confirmed),
+and the whole `internal/workflow` package is `ok` in 1,438 s. The docs
+commit `881b383` passed the workflow doc and ledger guards, `./assets`,
+the cli doc guards, `go vet ./...` and the build. The N2 commits were
+rebased onto `main` after the v0.21.0 tag. Their code is byte-identical
+to the validated `495c413`.
+
+The `main` and tag CI runs for v0.21.0 were stranded by a GitHub Actions
+incident (SW-D23). This close commit is pushed with the canonical field
+APPROVED (HK-D9). Its CI run also covers the release tree.
+
+### Action Taken
+
+Fast-forwarded `main` to the close commit and pushed it. The serial
+validation-machine gate starts at it (`WAVE_BASE=c5bc3f8`). No further
+push until its CI completes.
+
+## Review — GH #26 N2 docs and the N2-M12 correction — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED (docs); CONFIRMED (N2-M12 correction)
+
+### Notes
+
+- Docs patch (committed as `881b383`): the R14b templates and its
+  undetermined form match production byte for byte, as do the AC-L117
+  goldens and T10's expected string. D42's cite `verify_anchored.go:740-742`
+  resolves to the blocked-ladder call to `memberLandingDriftRemediation`.
+  The status lines separate N1 (shipped in v0.21.0) from N2 (approved,
+  unreleased). D42/D43 semantics match. No doc guard breaks: the
+  acceptance IDs are unchanged, all 109 guarded cites are in bounds, and
+  the totality guard's sections and wording hold. CHANGELOG is untouched,
+  as the release pin requires.
+- N2-M12 (SW-D22): T10 asserts that neither commit is an ancestor of the
+  other (`verify_r14b_test.go:169-170`), so argument reversal cannot
+  change it. T3 catches no→yes; T4 and T12 catch yes→no. The direction
+  is adequately guarded; no new test is needed. The rev-3 approval
+  stands, with its claim that T10 catches M12 retracted.
+
+### Action Taken
+
+Corrected the private mutation spec to T3, T4 and T12 and re-ran the
+full N2 checks: all 12 caught.
+
 ## Supervisor — v0.21.0 serial gate PASS; release — 2026-11-11
 
 **Actor**: implementation agent (SW window).
