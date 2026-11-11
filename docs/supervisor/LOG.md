@@ -1,3 +1,24 @@
+## Review — GH #26 N1 `6bb6d13` — 2026-11-11
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: NEEDS REVISION
+
+### Notes
+
+One MEDIUM, in tracking only: SW-D8 exempted unpinned fixtures whose only
+difference had T7's shape (both exit 0, only the replay anchor moved).
+D44's pass criterion allows a difference only in a pinned fixture; any
+other difference must be resolved by revising Amendment 4 and repeating
+its design review. No findings on the code, the tests or the
+SPEC/ADR/PRD edits.
+
+### Action Taken
+
+SW-D8 corrected and the private analyzer changed to block such a
+difference (checked on a synthetic dump: AC-L36 shaped like T7 blocks,
+AC-L34 passes). Re-review requested.
+
 ## Implementation — GH #26 N1 (ADR-013 Amendment 4 D40) — 2026-11-11
 
 **Implementer**: SW window agent.
