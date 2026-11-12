@@ -2,261 +2,123 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IDLE
 
-**GH #26 N2 close commit** (2026-11-11): N2 (ADR-013 Amendment 4 D42,
-D43) is code-review APPROVED (rev-3) and docs-review APPROVED, and passed
-runtime validation on the validation machine (all 12 mutations caught after
-SW-D22's correction, confirmed by the reviewer). The canonical field is
-APPROVED for the serial validation-machine gate at this commit (HK-D9).
-N2 is not released; it ships with the next release.
-
-**v0.21.0 released** (2026-11-11T20:50Z): tag `v0.21.0` at the tracking
-commit `fc6e80f`, gated candidate `f7beb47` (serial validation-machine gate
-PASS, 42/42; `make release-check` 9/9). It ships N1 (D40, D41, D44) and the
-housekeeping wave.
-
-**16-hour unattended window (SW) dispatched** by the operator at
-2026-11-11T00:41:56Z (baseline check); deadline **2026-11-11T16:41:56Z**,
-extended by the operator by 10 hours to **2026-11-12T02:41:56Z** (SW-D12).
-`WAVE_BASE=c5bc3f8` (`origin/main` at dispatch, CI green). Decisions are
-recorded as SW-D* below for the operator's review.
-
-Scope (operator, 2026-11-10/11):
-
-1. **W1 — GH #26 N1**: ADR-013 Amendment 4 D40 (D14 step 4 prefers the
-   newest qualifying exact attestation), D41 (already recorded) and D44
-   (measure every verify fixture under both selection rules, plus the
-   read-only t3code `5ce5d79` reproduction) with tests T1, T2, T5, T6,
-   T6b, T7, T8, T11 and T14.
-2. **Test-time profiling**: measure which tests are slowest and why;
-   propose, change nothing (operator, 2026-11-07).
-3. **Validation-run queue**: in the private runner on the validation
-   machine (untracked, operator choice).
-4. **Private snapshots under `bin/`** (NW-D12): local whole-tree checks.
-5. **Release v0.21.0** after N1, only if every gate passes (operator).
-
-Follow-ups if time allows (operator-approved, in order): GH #26 N2 (D42,
-D43; not in v0.21.0 unless it fits before the release gate); read-only
-rebaseline of GH #18/#19/#20; low-risk profiling fixes in a reviewed wave
-(identical coverage only); GH #25 B consolidation-workflow design
-(planning only); GH #17 Windows failure inventory (read-only).
-
-Loop per wave: implement → independent review (gpt-6.1-sol, static, no
-Go) → local serial validation → push → hosted CI → serial
-validation-machine gate at a close commit whose canonical field is
-terminal (HK-D9).
+**SW unattended window closed; v0.21.0 shipped; GH #26 N2 approved;
+idle.** The window ran from 2026-11-11T00:41:56Z to its extended deadline
+2026-11-12T02:41:56Z (SW-D12), `WAVE_BASE=c5bc3f8`. GH #26 N1 (ADR-013
+Amendment 4 D40, D41, D44, with rev-5 for D44) shipped in **v0.21.0**
+(gated `f7beb47`, serial validation-machine gate PASS; tag at `fc6e80f`;
+GitHub Release published by hand after a GitHub Actions incident,
+SW-D23, SW-D24). GH #26 N2 (D42, D43) passed code review rev-3, docs
+review, runtime validation with all 12 mutations caught, hosted CI
+43105851377 and a serial validation-machine gate at its close commit
+`a37e512` (42/42, 10,942 s, wave-close-check 8/8). N2 is unreleased; it
+ships with the next release.
 
 ## Active Task
 
-- **Task ID**: `sw-gh26-n2`
-- **Milestone**: Post-v0.21 backlog — GH #26 N2
-- **Description**: ADR-013 Amendment 4 D42 (R14b when the member's
-  landing is outside the anchor's history) and D43 (shallow and failed
-  ancestry answers are undetermined), with tests T3, T4, T9, T10, T12,
-  T13, T15 and T16
-- **Status**: Approved — code (`de17a87`, review fixes `79ea861`, `4bc690b`, rebased onto `main` after the tag; SW-D16) static review APPROVED rev-3 (SW-D17); docs `881b383` review APPROVED. Runtime validation passed on the validation machine (SW-D22). Close commit `a37e512` pushed, CI green (SW-D24); serial gate at it running since 2026-11-11T21:46:03Z. N1 shipped in v0.21.0 (`fc6e80f`).
-- **Assigned**: 2026-11-11
-- **WAVE_BASE**: `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
-- **Deadline**: `2026-11-12T02:41:56Z` (extended, SW-D12)
-
-WAVE_BASE = c5bc3f875ad80f979b4bf91bb5df0be059e76903
-
-### Operator answers (2026-11-10)
-
-| Item | Answer |
-|---|---|
-| Window | 16 hours if time allows, unattended, decisions recorded. |
-| Release | v0.21.0 after N1, only if every gate passes. |
-| Validation-run queue | Private runner on the validation machine (untracked). |
-| Follow-ups | N2, rebaseline #18–#20, profiling fixes, GH #25 B design, GH #17 inventory. |
-| Spotlight (HK-D5) | The operator adds it later; keep working with the machine as it is. |
-| Lane mode on the validation machine | Stays serial until the operator reports the cleanup. |
-
-### Decisions (SW-D*)
-
-| ID | Decision |
-|---|---|
-| SW-D1 | Window starts at the baseline check (2026-11-11T00:41:56Z); WAVE_BASE `c5bc3f8`; deadline 16 hours later. |
-| SW-D2 | Amendment 4 test mapping: T2 is AC-L33 (now also checks `verify --all` equality), T6 is AC-L35, T7 is AC-L34. AC-L34 is renamed `TestACL34_EqualIdentityQualifiersSelectNewestAttestation` and now pins the newer attestation; the acceptance ledger and the PRD row say so. T1, T5, T6b, T8, T11 and T14 (main and control) are new, in `internal/workflow/verify_anchor_selection_test.go`. T6b is new because the existing R7 row pins neither `failed_at` nor that no anchor was resolved. |
-| SW-D3 | T6b pins the terminal anchor block (`unavailable`, 0 collected, 0 qualified, no replay anchor) instead of an absent block: the terminal phase always writes one. |
-| SW-D4 | D40 and D10 share one trailer test (`expectedAttestationTrailers`), so "exact attestation" cannot mean different things in evidence and in selection. |
-| SW-D5 | T8's shim fails only `git read-tree <attestation>^`, so the older landing still qualifies; the mutation "error read as does not qualify" then silently selects it and fails the test. |
-| SW-D6 | Local admission did not pass (the development machine was busy). Development test runs moved to the validation machine, in a private development clone under the same 60-second admission. Gates still use the reviewed runner. |
-| SW-D7 | The validation-run queue is private and untracked: first in, first out; one worker at a time; an entry past its deadline is recorded expired, not run; the verdict comes from the gate's own verdict line. Its 15 self-tests pass on both machines and seven mutations are caught. It queues gates; it never changes the reviewed runner. |
-| SW-D8 | The D44 harness is private and never committed. It runs an oldest-first shadow beside D40 on a separate run context and records only the runs that differ or whose anchor moved. Tests that count Git calls may fail under it (the shadow doubles them); only the recorded differences count. As D44 requires, any difference outside the pinned fixtures blocks, even one shaped like T7 (both exit 0, only the replay anchor moved); it is resolved by revising Amendment 4 and repeating its design review. (Review of `6bb6d13` caught an earlier draft that exempted the T7 shape.) |
-| SW-D9 | **D44 item 1 result: blocks under rev-4, passes under rev-5.** 406 recorded runs (252 tests; `internal/workflow` whole, plus 39 cli verify tests). Fourteen runs had a moved anchor. Every pinned run (T1, T5, T14 main, T14 control) matches its pin's exit code, `failed_at`, V7/V8 results, overlap class and promotion, checked by script. Rev-4 still blocks, for three reasons. Six runs of four unpinned fixtures differ exactly as T7 does: AC-L29, AC-L36 and the precondition run of the two rev-2 duplicate-attestation tests, all built by `RelandIdentical`, so every qualifier is an exact attestation of one identity. T7's own run also moves the historical anchor's `commit` and the target's V10 member baseline, which record the same selection. T14 main's run of the child's own verify is implied by its pin but not named. So I revised Amendment 4 to rev-5 instead of declaring a pass: it names all three, and states the A/A rule for harness artifacts; D40, the rest of the criterion and every other pin are unchanged. Nine runs differ without a moved anchor (seven in workflow, two in cli). An A/A control run (the harness with D40 on both sides) reproduces each one with the same report values, apart from commit IDs and temporary paths, which change with every fixture build. The causes are one-shot fault hooks consumed by the shadow, the shadow's `NoWrite`, `verify --all`'s shared shadow context seeing the real run's writes, and a temporary path. The seven tests that fail only under the harness (two Git-call counters, five one-shot hooks) fail identically under A/A. Under rev-5's rules no run blocks. I did not ask the operator, because Amendment 4 (D44) already makes a revision plus a repeated design review the remedy. Design review rev-5 APPROVED it (no findings). |
-| SW-D10 | **D44 item 2 (t3code `5ce5d79`, read-only) does not block the release.** I ran the five GH #26 roots with the pre-N1 base (`c5bc3f8`) and N1 (`6bb6d13`), both built from `git archive`; the clone's state hash was unchanged afterwards. `copilot-cli-provider` exits 0 under both, identical apart from the timestamp. The four failing roots exit 2 at `parent-landing-drift` under both. Three have a single qualifier, so D40 cannot change them. For `attention-notifications`, N1 moves the anchor from `75bfc26` (replay `55fd4d7`) to `19785c6` (replay `964529c`), the genuine new base GH #26 names; nothing else in its report changes. All four still block on the closure member `copilot-cli-provider`: its only exact attestation `92e65de` is in none of their anchors' history, so its canonical patch is absent there. That is D42's R14b case, which N2 addresses (better remediation, same verdict). No passing root fails and no verdict changes, so I let the release proceed and left GH #26 open for N2. I posted no comment; a draft is in the morning report. |
-| SW-D11 | **`bin/` local checks (NW-D12): match Go's module boundary, plus a private stub.** Tracked part: the S7 partition-owner walk (`walkS7PartitionTestFiles` in `internal/cli/prepare_s7_ci_timeout_guard_test.go`) no longer descends into a nested module, that is a directory below the root that holds a `go.mod` file, because `go test ./...` never runs those tests either. A directory named `go.mod` is not a module; any other stat error fails the walk. I did not skip `bin/` by name: that would also hide a tracked test file placed there. Private part: an untracked, ignored `bin/go.mod` stub (`module tpatch.invalid/private-bin`) makes the whole private tree one nested module, so locally `go vet ./...`, `go test ./...` and the S7 walk skip it. `gofmt -l .` still lists 72 private files under `bin/` (copies of third-party module sources inside old snapshots); removing them deletes private data, so I held that as SW-Q1. Gates are unaffected: the validation machine's clean clone has no `bin/`. |
-| SW-D12 | **Window extension and an idle gap.** At 2026-11-11T17:42Z the operator asked to "extend the window 10 more hours". I read it as the old deadline plus 10 hours, 2026-11-12T02:41:56Z (the shorter reading; 10 hours from the request would be 03:42Z). The gap: after pushing `536f1a8` at 07:43Z I ended my turn to wait for CI instead of waiting inside it, so nothing ran after the profiling measurement finished (08:39Z) and CI passed (08:55Z); the serial gate at `f7beb47` started only at 17:43Z. Nothing was lost, but about nine hours of window time sat idle. From now on, in an unattended window I wait for long jobs inside the turn and never end it while work is queued. |
-| SW-D13 | **GH #18–#20 rebaseline (read-only follow-up).** I ran the darwin/arm64 build of `6bb6d13` (production code identical to `f7beb47`) against throwaway clones of `tesseracode/copilot-api` at the issues' pin `e2d7ce4` and at its current HEAD: `verify --all --json --no-write`, a dry-run `doctor --json`, and a temp-index check of each canonical patch against its recorded base. All three issues reproduce unchanged at `e2d7ce4` (GH #18: 53 failed, 38/16/6/1, own-base 29/9, V7 classes 10/2/2/2; GH #19: four Path B V10 failures; GH #20: 24 D2 findings, a no-op `refresh` remediation, 6/18 candidate-base split). One new fact for GH #19: the downstream hand-wrote provenance sidecars with an inferred `generated_at`, which verify accepts. The ROADMAP rows record the results; draft issue comments are in the morning report, not posted. |
-| SW-D14 | **Test-time profiling: measured, nothing changed.** One `-json` run of the 04-go command on the validation machine (3,296 s wall, 1.43 GB max RSS), plus the previous gate's per-command times. Proposals, ranked by saving against risk: (1) a build-once-and-copy template for the `internal/workflow` ROCS8 fixture, about 600 s per gate, with a guard that each subtest's copy is independent; (2) merging the S6 shards so `s6ContractBaseline` (188 s, once per process) is built once, which is unmeasured and changes the CI partition, so it is your decision; (3) investigate about 1,050 s of 04-go wall time that is not CPU time. Keep as is: PIB-221's cold cross-builds (the point of the row) and the S7 type-check shards (CPU cost under `GOMAXPROCS=1`; only lane mode helps). The details stay in a private report. I did not schedule any fix: each needs its own reviewed wave. |
-| SW-D15 | **GH #17 Windows inventory (read-only).** From the allowed-failure Windows step of CI 42981546617 (`536f1a8`): 236 top-level failures in 8 packages (cli 112, workflow 44, gitutil 36, rescap 22, store 16, candidate, intentpub and provider 2 each). That number is a lower bound, for two reasons: `internal/cli` panics in `TestAVPPathsAndSlugSafety/AVP-192` (an unchecked type assertion at `internal/cli/prepare_avp2_test.go:391`), which aborts the rest of that test binary, and `internal/workflow` hits the step's 20-minute timeout, which contradicts the CI comment saying no package times out. A complete inventory first needs a checked assertion in AVP-192 and a longer timeout for that step; the step's argv is pinned by two guards, which must change with it. I made neither change: both are outside this window's scope, so they are recorded on the GH #17 ROADMAP row. |
-| SW-D16 | **GH #26 N2 waits on a local branch until the tag.** N2 (D42, D43) started as an operator-approved follow-up while the release gate ran. `make release-check` allows only tracking files between the gated commit and the tagged one, so N2 lives on a local branch (`b4c433c`, review fixes `a40b774` and `495c413`) and is rebased onto `main` after the tag. v0.21.0 does not include N2. |
-| SW-D17 | **N2 was reviewed before it was compiled.** Local admission failed (about 54% free memory, taken by development servers that are not this session's), and no Go may run on the validation machine during a gate. So N2 was written and statically reviewed first: rev-1 NEEDS REVISION (T10 could not reach the divergent-branch case), rev-2 APPROVED WITH NOTES (T16's anchor parent sat on the graft boundary), rev-3 APPROVED (LOG). Runtime validation and mutations N2-M1..M12 run after the gate frees the validation machine; a failure there goes back through review. |
-| SW-D18 | **Low-risk profiling fixes are deferred to the next window.** After the release, only one serial gate (about 3 hours) fits before the deadline, and N2 needs it. A profiling fix also needs its own measured before/after run, which cannot overlap a gate. |
-| SW-D19 | **GH #25 B design is a private planning document.** B is not authorized, so the design (a consolidation workflow) stays untracked under `bin/sw-20261111/b-design/`, with an independent design review. Nothing is tracked except this row. |
-| SW-D20 | **B design review: SOUND WITH NOTES, one MEDIUM, answered.** The replay pre-flight refused the runbook's own uncommitted preparation state (the new feature directory and the re-rendered `FEATURES.md`). Of the two fixes the reviewer offered I chose a narrow allowance: the Git index must equal `HEAD`; the replay phase may have changes only under the new feature's own directory; both phases may have a worktree-only `FEATURES.md` equal to the deterministic render of the captured statuses; anything else refuses. I rejected the alternative (a trailer-free preparation-only commit), because every ancestry check would then have to reason about an extra history object. One positive and two negative test rows were added to the design. Re-review: RESOLVED, no new findings. |
-| SW-D21 | **N2 docs leave CHANGELOG to the next release candidate.** Every earlier pin bump (`c18f025`, `68142ca`, `7b690b2`, `f7beb47`) wrote CHANGELOG only in the release-candidate commit, and the parity guard rejects an `## Unreleased` section beside the pinned v0.21.0 section. N2 therefore updates ADR-013, PRD-verify-freshness (R14b rows, the landed-parent edge case, AC-L117) and PRD-historical-anchor-relanding only. Of the `verify_anchored.go` cites, only D42's own (`:735-736` → `:740-742`) is updated. Several older ADR-013 and PRD-verify-freshness cites into that file (for example `:791-792`, `:796-800`, `:847-850`) were already displaced on `main` before N2; that is recorded for a separate cite refresh, not fixed here. |
-| SW-D22 | **N2-M12's expected-failure list was wrong; the mutation is caught.** First runtime run (validation machine, 2026-11-11T20:51Z): gofmt and vet clean; all 20 targeted tests pass; N2-M1..M11 caught as specified. N2-M12 (the ancestry query's arguments reversed) made T3, T4, T9, T12, T15 and T16 fail, but the harness reported it NOT CAUGHT because its list also named T10, which passed. T10 cannot catch that mutation by construction: it asserts that neither commit is an ancestor of the other (`verify_r14b_test.go:169-170`), so reversing the query gives the same "no". The rev-3 static trace that listed T10 was wrong. I corrected the private spec to T3, T4 and T12. T3 has the anchor below the attestation, so the reversed query answers yes. T4 and T12 have an attestation below the anchor, so the reversed query answers no. No code or test changed. The reviewer CONFIRMED the correction (T3 catches no→yes; T4 and T12 catch yes→no; the rev-3 approval stands, and its claim about T10 is retracted). The complete rerun caught all 12. |
-| SW-D23 | **GitHub Actions outage at the release.** A GitHub incident affecting Actions began at 2026-11-11T20:48Z, two minutes before the v0.21.0 push. The CI runs for `main` (43098404929) and the tag (43098407794) stayed queued, so the release workflow had not yet published the GitHub Release. The tag itself is valid: its content passed the serial gate and `make release-check`. I did not re-push or re-tag. Tracking commits wait locally until those runs finish, because nothing is pushed while main CI is pending. The N2 gate needs its own CI to complete first. GitHub resolved the incident at 21:21Z, but both runs were still queued with no jobs at 21:44Z, and the cancel API refused them ("not been queued yet"). The CI workflow has no manual trigger, so I pushed the N2 close commit instead. Its `main` run covers the release tree, because the release tree differs from the close commit only by N2. The tag run is left alone. If it never runs, the GitHub Release is published by hand under RELEASING.md once the close commit's CI passes; that is recorded at window close. |
-| SW-D24 | **v0.21.0 GitHub Release published by hand.** The close commit `a37e512`'s CI (43105851377) passed at 2026-11-11T23:03Z: test on all three platforms, both S7 observer jobs. At 23:03Z both v0.21.0 runs were still queued with no jobs, 2 h 15 min after GitHub resolved the incident, and cancel and force-cancel both still returned 409. The release job only runs inside the tag's own run, and RELEASING.md's guardrail is "never tag without publishing". So I followed RELEASING.md Step 3: notes extracted from the tagged `CHANGELOG.md` (the v0.21.0 section, 59 lines), the title from the tag annotation, `--latest --verify-tag`. Published 2026-11-11T23:04:16Z; the remote tag still peels to `fc6e80f`. Rejected: deleting and re-pushing the tag (rewrites a published ref) and waiting further (leaves a tag without a release). The tag's own test jobs never ran. Its tree is covered by the `f7beb47` gate, by `release-check` (tracking-only changes since then) and by `a37e512`'s CI, whose tree is the release tree plus N2. If the stranded run ever runs, its release job updates this existing release; that is harmless. |
-
-### Open questions (SW-Q*)
-
-| ID | Question |
-|---|---|
-| SW-Q1 | May I delete the 72 unformatted third-party files under the private `bin/` snapshots (or the snapshots that hold them), so that local `gofmt -l .` is clean? Nothing has been deleted. |
+- **Task ID**: none (idle)
+- **Milestone**: Post-v0.21 backlog
+- **Description**: Awaiting the operator's next window
+- **Status**: Idle — SW closed; N2 approved at `a37e512`
+- **Assigned**: 2026-11-12
+- **WAVE_BASE** (SW, closed): `c5bc3f875ad80f979b4bf91bb5df0be059e76903`
 
 ## Session Summary
 
-- Baseline verified: `HEAD` == `origin/main` == `c5bc3f8`, no tracked
-  changes, no stash, one worktree, no in-progress Git operation; main CI
-  42359322494 green.
-- The HK handoff stays archived in `docs/handoff/HISTORY.md` under
-  2026-11-07T08:09:14Z; the IDLE handoff that followed it is replaced here.
+- **v0.21.0** (GH #26 N1 and the HK housekeeping wave): N1 `6bb6d13`
+  code review APPROVED; D44 measured (blocks under Amendment 4 rev-4,
+  passes under rev-5, whose design review APPROVED it); t3code
+  reproduction recorded; release candidate `f7beb47` gate PASS;
+  `make release-check` 9/9; tag `v0.21.0` at `fc6e80f`.
+- **GH #26 N2**: code `de17a87`, `79ea861`, `4bc690b`; docs `881b383`;
+  close commit `a37e512`.
+- **Housekeeping and follow-ups**: `bin/` local whole-tree checks
+  (SW-D11); private validation-run queue (SW-D7); test-time profiling
+  measured only (SW-D14); GH #17 inventory and GH #18–#20 rebaseline,
+  read-only (SW-D13, SW-D15); GH #25 B design, private and reviewed
+  (SW-D19, SW-D20); stale doc-cite inventory, private (SW-D25).
+
+The full SW handoff is archived **byte-for-byte** in
+`docs/handoff/HISTORY.md` under
+**2026-11-12T00:48:26Z - SW unattended window closed; v0.21.0 shipped;
+GH #26 N2 approved**:
+
+- Archive block (header plus terminal body): 30,682 bytes,
+  SHA256 `048b56a3ad03b0e17e84f80fabad694600a3a8e7808ea120b622c6e6742da98c`.
+- Prior HISTORY prefix: 1,312,193 bytes, SHA256
+  `1b511c3915b27148f33e6243ecf98491e7f4225861b29dadcf1e8bb4f5590eba`, preserved unchanged.
+- HISTORY after this archive: 1,342,875 bytes, SHA256
+  `75099d9e4ad2aa57e66ba07104b5ab2ddd4527a0bdf465cbaf4f4b269ef67a92`.
+
+### Decisions for operator review
+
+Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
+
+| ID | Decision |
+|---|---|
+| SW-D1 | Window starts at the baseline check; WAVE_BASE `c5bc3f8`. |
+| SW-D2 | Amendment 4 test mapping: T2 is AC-L33, T6 is AC-L35, T7 is AC-L34 (renamed; now pins the newer attestation). |
+| SW-D3 | T6b pins the terminal anchor block instead of an absent block. |
+| SW-D4 | D40 and D10 share one trailer test, so "exact attestation" means one thing. |
+| SW-D5 | T8's shim fails only the attestation's parent read, so the mutation selects the older landing and fails. |
+| SW-D6 | Local admission failed; development runs moved to a private clone on the validation machine. |
+| SW-D7 | The validation-run queue is private and untracked (FIFO, one worker, expired entries not run). |
+| SW-D8 | The D44 harness is private; any difference outside the pinned fixtures blocks. |
+| SW-D9 | D44 item 1 blocks under Amendment 4 rev-4; I revised it to rev-5 (D44 only) instead of asking, as D44 names that remedy. Design review APPROVED. |
+| SW-D10 | The t3code reproduction does not block the release; the remaining block is N2's R14b case. |
+| SW-D11 | Local whole-tree checks stop at nested Go modules under `bin/`; five mutation proofs. |
+| SW-D12 | "Extend 10 more hours" read as the old deadline plus 10 hours (the shorter reading). |
+| SW-D13 | GH #18–#20 rebaseline, read-only; draft comments private. |
+| SW-D14 | Test-time profiling measured; nothing changed. |
+| SW-D15 | GH #17 Windows inventory, read-only: 236 failures is a lower bound; two prerequisites proposed. |
+| SW-D16 | N2 waited on a local branch until the tag (release-check allows only tracking after the gated commit). |
+| SW-D17 | N2 was statically reviewed before it was compiled (rev-1, rev-2 revisions; rev-3 APPROVED). |
+| SW-D18 | Low-risk profiling fixes deferred to the next window. |
+| SW-D19 | GH #25 B design is a private planning document; B is not authorized. |
+| SW-D20 | B design review SOUND WITH NOTES; the MEDIUM answered with a narrow PREP-state allowance; re-review RESOLVED. |
+| SW-D21 | N2 leaves CHANGELOG to the next release candidate. |
+| SW-D22 | N2-M12's expected-failure list was wrong (T10 is direction-symmetric); corrected to T3, T4, T12; reviewer CONFIRMED; all 12 caught. |
+| SW-D23 | A GitHub Actions incident stranded the v0.21.0 `main` and tag CI runs; I pushed the N2 close commit rather than re-pushing the tag. |
+| SW-D24 | v0.21.0 GitHub Release published by hand under RELEASING.md Step 3. |
+| SW-D25 | Stale `verify_anchored.go` doc cites inventoried (52 displaced, private report); patch and a stronger guard proposed for the next window. |
+
+Open for the operator: SW-Q1 (delete the 72 unformatted third-party
+files under the private `bin/` snapshots?); the Spotlight setting on the
+validation machine (HK-D5); when the validation machine is cleaned up, so
+lane mode can be retried there. The two stranded v0.21.0 CI runs
+(43098404929, 43098407794) are still queued with no jobs and cannot be
+cancelled from here.
 
 ## Current State
 
-N1 is committed (`6bb6d13`, pushed) and approved on code review. D14 step 4
-now prefers the newest qualifying exact attestation (D40). Steps 1–3, the
-reports and the schema are unchanged, and no Git call was added.
+Idle. `main` is at this tracking commit; `v0.21.0` is the latest release
+(tag on `fc6e80f`). GH #26 N2 is approved and unreleased.
 
-D44 item 1 (every verify fixture under both rules) is measured: see SW-D9.
-ADR-013 Amendment 4 rev-5 (D44 only) answers it; its design review
-APPROVED it. D44 item 2 (the t3code reproduction) is recorded: see SW-D10.
-
-The `bin/` local-check fix (SW-D11) is validated; its static review
-APPROVED it with notes, answered by two more fixtures (MB4, MB5).
-Its mutation proofs, run on the validation machine's development clone:
-
-| # | Mutation | Result |
-|---|---|---|
-| MB1 | Nested modules walked | `TestS7CIFullSuiteTimeoutGuard` fails |
-| MB2 | Root module itself treated as nested | `TestS7CIFullSuiteTimeoutGuard` fails |
-| MB3 | A directory named `go.mod` read as a module | `TestS7CIFullSuiteTimeoutGuard` fails |
-| MB4 | `bin/` skipped by name instead of by module detection | `TestS7CIFullSuiteTimeoutGuard` fails (nested module outside `bin/` visited) |
-| MB5 | A `go.mod` stat error read as "absent" | `TestS7CIFullSuiteTimeoutGuard` fails (self-referencing `go.mod` symlink) |
-
-MB4 and MB5 answer the static review of `c80c0bb` (APPROVED WITH NOTES),
-which named both as mutations the first fixture would not catch.
-
-### N1 mutation proofs (validation machine, development clone)
-
-Each mutation was applied privately, the named tests were run, and the
-file was restored afterwards.
-
-| # | Mutation | Test that fails |
-|---|---|---|
-| M1 | Oldest-first restored | T1, T5, T14 main, AC-L34 (T11 still passes, as pinned) |
-| M2 | Attestation used without qualification | AC-L33 (T2) |
-| M3 | Identity compare skipped when an attestation qualifies | AC-L35 (T6) |
-| M4 | D40 runs before evidence classification (ambiguous routed to landed) | T6b |
-| M5 | Probe error read as "does not qualify" | T8 |
-| M6 | Newest qualifier whenever an exact attestation qualifies | T11 |
-| M7 | E6 dropped from eligibility | T14 control |
-| M8 | Anchor C skipped when anchor H passes | T5 |
-| M9 | Nested verify selects oldest-first (target unchanged) | T14 main (T1 still passes) |
-| M10 | Oldest among the exact attestations | AC-L34 (T7) |
+GH #26: N1 shipped in v0.21.0; N2 approved at `a37e512`, so Amendment 4
+is fully implemented; the issue can close when N2 ships. GH #25 stays
+open (B and C3 not authorized; B design private). GH #24 has an approved
+PRD and no implementation authorization.
 
 ## Files Changed
 
-- Tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
-  `docs/supervisor/LOG.md`.
-- N1 (`6bb6d13`): `internal/workflow/verify_landed.go`,
-  `internal/workflow/verify_anchor_selection_test.go` (new),
-  `internal/workflow/verify_landed_groupd_test.go`,
-  `internal/workflow/acceptance_ledger_test.go`, `SPEC.md`,
-  `docs/adrs/ADR-013-verify-freshness-overlay.md`,
-  `docs/prds/PRD-verify-freshness.md`,
-  `docs/prds/PRD-historical-anchor-relanding.md`.
-- Amendment 4 rev-5 (D44 only): `docs/adrs/ADR-013-verify-freshness-overlay.md`,
-  `docs/prds/PRD-historical-anchor-relanding.md` (status line).
-- `bin/` fix (SW-D11): `internal/cli/prepare_s7_ci_timeout_guard_test.go`.
-- Release candidate v0.21.0: `CHANGELOG.md`,
-  `assets/recipe_authority_parity_test.go` (pin `0.21.0` and the versioned
-  heading fixture, as in v0.20.0's `7b690b2`).
-- GH #26 N2 (`de17a87`, `79ea861`, `4bc690b`):
-  `internal/workflow/verify_anchored.go`,
-  `internal/workflow/verify_landed.go`,
-  `internal/workflow/verify_r14b_test.go` (new),
-  `internal/workflow/verify_landed_groupabc_test.go`,
-  `internal/workflow/verify_landed_groupf_test.go`,
-  `internal/workflow/verify_landed_grouph_test.go`. Docs (`881b383`):
-  `docs/adrs/ADR-013-verify-freshness-overlay.md`,
-  `docs/prds/PRD-verify-freshness.md`,
-  `docs/prds/PRD-historical-anchor-relanding.md`.
+This close (tracking files only): `docs/handoff/CURRENT.md`,
+`docs/handoff/HISTORY.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
 
 ## Test Results
 
-- Validation machine, development clone at `cf2db23` plus the N1 diff:
-  gofmt clean; `go vet ./internal/workflow/` clean. The 25 targeted tests
-  pass: `TestA4*`, AC-L33–AC-L37, the rev-2 duplicate-attestation rows and
-  the acceptance ledger. All ten mutations are caught.
-- Whole `internal/workflow` package (same clone, code and tests synced,
-  before the doc edits): `ok` in 1,415 s.
-- Doc guards with the final doc edits (same clone; synced bytes checked
-  identical): gofmt clean; 33 workflow doc and ledger guards `ok`;
-  `./assets` `ok`; 11 cli doc and contract guards `ok`; `go vet ./...`
-  clean; `go build ./cmd/tpatch` ok.
-- D44 measurement (validation machine; private harness, restored after
-  each run, with clone bytes checked identical to `6bb6d13`). A/B run:
-  `internal/workflow` exits 1 on the seven harness-only failures; the 39
-  cli verify tests `ok`. A/A control on the nine flagged workflow tests
-  and two cli tests: the same seven failures, with identical messages;
-  cli `ok`. Under rev-5: no blocking run. Evidence SHA-256: A/B workflow
-  dump `ebe7a199…`, A/B cli `e14b01e7…`, A/A workflow `be139efa…`,
-  A/A cli `d1d2ba11…`.
-- Doc guards with the rev-5 ADR/PRD text (validation machine, synced bytes
-  checked identical): gofmt clean; workflow doc and ledger guards `ok`;
-  `./assets` `ok`; cli doc guards `ok`; `go vet ./...` clean; build ok.
-- t3code `5ce5d79` reproduction (read-only; base `c5bc3f8` and N1
-  `6bb6d13`, darwin/arm64, from `git archive`): see SW-D10. Binary
-  SHA-256 base `7353284f…`, N1 `3c53c08e…`; private summary
-  `7ed28cfa…`.
-- `bin/` fix (SW-D11; validation machine, development clone, guard file
-  checked identical, SHA-256 `022c39cc…` after the review fixtures):
-  gofmt clean; `go vet ./internal/cli/` clean;
-  `TestS7CIFullSuiteTimeoutGuard` `ok`; MB1–MB5 caught, each on its
-  intended assertion. End-to-end, with scratch copies of the operator's local
-  failure shapes under an ignored `bin/` (removed afterwards): without the
-  stub the guard fails on the loose `bin/` test ("outside internal/cli"),
-  and the nested snapshot module is skipped; with the stub it passes and
-  `go list ./...` lists no `bin/` package.
-- Release candidate `f7beb47` (validation machine, development clone with
-  the `cf2db23..f7beb47` files synced and checked identical): gofmt clean;
-  workflow doc guards `ok`; `./assets` `ok` (release pin and versioned
-  CHANGELOG fixtures); cli doc guards `ok` (235 s); `go vet ./...` clean;
-  `go build ./cmd/tpatch` ok; `TestS7CIFullSuiteTimeoutGuard` and
-  `TestReleaseCheck*` `ok`. Static review of `6a7b274` and `f7beb47`:
-  APPROVED, no findings (LOG).
-- Serial validation-machine gate at `f7beb47` (`WAVE_BASE=c5bc3f8`):
-  **PASS**, 2026-11-11T17:43:39Z–20:45:53Z (10,934 s). 42/42 top-level
-  commands, exact command-multiset and pre-flight order parity, fresh
-  isolated caches, source clean afterwards, `wave-close-check` 8/8. CI on
-  `66ff20e` green (43080568301).
-- GH #26 N2 (validation machine, development clone at `495c413`, whose
-  code and tests are byte-identical to the rebased `4bc690b`): gofmt clean;
-  `go vet ./internal/workflow/` clean; the 20 targeted tests pass (T3, T4,
-  T9, T10, T12, T13, T15, T16, the aggregation unit test, AC-L28, AC-L76,
-  AC-L84, AC-L117 and the N1 rows T1, T5, T6b, T8, T11, T14 main and
-  control). Mutations N2-M1..M12: all caught on the second run (the first
-  run's M12 expectation error is SW-D22). Whole `internal/workflow`
-  package `ok` in 1,438 s (2026-11-11T21:31:59Z).
-- N2 docs `881b383` (same clone, checked out at `881b383`): gofmt clean;
-  workflow doc and ledger guards `ok`; `./assets` `ok`; cli doc guards
-  `ok` (233 s); `go vet ./...` clean; `go build ./cmd/tpatch` ok
-  (2026-11-11T21:39:07Z).
-- CI on the N2 close commit `a37e512` green (43105851377,
-  2026-11-11T23:03Z; `release` skipped, as on every `main` run).
+- Hosted CI 43105851377 (`a37e512`): green on every job.
+- Validation-machine gate at `a37e512`, `WAVE_BASE=c5bc3f8`: **PASS
+  (serial)**, 42/42, 10,942 s, wave-close-check 8/8.
 
 ## Next Steps
 
-1. GH #26 N2: the serial validation-machine gate at `a37e512`
-   (`WAVE_BASE=c5bc3f8`), running since 2026-11-11T21:46:03Z. No push
-   until its verdict (NW-D24).
-2. Window close by 2026-11-12T02:41:56Z: archive this handoff to HISTORY,
-   terminal field, push, morning report.
+1. Check this tracking commit's main CI.
+2. Next window candidates: release N2 (v0.22.0, or with the next
+   change); the 52-cite docs refresh and a cite guard (SW-D25); low-risk
+   profiling fixes (SW-D18); GH #17 prerequisites (SW-D15); GH #25 B (not
+   authorized).
 
 ## Blockers
 

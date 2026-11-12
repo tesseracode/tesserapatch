@@ -1,3 +1,24 @@
+## Gate — GH #26 N2 close commit `a37e512`; SW window closed — 2026-11-12
+
+**Validation machine**, serial, `WAVE_BASE=c5bc3f8`: **PASS**
+(2026-11-11T21:46:03Z to 2026-11-12T00:48:26Z, 10,942 s). 42/42
+top-level commands with exact command-multiset and pre-flight order
+parity; fresh isolated caches; wave-close-check 8/8; no resource stop
+(minimum free memory 76%, peak load1 3.95, no unhealthy samples); source
+clean afterwards; serial evidence check PASS. Hosted CI 43105851377 at
+`a37e512`: green on every job.
+
+Correction to the SW-D24 entry below: holding that tracking commit until
+the gate verdict "(NW-D24)" was conservative, not required. HK relaxed
+NW-D24: a push during a gate is safe once the gated commit's CI is
+complete (SW-D25).
+
+### Action Taken
+
+GH #26 N2 approved (unreleased). SW window closed: handoff archived
+byte-for-byte in HISTORY under 2026-11-12T00:48:26Z; canonical field
+`IDLE`; ROADMAP flipped.
+
 ## Supervisor — v0.21.0 GitHub Release published by hand (SW-D24) — 2026-11-11
 
 **Actor**: implementation agent (SW window).
