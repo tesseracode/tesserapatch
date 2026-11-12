@@ -45,7 +45,17 @@ func rocS8Pending(t *testing.T, f *rocS2Fixture) *rocS8Fixture {
 	return &rocS8Fixture{rocS2Fixture: f, artifact: artifact, directory: directory}
 }
 
+// rocS8NewFixture gives each row a private copy of a per-process template
+// (operation_candidate_template_test.go), or a fresh build on Windows.
 func rocS8NewFixture(t *testing.T, creation bool) *rocS8Fixture {
+	t.Helper()
+	if !rocS8TemplateSupported() {
+		return rocS8BuildFixture(t, creation)
+	}
+	return rocS8TemplateFor(t, creation).instantiate(t)
+}
+
+func rocS8BuildFixture(t *testing.T, creation bool) *rocS8Fixture {
 	t.Helper()
 	if creation {
 		return rocS8Pending(t, rocS2NewFixture(t, true))

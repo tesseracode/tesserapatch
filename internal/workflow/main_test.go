@@ -15,5 +15,7 @@ import (
 // `unlinkat ...: directory not empty` failure.
 func TestMain(m *testing.M) {
 	testutil.PinGitAutoGCOff()
-	os.Exit(m.Run())
+	code := m.Run()
+	rocS8RemoveTemplates()
+	os.Exit(code)
 }
