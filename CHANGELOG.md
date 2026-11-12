@@ -2,6 +2,63 @@
 
 All notable changes to tpatch are recorded here.
 
+## v0.22.0 — 2026-11-13 — remediation says when verifying the parent cannot help
+
+### Changed
+
+- **Landed-mode remediation says when verifying the parent cannot help
+  (GH #26, slice N2).** When `tpatch verify` checks a landed feature and
+  closure arbitration blocks at `parent-landing-drift` because a hard
+  parent's canonical patch is not present at the verification baseline,
+  it now asks whether any exact landing of that parent is in the history
+  of that baseline, the parent of the target's replay anchor. An exact
+  landing is a landing commit whose patch, recipe and base-commit
+  trailers all match the parent's recorded snapshot. If none is, the old
+  advice to verify the parent first (R14) cannot clear the block, so the
+  remediation is the new R14b: it
+  names the parent's landing and the target's replay anchor, and
+  recommends genuinely unapplying the target, re-applying it on the
+  parent's current landing, then recording and landing it again. See
+  ADR-013 Amendment 4 D42.
+- When verify cannot tell (an ancestry query fails, no exact landing of
+  the parent is known, or Git answers "not an ancestor" in a shallow
+  clone), the remediation is R14b's undetermined form: it names the reason
+  and recommends restoring the repository's history before running
+  `tpatch verify` again (D43). The answer does not depend on which landing
+  the evidence reports or on the order the landings are found.
+- The verdict, exit code and `failed_at` are unchanged. Forward mode keeps
+  R14 and asks no ancestry question. The `tpatch verify --json` report
+  keeps `schema_version` 1.3.
+
+### Documentation
+
+- 52 citations of `internal/workflow/verify_anchored.go` in ADR-013,
+  ADR-036 and four PRDs pointed at lines that had moved; they now point at
+  the code they describe. Citations pinned to a past commit, or whose
+  historical-versus-current scope is unclear, are unchanged.
+
+### Known limits
+
+- N2 changes advice, not verdicts: a feature whose hard parent's exact
+  landings are all outside its verification baseline's history still
+  fails at `parent-landing-drift` until it is re-applied on the parent's
+  current landing.
+
+GH #25 slices A2, A3, B and C3 are not part of this release; merge
+topologies stay red.
+
+### Unchanged safeguards
+
+Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
+A warn/exit0 coverage row is not eligibility and never grants replay permission.
+
+**Editor failures:** `tpatch edit` returns a non-zero exit when the editor
+process fails, even if coverage publication succeeds. It still inspects
+bound-artifact changes and attempts coverage publication for changed canonical
+recipe/patch bytes before returning the editor error. A non-zero exit does not
+imply that saved edits were rolled back. An editor-only failure normally
+returns tpatch exit 1, not the editor's exact exit code.
+
 ## v0.21.0 — 2026-11-11 — historical anchor prefers the newest exact attestation
 
 ### Changed

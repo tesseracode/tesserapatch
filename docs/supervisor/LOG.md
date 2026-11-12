@@ -1,3 +1,51 @@
+## Supervisor — v0.22.0 release candidate — 2026-11-12
+
+**Actor**: implementation agent (TW window).
+
+### Notes
+
+Release candidate for **v0.22.0**: GH #26 N2 (approved at `a37e512`,
+unreleased) plus the cite refresh `f66523a`. CHANGELOG `## v0.22.0 —
+2026-11-13 — remediation says when verifying the parent cannot help`
+(TW-D5); release pin `0.22.0` and the versioned heading fixture in
+`assets/recipe_authority_parity_test.go`, same shape as `f7beb47`.
+Canonical field `APPROVED` at this commit so the serial gate can run here
+(HK-D9). SW-Q1 executed (TW-D2); TW-Q1 open for the operator.
+
+### Action Taken
+
+Release candidate committed locally; independent review, validation
+machine checks, push, CI, serial gate and `make release-check` follow
+before `git tag -a v0.22.0`.
+
+## Review — SW-D25 cite refresh `f66523a` — 2026-11-12
+
+**Reviewer**: gpt-6.1-sol (independent, static; ran no Go).
+**Task**: 52 displaced `verify_anchored.go` cites in ADR-013, ADR-036 and
+four PRDs.
+
+### Checklist
+- [x] Scope: six docs, 49 lines, numbers only (including the comma
+      continuation in the recipe PRD)
+- [x] Completeness: all 52 match the inventory; 50 pinned, 2 still-correct
+      and 2 uncertain cites unchanged
+- [x] Correctness: every new range opened against the code
+- [x] Doc guards statically unaffected: 109 ledger anchors in bounds; 22
+      ADR and 44 PRD S3 fingerprints unchanged; totality and S4 contract
+      blocks unchanged
+- [x] Uncertain cites left for the wave-2 cite guard (TW-D4)
+
+### Verdict: APPROVED
+
+### Notes
+
+No findings. The reviewer agreed that renumbering the two uncertain cites
+alone would endorse stale claims; resolve wording and numbers together.
+
+### Action Taken
+
+Kept `f66523a`; it ships in v0.22.0.
+
 ## Supervisor — TW window dispatched — 2026-11-12
 
 **Actor**: implementation agent (TW window).
