@@ -150,10 +150,10 @@ with `parent-landing-drift` on the provider feature
 | Check | Where | Proves | Does not prove |
 |---|---|---|---|
 | Landing evidence | `classifyEvidence` (`internal/workflow/verify_landed.go:712`, digests `:843-858`, `exact` `:869-870`) | Exactly one reachable single-parent commit carries this slug and matches the current patch SHA, recipe SHA and `status.apply.base_commit`. | That the content is still in the tree. A revert keeps the landing reachable (`docs/adrs/ADR-013-verify-freshness-overlay.md:439`). |
-| V7 `recipe_replay_clean` (historical) | `internal/workflow/verify_anchored.go:516` | The recipe replays at the replay anchor's parent tree, after closure arbitration. | Anything about `HEAD`. |
-| V8 historical half | `internal/workflow/verify_anchored.go:547-556` | The canonical patch applies forward at the closure baseline. | Anything about `HEAD`. |
-| V8 current half (anchor C) | `internal/workflow/verify_anchored.go:205`, ladder `internal/workflow/verify_landed.go:1078-1145` | The canonical patch's postimage is present at `HEAD`, either clean or with context drift that keeps at least one context line. | Why it is absent when it is absent. |
-| V10 `write_file_preimage_fresh` | `evaluateV10` (`internal/workflow/verify_anchored.go:788-870`) | Each `write-file` preimage matches at the reference tree. | Overwrite safety at `HEAD`. |
+| V7 `recipe_replay_clean` (historical) | `internal/workflow/verify_anchored.go:566` | The recipe replays at the replay anchor's parent tree, after closure arbitration. | Anything about `HEAD`. |
+| V8 historical half | `internal/workflow/verify_anchored.go:596-605` | The canonical patch applies forward at the closure baseline. | Anything about `HEAD`. |
+| V8 current half (anchor C) | `internal/workflow/verify_anchored.go:217`, ladder `internal/workflow/verify_landed.go:1078-1145` | The canonical patch's postimage is present at `HEAD`, either clean or with context drift that keeps at least one context line. | Why it is absent when it is absent. |
+| V10 `write_file_preimage_fresh` | `evaluateV10` (`internal/workflow/verify_anchored.go:910-1021`) | Each `write-file` preimage matches at the reference tree. | Overwrite safety at `HEAD`. |
 
 Anchor C reads a temporary index seeded from `HEAD`. It does not read the
 working tree or the real index (`SPEC.md:345-348`;
@@ -187,10 +187,10 @@ parent **state** only (applied, active or upstream-merged;
 `internal/workflow/dependency_gate.go:84-109`), and it is a no-op when the
 DAG is disabled (`internal/workflow/dependency_gate.go:64-66`). In verify,
 hard edges are read in one direction only: they build the target's
-ancestor closure for V7/V8 (`internal/workflow/verify_anchored.go:380-401`;
+ancestor closure for V7/V8 (`internal/workflow/verify_anchored.go:423-445`;
 `docs/dependencies.md:189-199`). Landed closure members are ladder-checked
 at the target's anchor tree and never replayed
-(`internal/workflow/verify_anchored.go:680-721`). No verify step uses a hard
+(`internal/workflow/verify_anchored.go:726-765`). No verify step uses a hard
 edge to find **descendants** of the target.
 
 ### 3.4 Supersession in verify
@@ -200,10 +200,10 @@ default replay (`docs/adrs/ADR-028-supersession-edge-model.md:77-79`). It
 does not change hard/soft semantics
 (`docs/adrs/ADR-028-supersession-edge-model.md:81-83`). A superseded member
 is skipped when another feature's closure is built
-(`internal/workflow/verify_anchored.go:389-391`). For the superseded target
+(`internal/workflow/verify_anchored.go:432-434`). For the superseded target
 itself, only V10's severity drops to warn
-(`internal/workflow/verify_anchored.go:796-800`); `foldAnchorC` does not
-consult supersession (`internal/workflow/verify_anchored.go:274-321`). So
+(`internal/workflow/verify_anchored.go:918-922`); `foldAnchorC` does not
+consult supersession (`internal/workflow/verify_anchored.go:286-365`). So
 superseding the parent does not turn the parent's own verify green.
 `isFeatureSupersededIn` returns true for healthy **and** stale superseders
 (`internal/workflow/labels.go:436-472`).
@@ -214,7 +214,7 @@ The later-touch index orders features by `RequestedAt` and indexes their
 touched paths (`internal/workflow/verify_landed.go:1411-1440`). It is a
 timestamp-and-path signal, not a transformation. The advisory is
 warn-class (R13, `internal/workflow/verify_landed.go:1499-1501`; emitted at
-`internal/workflow/verify_anchored.go:864-867`). ADR-029 D5 calls path-level
+`internal/workflow/verify_anchored.go:987-990`). ADR-029 D5 calls path-level
 detection "not a total stack-safety proof"
 (`docs/adrs/ADR-029-write-file-recipe-safety.md:60-66`).
 
@@ -246,8 +246,8 @@ the parent, which already fails for the same reason.
 | Re-record / re-land (R1, R11) | New attestation and, when the parent tree qualifies, a new replay anchor (`docs/adrs/ADR-013-verify-freshness-overlay.md:771-775`). | For the parent it would misattribute the child's bytes. For a metadata-only consolidation the new landing's parent does not qualify (§2.4). |
 | `record --commit-range` + `land --no-record` | Capture a range, then land existing artifacts (`docs/land.md:19-25`). | Produces the metadata-only landing in §2.4. Metadata-only landing onto `main` is out of scope in v1 (`docs/land.md:258`). |
 | `feature patch refresh` / `fixup` | Append a patch generation from a fresh capture (`internal/cli/feature_patch.go:89-99`). | The capture is index-to-worktree `git diff` (`internal/gitutil/gitutil.go:341-347`). After landing with a clean tree it is empty, so refresh skips and fixup errors. It cannot create a landing anchor. |
-| `reconcile confirm-upstreamed` / `upstream_merged` | Upstream absorption; closure skips the member (`internal/cli/cobra.go:2718-2743`; `internal/workflow/verify_anchored.go:654-655`). | Using it for local descendant evolution would record a false upstream claim. |
-| Context-drift ladder outcome | Postimage present with drifted context; passes with an advisory (`internal/workflow/verify_landed.go:1140-1144`; `internal/workflow/verify_anchored.go:316-320`). | Only applies when the postimage bytes survive. Here they do not. |
+| `reconcile confirm-upstreamed` / `upstream_merged` | Upstream absorption; closure skips the member (`internal/cli/cobra.go:2718-2743`; `internal/workflow/verify_anchored.go:700-701`). | Using it for local descendant evolution would record a false upstream claim. |
+| Context-drift ladder outcome | Postimage present with drifted context; passes with an advisory (`internal/workflow/verify_landed.go:1140-1144`; `internal/workflow/verify_anchored.go:357-363`). | Only applies when the postimage bytes survive. Here they do not. |
 
 Conclusion: no existing primitive proves that a recorded, ordered
 descendant transformation explains the missing postimage. The closest
@@ -280,7 +280,7 @@ order, inside a temporary index.
 **Proposed procedure (sketch, for decision only).**
 
 1. Trigger only on the `ladder.Blocked` branch of `foldAnchorC`
-   (`internal/workflow/verify_anchored.go:299`). A terminal evidence state
+   (`internal/workflow/verify_anchored.go:311`). A terminal evidence state
    is never rescued, and neither are absent artifacts or an unavailable
    historical anchor.
 2. Build the candidate set E of explaining descendants. Every member must
@@ -619,7 +619,7 @@ change.
 - **GH #26** — obsolete hard-parent historical-anchor selection after a
   genuine re-landing (`docs/ROADMAP.md:47`). **Adjacent, not identical:**
   the Fusion `parent-landing-drift` path shares the fixed-anchor member
-  check (`internal/workflow/verify_anchored.go:684-696`), so A3 and C3 must
+  check (`internal/workflow/verify_anchored.go:730-742`), so A3 and C3 must
   be coordinated with it. The root causes differ.
 - The documented-recipe `version` field finding (F-V18-1,
   `docs/handoff/HISTORY.md:17773-17790`) is unrelated.

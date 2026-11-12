@@ -201,7 +201,7 @@ field. Once record starts doing so:
 
 - verify enters the V10 provenance path and blocks if
   `recipe-provenance.json` is absent
-  (`internal/workflow/verify_anchored.go:816-840`);
+  (`internal/workflow/verify_anchored.go:938-962`);
 - a repeated apply sees the postimage rather than the preimage
   (`internal/workflow/writefile_safety.go:108-170`);
 - an empty-preimage child operation can collide with a path a hard parent
@@ -440,7 +440,7 @@ into binding-stale coverage, which verify blocks on and GH #13 refuses.
 ### 2.8 Nothing in the artifacts distinguishes a generated recipe from a manual one
 
 `recipe-provenance.json` is required by verify as soon as any `write-file`
-carries a preimage (`internal/workflow/verify_anchored.go:816-840`), but
+carries a preimage (`internal/workflow/verify_anchored.go:938-962`), but
 record must only write it for recipes it actually generated — fabricating a
 base and time for a hand-authored or provider-authored recipe is the
 historical-adoption move GH #19 owns.
@@ -1582,7 +1582,7 @@ precondition is still evaluated before the first write and one refusal still
 means no operation is written — path-safety refusals, and **ADR-029 D7's
 supersession severity**. Apply and verify mirror the two narrowed cases:
 verify's empty-preimage and expected-hash branches
-(`internal/workflow/verify_anchored.go:964-981`) gain the same exact-postimage
+(`internal/workflow/verify_anchored.go:1090-1129`) gain the same exact-postimage
 recognition at the reference tree and keep their failure for every other
 observed value.
 
@@ -3692,7 +3692,7 @@ mirrors ADR-036's deferred-decision table.
 | Supersession excludes the historical feature from default effective replay | `docs/adrs/ADR-028-supersession-edge-model.md:77-88` |
 | The runtime implements that downgrade and proceeds with execution | `internal/workflow/writefile_safety.go:240-264,326-364` |
 | Path-safety refusals are never downgraded by supersession | `internal/workflow/writefile_safety.go:270-278` |
-| Verify V10 downgrades to `warn` for superseded features | `internal/workflow/verify_anchored.go:797-801,888-892` |
+| Verify V10 downgrades to `warn` for superseded features | `internal/workflow/verify_anchored.go:918-922,1011-1015` |
 | Apply precheck compares the preimage before any postimage recognition | `internal/workflow/writefile_safety.go:108-170` |
 | Verify's empty-preimage branch treats any existing file as a collision | `internal/workflow/verify_anchored.go:964-981` |
 | Patch generation binds patch/recipe/base/capture | `internal/store/patch_generations.go:28-76` |
@@ -3720,7 +3720,7 @@ mirrors ADR-036's deferred-decision table.
 | `countPatchFiles` is used correctly as a file count in a collision entry | `internal/cli/record_collision.go:96` |
 | `countPatchFiles` is used incorrectly as a recipe operation count | `internal/cli/cobra.go:1908` |
 | That use sits inside the `case workflow.AutogenGenerated` arm, so it cannot execute when no recipe was generated | `internal/cli/cobra.go:1906-1908` |
-| Verify requires provenance for preimage-bearing recipes | `internal/workflow/verify_anchored.go:816-840` |
+| Verify requires provenance for preimage-bearing recipes | `internal/workflow/verify_anchored.go:938-962` |
 | Verify check IDs are a frozen snake_case vocabulary | `internal/workflow/verify.go:47-70` |
 | Verify severity vocabulary is `block`/`block-abort`/`warn` | `internal/workflow/verify.go:73-77` |
 | A failing `block` check yields verdict `failed` and exit `2`; `warn` does not | `internal/workflow/verify.go:624-637` |

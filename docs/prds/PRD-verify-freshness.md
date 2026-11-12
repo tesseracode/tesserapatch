@@ -204,9 +204,9 @@ V0 aborts early — a feature whose `status.json` cannot be loaded cannot be ver
 | V5 | `satisfied_by_reachable`       | every dep with `satisfied_by` set  | block       | `store.satisfiedBySHARe.MatchString` AND `gitutil.IsAncestor(repoRoot, dep.SatisfiedBy, "HEAD")` true | `internal/store/validation.go:101–108`, `internal/gitutil/gitutil.go:680` |
 | V6 | `dependency_gate_satisfied`    | always (gated on `Config.DAGEnabled()`) | warn   | `workflow.CheckDependencyGate(s, slug)` returns nil | `internal/workflow/dependency_gate.go:42` |
 | V7 | `recipe_replay_clean`          | recipe present                     | block       | After replaying the **hard-parent topological closure** of the target into a `gitutil.CreateShadow` worktree (§3.4.3), the target's recipe replays cleanly | `gitutil.CreateShadow`, `PruneShadow`, `store.TopologicalOrder`, recipe executor |
-| V8 | `post_apply_patch_replay_clean`| `artifacts/post-apply.patch` present | block     | After the same closure replay used by V7, `git apply --check` of `post-apply.patch` succeeds against the **closure-replayed baseline tree**. Per **GH #2 / v0.11.3**, when a recipe was applied in V7 the one shared shadow is **reset to `closureBaselineTree`** first (`resetShadowToTree`, `internal/workflow/verify.go:952-960`; call at `internal/workflow/verify_anchored.go:547-553`), so recipe and patch are checked **independently against the same baseline** rather than double-applied | one shadow allocation shared with V7, **reset between them**; `git apply --check` |
+| V8 | `post_apply_patch_replay_clean`| `artifacts/post-apply.patch` present | block     | After the same closure replay used by V7, `git apply --check` of `post-apply.patch` succeeds against the **closure-replayed baseline tree**. Per **GH #2 / v0.11.3**, when a recipe was applied in V7 the one shared shadow is **reset to `closureBaselineTree`** first (`resetShadowToTree`, `internal/workflow/verify.go:952-960`; call at `internal/workflow/verify_anchored.go:596-604`), so recipe and patch are checked **independently against the same baseline** rather than double-applied | one shadow allocation shared with V7, **reset between them**; `git apply --check` |
 | V9 | `reconcile_outcome_consistent` | `status.Reconcile.Outcome` set     | warn        | `Outcome ∈ {reapplied, upstreamed, still_needed}` | reads `status.Reconcile.Outcome` only — never any artifact (D6) |
-| V10 | `write_file_preimage_fresh`   | recipe present and parsed (skipped with `skipped: V2 (recipe_parses) skipped or failed` otherwise) | block, **downgraded to `warn` when the feature is superseded by an active superseder** | every `write-file` op's `preimage_hash` still matches the current on-disk file; `preimageLegacyWarn` (no `preimage_hash`, ADR-029 D4 legacy path) and `preimageSkip` (not a write-file) do not fail the check | `checkWriteFilePreimage` (`internal/workflow/writefile_safety.go:108-112`), `IsFeatureSuperseded`; target check at `internal/workflow/verify_anchored.go:788-899`, member check at `internal/workflow/verify_anchored.go:916-960` |
+| V10 | `write_file_preimage_fresh`   | recipe present and parsed (skipped with `skipped: V2 (recipe_parses) skipped or failed` otherwise) | block, **downgraded to `warn` when the feature is superseded by an active superseder** | every `write-file` op's `preimage_hash` still matches the current on-disk file; `preimageLegacyWarn` (no `preimage_hash`, ADR-029 D4 legacy path) and `preimageSkip` (not a write-file) do not fail the check | `checkWriteFilePreimage` (`internal/workflow/writefile_safety.go:108-112`), `IsFeatureSuperseded`; target check at `internal/workflow/verify_anchored.go:910-1021`, member check at `internal/workflow/verify_anchored.go:1038-1082` |
 
 #### 3.1.1 Ordering rationale
 
@@ -234,7 +234,7 @@ Every fail surfaces a one-line remediation:
 - V7 (parent-replay failure) → `"hard parent <slug> failed to replay in shadow: <err>; re-run tpatch verify <slug> on the parent first"` — see §3.4.3 for the exact JSON shape.
 - V8 → `"post-apply.patch no longer applies to closure-replayed baseline; run tpatch reconcile <slug>"`
 - V9 → `"reconcile outcome is <outcome>; verify cannot vouch for reconcile health (warn-only)"`
-- V10 → the joined per-op `checkWriteFilePreimage` rejection messages, `; `-separated. When the feature is superseded the joined string is suffixed with `" (downgraded to warn: superseded by \"<superseder>\" per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")"` (`internal/workflow/verify_anchored.go:889-893`).
+- V10 → the joined per-op `checkWriteFilePreimage` rejection messages, `; `-separated. When the feature is superseded the joined string is suffixed with `" (downgraded to warn: superseded by \"<superseder>\" per ADR-029 D7 + PRD-feature-supersession §4.5 \"Reconcile interaction with write-file safety\")"` (`internal/workflow/verify_anchored.go:1011-1015`).
 
 ### 3.2 What `verify` writes
 
@@ -551,14 +551,14 @@ terminal.
 **Implementation delta**: the commit-ish handed to `gitutil.CreateShadow`
 (`internal/gitutil/shadow.go:56`) becomes the replay anchor's parent tree
 instead of `gitutil.HeadCommit`
-(`internal/workflow/verify_anchored.go:439-464`),
+(`internal/workflow/verify_anchored.go:481-507`),
 plus the §3.6.5 temp-index ladder.
 
 **GH #2 (v0.11.3) invariant, binding in every mode.** The recipe and the patch
 are validated independently against the same baseline tree, with the shadow
 reset to `closureBaselineTree` between them
-(`internal/workflow/verify_anchored.go:476`,
-`internal/workflow/verify_anchored.go:547-553`). Normative: *any check that may
+(`internal/workflow/verify_anchored.go:526`,
+`internal/workflow/verify_anchored.go:596-604`). Normative: *any check that may
 mutate the shadow MUST reset it to `closureBaselineTree` before the next check
 runs; V7's result is never an input to V8's tree.*
 
@@ -652,13 +652,13 @@ localise which op/path a failure concerns and never certify presence.
 
 | Member condition | Action |
 |---|---|
-| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify_anchored.go:653-655`) |
-| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify_anchored.go:389-391`) |
+| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify_anchored.go:700-701`) |
+| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify_anchored.go:432-434`) |
 | evidence `exact`/`duplicate-equivalent`, patch **present-nonempty**, ladder ⇒ clean or context-drift | **skip** |
 | evidence `exact`/`duplicate-equivalent`, patch present-nonempty, ladder ⇒ block | **fail-fast** `parent-landing-drift` |
 | patch **absent** or **present-empty**, whatever the recipe shape | **fail-fast** `landed-artifacts-absent` — reached **before** any digest comparison and therefore before any `exact`/`stale` classification (§3.6.2). A slug-bearing candidate on such a member never becomes an attestation. |
 | evidence `none`, patch present-nonempty, ladder ⇒ clean or context-drift | **skip** with a mandatory `warn` `unattributed-materialized` advisory. No ownership claimed. |
-| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify_anchored.go:721-753`) |
+| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify_anchored.go:768-800`) |
 | evidence `none`, patch absent or present-empty | **replay** |
 | evidence `stale` / `ambiguous` / `malformed` / `unsupported-topology` / `shallow-history` / `history-incomplete` / `unavailable` | **fail-fast** `parent-evidence-integrity` |
 | `unapplied` | **fail-fast** `parent-unapplied` |
@@ -706,7 +706,7 @@ applied. rev-3 gives every member its **own** baseline.
 | the **target**, landed | the target's anchor-H **closure baseline** (shadow after arbitration, before the target's recipe replays) |
 | a **landed** closure member | **that member's own** replay-anchor parent tree, resolved by running §3.6.8 for that member's slug. **Never** the target's anchor. |
 | an **unlanded** member (evidence `none`), or the target in forward mode | **`RecipeProvenance.BaseCommit`** for that member |
-| any op with no `preimage_hash` | ADR-029 D4 legacy path: pass, no re-warn (`internal/workflow/verify_anchored.go:847-850`) |
+| any op with no `preimage_hash` | ADR-029 D4 legacy path: pass, no re-warn (`internal/workflow/verify_anchored.go:969-972`) |
 
 **Q15 is RESOLVED; rev-2's "no anchor exists" rationale is withdrawn.**
 Measured: the shipped `RecipeProvenance`
@@ -747,10 +747,10 @@ fail for every applied feature.
 |---|---|
 | `preimage_hash` absent | legacy pass, no re-warn (ADR-029 D4) |
 | present and matching at the member's reference tree | **PASS**, `mode` naming the anchor kind |
-| present and **not** matching | **FAIL**, block; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify_anchored.go:796-800`, `internal/workflow/verify_anchored.go:889-893`) |
+| present and **not** matching | **FAIL**, block; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify_anchored.go:918-922`, `internal/workflow/verify_anchored.go:1011-1015`) |
 | `preimage_hash` malformed per ADR-029 D1 | **FAIL**, block — the preimage contract itself is invalid |
 | provenance required but absent / ill-formed / unreachable | **FAIL** `recipe-provenance-unavailable` |
-| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify_anchored.go:791-792`) |
+| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify_anchored.go:913-915`) |
 | the member's own anchor unavailable | **FAIL** `historical-anchor-unavailable` for that member |
 
 **Later-touch — metadata, never bytes.** The shipped detector: `RequestedAt`
@@ -1020,12 +1020,12 @@ sequential, reused by `verify --all`, and spawning no git process.
 anchor-C and anchor-qualification probes: the real index is byte-identical, the
 worktree is byte-identical, `git status --porcelain` is unchanged, and the temp
 index never appears as an untracked entry. The shadow is pruned via the
-existing deferred call (`internal/workflow/verify_anchored.go:464`).
+existing deferred call (`internal/workflow/verify_anchored.go:507`).
 
 **Remediation must never route a just-landed local feature to `reconcile`.**
 The current V8 text is `post-apply.patch no longer applies to
 closure-replayed baseline; run tpatch reconcile <slug>`
-(`internal/workflow/verify_anchored.go:576`). The forward-mode string is
+(`internal/workflow/verify_anchored.go:625`). The forward-mode string is
 **unchanged**.
 
 Exact strings (Wave C emits these verbatim):

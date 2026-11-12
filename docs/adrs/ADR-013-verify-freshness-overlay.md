@@ -497,9 +497,9 @@ check is added or removed: the current-materialization assertion folds into
   parent tree (D14). Closure arbitration (D13) runs, then the existing
   machinery: V7 replays the recipe (`internal/workflow/verify.go:988-995`), the
   shadow is reset to `closureBaselineTree`, V8 runs `git apply --check` forward
-  (`internal/workflow/verify_anchored.go:476`,
-  `internal/workflow/verify_anchored.go:547-553`,
-  `internal/workflow/verify_anchored.go:556-580`), V10 evaluates preimages
+  (`internal/workflow/verify_anchored.go:526`,
+  `internal/workflow/verify_anchored.go:596-604`,
+  `internal/workflow/verify_anchored.go:605-637`), V10 evaluates preimages
   (D15).
 - **Anchor C (current)** — an **index-isolated** assertion at `HEAD` (D11)
   running the hardened ladder (D12). No shadow, no worktree read, no
@@ -513,8 +513,8 @@ baseline" (V8's historical half). V7 never aliases V8.
 
 **GH #2 invariant, binding in every mode.** The recipe and the patch are
 validated independently against the same baseline tree with a shadow reset
-between them (`internal/workflow/verify_anchored.go:476`,
-`internal/workflow/verify_anchored.go:547-553`). Normative: *any
+between them (`internal/workflow/verify_anchored.go:526`,
+`internal/workflow/verify_anchored.go:596-604`). Normative: *any
 check that may mutate the shadow MUST reset it to `closureBaselineTree` before
 the next check runs; V7's result is never an input to V8's tree.* Anchor C
 mutates nothing.
@@ -654,13 +654,13 @@ they never certify presence.
 
 | Member condition | Action |
 |---|---|
-| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify_anchored.go:653-655`) |
-| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify_anchored.go:389-391`) |
+| `upstream_merged` | **skip** (unchanged, `internal/workflow/verify_anchored.go:700-701`) |
+| superseded by an active superseder | **skip** (unchanged, `internal/workflow/verify_anchored.go:432-434`) |
 | evidence `exact`/`duplicate-equivalent`, patch **present-nonempty**, ladder ⇒ clean or context-drift | **skip** |
 | evidence `exact`/`duplicate-equivalent`, patch present-nonempty, ladder ⇒ block | **fail-fast** `parent-landing-drift` |
 | patch **absent** or **present-empty**, whatever the recipe shape | **fail-fast** `landed-artifacts-absent` — reached **before** any digest comparison and therefore **before** any `exact`/`stale` classification (D10). A slug-bearing candidate on such a member never becomes an attestation. |
 | evidence `none`, patch present-nonempty, ladder ⇒ clean or context-drift | **skip** with a mandatory `warn` `unattributed-materialized` advisory. Verify claims **no ownership**. |
-| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify_anchored.go:721-753`) |
+| evidence `none`, patch present-nonempty, ladder ⇒ block | **replay** (unchanged, `internal/workflow/verify_anchored.go:768-800`) |
 | evidence `none`, patch absent or present-empty | **replay** |
 | evidence `stale` / `ambiguous` / `malformed` / `unsupported-topology` / `shallow-history` / `history-incomplete` / `unavailable` | **fail-fast** `parent-evidence-integrity` |
 | `unapplied` (ADR-032) | **fail-fast** `parent-unapplied` |
@@ -792,7 +792,7 @@ gives every member its **own** baseline.
 | the **target**, landed | the target's anchor-H **closure baseline** (the shadow after arbitration, before the target's recipe replays) |
 | a **landed** closure member | **that member's own** replay-anchor parent tree, resolved by running D14 steps 1–4 for that member's slug. Never the target's anchor. |
 | an **unlanded** member (evidence `none`), or the target in forward mode | **`RecipeProvenance.BaseCommit`** for that member (below) |
-| any member whose recipe carries no `preimage_hash` on a given op | ADR-029 D4 legacy path for that op: pass, no re-warn (`internal/workflow/verify_anchored.go:847-850`) |
+| any member whose recipe carries no `preimage_hash` on a given op | ADR-029 D4 legacy path for that op: pass, no re-warn (`internal/workflow/verify_anchored.go:969-972`) |
 
 **Q15 is RESOLVED, and rev-2's "no anchor exists" rationale is withdrawn.**
 E42 measured that the shipped `RecipeProvenance`
@@ -833,10 +833,10 @@ ADR-029 D4 legacy path regardless of provenance.
 |---|---|
 | `preimage_hash` absent | legacy pass, no re-warn (ADR-029 D4) |
 | present and matching at the member's V10 reference tree | **PASS**, `mode` naming the anchor kind |
-| present and **not** matching | **FAIL**, block severity; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify_anchored.go:796-800`, `internal/workflow/verify_anchored.go:889-893`) |
+| present and **not** matching | **FAIL**, block severity; downgraded to `warn` when superseded (ADR-029 D7, `internal/workflow/verify_anchored.go:918-922`, `internal/workflow/verify_anchored.go:1011-1015`) |
 | `preimage_hash` malformed per ADR-029 D1 | **FAIL**, block — the preimage contract itself is invalid |
 | provenance required but absent / ill-formed / unreachable | **FAIL** `recipe-provenance-unavailable` |
-| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify_anchored.go:791-792`) |
+| V2 skipped or failed | **skip**, unchanged reason (`internal/workflow/verify_anchored.go:913-915`) |
 | the member's own anchor unavailable | **FAIL** `historical-anchor-unavailable` for that member |
 
 **Current-half later-touch — from metadata, never bytes.** The signal is the

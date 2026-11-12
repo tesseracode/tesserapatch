@@ -162,7 +162,7 @@ generator populates the field. Activating it naively would break three shipped
 surfaces:
 
 1. verify requires usable `recipe-provenance.json` as soon as any write-file
-   carries a preimage (`internal/workflow/verify_anchored.go:816-840`);
+   carries a preimage (`internal/workflow/verify_anchored.go:938-962`);
 2. apply currently checks the preimage before recognizing an exact postimage,
    so a repeated apply would refuse an already-applied feature
    (`internal/workflow/recipe.go:54-112`,
@@ -1608,7 +1608,7 @@ all-or-nothing precheck atomicity (every precondition is still evaluated before
 the first write, and one refusal still means no operation is written),
 path-safety refusals, and ADR-029 D7's supersession severity. Apply and verify
 mirror the two narrowed cases: verify's `preimageAtTree` branches
-(`internal/workflow/verify_anchored.go:964-981`) gain the same exact-postimage
+(`internal/workflow/verify_anchored.go:1090-1129`) gain the same exact-postimage
 recognition and keep their failure for every other observed value.
 
 **ADR-029 D7 is preserved in full and is not amended.** ADR-036 amends ADR-029
@@ -3228,7 +3228,7 @@ following. Each row is a real deferral, not an unanswered question.
 - `internal/store/patch_generations.go:18-180`.
 - `internal/store/store.go:504-540`.
 - `internal/workflow/verify.go:47-77,624-637`.
-- `internal/workflow/verify_anchored.go:788-1000`.
+- `internal/workflow/verify_anchored.go:910-1129`.
 - `internal/workflow/doctor.go:233-245`.
 - `internal/gitutil/gitutil.go:885-911,1170-1270`.
 - `internal/gitutil/patch_paths_strict.go:235-253`.
