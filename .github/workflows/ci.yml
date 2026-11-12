@@ -273,12 +273,15 @@ jobs:
             fi
           done
 
-      # The rest of the repository has 200 pre-existing windows-latest
-      # top-level test failures (283 counting subtests) across six packages —
-      # internal/cli, internal/gitutil, internal/provider, internal/rescap,
-      # internal/store and internal/workflow (run 32093250847). At `-timeout
-      # 20m` no package times out, so the suite runs to completion and the
-      # whole inventory is reported rather than truncated by an early abort.
+      # The rest of the repository has pre-existing windows-latest test
+      # failures. Run 32093250847 first showed 200 top-level failures (283
+      # counting subtests) across six packages. Run 42981546617 reported at
+      # least 236 across eight packages, a lower bound: internal/workflow hit
+      # the step's old 20-minute timeout, and an unchecked type assertion
+      # panicked the internal/cli test binary and skipped its later tests.
+      # The step now uses `-timeout 40m`, the per-process timeout of the
+      # blocking suites, and the assertion fails instead of panicking, so the
+      # inventory is meant to run to completion.
       # These failures were invisible until GH #16 made the Windows job reach
       # `go test` at all. They are owned and tracked by
       # https://github.com/tesseracode/tesserapatch/issues/17 (GH #17), which
@@ -297,7 +300,7 @@ jobs:
         if: runner.os == 'Windows'
         continue-on-error: true
         shell: bash
-        run: go test ./... -count=1 -timeout 20m
+        run: go test ./... -count=1 -timeout 40m
 
       - name: Install binary (smoke test)
         if: runner.os != 'Windows'

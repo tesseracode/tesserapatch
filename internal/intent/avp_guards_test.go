@@ -1655,8 +1655,8 @@ func registerPlatformGuards() {
 				{"crlf-checkout-restored", strings.ReplaceAll(workflow, "core.autocrlf false", "core.autocrlf true")},
 				// The native rows move into the allowed-failure step.
 				{"intent-moved-to-allowed-failure",
-					strings.Replace(workflow, "run: go test ./... -count=1 -timeout 20m",
-						"run: go test ./internal/intent ./... -count=1 -timeout 20m", 1)},
+					strings.Replace(workflow, "run: go test ./... -count=1 -timeout 40m",
+						"run: go test ./internal/intent ./... -count=1 -timeout 40m", 1)},
 				// The blocking step stops blocking.
 				{"blocking-flag-removed",
 					strings.Replace(workflow,
@@ -1701,8 +1701,8 @@ func registerPlatformGuards() {
 				{"blocking-package-moved-to-allowed-failure",
 					strings.Replace(
 						strings.Replace(workflow, "            ./internal/safety \\\n", "", 1),
-						"run: go test ./... -count=1 -timeout 20m",
-						"run: go test ./internal/safety ./... -count=1 -timeout 20m", 1)},
+						"run: go test ./... -count=1 -timeout 40m",
+						"run: go test ./internal/safety ./... -count=1 -timeout 40m", 1)},
 				// The per-row loop stops covering AVP-199.
 				{"native-row-loop-shrunk",
 					strings.Replace(workflow, "for row in AVP-176 AVP-199; do", "for row in AVP-176; do", 1)},
@@ -1759,21 +1759,21 @@ func registerPlatformGuards() {
 				// so the demotion is no longer stated outright in the file.
 				{"allowed-failure-continue-on-error-expression",
 					strings.Replace(workflow,
-						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
-						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ true }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ true }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m", 1)},
 				// A quoted `\"true\"` is a YAML string, not the boolean; it is
 				// not the literal this guard requires.
 				{"allowed-failure-continue-on-error-quoted",
 					strings.Replace(workflow,
-						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
-						"        if: runner.os == 'Windows'\n        continue-on-error: \"true\"\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: \"true\"\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m", 1)},
 				// `${{ false }}` on the allowed-failure step would make the
 				// pre-existing GH #17 failures red the whole job; it is also
 				// not a literal, so it is rejected on ownership grounds.
 				{"allowed-failure-continue-on-error-false-expression",
 					strings.Replace(workflow,
-						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
-						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ false }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m", 1)},
+						"        if: runner.os == 'Windows'\n        continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m",
+						"        if: runner.os == 'Windows'\n        continue-on-error: ${{ false }}\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m", 1)},
 			}
 			// Each arm must be *detected*. A non-detecting arm is failed with
 			// t.Fatalf rather than by returning an error: returning an error

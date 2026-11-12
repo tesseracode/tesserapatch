@@ -96,6 +96,64 @@ func decodeReport(t *testing.T, stdout string) map[string]any {
 	return report
 }
 
+// reportAbort returns the report's abort object. A missing or non-object
+// abort fails the test instead of panicking: a panic aborts the whole
+// internal/cli test binary, which hid every later failure on Windows
+// (GH #17).
+func reportAbort(t testing.TB, report map[string]any, context string) map[string]any {
+	t.Helper()
+	abort, ok := report["abort"].(map[string]any)
+	if !ok {
+		t.Fatalf("abort is not an object: %#v\n%s", report["abort"], context)
+	}
+	return abort
+}
+
+type reportAbortFatal struct{ message string }
+
+// reportAbortRecorder turns Fatalf into a recoverable sentinel panic so the
+// test below can tell a reported failure from a runtime panic.
+type reportAbortRecorder struct {
+	testing.TB
+	fatal *reportAbortFatal
+}
+
+func (r reportAbortRecorder) Helper() {}
+
+func (r reportAbortRecorder) Fatalf(format string, args ...any) {
+	r.fatal.message = fmt.Sprintf(format, args...)
+	panic(r.fatal)
+}
+
+func TestReportAbortFailsInsteadOfPanicking(t *testing.T) {
+	report := map[string]any{"abort": map[string]any{"code": "slug-unsafe"}}
+	if abort := reportAbort(t, report, "valid"); abort["code"] != "slug-unsafe" {
+		t.Fatalf("abort = %#v", abort)
+	}
+	for name, report := range map[string]map[string]any{
+		"missing":    {"slug": ""},
+		"null":       {"abort": nil},
+		"not-object": {"abort": "slug-unsafe"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fatal := &reportAbortFatal{}
+			returned := false
+			var recovered any
+			func() {
+				defer func() { recovered = recover() }()
+				reportAbort(reportAbortRecorder{TB: t, fatal: fatal}, report, "fixture "+name)
+				returned = true
+			}()
+			if returned || recovered != any(fatal) {
+				t.Fatalf("reportAbort did not fail through Fatalf: returned=%v recovered=%v", returned, recovered)
+			}
+			if !strings.Contains(fatal.message, "fixture "+name) {
+				t.Fatalf("failure message %q does not name the fixture", fatal.message)
+			}
+		})
+	}
+}
+
 func reportArtifacts(t *testing.T, report map[string]any) []map[string]any {
 	t.Helper()
 	raw, ok := report["artifacts"].([]any)
@@ -520,7 +578,7 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 			t.Fatalf("exit = %d, want 3", code)
 		}
 		report := decodeReport(t, stdout)
-		abort := report["abort"].(map[string]any)
+		abort := reportAbort(t, report, stdout)
 		if abort["code"] != "feature-not-found" {
 			t.Fatalf("abort = %#v", abort)
 		}
@@ -581,7 +639,7 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 					t.Fatalf("advisories is not the empty array: %s", stdout)
 				}
 				report := decodeReport(t, stdout)
-				abort := report["abort"].(map[string]any)
+				abort := reportAbort(t, report, stdout)
 				if abort["code"] != fixture.code {
 					t.Fatalf("abort code = %v, want %s", abort["code"], fixture.code)
 				}

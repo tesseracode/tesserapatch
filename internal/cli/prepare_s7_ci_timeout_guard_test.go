@@ -140,7 +140,7 @@ const (
 		s7CINonWindowsAVObserverCommand + "\n" +
 		s7CINonWindowsAWObserverCommand + "\n" +
 		s7CINonWindowsAXObserverCommand
-	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 20m`
+	s7CIWindowsFullSuiteCommand = `go test ./... -count=1 -timeout 40m`
 )
 
 func TestS7WaveCloseShardParity(t *testing.T) {
@@ -406,14 +406,12 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
         shell: bash
         run: ` + s7CIWindowsFullSuiteCommand + `
 `
-	swapTimeouts := strings.Replace(workflow, nonWindows, "__S7_NON_WINDOWS_FULL_SUITE__", 1)
-	swapTimeouts = strings.Replace(
-		swapTimeouts, windows, strings.ReplaceAll(windows, "20m", "40m"), 1,
-	)
-	swapTimeouts = strings.Replace(
-		swapTimeouts, "__S7_NON_WINDOWS_FULL_SUITE__",
-		strings.ReplaceAll(nonWindows, "40m", "20m"), 1,
-	)
+	windowsTimeout := func(value string) string {
+		return strings.Replace(
+			workflow, windows,
+			strings.Replace(windows, "-timeout 40m", "-timeout "+value, 1), 1,
+		)
+	}
 	withAdditionalStep := func(step string) string {
 		return strings.Replace(workflow, nonWindows, nonWindows+step, 1)
 	}
@@ -1033,8 +1031,12 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			),
 		},
 		{
-			name:     "timeouts-swapped",
-			mutation: swapTimeouts,
+			name:     "windows-timeout-restored-to-20m",
+			mutation: windowsTimeout("20m"),
+		},
+		{
+			name:     "windows-timeout-unbounded",
+			mutation: windowsTimeout("0"),
 		},
 		{
 			name: "blocking-step-demoted",
@@ -1131,8 +1133,8 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 			name: "windows-ownership-removed",
 			mutation: strings.Replace(
 				workflow,
-				"continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
-				"continue-on-error: false\n        shell: bash\n        run: go test ./... -count=1 -timeout 20m",
+				"continue-on-error: true\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m",
+				"continue-on-error: false\n        shell: bash\n        run: go test ./... -count=1 -timeout 40m",
 				1,
 			),
 		},
@@ -1143,11 +1145,11 @@ func TestS7CIFullSuiteTimeoutGuard(t *testing.T) {
 				`if: runner.os == 'Windows'
         continue-on-error: true
         shell: bash
-        run: go test ./... -count=1 -timeout 20m`,
+        run: go test ./... -count=1 -timeout 40m`,
 				`if: runner.os == 'Windows' && false
         continue-on-error: true
         shell: bash
-        run: go test ./... -count=1 -timeout 20m`,
+        run: go test ./... -count=1 -timeout 40m`,
 				1,
 			),
 		},
@@ -1439,7 +1441,7 @@ func validateS7CIFullSuiteTimeouts(workflow string) error {
 				)
 			}
 			if err := validateS7FullSuiteInvocation(
-				invocation.argv, invocation.args, s7CIWindowsFullSuiteCommand, "20m",
+				invocation.argv, invocation.args, s7CIWindowsFullSuiteCommand, "40m",
 			); err != nil {
 				return fmt.Errorf("Windows allowed-failure full suite: %w", err)
 			}

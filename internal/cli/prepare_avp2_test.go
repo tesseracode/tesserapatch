@@ -388,7 +388,7 @@ func TestAVPPathsAndSlugSafety(t *testing.T) {
 			args := append(fixture.args(t), "--json", "--quiet")
 			_, stdout, _, _ := runPrepare(t, args...)
 			report := decodeReport(t, stdout)
-			abort := report["abort"].(map[string]any)
+			abort := reportAbort(t, report, "fixture "+fixture.code+": "+stdout)
 			empty := report["slug"] == ""
 			if (abort["code"] == "slug-unsafe") != empty {
 				t.Fatalf("abort %v emitted slug %q", abort["code"], report["slug"])
@@ -397,7 +397,7 @@ func TestAVPPathsAndSlugSafety(t *testing.T) {
 		// The slug gate is evaluated before the platform gate, which is why a
 		// non-canonical argument aborts slug-unsafe on every target.
 		_, stdout, _, _ := runPrepare(t, "--path", root, "prepare", "../../etc", "--check", "--json", "--quiet")
-		if decodeReport(t, stdout)["abort"].(map[string]any)["code"] != "slug-unsafe" {
+		if reportAbort(t, decodeReport(t, stdout), stdout)["code"] != "slug-unsafe" {
 			t.Fatal("slug validation no longer precedes the platform guard")
 		}
 		source := readRepoSource(t, "internal/cli/prepare.go")
@@ -417,7 +417,7 @@ func assertSlugUnsafe(t *testing.T, argument string) {
 		t.Fatalf("exit = %d, want 3", code)
 	}
 	report := decodeReport(t, stdout)
-	if report["abort"].(map[string]any)["code"] != "slug-unsafe" {
+	if reportAbort(t, report, stdout)["code"] != "slug-unsafe" {
 		t.Fatalf("abort = %#v", report["abort"])
 	}
 	if report["slug"] != "" {
@@ -570,7 +570,7 @@ func TestAVPExitEnvelope(t *testing.T) {
 				t.Fatalf("exit = %d for --path %s, want 3 (not cobra's 1)", code, path)
 			}
 			report := decodeReport(t, stdout)
-			abort := report["abort"].(map[string]any)
+			abort := reportAbort(t, report, stdout)
 			if abort["code"] != "workspace-not-initialized" {
 				t.Fatalf("abort = %#v", abort)
 			}
@@ -637,7 +637,7 @@ func TestAVPExitEnvelope(t *testing.T) {
 
 		badRoot := avpWorkspace(t, defaultAVPFiles())
 		_, stdout, _, _ := runPrepare(t, "--path", badRoot, "prepare", "My_Feature", "--check", "--json", "--quiet")
-		abort := decodeReport(t, stdout)["abort"].(map[string]any)
+		abort := reportAbort(t, decodeReport(t, stdout), stdout)
 		message := fmt.Sprint(abort["message"])
 		if abort["code"] != "slug-unsafe" {
 			t.Fatalf("abort = %#v", abort)
@@ -813,7 +813,7 @@ func TestAVPAdvisoriesAndStatusSurface(t *testing.T) {
 					t.Fatalf("exit = %d, want 3", code)
 				}
 				report := decodeReport(t, stdout)
-				if report["abort"].(map[string]any)["code"] != "status-malformed" {
+				if reportAbort(t, report, stdout)["code"] != "status-malformed" {
 					t.Fatalf("abort = %#v", report["abort"])
 				}
 				if len(reportArtifacts(t, report)) != 0 || report["feature_state"] != "unknown" {
@@ -841,7 +841,7 @@ func TestAVPAdvisoriesAndStatusSurface(t *testing.T) {
 			t.Fatalf("exit = %d, want 3", code)
 		}
 		report := decodeReport(t, stdout)
-		if report["abort"].(map[string]any)["code"] != "status-unreadable" {
+		if reportAbort(t, report, stdout)["code"] != "status-unreadable" {
 			t.Fatalf("abort = %#v", report["abort"])
 		}
 		if strings.Contains(stdout+stderr, "permission denied") {
@@ -903,7 +903,7 @@ func TestAVPAdvisoriesAndStatusSurface(t *testing.T) {
 					t.Fatalf("exit = %d, want 3", code)
 				}
 				report := decodeReport(t, stdout)
-				if report["abort"].(map[string]any)["code"] != "status-invalid-state" {
+				if reportAbort(t, report, stdout)["code"] != "status-invalid-state" {
 					t.Fatalf("abort = %#v", report["abort"])
 				}
 				if report["feature_state"] != "unknown" {
@@ -948,7 +948,7 @@ func TestAVPAdvisoriesAndStatusSurface(t *testing.T) {
 			t.Fatalf("exit = %d, want 3", code)
 		}
 		report := decodeReport(t, stdout)
-		if report["abort"].(map[string]any)["code"] != "status-malformed" {
+		if reportAbort(t, report, stdout)["code"] != "status-malformed" {
 			t.Fatalf("abort = %#v", report["abort"])
 		}
 		if len(reportArtifacts(t, report)) != 0 {
@@ -1430,7 +1430,7 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		if code != 3 {
 			t.Fatalf("exit = %d, want 3", code)
 		}
-		if decodeReport(t, stdout)["abort"].(map[string]any)["code"] != "feature-not-found" {
+		if reportAbort(t, decodeReport(t, stdout), stdout)["code"] != "feature-not-found" {
 			t.Fatal("the walk order changed")
 		}
 		leafFile := avpWorkspace(t, defaultAVPFiles())
@@ -1440,7 +1440,7 @@ func TestAVPRootLifetimeAndDifferential(t *testing.T) {
 		}
 		mustWrite(t, featureDir, "not a directory")
 		_, stdout2, _, _ := runPrepare(t, "--path", leafFile, "prepare", avpSlug, "--check", "--json", "--quiet")
-		if decodeReport(t, stdout2)["abort"].(map[string]any)["code"] != "feature-dir-unsafe" {
+		if reportAbort(t, decodeReport(t, stdout2), stdout2)["code"] != "feature-dir-unsafe" {
 			t.Fatal("a regular file at the feature path was not refused")
 		}
 	})
