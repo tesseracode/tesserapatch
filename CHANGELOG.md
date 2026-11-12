@@ -20,12 +20,13 @@ All notable changes to tpatch are recorded here.
   recommends genuinely unapplying the target, re-applying it on the
   parent's current landing, then recording and landing it again. See
   ADR-013 Amendment 4 D42.
-- When verify cannot tell (an ancestry query fails, no exact landing of
-  the parent is known, or Git answers "not an ancestor" in a shallow
-  clone), the remediation is R14b's undetermined form: it names the reason
-  and recommends restoring the repository's history before running
-  `tpatch verify` again (D43). The answer does not depend on which landing
-  the evidence reports or on the order the landings are found.
+- When verify cannot tell, the remediation is R14b's undetermined form:
+  no ancestry query answers "yes", and either a query failed, no exact
+  landing of the parent is known, or Git answered "not an ancestor" in a
+  shallow clone. It names the reason and recommends restoring the
+  repository's history before running `tpatch verify` again (D43). The
+  answer does not depend on which landing the evidence reports or on the
+  order the landings are found.
 - The verdict, exit code and `failed_at` are unchanged. Forward mode keeps
   R14 and asks no ancestry question. The `tpatch verify --json` report
   keeps `schema_version` 1.3.
@@ -39,10 +40,10 @@ All notable changes to tpatch are recorded here.
 
 ### Known limits
 
-- N2 changes advice, not verdicts: a feature whose hard parent's exact
-  landings are all outside its verification baseline's history still
-  fails at `parent-landing-drift` until it is re-applied on the parent's
-  current landing.
+- N2 changes advice, not verdicts: a feature blocked at
+  `parent-landing-drift` because its hard parent's canonical patch is
+  absent at its verification baseline stays blocked; only the
+  remediation it receives changes.
 
 GH #25 slices A2, A3, B and C3 are not part of this release; merge
 topologies stay red.

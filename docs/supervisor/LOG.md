@@ -1,3 +1,37 @@
+## Review — v0.22.0 release candidate `1673d03` — 2026-11-12
+
+**Reviewer**: gpt-6.1-sol (independent, static; ran no Go).
+**Task**: CHANGELOG accuracy against the N2 code and ADR-013 D42/D43;
+release-pin completeness against `f7beb47`; tracking consistency.
+
+### Checklist
+- [x] CHANGELOG claims match the code and D42/D43; `schema_version`
+      stays 1.3; no other shipped behaviour change needs an entry;
+      "Unchanged safeguards" byte-identical
+- [x] Pin, heading, boundary and versioned fixtures mirror `f7beb47`; the
+      remaining `0.21.0` references are historical fixtures
+- [x] Exactly one terminal canonical field; TW-D2..D6, TW-Q1 and the
+      ROADMAP rows consistent
+- [x] Heading date 2026-11-13 matches the fixture
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+
+1. MEDIUM: "Known limits" said non-ancestry alone keeps the feature at
+   `parent-landing-drift`; the block also needs the parent's canonical
+   patch to be absent. Fixed in the follow-up candidate commit, which
+   also states that the undetermined form applies only when no ancestry
+   query answers "yes".
+2. LOW: CURRENT's Context still said the pin is `0.21.0`. Fixed.
+3. LOW (expected): release-check `[8/9]` needs the LOG to name the gated
+   SHA; the post-gate tracking commit records it, as for v0.21.0.
+
+### Action Taken
+
+The follow-up commit is the gated release candidate; `1673d03` is not
+gated on its own.
+
 ## Supervisor — v0.22.0 release candidate — 2026-11-12
 
 **Actor**: implementation agent (TW window).

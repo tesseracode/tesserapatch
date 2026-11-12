@@ -49,9 +49,13 @@ shard merge (measure only). GH #25 B is not authorized.
   unchanged, and confirmed statically that the doc guards'
   fingerprints and bounds are unaffected. Doc guards on the validation
   machine: see Test Results.
-- **Release candidate (this commit, TW-D5, TW-D6).** CHANGELOG
-  `## v0.22.0`, release pin `0.22.0` and the versioned heading fixture in
-  `assets/recipe_authority_parity_test.go`, same shape as `f7beb47`.
+- **Release candidate (`1673d03` plus this commit, TW-D5, TW-D6).**
+  CHANGELOG `## v0.22.0`, release pin `0.22.0` and the versioned heading
+  fixture in `assets/recipe_authority_parity_test.go`, same shape as
+  `f7beb47`. Independent review (gpt-6.1-sol): **APPROVED WITH NOTES**.
+  This commit fixes its two notes: "Known limits" now says the block
+  needs the parent's canonical patch to be absent, and the Context no
+  longer says the pin is `0.21.0`. This commit is the gated candidate.
 
 ### Operator answers (2026-11-12, recorded verbatim in substance)
 
@@ -103,8 +107,11 @@ v0.22.0 release candidate committed. `v0.21.0` is the latest release
 - `f66523a` on the validation machine (clean clone, 60-second admission):
   `gofmt -l .` clean; `internal/workflow` doc guards (including the S3
   fingerprint parity and `TestAcceptanceLedger_VerifyContractAnchorsResolve`)
-  ok; `./assets` ok; `internal/cli` doc guards, `go vet ./...` and
-  `go build ./cmd/tpatch`: pending at this commit.
+  ok; `./assets` ok; `internal/cli` doc guards ok (274 s);
+  `go vet ./...` and `go build ./cmd/tpatch` ok. **DOC CHECKS PASS**
+  (2026-11-12T20:43:53Z).
+- Release candidate: validation-machine doc checks, CI and the serial
+  gate are recorded in the post-gate tracking commit.
 
 ## Next Steps
 
@@ -130,8 +137,10 @@ v0.22.0 release candidate committed. `v0.21.0` is the latest release
   terminal (HK-D9). Do not push to `main` while the gated commit's CI is
   running.
 - **Release guards:** `assets/recipe_authority_parity_test.go:16` pins
-  `0.21.0`; the release candidate moves the pin with the CHANGELOG
-  heading in gated source, and `make release-check` runs before
+  `0.22.0` at the release candidate, which moved the pin with the
+  CHANGELOG heading in gated source. After the gate passes, a
+  tracking-only commit records the verdict and gated SHA in the LOG
+  (release-check `[8/9]`), then `make release-check` runs before
   `git tag -a`.
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
 - **Private evidence:** `bin/tw-20261112/` (ignored); SW evidence in
