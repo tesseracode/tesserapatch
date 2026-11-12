@@ -102,11 +102,18 @@ func decodeReport(t *testing.T, stdout string) map[string]any {
 // (GH #17).
 func reportAbort(t testing.TB, report map[string]any, context string) map[string]any {
 	t.Helper()
-	abort, ok := report["abort"].(map[string]any)
+	return reportObject(t, report, "abort", context)
+}
+
+// reportObject fails the test, instead of panicking the package binary,
+// when a decoded report field is not a JSON object.
+func reportObject(t testing.TB, report map[string]any, key, context string) map[string]any {
+	t.Helper()
+	object, ok := report[key].(map[string]any)
 	if !ok {
-		t.Fatalf("abort is not an object: %#v\n%s", report["abort"], context)
+		t.Fatalf("%s is not an object: %#v\n%s", key, report[key], context)
 	}
-	return abort
+	return object
 }
 
 type reportAbortFatal struct{ message string }
@@ -463,10 +470,10 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 			t.Fatalf("exit = %d, want 0", code)
 		}
 		report := decodeReport(t, stdout)
-		overall := report["overall"].(map[string]any)
+		overall := reportObject(t, report, "overall", stdout)
 		if readiness(t, report) != "ready" ||
-			overall["required_total"].(float64) != 3 || overall["required_satisfied"].(float64) != 3 ||
-			overall["optional_total"].(float64) != 1 || overall["optional_satisfied"].(float64) != 0 {
+			overall["required_total"] != float64(3) || overall["required_satisfied"] != float64(3) ||
+			overall["optional_total"] != float64(1) || overall["optional_satisfied"] != float64(0) {
 			t.Fatalf("overall = %#v", overall)
 		}
 	})
@@ -483,8 +490,8 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 		if readiness(t, report) != "not_ready" {
 			t.Fatalf("readiness = %q", readiness(t, report))
 		}
-		overall := report["overall"].(map[string]any)
-		if overall["required_satisfied"].(float64) != 2 {
+		overall := reportObject(t, report, "overall", stdout)
+		if overall["required_satisfied"] != float64(2) {
 			t.Fatalf("required_satisfied = %v", overall["required_satisfied"])
 		}
 		row := artifactRow(t, report, "exploration")
@@ -501,8 +508,8 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 			t.Fatalf("exit = %d, want 2", code)
 		}
 		report := decodeReport(t, stdout)
-		overall := report["overall"].(map[string]any)
-		if overall["required_satisfied"].(float64) != 0 {
+		overall := reportObject(t, report, "overall", stdout)
+		if overall["required_satisfied"] != float64(0) {
 			t.Fatalf("required_satisfied = %v", overall["required_satisfied"])
 		}
 		remediations := 0
@@ -522,8 +529,8 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 		root := avpWorkspace(t, files)
 		code, stdout, _, _ := runPrepare(t, "--path", root, "prepare", avpSlug, "--check", "--json", "--quiet")
 		report := decodeReport(t, stdout)
-		overall := report["overall"].(map[string]any)
-		if code != 0 || readiness(t, report) != "ready" || overall["optional_satisfied"].(float64) != 0 {
+		overall := reportObject(t, report, "overall", stdout)
+		if code != 0 || readiness(t, report) != "ready" || overall["optional_satisfied"] != float64(0) {
 			t.Fatalf("exit=%d overall=%#v", code, overall)
 		}
 	})
@@ -591,7 +598,7 @@ func TestAVPReadinessAndOutput(t *testing.T) {
 		root := avpWorkspace(t, defaultAVPFiles())
 		_, stdout, _, _ := runPrepare(t, "--path", root, "prepare", avpSlug, "--check", "--json", "--quiet")
 		report := decodeReport(t, stdout)
-		if report["schema_version"].(float64) != 1 || report["command"] != "prepare --check" {
+		if report["schema_version"] != float64(1) || report["command"] != "prepare --check" {
 			t.Fatalf("report = %#v", report)
 		}
 	})

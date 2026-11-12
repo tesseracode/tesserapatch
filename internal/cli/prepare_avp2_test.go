@@ -224,7 +224,7 @@ func TestAVPPathParity(t *testing.T) {
 		if artifactRow(t, report, "analysis_sidecar")["state"] != "present-nonempty" {
 			t.Fatalf("sidecar = %#v", artifactRow(t, report, "analysis_sidecar"))
 		}
-		if report["overall"].(map[string]any)["optional_satisfied"].(float64) != 1 {
+		if reportObject(t, report, "overall", stdout)["optional_satisfied"] != float64(1) {
 			t.Fatal("optional_satisfied != 1")
 		}
 	})
@@ -671,8 +671,15 @@ func TestAVPAdvisoriesAndStatusSurface(t *testing.T) {
 		if avpContains(codes, "analysis-sidecar-absent-path-b-normal") {
 			t.Fatal("the empty sidecar also claimed absence")
 		}
-		for _, advisory := range decodeReport(t, stdout)["advisories"].([]any) {
-			entry := advisory.(map[string]any)
+		advisories, ok := decodeReport(t, stdout)["advisories"].([]any)
+		if !ok {
+			t.Fatalf("advisories is not an array:\n%s", stdout)
+		}
+		for _, advisory := range advisories {
+			entry, ok := advisory.(map[string]any)
+			if !ok {
+				t.Fatalf("advisory is not an object: %#v", advisory)
+			}
 			if entry["code"] == "analysis-sidecar-empty" && strings.Contains(fmt.Sprint(entry["message"]), "is not present") {
 				t.Fatal("the empty-sidecar message claims absence")
 			}
