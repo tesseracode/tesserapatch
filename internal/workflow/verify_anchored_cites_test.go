@@ -44,6 +44,7 @@ const (
 var verifyAnchoredCiteLedger = []verifyAnchoredCite{
 	// ADR-013-verify-freshness-overlay.md
 	{citeADR013, "276-280", 1, "", "2354df9"},
+	{citeADR013, "311-328", 1, "", "2354df9"},
 	{citeADR013, "342-590", 1, "", "15560af"},
 	{citeADR013, "389-391", 1, "", "15560af"},
 	{citeADR013, "404", 1, "", "15560af"},
@@ -82,7 +83,7 @@ var verifyAnchoredCiteLedger = []verifyAnchoredCite{
 	{citePRDAnchor, "110-111", 1, "return terminalEvidencePhase(in, baseline, v7Mode, v8Mode, v10Mode)", ""},
 	{citePRDAnchor, "174", 2, "failedAt: FailedAtLandingEvidence,", ""},
 	{citePRDAnchor, "483", 2, "", "2e44569"},
-	{citePRDAnchor, "695", 1, "", "2e44569"},
+	{citePRDAnchor, "695", 2, "", "2e44569"},
 	{citePRDAnchor, "705-706", 3, "", "2e44569"},
 	// PRD-overlap-verification-consolidation.md
 	{citePRDOverlap, "122-124", 2, "", "7f5f97c"},
@@ -143,7 +144,8 @@ var verifyAnchoredCiteLedger = []verifyAnchoredCite{
 const citeRangeList = `[0-9]+(?:-[0-9]+)?(?:,[0-9]+(?:-[0-9]+)?)*`
 
 // A cite is "<path>:<ranges>"; a backticked "`:<ranges>`" continues the
-// most recent path on the same line.
+// most recent path in the same block, which may be on a wrapped line or a
+// previous table row. A blank line ends the block.
 var (
 	citeTokenRE = regexp.MustCompile("`:(" + citeRangeList + `)|([A-Za-z0-9_./-]*[A-Za-z][A-Za-z0-9_./-]*):(` + citeRangeList + `)`)
 	citePinRE   = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
@@ -151,8 +153,11 @@ var (
 
 func verifyAnchoredCitesIn(text string) []string {
 	var ranges []string
+	current := ""
 	for _, line := range strings.Split(text, "\n") {
-		current := ""
+		if strings.TrimSpace(line) == "" {
+			current = ""
+		}
 		for _, m := range citeTokenRE.FindAllStringSubmatch(line, -1) {
 			list := m[1]
 			if m[2] != "" {
@@ -290,19 +295,24 @@ func TestVerifyAnchoredCiteLedgerIsSensitive(t *testing.T) {
 	if got, want := verifyAnchoredCitesIn(doc), []string{"3-5", "4", "40", "1", "3"}; strings.Join(got, " ") != strings.Join(want, " ") {
 		t.Fatalf("parsed %v, want %v", got, want)
 	}
+	blocks := "Wrapped `verify_anchored.go:3`,\n  `:1`.\n| a | `verify_anchored.go:4` |\n| b | `:5` |\n \t\n`:2` after a blank line; `ADR-013:9`, `:2`.\n"
+	if got, want := verifyAnchoredCitesIn(blocks), []string{"3", "1", "4", "5"}; strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("parsed %v across lines, want %v", got, want)
+	}
 	if problems := checkVerifyAnchoredCites(map[string]string{"d.md": doc}, []byte(source), ledger); len(problems) != 0 {
 		t.Fatalf("clean fixture reported %v", problems)
 	}
 	with := func(rows ...verifyAnchoredCite) []verifyAnchoredCite {
 		return append(append([]verifyAnchoredCite{}, ledger...), rows...)
 	}
-	// Each rule-specific case keeps the counts equal, so only that rule
-	// can reject it.
-	frozen := func(row verifyAnchoredCite) []verifyAnchoredCite {
+	// Each rule-specific case keeps the counts equal and breaks one rule
+	// of an otherwise valid row, so only that rule can reject it.
+	swap := func(i int, row verifyAnchoredCite) []verifyAnchoredCite {
 		out := append([]verifyAnchoredCite{}, ledger...)
-		out[len(out)-1] = row
+		out[i] = row
 		return out
 	}
+	frozen := func(row verifyAnchoredCite) []verifyAnchoredCite { return swap(len(ledger)-1, row) }
 	for _, tc := range []struct {
 		name   string
 		doc    string
@@ -314,8 +324,10 @@ func TestVerifyAnchoredCiteLedgerIsSensitive(t *testing.T) {
 		{"unclassified-cite", doc + "`verify_anchored.go:2`\n", source, ledger},
 		{"repeated-cite", doc + "`verify_anchored.go:4`\n", source, ledger},
 		{"continuation-cite", doc + "`verify_anchored.go:1`, `:2`\n", source, with(verifyAnchoredCite{"d.md", "1", 1, "package x", ""})},
+		{"wrapped-continuation", doc + "`verify_anchored.go:1`,\n`:2`\n", source, with(verifyAnchoredCite{"d.md", "1", 1, "package x", ""})},
+		{"table-row-continuation", doc + "| a | `verify_anchored.go:1` |\n| b | `:2` |\n", source, with(verifyAnchoredCite{"d.md", "1", 1, "package x", ""})},
 		{"stale-row", doc, source, with(verifyAnchoredCite{"d.md", "5", 1, "}", ""})},
-		{"anchor-and-pin", doc, source, frozen(verifyAnchoredCite{"d.md", "40", 1, "x", "abc1234"})},
+		{"anchor-and-pin", doc, source, swap(0, verifyAnchoredCite{"d.md", "1", 1, "package x", "abc1234"})},
 		{"neither", doc, source, frozen(verifyAnchoredCite{"d.md", "40", 1, "", ""})},
 		{"pin-not-commit", doc, source, frozen(verifyAnchoredCite{"d.md", "40", 1, "", "HEAD"})},
 		{"zero-count", doc, source, with(verifyAnchoredCite{"d.md", "40", 0, "", "abc1234"})},
