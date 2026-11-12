@@ -271,7 +271,7 @@ Each fixture must fail under the named mutation.
 | T4 | Parent's ladder blocks and its attestation **is** an ancestor of the anchor. | R14 unchanged. | Always emit R14b. |
 | T5 | T1, plus a later unrecorded edit at `HEAD` on the child's path. | Exit 2 at the current anchor. | Skip anchor C when anchor H passes. |
 | T6 | One exact attestation that qualifies, plus a stale-trailer landing of the same slug that also forward-qualifies at `-C1` but has a non-equivalent normalized identity. | Terminal `historical-anchor-unavailable` (D14 ambiguity). | Skip the identity compare when the attestation qualifies. |
-| T6b | Two exact attestations with non-equivalent identities. | Evidence `ambiguous` routes to the terminal landing-evidence phase before any anchor is selected: `failed_at: landing-evidence`, R7 (`internal/workflow/verify_landed.go:927-937`, `:1593-1594`; `internal/workflow/verify_anchored.go:110-111`, `:167`). Option A never runs. | Let option A choose among exact attestations before evidence classification. |
+| T6b | Two exact attestations with non-equivalent identities. | Evidence `ambiguous` routes to the terminal landing-evidence phase before any anchor is selected: `failed_at: landing-evidence`, R7 (`internal/workflow/verify_landed.go:927-937`, `:1593-1594`; `internal/workflow/verify_anchored.go:110-111`, `:174`). Option A never runs. | Let option A choose among exact attestations before evidence classification. |
 | T7 | `duplicate-equivalent` attestations (per Q2's answer). | The chosen rule. | The other rule. |
 | T8 | The forward check cannot run (simulated Git failure) on the attestation candidate. | Reader-failure state, not a silent fallback to oldest-first. | Treat the error as "does not qualify". |
 | D1 | Option D (N3): a descendant rewrites one of a landed member's two hunks; the other hunk is unchanged at the target's anchor. | Member-level `recorded-descendant-evolution`; verdict, `failed_at` and exit code unchanged. | Reverse-apply (remove) the member's patch at the seed instead of reverse-checking it. |
@@ -319,13 +319,13 @@ Operator answers, 2026-11-06 (recorded in `docs/handoff/CURRENT.md`):
 | 2 | Anchor candidates are collected by slug and qualified by forward apply only. | `internal/workflow/verify_landed.go:1242-1277`; `ADR-013:702-716` | yes |
 | 3 | Enumeration is `git log --topo-order --reverse` (oldest-first). | `internal/gitutil/trailers.go:302`; `ADR-013:464` | yes |
 | 4 | Selection takes the first qualifier, tie-break by smallest id. | `internal/workflow/verify_landed.go:1308-1318`; `ADR-013:749-751` | yes |
-| 5 | Members are ladder-probed at the target's anchor; a block returns R14. | `internal/workflow/verify_anchored.go:483`, `:695`, `:705-706` | yes |
+| 5 | At drafting (`2e44569`), members were ladder-probed at the target's anchor and a block returned R14; since N2, `memberLandingDriftRemediation` chooses R14 or R14b for a block. | `internal/workflow/verify_anchored.go:483`, `:695`, `:705-706` at `2e44569` | yes |
 | 6 | R14 recommends verifying the parent first. | `internal/workflow/verify_landed.go:1536-1538` | yes |
 | 7 | E30 and rejected alternative 12. | `ADR-013:462`, `:772-775`, `:1225` | yes |
 | 8 | Attestation and replay anchor are reported separately. | `ADR-013:757-763` | yes |
 | 9 | Fixup refuses an empty capture. | `internal/cli/feature_patch.go:98` | yes |
 | 10 | Ordinary producers never append a generation for an identical digest; the one exception is ADR-051 reconcile candidate acceptance with a changed binding tuple. | `internal/store/patch_generation_kinds.go:47-49`; `internal/workflow/patch_generations.go:42-45`, `:97-105`; `ADR-051:142-147` | yes |
-| 14 | Exact attestations with non-equivalent identities are `ambiguous` and terminal before anchor selection (R7). | `internal/workflow/verify_landed.go:927-937`, `:1593-1594`; `internal/workflow/verify_anchored.go:110-111`, `:167` | yes |
+| 14 | Exact attestations with non-equivalent identities are `ambiguous` and terminal before anchor selection (R7). | `internal/workflow/verify_landed.go:927-937`, `:1593-1594`; `internal/workflow/verify_anchored.go:110-111`, `:174` | yes |
 | 15 | W2's replay seeds the landing tree and reverse-checks, never removes, the target patch. | `internal/workflow/verify_overlap.go:523-549` | yes |
 | 11 | ADR-019: re-landed slugs are not unique; consumers pick the most recent. | `ADR-019:65-69` | yes |
 | 12 | GH #26 still reproduces on v0.18.0. | `docs/ROADMAP.md` GH #26 row | yes |

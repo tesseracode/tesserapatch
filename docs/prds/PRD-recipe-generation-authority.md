@@ -3694,7 +3694,7 @@ mirrors ADR-036's deferred-decision table.
 | Path-safety refusals are never downgraded by supersession | `internal/workflow/writefile_safety.go:270-278` |
 | Verify V10 downgrades to `warn` for superseded features | `internal/workflow/verify_anchored.go:918-922,1011-1015` |
 | Apply precheck compares the preimage before any postimage recognition | `internal/workflow/writefile_safety.go:108-170` |
-| Verify's empty-preimage branch treats any existing file as a collision | `internal/workflow/verify_anchored.go:964-981` |
+| At acceptance (`e76e0f7`), verify's empty-preimage branch treated any existing file as a collision; S5 (`98bd801`) since accepts an exact postimage | `internal/workflow/verify_anchored.go:964-981` at `e76e0f7` |
 | Patch generation binds patch/recipe/base/capture | `internal/store/patch_generations.go:28-76` |
 | Same-patch append can be a no-op | `internal/workflow/patch_generations.go:26-64` |
 | `Append == false` requires equality with the **latest** generation, not with any prior generation | `internal/store/patch_generation_kinds.go:46-49` |
