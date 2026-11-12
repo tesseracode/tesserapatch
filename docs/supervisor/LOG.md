@@ -1,3 +1,25 @@
+## Supervisor — TW window dispatched — 2026-11-12
+
+**Actor**: implementation agent (TW window).
+
+### Notes
+
+The operator authorized a 12-hour unattended window from
+2026-11-12T20:31:32Z to 2026-11-13T08:31:32Z (TW-D1), `WAVE_BASE=dd4c082`.
+Baseline verified: `HEAD` == `origin/main` == `dd4c082`; no tracked
+changes, stash or extra worktree; no Git operation in progress; CI
+43130446490 green; validation machine idle.
+
+Operator answers (TW-A1 to TW-A5): delete the private `bin/` third-party
+copies (SW-Q1); release v0.22.0 first (GH #26 N2 plus the SW-D25 doc-cite
+refresh); wave 2 is the cite guard, GH #17 prerequisites, ROCS8 fixture
+and an S6 shard-merge measurement (measure only); GH #25 B not now.
+
+### Action Taken
+
+Canonical field set to `IN PROGRESS`; Active Task, operator answers and
+plan recorded in CURRENT; ROADMAP window paragraph added.
+
 ## Gate — GH #26 N2 close commit `a37e512`; SW window closed — 2026-11-12
 
 **Validation machine**, serial, `WAVE_BASE=c5bc3f8`: **PASS**

@@ -43,6 +43,14 @@ green). ✅ **HK accepted** at close commit `41f2538` (CI 42341338991 green;
 serial validation-machine gate PASS, 42/42, wave-close-check 8/8). No
 release authorized; the changes ship with the next release (v0.21.0).
 
+**Update 2026-11-12T20:31:32Z**: the operator authorized a 12-hour
+unattended window (TW, deadline 2026-11-13T08:31:32Z, WAVE_BASE
+`dd4c082`, TW-D1). Wave 1: 🚧 **v0.22.0** — GH #26 N2 plus a refresh of
+the 52 displaced `verify_anchored.go` doc cites (SW-D25). Wave 2: ⬜ cite
+guard; ⬜ GH #17 prerequisites (SW-D15); ⬜ ROCS8 build-once fixture
+(SW-D14); ⬜ S6 shard-merge measurement (measure only). Operator answers:
+delete the private `bin/` third-party copies (SW-Q1); GH #25 B not now.
+
 **Update 2026-11-11T00:41:56Z**: the operator authorized a 16-hour
 unattended window (SW, deadline 2026-11-11T16:41:56Z, extended to
 2026-11-12T02:41:56Z by the operator (SW-D12), WAVE_BASE
