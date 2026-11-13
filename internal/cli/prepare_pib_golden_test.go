@@ -207,8 +207,10 @@ var acceptedCheckSourceProvenance = map[string]struct {
 		FreezeCurrent: true,
 	},
 	"internal/intent/avp_guards_test.go": {
+		// GH #17 moves only the reviewed Windows allowed-failure mutation
+		// literals from -timeout 20m to 40m with the workflow step.
+		CurrentSHA256: "3d5c34a1e45530e02cddb06215862182ae33cf8c29ce517a0f1aec2ee36e1b8f",
 		SHA256:        "60e7a73661c22437c5d764cf1df7e9e1c96133a6b060ffe3701999701c941c38",
-		CurrentSHA256: "c584f6b7c4de5d4add17533d22194bac95c5e3fa5b3d5a10d4f7e5a1513fc0f5",
 		History: []string{
 			"9b8efc57f5b77f557e524c3326b4397ba006e19c",
 			"54ab8b4d4253638d52a8d03de2e7b31b3ae2b2da",
