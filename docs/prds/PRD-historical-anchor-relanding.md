@@ -10,7 +10,7 @@ review. Its D44 measurement found differences the rev-4 pins did not name,
 so Amendment 4 rev-5 (D44 only) answers them; its design review APPROVED
 it on 2026-11-11. N1 shipped in v0.21.0. The operator scheduled N2 on
 2026-11-11; it was implemented that day and approved on code review, and
-is not yet released. No schema change is authorized.
+shipped in v0.22.0. No schema change is authorized.
 **Date**: 2026-11-06
 **Owner**: Core
 **Issue**: [GH #26](https://github.com/tesseracode/tesserapatch/issues/26)
