@@ -5,11 +5,14 @@
 **Cluster state**: APPROVED
 
 **TW unattended window in progress; v0.22.0 released; wave 2 reviewed
-and validated, gate 2 at this close commit.** v0.22.0 (tag on
+and validated, gate 3 at this close commit.** v0.22.0 (tag on
 `d699713`) ships the gated `3239556`. Wave 2's five commits passed
-independent review and validation-machine checks; this tracking commit
-is wave 2's gated close commit, so the canonical field stays terminal
-(HK-D9). The operator
+independent review and validation-machine checks. CI on wave 2's first
+close commit `c92d371` failed one test: the frozen-source pin PIB-391
+for `internal/intent/avp_guards_test.go`, which the GH #17 change edited.
+Gate 2 was stopped; `420c485` moves the pin (review APPROVED, validated;
+TW-D29, TW-D30). This tracking commit is wave 2's gated close commit, so
+the canonical field stays terminal (HK-D9). The operator
 authorized a 12-hour unattended window (TW) from 2026-11-12T20:31:32Z to
 **2026-11-13T08:31:32Z** (TW-D1). Wave 1 releases **v0.22.0**: GH #26 N2
 (approved at `a37e512`) plus a refresh of the 52 displaced
@@ -26,8 +29,9 @@ gate 2). GH #25 B is not authorized.
   the cite guard, GH #17 prerequisites, ROCS8 fixture template and S6
   shard measurement
 - **Status**: In progress — wave 1 shipped v0.22.0 (serial gate PASS at
-  `3239556`, CI green); wave 2 reviewed and validated, serial gate 2 at
-  this close commit; then the S6 measurement and the window close
+  `3239556`, CI green); wave 2 reviewed and validated; its PIB-391 pin
+  fixed in `420c485`; serial gate 3 at this close commit; then the S6
+  measurement and the window close
 - **Assigned**: 2026-11-12
 - **WAVE_BASE** (TW): `dd4c082a7cbf04b61e3d5514c580e10ac11ee9ec`
   (`origin/main` at dispatch; both TW gates use it)
@@ -86,6 +90,19 @@ gate 2). GH #25 B is not authorized.
     builds. Review APPROVED WITH NOTES (notes handled, TW-D20).
   - **TW-D6** (`ed5c232`): ADR-013 and PRD-historical-anchor-relanding
     say N2 shipped in v0.22.0.
+- **Wave 2 CI failure and fix (TW-D28..D30).** `c92d371` was pushed
+  while `d699713`'s `main` CI was still running; that run was cancelled
+  and the tag run covers the same commit (TW-D28). CI 43346676120 on
+  `c92d371` then failed `TestPreparePIBPreChangeGoldens/PIB-391` on
+  Ubuntu and macOS (the only failure; later shard commands did not run):
+  `internal/intent/avp_guards_test.go` is frozen accepted check source,
+  and `6953fef` changed the `-timeout 20m` literals in five of its
+  mutation arms to follow the Windows step to 40m, without moving its
+  `CurrentSHA256` pin. Gate 2 was stopped about 12 minutes in. `420c485`
+  moves only that pin, as `871d3ab`, `0dd96e1` and `676b9ba` did; the
+  accepted-tip hash and history are unchanged. Independent review
+  (gpt-6.1-sol): **APPROVED**, no findings; it found no other stale pin
+  in the files wave 2 changed.
 
 ### Operator answers (2026-11-12, recorded verbatim in substance)
 
@@ -128,6 +145,9 @@ gate 2). GH #25 B is not authorized.
 | TW-D25 | **GH #17 inventory (static).** Ten single-value casts on decoded JSON remain in `internal/cli` tests, all outside AVP: the S6 archive-fixture wire mutation (`prepare_s6_contract_test.go`, 7 casts on 6 lines), three in `reject_test.go` and one in `verify_landed_cli_test.go`. They panic only on a reshaped payload. Four more load values the test itself stored in a `sync.Map` and cannot fail. Not changed this window. |
 | TW-D26 | **A validation-harness bug is not a product failure.** w2c's template-off switch left the `runtime` import unused, so its baseline build failed after the template-on package run had passed. A resume script switched the template off with an always-false `runtime.GOOS == ""`, proved the switch took effect (the template guard test skips), and ran the baseline and mutants. No code change. |
 | TW-D27 | **The ROCS8 template's measured saving is about 245 s per gate** on the validation machine: the 40 ROCS8 tests shared by both runs take 731 s with fresh builds and 460 s with the template (272 s), less 26.5 s for the two new guard tests. One run each, so the number is approximate. The largest single gains are the refusal and rollback rows (117 → 39 s, 134 → 91 s). |
+| TW-D28 | **`c92d371` was pushed while `d699713`'s `main` CI was still in its macOS test step** (60 minutes in, against a usual 38), because waiting would have pushed gate 2 and the close too near the deadline. The push cancelled 43338952877 as expected; tag run 43338954795 tests the same commit `d699713`, which is tracking-only on top of the gated `3239556` (precedent TW-D7). |
+| TW-D29 | **CI red on `c92d371`: fix forward, do not restore the frozen file.** The only failure was PIB-391's pin on `internal/intent/avp_guards_test.go`, whose five Windows allowed-failure mutation arms `6953fef` moved from `-timeout 20m` to 40m with the workflow step (TW-D9). Gate 2 was stopped, since it would fail on the same test. `420c485` moves only `CurrentSHA256` (precedents `871d3ab`, `0dd96e1`, `676b9ba`). Rejected: restoring the file byte-identical as on 2026-08-22, which would need the Windows step back at 20m because each arm's literal must match the workflow text to be detected; moving the arms elsewhere also changes the frozen file. Cause: W2A ran only the AVP and intent tests. From now on, a change to any file in `acceptedCheckSourceProvenance` marked `FreezeCurrent` must run `TestPreparePIBPreChangeGoldens` in its targeted validation. |
+| TW-D30 | **A validation-harness bug is not a product failure (again).** W2F's mutation step filtered to the PIB-391 subtest, which skips the 50-fixture capture its parent test requires, so the mutant failed for the wrong reason and the script failed closed. W2F2 reran the mutation against the whole parent test. |
 
 ### Questions for the operator
 
@@ -139,8 +159,10 @@ gate 2). GH #25 B is not authorized.
 
 v0.22.0 is released (tag on `d699713`, which records the gate PASS at
 the gated `3239556`); it ships GH #26 N2 and the doc-cite refresh. Wave
-2 is reviewed and validated; this close commit is pushed to `main` and
-under serial gate 2. The S6 shard measurement runs after gate 2.
+2 is reviewed and validated; its first close commit `c92d371` failed CI
+on one frozen-source pin, fixed in `420c485` (TW-D29). This close
+commit is pushed to `main` and under serial gate 3. The S6 shard
+measurement runs after gate 3.
 
 ## Files Changed
 
@@ -164,8 +186,10 @@ under serial gate 2. The S6 shard measurement runs after gate 2.
   `internal/workflow/operation_candidate_template_test.go`,
   `internal/workflow/operation_candidate_acceptance_test.go` (ROCS8);
   `docs/adrs/ADR-013-verify-freshness-overlay.md` and
-  `docs/prds/PRD-historical-anchor-relanding.md` (TW-D6); tracking:
-  `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
+  `docs/prds/PRD-historical-anchor-relanding.md` (TW-D6);
+  `internal/cli/prepare_pib_golden_test.go` (`420c485`, PIB-391 pin);
+  tracking: `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`,
+  `docs/supervisor/LOG.md`.
 
 ## Test Results
 
@@ -211,18 +235,33 @@ under serial gate 2. The S6 shard measurement runs after gate 2.
     with their expected messages (no relink, shared slices, file times,
     no index refresh, no relink with the leak scan off). **W2C2 PASS**
     01:19:12Z.
-  - TW-D6 (`ed5c232`, docs only) and this tracking commit are covered by
-    gate 2.
+  - TW-D6 (`ed5c232`, docs only) is covered by the gate at the close
+    commit.
+- First wave-2 close commit `c92d371`: CI 43346676120 failed
+  `test (ubuntu-latest)` and `test (macos-latest)` on one test,
+  `TestPreparePIBPreChangeGoldens/PIB-391-routing-provenance-and-immutability`
+  (frozen `internal/intent/avp_guards_test.go` hash); every other
+  package in that first command passed on both, including
+  `internal/workflow` with the ROCS8 template (macOS 454 s). The later
+  shard commands did not run (`set -e`). Gate 2 was stopped (TW-D29).
+- `420c485` on the validation machine (60-second admission,
+  `GOMAXPROCS=1`, `-p=1`): **W2F** gofmt, `go vet ./internal/cli`,
+  `TestPreparePIBPreChangeGoldens`, `TestPreparePIBGoldenProvenance`
+  and `TestS6GoldenWiringSensitivities` (39.6 s) and the S6
+  `PIB-391-frozen-golden-provenance` guard pass; its mutation step had a
+  harness bug (TW-D30). **W2F2**: appending one line to the frozen file
+  makes `TestPreparePIBPreChangeGoldens` fail on exactly the
+  frozen-source hash; source clean afterwards. PASS.
 
 ## Next Steps
 
 1. Verify the v0.22.0 GitHub Release (tag CI 43338954795's `release`
    job).
-2. Gate 2: serial validation-machine gate at this close commit
+2. Gate 3: serial validation-machine gate at this close commit
    (`WAVE_BASE=dd4c082`) and its CI; record both in the LOG.
 3. Wave 2 CI: read the Windows full-suite result for the GH #17
    inventory (TW-D25).
-4. After gate 2: the S6 shard-merge measurement (measure only).
+4. After gate 3: the S6 shard-merge measurement (measure only).
 5. Close: archive this handoff to HISTORY byte-for-byte; IDLE.
 
 ## Blockers
@@ -246,5 +285,11 @@ under serial gate 2. The S6 shard measurement runs after gate 2.
   (release-check `[8/9]`), then `make release-check` runs before
   `git tag -a`.
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
+- **Frozen check sources:** `acceptedCheckSourceProvenance` in
+  `internal/cli/prepare_pib_golden_test.go` pins the current bytes of
+  every entry marked `FreezeCurrent`. A change to such a file must move
+  its `CurrentSHA256` in the same reviewed change, and its targeted
+  validation must run `TestPreparePIBPreChangeGoldens` as a whole (a
+  subtest filter skips the fixture capture; TW-D29, TW-D30).
 - **Private evidence:** `bin/tw-20261112/` (ignored); SW evidence in
   `bin/sw-20261111/`.

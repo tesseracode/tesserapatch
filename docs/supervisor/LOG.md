@@ -1,3 +1,60 @@
+## Supervisor — TW wave 2: CI red at `c92d371`; gate 2 stopped; gate 3 dispatched — 2026-11-13
+
+**Actor**: implementation agent (TW window).
+
+### Notes
+
+CI 43346676120 on the first wave-2 close commit `c92d371` failed
+`test (ubuntu-latest)` and `test (macos-latest)` on one test,
+`TestPreparePIBPreChangeGoldens/PIB-391-routing-provenance-and-immutability`:
+`internal/intent/avp_guards_test.go` is frozen accepted check source, and
+the reviewed GH #17 commit `6953fef` changed its Windows allowed-failure
+mutation literals (five arms, `-timeout 20m` to 40m with the workflow
+step) without moving its `CurrentSHA256` pin. W2A had run only the AVP
+and intent tests, and the review did not check the frozen-source map.
+Gate 2, about 12 minutes into its first command, was stopped because it
+would fail on the same test. `420c485` moves only the pin (review
+APPROVED, below; W2F/W2F2 PASS on the validation machine). Restoring the
+file byte-identical, as on 2026-08-22, would need the Windows step back
+at 20m (TW-D29). Pushing `c92d371` had cancelled `d699713`'s `main` CI;
+the tag run covers the same commit (TW-D28).
+
+### Action Taken
+
+Fix forward: push `420c485` and this tracking commit, which becomes
+wave 2's gated close commit (canonical field terminal, HK-D9); run the
+serial validation-machine gate 3 at it (`WAVE_BASE=dd4c082`) and watch
+its CI. Targeted validation of any change to a `FreezeCurrent` check
+source now includes `TestPreparePIBPreChangeGoldens` (TW-D29).
+
+## Code review — TW wave 2: PIB-391 pin fix `420c485` — 2026-11-13
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED
+
+### Notes
+
+- The new `CurrentSHA256` is the hash of `avp_guards_test.go` at
+  `420c485` and the old one its hash at `dd4c082`; the accepted-tip
+  `SHA256`, `History` and `FreezeCurrent` are unchanged, and the check
+  still fails on any byte change.
+- The only change to the frozen file since `dd4c082` is the ten timeout
+  literals in five sensitivity arms.
+- The S6 golden-wiring guards' search strings are untouched; gofmt
+  clean.
+- No other stale pin in the files wave 2 changed: the AVP test entries
+  are not frozen at their current hash, the S7 source inventories
+  exclude these test files, and the S0 checks use a historical range.
+
+### Action Taken
+
+Validated on the validation machine: W2F (vet, the PIB golden and
+provenance tests, the S6 wiring sensitivities and the S6 PIB-391 guard)
+and W2F2 (one appended line in the frozen file fails
+`TestPreparePIBPreChangeGoldens` on exactly the frozen-source hash).
+PASS.
+
 ## Supervisor — TW wave 2 close commit; gate 2 dispatched — 2026-11-13
 
 **Actor**: implementation agent (TW window).
