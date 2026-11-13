@@ -1,3 +1,30 @@
+## Supervisor — v0.22.0 serial gate PASS; release — 2026-11-13
+
+**Actor**: implementation agent (TW window).
+
+### Notes
+
+The serial validation-machine gate at the gated release candidate
+`3239556` (`WAVE_BASE=dd4c082`), started 2026-11-12T21:11:04Z, ended
+2026-11-13T00:35:46Z with `AUTO GATE: PASS (serial)`: 42/42 top-level
+commands, exact command-multiset and pre-flight order parity, fresh
+isolated caches, source clean afterwards, no concurrent test time,
+`wave-close-check` 8/8 (12,281 s). The run took 1,339 s longer than
+`a37e512`'s and needed one 60-second re-admission after an unhealthy
+health sample; no runtime stop. CI 43304207390 on `3239556` passed all
+five jobs after one re-run: on the first attempt GitHub never assigned a
+hosted runner to `test (macos-latest)`, so that job ran no step (TW-D13).
+The release candidate's doc checks on the validation machine passed
+(2026-11-12T20:54:16Z). The commits after `3239556` change tracking
+documents only.
+
+### Action Taken
+
+This tracking commit names the gated `3239556`; `make release-check
+RELEASE=v0.22.0 GATED=3239556` runs at it, then the tag v0.22.0 and the
+push of main and the tag. Wave 2 continues on a local branch, rebased
+onto this commit after the tag (TW-D12).
+
 ## Review — v0.22.0 release candidate `1673d03` — 2026-11-12
 
 **Reviewer**: gpt-6.1-sol (independent, static; ran no Go).
