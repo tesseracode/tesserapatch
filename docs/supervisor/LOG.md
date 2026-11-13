@@ -1,3 +1,124 @@
+## Supervisor — TW wave 2 close commit; gate 2 dispatched — 2026-11-13
+
+**Actor**: implementation agent (TW window).
+
+### Notes
+
+Wave 2 is `6953fef..ed5c232` on top of the v0.22.0 tracking commit
+`d699713`, rebased cleanly after the tag (TW-D12, TW-D23), plus this
+tracking commit. Every code commit has an independent static review
+(gpt-6.1-sol) with a final APPROVED or APPROVED WITH NOTES verdict and
+passed its validation-machine checks: W2A (GH #17), W2B and W2E (cite
+ledger rev-1 and rev-2; 4/4 and 9/9 mutants), W2C/W2C2 (ROCS8 template;
+full `internal/workflow` package with the template on, template-off
+baseline, 5/5 mutants). w2c stopped on a harness bug in its template-off
+switch, not on product code, and was resumed (TW-D26). The ROCS8
+template saves about 245 s per gate (TW-D27). `ed5c232` (TW-D6) changes
+two status lines in ADR-013 and PRD-historical-anchor-relanding and no
+`verify_anchored.go` cite; the AC-L135 totality guard was simulated over
+the changed lines. A pre-existing GH #15 label drift is recorded as a
+backlog row, not fixed (TW-D24).
+
+### Action Taken
+
+Push this close commit to `main`, then run the serial validation-machine
+gate at it (`WAVE_BASE=dd4c082`) and watch its CI; the canonical field
+stays terminal (HK-D9). The S6 shard-merge measurement runs after gate 2;
+the final tracking commit records the gate verdict, the measurement and
+the window close.
+
+## Code review — TW wave 2: ROCS8 build-once fixture `7ac05c0` — 2026-11-13
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED WITH NOTES
+
+### Notes
+
+- No blocking issue. The template builds each ROCS8 fixture kind once
+  per test process and copies it per row; Windows keeps fresh
+  builds (TW-D17).
+- Note 1: a user's `core.splitIndex` makes Git add or rewrite
+  `sharedindex.*` files on refresh, which the copy check would report as
+  a false difference. Fixed in scope: the check skips `sharedindex.*`;
+  staged entries are still compared with `git ls-files --stage`. Not
+  pinned process-wide, because a `GIT_CONFIG_*` pin in TestMain would
+  change Git for every workflow test and the production paths under
+  test. A user's `core.untrackedCache` would put the build root in the
+  index; the leak scan rejects it (fails closed, accepted) (TW-D20).
+- Note 2: the stale-index mutant's proof depends on Git's default
+  `core.checkStat`/`core.trustctime`; the validation script prints the
+  machine's settings with the proof.
+
+### Action Taken
+
+Validated on the validation machine (w2c, resumed as w2c2 after a
+harness fix, TW-D26): both template guards and the full
+`internal/workflow` package with the template on pass (1,291 s, 0
+failures); the template-off baseline confirms the switch and runs the
+ROCS8 family in 731 s versus 460 s templated, about 245 s saved per gate
+after the new guards (TW-D27); 5/5 mutants killed. PASS.
+
+## Code review — TW wave 2: `verify_anchored.go` cite ledger — 2026-11-12
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED (rev-2)
+
+### Notes
+
+- Rev-1 (`cd4ca2a` (pre-rebase `6f1fee1`)) NEEDS REVISION. MEDIUM: the parser reset the cited
+  path on every physical line, so two continuation cites escaped the
+  ledger: PRD-historical-anchor-relanding line 83 (`:695`, wrapped from
+  the previous line) and ADR-013 line 2239 (`:311-328`, a table row
+  continuing the previous row's path). LOW: the anchor-and-pin
+  sensitivity case was also out of range, so a weakened exactly-one rule
+  would still have been caught by the bounds check.
+- Fix `d713ef6` (pre-rebase `a4f441b`): a continuation carries within a block and a blank
+  line resets it; 695 counts 2 (pinned `2e44569`), 311-328 is a new
+  historical row (pinned `2354df9`); 91 rows, 110 cites. A simulation over
+  the same documents showed the new rule changes only those two cites.
+  The anchor-and-pin case now adds a pin to an otherwise valid live row.
+- Rev-2 APPROVED, no findings: no other cite is misattributed; both
+  classifications confirmed against the pinned source; each new fixture
+  fails under its mutant (per-line reset, no blank-line reset, weakened
+  exactly-one rule).
+
+### Action Taken
+
+Validated on the validation machine: rev-1 (w2b) 4/4 mutants killed;
+rev-2 (w2e, 2026-11-13T01:03:07Z) PASS: gofmt, vet, guard tests
+(13 sensitivity subtests) and 9/9 mutants killed with their expected
+messages.
+
+## Code review — TW wave 2: GH #17 prerequisites — 2026-11-12
+
+**Reviewer**: independent static review (gpt-6.1-sol; no Go run).
+
+### Verdict: APPROVED (rev-2)
+
+### Notes
+
+- Rev-1 (`6953fef` (pre-rebase `76004b4`)) APPROVED WITH NOTES. All 13 unchecked
+  `report["abort"]` assertions, any of which aborts the whole Windows
+  `internal/cli` test binary, are now checked (TW-D8); the Windows
+  full-suite step's `-timeout` is 40m (TW-D9). Note 1: more unchecked
+  casts on decoded JSON in the AVP tests. Notes 2-3: casts in the S6
+  archive-fixture, reject and verify-landed CLI tests (outside AVP; they
+  panic only on malformed input) — left for the post-CI Windows inventory
+  (TW-D10).
+- Fix `dc76fa2` (pre-rebase `9aabf66`) for note 1. Rev-2 APPROVED, no findings: every touched
+  cast is checked, assertion strength is unchanged, numeric compares use
+  explicit `float64` values, and no unchecked decoded-JSON cast remains in
+  the three AVP files.
+
+### Action Taken
+
+Validated on the validation machine (w2a): vet, `internal/intent` and
+the targeted `internal/cli` AVP tests pass; the abort-cast mutant is
+killed. The static inventory of the remaining casts is TW-D25; the
+Windows full-suite result follows the wave-2 push.
+
 ## Supervisor — v0.22.0 serial gate PASS; release — 2026-11-13
 
 **Actor**: implementation agent (TW window).

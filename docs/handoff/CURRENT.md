@@ -4,17 +4,19 @@
 
 **Cluster state**: APPROVED
 
-**TW unattended window in progress; v0.22.0 released.** The serial
-validation-machine gate passed at the gated release candidate `3239556`
-and its CI is green; this tracking commit records the verdict and is
-tagged v0.22.0. The canonical field stays terminal (HK-D9). The operator
+**TW unattended window in progress; v0.22.0 released; wave 2 reviewed
+and validated, gate 2 at this close commit.** v0.22.0 (tag on
+`d699713`) ships the gated `3239556`. Wave 2's five commits passed
+independent review and validation-machine checks; this tracking commit
+is wave 2's gated close commit, so the canonical field stays terminal
+(HK-D9). The operator
 authorized a 12-hour unattended window (TW) from 2026-11-12T20:31:32Z to
 **2026-11-13T08:31:32Z** (TW-D1). Wave 1 releases **v0.22.0**: GH #26 N2
 (approved at `a37e512`) plus a refresh of the 52 displaced
-`verify_anchored.go` doc cites (SW-D25). Wave 2 (on a local branch until
-the tag): a cite guard, the GH #17 prerequisites, the ROCS8 build-once
-fixture, and a measurement of the S6 shard merge (measure only). GH #25 B
-is not authorized.
+`verify_anchored.go` doc cites (SW-D25). Wave 2: a cite guard, the GH #17
+prerequisites, the ROCS8 build-once fixture, the TW-D6 post-tag status
+lines, and a measurement of the S6 shard merge (measure only; runs after
+gate 2). GH #25 B is not authorized.
 
 ## Active Task
 
@@ -24,7 +26,8 @@ is not authorized.
   the cite guard, GH #17 prerequisites, ROCS8 fixture template and S6
   shard measurement
 - **Status**: In progress — wave 1 shipped v0.22.0 (serial gate PASS at
-  `3239556`, CI green); wave 2 under validation on a local branch
+  `3239556`, CI green); wave 2 reviewed and validated, serial gate 2 at
+  this close commit; then the S6 measurement and the window close
 - **Assigned**: 2026-11-12
 - **WAVE_BASE** (TW): `dd4c082a7cbf04b61e3d5514c580e10ac11ee9ec`
   (`origin/main` at dispatch; both TW gates use it)
@@ -61,9 +64,28 @@ is not authorized.
 - **Release (TW-D7, TW-D13, TW-D14).** The candidate's doc checks passed
   on the validation machine; CI 43304207390 passed all five jobs after a
   re-run of the macOS test job, which GitHub had never assigned a runner;
-  the serial gate passed (42/42, 2026-11-13T00:35:46Z). This
-  tracking-only commit records the verdict, passes `make release-check`
-  and is tagged v0.22.0.
+  the serial gate passed (42/42, 2026-11-13T00:35:46Z). The
+  tracking-only commit `d699713` records the verdict, passed
+  `make release-check` 9/9 and is tagged v0.22.0 (pushed 00:40Z).
+- **Wave 2 (`6953fef..ed5c232`, rebased onto `d699713`; TW-D8..D12,
+  TW-D15..D27).** Independent reviews (gpt-6.1-sol) and
+  validation-machine checks:
+  - **GH #17 prerequisites** (`6953fef`, `dc76fa2`): all 13 unchecked
+    `report["abort"]` casts and the remaining AVP decoded-JSON casts are
+    checked; the Windows full-suite step's `-timeout` is 40m. Review
+    APPROVED WITH NOTES, then APPROVED; the notes' casts outside AVP are
+    inventoried for GH #17 (TW-D25).
+  - **Cite guard** (`cd4ca2a`, `d713ef6`): a ledger in
+    `internal/workflow/verify_anchored_cites_test.go` classifies every
+    `verify_anchored.go` doc cite as live (anchor text must sit inside the
+    cited lines) or historical (pinned commit, frozen); 91 rows, 110
+    cites. Rev-1 NEEDS REVISION (two wrapped continuation cites escaped
+    the ledger); rev-2 APPROVED, no findings.
+  - **ROCS8 build-once fixture** (`7ac05c0`): each ROCS8 fixture kind is
+    built once per test process and copied per row; Windows keeps fresh
+    builds. Review APPROVED WITH NOTES (notes handled, TW-D20).
+  - **TW-D6** (`ed5c232`): ADR-013 and PRD-historical-anchor-relanding
+    say N2 shipped in v0.22.0.
 
 ### Operator answers (2026-11-12, recorded verbatim in substance)
 
@@ -86,8 +108,26 @@ is not authorized.
 | TW-D5 | **CHANGELOG date 2026-11-13**, the expected UTC date of the tag; earlier headings use the UTC release date. If the tag slips to another UTC day, the heading moves with it before tagging. |
 | TW-D6 | **ADR-013 and PRD-historical-anchor-relanding status lines** that say N2 "is not yet released" are updated after the tag, as `881b383` did for N1, so gated docs never claim a release that has not happened. |
 | TW-D7 | **The candidate was pushed before its validation-machine doc checks finished** (20:50Z; they passed at 20:54:16Z), to start CI early. The push cancelled CI 43301398983 for the tracking-only dispatch commit `64ccb19`; 43304207390 covers the candidate. |
+| TW-D8 | **GH #17: all 13 unchecked `report["abort"]` casts are checked**, not only AVP-192's: any one of them panics and aborts the whole Windows `internal/cli` test binary. |
+| TW-D9 | **Windows full-suite step `-timeout` 20m → 40m**, with no job `timeout-minutes` (GitHub's default is 360). The "timeouts-swapped" guard fixture was replaced because it means nothing once both are 40m. The Windows ROCS8 command stays at 20m. |
+| TW-D10 | **GH #17 review note 1 fixed in `dc76fa2`** (remaining AVP decoded-JSON casts, explicit `float64` compares). Notes 2–3 (casts in the S6 archive-fixture, reject and verify-landed tests) are outside AVP and panic only on malformed input; left for the GH #17 inventory (TW-D25). |
+| TW-D11 | **The cite guard is a ledger in test code, not inline doc markers**, which would churn about 100 lines of six accepted docs. It scans `docs/**.md` except the dated `handoff/` and `supervisor/` records, plus top-level `*.md`. It found two stale continuation cites the refresh missed; TW-D4's two uncertain cites are classified historical and pinned (`2e44569`, `e76e0f7`). |
+| TW-D12 | **Wave-2 tracking edits waited for the rebase onto the post-tag `main`**, to avoid CURRENT.md conflicts; a private file held them meanwhile. |
 | TW-D13 | **A hosted-runner miss is not a code failure.** CI 43304207390's `test (macos-latest)` was cancelled because GitHub never assigned it a runner (macOS arm64 capacity notice) and it ran no step. Only that job was re-run; it passed. The release still required all five jobs green. |
 | TW-D14 | **Gate 1 started while CI was still running** (21:11Z), not after CI green: the gate is independent of hosted CI and the validation machine was otherwise idle. The release required both the gate PASS and all five CI jobs green; both held. |
+| TW-D15 | **A private probe sized the ROCS8 fixture** before any code: 2.2–3.9 s to build versus about 65 ms to copy and refresh. The fixture's linked worktree stores the template's absolute path in two link files, so a plain copy would point back at the template. |
+| TW-D16 | **The ROCS8 template saves about 220 s per gate, not SW-D14's 450–550 s.** A fixture-only row costs about 3.7 s; the remaining ~6 s of an acceptance row is acceptance work. Implemented anyway, per TW-A3. The copier rewrites both link files itself in Git's exact form and fails closed on any other form, rather than calling `git worktree repair`, because Apple Git 2.39's repair can follow a stale link and rewrite the template's own registry. |
+| TW-D17 | **Windows keeps fresh fixture builds.** Its native S8 step uses 309 s of 20 m, and the copier is unverified against Git for Windows path spellings; the two template guard tests skip there. |
+| TW-D18 | **The remaining ~6 s per ROCS8 acceptance row is not changed.** It is likely macOS `F_FULLFSYNC` durability syncs, which are the product behaviour under test; recorded as a measure-first candidate. |
+| TW-D19 | **The template lives in `os.MkdirTemp` and `TestMain` removes it.** A killed or timed-out test binary leaks it in `TMPDIR`, as `t.TempDir()` would. Accepted. |
+| TW-D20 | **ROCS8 review notes.** A user's `core.splitIndex` rewrites `sharedindex.*` files, so the copy check skips them and compares staged entries instead; Git is not pinned process-wide, because that would change Git for every workflow test. A user's `core.untrackedCache` would embed the build root, which the leak scan rejects (fails closed, accepted). The stale-index mutant's proof prints the machine's stat settings. |
+| TW-D21 | **Cite ledger rev-1 fix: carry the cited path within a block** (a blank line resets it) instead of editing two accepted docs to spell the path. A simulation over the same docs showed the rule changes exactly the two missed cites. |
+| TW-D22 | **Measurement never delays a gate.** Gate 1 ran about 20 minutes slower than `a37e512`'s, so the S6 shard measurement moved after gate 2 and the ROCS8 and cite-ledger validations ran first. |
+| TW-D23 | **Release and rebase bookkeeping.** v0.22.0's tracking commit `d699713` passed `make release-check` 9/9 and was tagged and pushed at 00:40Z. `tw-wave-2` was rebased onto it cleanly; the AC-L135 totality guard was simulated over TW-D6's changed lines (no forbidden phrase before or after) and no `verify_anchored.go` cite changed. |
+| TW-D24 | **GH #15 post-release label drift is recorded, not fixed.** `SPEC.md`'s recipe-authority heading and nine user docs still say "v0.17 planned, unreleased", but v0.17.0 shipped it. The heading is a link anchor and parity tests pin Unreleased-heading shapes, so the relabel needs its own reviewed change; ROADMAP backlog row "GH #15 post-release label drift". |
+| TW-D25 | **GH #17 inventory (static).** Ten single-value casts on decoded JSON remain in `internal/cli` tests, all outside AVP: the S6 archive-fixture wire mutation (`prepare_s6_contract_test.go`, 7 casts on 6 lines), three in `reject_test.go` and one in `verify_landed_cli_test.go`. They panic only on a reshaped payload. Four more load values the test itself stored in a `sync.Map` and cannot fail. Not changed this window. |
+| TW-D26 | **A validation-harness bug is not a product failure.** w2c's template-off switch left the `runtime` import unused, so its baseline build failed after the template-on package run had passed. A resume script switched the template off with an always-false `runtime.GOOS == ""`, proved the switch took effect (the template guard test skips), and ran the baseline and mutants. No code change. |
+| TW-D27 | **The ROCS8 template's measured saving is about 245 s per gate** on the validation machine: the 40 ROCS8 tests shared by both runs take 731 s with fresh builds and 460 s with the template (272 s), less 26.5 s for the two new guard tests. One run each, so the number is approximate. The largest single gains are the refusal and rollback rows (117 → 39 s, 134 → 91 s). |
 
 ### Questions for the operator
 
@@ -97,9 +137,10 @@ is not authorized.
 
 ## Current State
 
-v0.22.0 is released: the tag is on this tracking commit, which records
-the gate PASS at the gated `3239556`. It ships GH #26 N2 and the doc-cite
-refresh. Wave 2 is on a local branch under validation.
+v0.22.0 is released (tag on `d699713`, which records the gate PASS at
+the gated `3239556`); it ships GH #26 N2 and the doc-cite refresh. Wave
+2 is reviewed and validated; this close commit is pushed to `main` and
+under serial gate 2. The S6 shard measurement runs after gate 2.
 
 ## Files Changed
 
@@ -112,6 +153,19 @@ refresh. Wave 2 is on a local branch under validation.
 - Release candidate: `CHANGELOG.md`,
   `assets/recipe_authority_parity_test.go`, `docs/handoff/CURRENT.md`,
   `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
+- Wave 2: `.github/workflows/ci.yml`,
+  `internal/cli/prepare_avp_test.go`, `internal/cli/prepare_avp2_test.go`,
+  `internal/cli/prepare_s7_ci_timeout_guard_test.go`,
+  `internal/intent/avp_guards_test.go` (GH #17);
+  `internal/workflow/verify_anchored_cites_test.go`,
+  `docs/prds/PRD-historical-anchor-relanding.md`,
+  `docs/prds/PRD-recipe-generation-authority.md` (cite guard; the two
+  docs gain historical notes); `internal/workflow/main_test.go`,
+  `internal/workflow/operation_candidate_template_test.go`,
+  `internal/workflow/operation_candidate_acceptance_test.go` (ROCS8);
+  `docs/adrs/ADR-013-verify-freshness-overlay.md` and
+  `docs/prds/PRD-historical-anchor-relanding.md` (TW-D6); tracking:
+  `docs/handoff/CURRENT.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
 
 ## Test Results
 
@@ -131,15 +185,45 @@ refresh. Wave 2 is on a local branch under validation.
   and pre-flight order parity, fresh isolated caches, source clean
   afterwards, no concurrent test time, `wave-close-check` 8/8,
   12,281 s.
+- Wave 2 on the validation machine (clean clone at the reviewed
+  pre-rebase commits, whose source the rebase left byte-identical: it
+  changed only the three tracking files; 60-second admission,
+  `GOMAXPROCS=1`, `-p=1`):
+  - **W2A** (GH #17 prerequisites, at the reviewed `dc76fa2` content):
+    vet, `internal/intent` and the targeted `internal/cli` AVP tests
+    pass; the abort-cast mutant is killed
+    (`TestReportAbortFailsInsteadOfPanicking`). PASS.
+  - **W2B** (cite ledger rev-1): workflow, assets and cli doc checks,
+    vet and build pass; 4/4 mutants killed. PASS.
+  - **W2E** (cite ledger rev-2): gofmt, vet and guard tests (13
+    sensitivity subtests) PASS; 9/9 mutants killed with their expected
+    messages (source shift, doc renumber, continuation parser, historical
+    row, unlisted table row, per-line ledger, per-line sensitivity, no
+    blank-line reset, anchor-and-pin). **W2E PASS** 01:03:07Z.
+  - **W2C/W2C2** (ROCS8 template): gofmt, vet, both template guards
+    (creation-false 18.78 s, creation-true 14.86 s) and the full
+    `internal/workflow` package with the template on (1,291 s wall, 0
+    failures; Git stat settings at defaults). The template-off baseline
+    (w2c2 after a harness fix, TW-D26) confirmed the switch took effect
+    and ran the 40 shared ROCS8 tests in 731 s with fresh builds versus
+    460 s with the template: about 245 s saved per gate after the two
+    new guard tests (26.5 s); one run each (TW-D27). 5/5 mutants killed
+    with their expected messages (no relink, shared slices, file times,
+    no index refresh, no relink with the leak scan off). **W2C2 PASS**
+    01:19:12Z.
+  - TW-D6 (`ed5c232`, docs only) and this tracking commit are covered by
+    gate 2.
 
 ## Next Steps
 
-1. Release: `make release-check`; tag v0.22.0; push main and the tag;
-   verify the GitHub Release.
-2. Wave 2: rebase onto the tag; validate; push; CI; serial gate at the
-   wave-2 close commit.
-3. After the tag: the TW-D6 status lines.
-4. Close: archive this handoff to HISTORY byte-for-byte; IDLE.
+1. Verify the v0.22.0 GitHub Release (tag CI 43338954795's `release`
+   job).
+2. Gate 2: serial validation-machine gate at this close commit
+   (`WAVE_BASE=dd4c082`) and its CI; record both in the LOG.
+3. Wave 2 CI: read the Windows full-suite result for the GH #17
+   inventory (TW-D25).
+4. After gate 2: the S6 shard-merge measurement (measure only).
+5. Close: archive this handoff to HISTORY byte-for-byte; IDLE.
 
 ## Blockers
 
