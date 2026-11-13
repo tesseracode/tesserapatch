@@ -1,3 +1,35 @@
+## Gate — TW wave 2 close commit `d71a067`; TW window closed — 2026-11-13
+
+**Validation machine**, serial, `WAVE_BASE=dd4c082`: **PASS**
+(2026-11-13T02:02:43Z to 05:26:26Z, 12,221 s). 42/42 top-level commands
+with exact command-multiset and pre-flight order parity; fresh isolated
+caches; wave-close-check 8/8; no resource stop (minimum free memory 73%,
+no swap-outs); source clean afterwards; release tag unchanged. Load1
+exceeded 5 in 87 samples (peak 7.19); load is not a stop condition
+(TW-D35). Hosted CI 43349254199 at `d71a067`: all five test jobs green.
+
+The implementation agent's session crashed at 02:32Z while the gate ran;
+the gate was unaffected and the window resumed without an extension
+(TW-D33). Commands are 10-20% slower than at `a37e512` across unchanged
+code, which points to the validation machine rather than the wave
+(TW-D37; details private).
+
+Measure only, nothing changed:
+
+- GH #17 Windows inventory (TW-D34): with the 40-minute timeout from
+  `6953fef` the full-suite step completes in 20m21s with 299 top-level
+  failures in 8 packages and no panic.
+- S6 shard merge (TW-D36): one `^TestS6.*$` command takes 474-481 s
+  against 1,050 s for the four shards, with identical passing results,
+  but its peak RSS is 3.10 GB against at most 1.84 GB per shard; the
+  shards exist to bound memory (`7a1052d`). Operator decision (TW-Q3).
+
+### Action Taken
+
+Wave 2 accepted. TW window closed: handoff archived byte-for-byte in
+HISTORY; canonical field `IDLE`; ROADMAP flipped. Open for the operator:
+TW-Q1, TW-Q2, TW-Q3.
+
 ## Supervisor — TW wave 2: CI red at `c92d371`; gate 2 stopped; gate 3 dispatched — 2026-11-13
 
 **Actor**: implementation agent (TW window).
