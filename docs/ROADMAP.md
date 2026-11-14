@@ -27,8 +27,9 @@ FW rev-1 found a CI timeout-guard conflict with the helper's opaque
 `sh file` invocation. Rev-2 invokes the executable helper directly and
 adds the regression fixture, without changing that guard's fail-closed
 behavior. Rev-2 `a1bce30` static review **APPROVED** and admitted targeted
-checks, formatting, vet and build **PASS**. Prepare the tracking-only
-candidate for push and full serial gate (39 commands); hosted CI pending.
+checks, formatting, vet and build **PASS**. The tracking-only candidate
+is **published at `d8c46ce`: serial gate running (39 commands);
+hosted CI 43555426725 running.**
 This is not yet wave acceptance. No new release requested.
 GH #26's detailed historical row below is retained as evidence; its
 terminal state is **CLOSED/completed at 2026-11-14T03:46:59Z**.

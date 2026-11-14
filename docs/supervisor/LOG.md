@@ -1,3 +1,16 @@
+## Gate running — FW `d8c46ce` — 2026-11-14
+
+Gate candidate `d8c46ce6e83744c24d093bb1bc2912275a18aec0` is pushed.
+The isolated source is clean and contained in origin/main. The owned
+serial runner is alive with admission telemetry; hosted CI
+**43555426725** is in progress and its watcher is receiving updates.
+Full gate/CI acceptance remains pending. Private run safety deadline:
+2026-11-14T10:12:47Z (FW-D6). No new release or lane-mode run.
+
+Tracking may be committed locally while these run, but do not push over
+the candidate's in-progress CI. Preserve all failures and stop at the
+first validation failure before fixing/retrying.
+
 ## Gate dispatch — FW reviewed and targeted-valid source — 2026-11-14T04:10Z
 
 Rev-2 source `a1bce30` passed formatting, targeted S6/CI/lane/release-note
