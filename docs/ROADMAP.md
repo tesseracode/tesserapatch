@@ -13,6 +13,15 @@
 
 ## Current Backlog — Post-v0.18.0 (2026-11-04)
 
+**FW follow-up, 2026-11-14: 🚧 IN PROGRESS.** Operator-approved S6 merge
+with unchanged family coverage and updated serial/CI/lane parity;
+TW-Q1 private drafts renamed to `.go.txt`; TW-Q2 existing release bodies
+and existing CI release job use canonical tagged CHANGELOG notes; GH #26
+closure and private crash-report deletion. No additional CI jobs or paid
+service. `WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`.
+Review and serial full-gate validation required; cleanup and full lane
+gates on the validation machine remain deferred.
+
 **Live inventory** (refreshed 2026-11-06T03:24Z): 11 open GitHub issues,
 16 closed issues, zero open PRs. GH #9 is CLOSED/completed as of
 **2026-11-04T20:47:37Z**.
@@ -166,6 +175,16 @@ acceptance and implementation as separate decisions.
 | Test-time profiling ✅ (measured; ROCS8 fix ✅, others ⬜) | Operator (2026-11-07): time the tests that take longest and find out whether the cost comes from too many tests running, unoptimized tests, or computation the tests genuinely need. Starting points: the hosted observer categories (AR core ~527 s, AQ ~449 s, AP ~371 s, AM–AO ~274 s serial on the validation machine), mutation-sensitivity rows that compile mutated packages (for example PIB-487), and the slowest `internal/workflow` and `internal/cli` shards. | Not scheduled. Measure first (per-test wall time from `go test -json`, child-build counts, package compile time), then propose. Plan only; no budget or test changes without a reviewed wave. **Measured 2026-11-11 (SW-D14):** the largest single saving is the `internal/workflow` ROCS8 family, where about 60 subtests each rebuild the same reconcile fixture (~600 s per gate); a build-once-and-copy template is the first proposal. Second, the S6 shards may each rebuild the per-process `s6ContractBaseline` (188 s); a shard merge is an unmeasured hypothesis and would change the CI partition, so it needs a decision. The S7 type-check shards and PIB-221's cold cross-builds are cost the tests genuinely need under the parity environment. About 1,050 s of 04-go wall time is not CPU time and is not yet explained. No change made; each fix needs its own reviewed wave. **ROCS8 template landed in TW wave 2 (`7ac05c0`):** measured on the validation machine, the ROCS8 family takes 731 s with fresh builds and 460 s with the template, about 245 s saved per gate after its two new guard tests (TW-D16, TW-D27); the rest of each acceptance row is acceptance work (TW-D18). **S6 shard merge measured after TW gate 3 (TW-D36):** the four S6 commands take 1,050 s and one merged command 474-481 s with identical passing results, because each shard repeats a once-per-process setup of about 195 s; the merged command's peak RSS is 3.10 GB against at most 1.84 GB per shard, and the shards were split on 2026-10-29 to bound memory. Not adopted; the operator decides (TW-Q3). |
 | Validation machine: serial gates ⬜ | Lane mode stopped or was skipped on the validation machine in every recent window because its swap use stays above the lane limit even when idle (OV-D17, NW-D9/NW-D10). Operator (2026-11-07): keep serial for now; the operator will report when the machine is cleaned up. | Gates there run `WAVE_CLOSE_TEST_LANES=0` until the operator reports the cleanup; then retry lane mode once. |
 | GH #15 post-release label drift ⬜ | Found in TW (2026-11-13, TW-D24): `SPEC.md`'s recipe-authority heading and nine user docs (`docs/record.md`, `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`, `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`, `docs/commits.md`, `docs/path-b-operator-guide.md`) still call GH #15 recipe authority "v0.17 planned, unreleased", but v0.17.0 shipped it on 2026-09-20. | Not scheduled. The SPEC heading is a link anchor (`docs/faq.md` links to it) and `assets/recipe_authority_parity_test.go` pins Unreleased-heading shapes, so the relabel needs the anchor, its links and the parity fixtures moved together in one reviewed change. |
+
+**TW-Q3 attended follow-up, 2026-11-13 (measurement only):** the requested
+higher-memory trial completed and its raw evidence was verified. Merged S6
+passed alone and beside one other test command; neither trial crashed,
+triggered a resource stop, or needed more than the required quiet minute
+before/after execution. This is not a full lane gate and does not adopt
+the merge. Keep the existing partition and serial-gate policy pending
+operator authorization, review and full-gate validation; validation-machine
+cleanup remains carried over. Detailed results are in CURRENT and LOG;
+raw evidence stays private.
 
 ### Deferred families and unscoped ideas
 

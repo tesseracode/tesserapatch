@@ -2,7 +2,13 @@
 
 ## Status
 
-**Cluster state**: IDLE
+**Cluster state**: IN PROGRESS
+
+**FW approved follow-up: implementation in progress.** The operator
+approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
+notes and CI fix, closing GH #26, and deleting the private crash report.
+No new paid service or CI job is authorized or needed. Validation-machine
+cleanup remains deferred; its full gates remain serial.
 
 **TW unattended window closed; v0.22.0 shipped; wave 2 accepted; idle.**
 The window ran from 2026-11-12T20:31:32Z to 2026-11-13T08:31:32Z,
@@ -18,14 +24,28 @@ is recorded (TW-D36); nothing was changed for it.
 
 ## Active Task
 
-- **Task ID**: none (idle)
-- **Milestone**: Post-v0.22 backlog
-- **Description**: Awaiting the operator's next window
-- **Status**: Idle — TW closed; wave 2 accepted at `d71a067`
-- **Assigned**: 2026-11-13
-- **WAVE_BASE** (TW, closed): `dd4c082a7cbf04b61e3d5514c580e10ac11ee9ec`
+- **Task ID**: fw-approved-follow-up
+- **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
+- **Description**: Merge S6 with unchanged coverage; publish canonical
+  release notes without new CI jobs; complete approved housekeeping
+- **Status**: In progress — implementation, review and validation pending
+- **Assigned**: 2026-11-14
+- **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
+  (`HEAD` and `origin/main` at dispatch)
 
 ## Session Summary
+
+**FW dispatch (2026-11-14T03:45:13Z).** Baseline on `main`, one worktree,
+no stash; only the prior measurement's three tracking files were modified.
+The prior idle handoff plus measurements is archived byte-for-byte in
+HISTORY under `2026-11-14T03:45:13Z`. FW does not reopen the TW window.
+S6 changes must keep the same test-family union, uncached execution,
+timeouts, module-walk barrier, and solo observer tail. Higher-memory S6
+belongs in lane B; paired measurements do not authorize full lane gates
+on the validation machine. Release-note extraction runs in the existing
+release job using installed tools, not an additional runner/service.
+
+### Prior TW summary
 
 - **v0.22.0** (wave 1): cite refresh `f66523a` (review APPROVED);
   release candidate `1673d03` and `3239556` (review APPROVED WITH NOTES,
@@ -38,6 +58,13 @@ is recorded (TW-D36); nothing was changed for it.
 - **Measurements and inventories, read-only**: GH #17 Windows full suite
   from CI (TW-D34); S6 shard merge (TW-D36); gate slowdown per command
   (TW-D37).
+- **Attended TW-Q3 follow-up (2026-11-13).** The operator requested a
+  higher-memory S6 trial; validation-machine cleanup remains deferred.
+  Completed serial and paired-command evidence was verified against raw
+  samples, package output, exit-code files and timing logs. Neither trial
+  crashed or needed an additional admission/recovery wait beyond the
+  required quiet minute. This is measurement only, not a full lane gate
+  or authorization to change the partition.
 
 The full TW handoff is archived **byte-for-byte** in
 `docs/handoff/HISTORY.md` under
@@ -109,7 +136,7 @@ with no jobs.
 
 ## Current State
 
-Idle. `main` is at this tracking commit; `v0.22.0` is the latest release
+FW implementation in progress. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 
@@ -120,22 +147,33 @@ GH #24 has an approved PRD and no implementation authorization.
 
 ## Files Changed
 
-This close (tracking files only): `docs/handoff/CURRENT.md`,
+TW close and attended measurement follow-up (tracking files only): `docs/handoff/CURRENT.md`,
 `docs/handoff/HISTORY.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
+The follow-up leaves the archived HISTORY bytes unchanged.
 
 ## Test Results
 
 - Hosted CI 43349254199 (`d71a067`): green on all five test jobs.
 - Validation-machine gate at `d71a067`, `WAVE_BASE=dd4c082`: **PASS
   (serial)**, 42/42, 12,221 s, wave-close-check 8/8.
+- TW-Q3 follow-up at `420c485` (same non-tracking source as `c294b68`):
+  serial merged S6 exit 0 in 474 s; paired S6 exit 0 in 529 s and
+  `TestS7ARPurgeProgressGuard` exit 0 in 534 s. Sampled process-tree peak
+  RSS was 3.10 GB alone and 4.74 GB combined. Both scenarios' before/after
+  pressure-based admission checks took 61.2 s each, with no reset of the
+  qualifying minute; all runtime samples showed normal pressure and no
+  new swap-outs. Warm build cache, `-count=1`, `GOMAXPROCS=1`, `-p=1`,
+  no `GOMEMLIMIT`; one trial per scenario, not full-gate evidence.
+  Raw evidence is private under `bin/tw-20261112/w3-evidence/`.
 
 ## Next Steps
 
-1. Check this tracking commit's main CI.
-2. Next window candidates: GH #17 Windows failures (299, inventoried);
-   the GH #15 label drift (TW-D24); the S6 shard decision (TW-D36);
-   remaining low-risk profiling fixes; the GH #17 casts outside AVP
-   (TW-D25); GH #25 B (not authorized).
+1. Complete the approved renames, report deletion and GH #26 closure;
+   repair release bodies from each tag's own CHANGELOG.
+2. Implement the merged S6 partition and canonical CI release notes;
+   update directly coupled parity/provenance guards and profiling tools.
+3. Independent static review, admitted remote validation and serial full
+   gate, then hosted CI and durable close. No new release is requested.
 
 ## Blockers
 

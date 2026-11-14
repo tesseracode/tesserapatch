@@ -1,3 +1,58 @@
+## Dispatch — FW approved follow-up — 2026-11-14
+
+The operator approved the reviewed S6 merge; renaming exactly two private
+draft files to `.go.txt`; publishing v0.18.0, v0.19.0, v0.20.0 and v0.22.0
+release notes from their tagged CHANGELOGs; fixing the existing CI release
+job without additional jobs/services; closing GH #26; and deleting the
+identified private diagnostic report. Validation-machine cleanup remains
+deferred and full gates there stay serial.
+
+`WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`, verified as both HEAD
+and origin/main at 03:45:13Z. One worktree on main, no stash, only the
+previous measurement's tracking edits. Prior idle handoff archived
+byte-for-byte under this timestamp before dispatch.
+
+Implement the coupled CI changes sequentially in this worktree; preserve
+exact family coverage and update guards, profiler and lane placement.
+Independent static review and admitted validation remain required.
+No new release or broader backlog work is authorized.
+
+## Measurement — TW-Q3 higher-memory S6 follow-up — 2026-11-13
+
+**Scope:** operator-requested measurement only; no partition or machine
+configuration changes. Validation-machine cleanup remains deferred.
+
+Completed evidence covers 20:48:36Z through 21:09:29Z at `420c485`
+(same non-tracking source as `c294b68`, source clean afterwards).
+The command was `go test -p=1 ./... -count=1 -timeout 40m -run
+'^TestS6.*$'`; the paired trial additionally ran
+`go test -p=1 ./internal/cli -count=1 -timeout 40m -run
+'^TestS7ARPurgeProgressGuard$'`.
+
+| Scenario | Command exits and wall times | Sampled process-tree peak RSS | Admission before / after |
+|---|---|---|---|
+| Merged S6 alone | S6: 0, 474 s | 3.10 GB | 61.2 s / 61.2 s |
+| Merged S6 plus purge-progress guard | S6: 0, 529 s; guard: 0, 534 s | 4.74 GB combined | 61.2 s / 61.2 s |
+
+Raw `.rc`, `.out` and `.time` files agree with `results.json` and the
+completed `W3 DONE` log. All 622 runtime samples and 120 admission samples
+were checked: normal memory pressure, no new swap-outs, no monitoring gap
+above five seconds. Each admission window qualified on its first continuous
+minute: the 61.2 s is the required minute plus sampling overhead, **not zero
+wait**, and there was no additional recovery delay.
+
+Limits: warm build cache, `GOMAXPROCS=1`, `-p=1`, no `GOMEMLIMIT`,
+uncached tests; one trial per scenario, not a full serial/lane gate or a
+cold-cache measurement. Admission used the current pressure-based policy,
+not the earlier 80%-free-memory threshold. The paired S6 command took 55 s
+longer; these measurements do not identify memory as the cause or establish
+an end-to-end lane saving. They support proposing a reviewed merge, not
+changing the partition or resuming lane gates before cleanup.
+
+Raw evidence is retained privately in `bin/tw-20261112/w3-evidence/`;
+no runtime/process inventory is added to tracked files. CURRENT and
+ROADMAP record completion; the TW archive remains unchanged.
+
 ## Gate — TW wave 2 close commit `d71a067`; TW window closed — 2026-11-13
 
 **Validation machine**, serial, `WAVE_BASE=dd4c082`: **PASS**
