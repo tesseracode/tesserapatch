@@ -26,9 +26,9 @@
 # closed until the partition is updated.
 set -eu
 
-lane_a='1 2 3 4 6 13 22 26'
-lane_b='18 19 20 21 23 24 25 27 28 30 34 35 36 37 38 39 17 29 5 7 8 9 10 11 12 14 15 16'
-solo='31 32 33'
+lane_a='1 2 10 18 19 23'
+lane_b='15 16 17 20 21 22 24 25 27 31 32 33 34 35 36 14 26 3 4 5 6 7 8 9 11 12 13'
+solo='28 29 30'
 shards=scripts/wave-close-test-shards.sh
 
 if [ "$#" -ne 1 ] || [ "$1" != 2 ]; then

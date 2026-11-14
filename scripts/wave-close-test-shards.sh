@@ -9,10 +9,7 @@ export BASH_ENV GOFLAGS GOENV GOMAXPROCS
 
 go test -p=1 ./... -count=1 -timeout 40m -skip '^Test(S6[A-Z].*|S7[A-Z].*|AVP.*)$'
 go test -p=1 ./... -count=1 -timeout 40m -run '^TestAVP.*$'
-go test -p=1 ./... -count=1 -timeout 40m -run '^TestS6[A-F].*$'
-go test -p=1 ./... -count=1 -timeout 40m -run '^TestS6[G-L].*$'
-go test -p=1 ./... -count=1 -timeout 40m -run '^TestS6[M-R].*$'
-go test -p=1 ./... -count=1 -timeout 40m -run '^TestS6[S-Z].*$'
+go test -p=1 ./... -count=1 -timeout 40m -run '^TestS6[A-Z].*$'
 go test -p=1 ./... -count=1 -timeout 40m -run '^TestS7A[A-O].*$'
 go test -p=1 ./... -count=1 -timeout 40m -run '^TestS7AP.*$'
 go test -p=1 ./... -count=1 -timeout 40m -run '^TestS7AQ.*$'

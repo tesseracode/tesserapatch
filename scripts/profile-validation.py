@@ -304,12 +304,12 @@ def workload(repo, toolchain, profile="full"):
     if not body.startswith(preamble):
         raise ValueError("shard environment changed; recheck profiling command parity")
     commands = [shlex.split(line) for line in body[len(preamble):].splitlines()]
-    if len(commands) != 39 or len({tuple(command) for command in commands}) != len(commands) or any(
+    if len(commands) != 36 or len({tuple(command) for command in commands}) != len(commands) or any(
         command[:3] != ["go", "test", "-p=1"]
         or "-count=1" not in command or command[command.index("-timeout") + 1] != "40m"
         for command in commands
     ):
-        raise ValueError("expected complete 39-command serial shard partition")
+        raise ValueError("expected complete 36-command serial shard partition")
     go = str(toolchain / "bin/go")
     stages = [
         ("06-gofmt", [str(toolchain / "bin/gofmt"), "-l", "."]),
@@ -325,7 +325,7 @@ def workload(repo, toolchain, profile="full"):
     if profile == "partition":
         return stages[3:]
     if profile == "broad":
-        return stages[3:19]
+        return stages[3:16]
     if profile not in ("ap-observer", "pilot"):
         raise ValueError("unknown workload profile")
 

@@ -98,8 +98,9 @@ func s7WaveCloseSoloRecord(test string) string { return "[^" + test + "$]" }
 
 // s7WaveCloseHeavyShards are the shards (1-based, serial-script order) whose
 // peak RSS reached 2.5 GiB or more on the reference host (old-Mac serial gate
-// at b8a5f37). Keeping them in one lane means no two of them run at once.
-var s7WaveCloseHeavyShards = []int{9, 23, 25, 28, 33}
+// at b8a5f37), plus merged S6 (TW-Q3, 2026-11-13). Keeping them in one
+// lane means no two of them run at once.
+var s7WaveCloseHeavyShards = []int{3, 6, 20, 22, 25, 30}
 
 // s7WaveCloseAuditedUnsetVariables are the non-recording variables the
 // concurrency audit assumed unset: live provider traffic and Git directory
@@ -223,22 +224,25 @@ func TestS7WaveCloseLaneParity(t *testing.T) {
 			return body + "go test -p=1 ./... -count=1 -timeout 40m\n"
 		}},
 		{name: "shard-dropped", mutate: func(body string) string {
-			return move(body, " 15 16'\n", " 15'\n")
+			return move(body, " 12 13'\n", " 12'\n")
 		}},
 		{name: "shard-duplicated", mutate: func(body string) string {
-			return move(body, "lane_a='1 ", "lane_a='1 16 ")
+			return move(body, "lane_a='1 ", "lane_a='1 13 ")
 		}},
 		{name: "heavy-shards-split", mutate: func(body string) string {
-			return move(move(body, " 28 30 ", " 30 "), " 22 26'\n", " 22 26 28'\n")
+			return move(move(body, " 25 27 ", " 27 "), " 19 23'\n", " 19 23 25'\n")
+		}},
+		{name: "merged-s6-in-lane-a", mutate: func(body string) string {
+			return move(move(body, " 26 3 4 ", " 26 4 "), "lane_a='1 2 ", "lane_a='1 2 3 ")
 		}},
 		{name: "lane-b-idles-at-barrier", mutate: func(body string) string {
-			return move(move(body, "lane_b='18 ", "lane_b='5 18 "), " 29 5 7 ", " 29 7 ")
+			return move(move(body, "lane_b='15 ", "lane_b='3 15 "), " 26 3 4 ", " 26 4 ")
 		}},
 		{name: "shard-1-not-first", mutate: func(body string) string {
 			return move(body, "lane_a='1 2 ", "lane_a='2 1 ")
 		}},
 		{name: "shard-1-in-lane-b", mutate: func(body string) string {
-			return move(move(body, "lane_a='1 ", "lane_a='"), "lane_b='18 ", "lane_b='1 18 ")
+			return move(move(body, "lane_a='1 ", "lane_a='"), "lane_b='15 ", "lane_b='1 15 ")
 		}},
 		{name: "recording-switch-not-refused", mutate: func(body string) string {
 			return move(body, "TPATCH_UPDATE_ROC_S0_GOLDENS ", "")
@@ -261,10 +265,10 @@ func TestS7WaveCloseLaneParity(t *testing.T) {
 			return move(body, "\"$tmp/b.out\" 2>&1 9<\"$marker\" &", "\"$tmp/b.out\" 2>&1 &")
 		}},
 		{name: "solo-shard-in-lane", mutate: func(body string) string {
-			return move(move(body, "solo='31 32 33'", "solo='32 33'"), " 30 34 ", " 30 31 34 ")
+			return move(move(body, "solo='28 29 30'", "solo='29 30'"), " 27 31 ", " 27 28 31 ")
 		}},
 		{name: "solo-holds-lane-shard", mutate: func(body string) string {
-			return move(move(body, " 30 34 ", " 30 "), "solo='31 32 33'", "solo='31 32 33 34'")
+			return move(move(body, " 27 31 ", " 27 "), "solo='28 29 30'", "solo='28 29 30 31'")
 		}},
 		{name: "solo-without-lanes-passing", mutate: func(body string) string {
 			return move(body, "if [ \"$status_a\" -eq 0 ] && [ \"$status_b\" -eq 0 ]; then\n", "if true; then\n")
@@ -1212,20 +1216,24 @@ func checkS7WaveCloseLaneBehavior(t *testing.T, lanes, shards string, serial []s
 		return fmt.Errorf("lane runner ended with %q, want the solo shards %q", tail, solo)
 	}
 
-	// A failure in lane A fails the runner, the solo tail does not run, and
-	// the output ends with lane A.
-	failing, err := run(s7WaveCloseLaneOptions{env: []string{"FAKE_GO_FAIL=[^TestS6[A-F].*$]"}})
-	if err != nil {
-		return err
-	}
-	lastHeader := strings.LastIndex(failing.output, "=== lane ")
-	if failing.code == 0 || lastHeader < 0 ||
-		!strings.HasPrefix(failing.output[lastHeader:], "=== lane A ") ||
-		!strings.Contains(failing.output[lastHeader:], "fake go failure:") {
-		return fmt.Errorf("lane failure not reported last (exit %d):\n%s", failing.code, failing.output)
-	}
-	if slices.ContainsFunc(failing.records, isSolo) || !strings.Contains(failing.output, "): not run, a lane failed ===") {
-		return fmt.Errorf("solo tail ran or was not reported after a lane failed:\n%s", failing.output)
+	// Either lane's failure suppresses the solo tail and is reported last.
+	for _, failure := range []struct{ lane, pattern string }{
+		{"A", "[^TestAVP.*$]"},
+		{"B", "[^TestS6[A-Z].*$]"},
+	} {
+		failing, err := run(s7WaveCloseLaneOptions{env: []string{"FAKE_GO_FAIL=" + failure.pattern}})
+		if err != nil {
+			return err
+		}
+		lastHeader := strings.LastIndex(failing.output, "=== lane ")
+		if failing.code == 0 || lastHeader < 0 ||
+			!strings.HasPrefix(failing.output[lastHeader:], "=== lane "+failure.lane+" ") ||
+			!strings.Contains(failing.output[lastHeader:], "fake go failure:") {
+			return fmt.Errorf("lane failure not reported last (exit %d):\n%s", failing.code, failing.output)
+		}
+		if slices.ContainsFunc(failing.records, isSolo) || !strings.Contains(failing.output, "): not run, a lane failed ===") {
+			return fmt.Errorf("solo tail ran or was not reported after a lane failed:\n%s", failing.output)
+		}
 	}
 
 	// A solo failure fails the runner, stops the tail and is reported last.
@@ -1374,12 +1382,12 @@ func TestS7WaveCloseLaneRunner(t *testing.T) {
 		{name: "second-signal-exits", from: s7WaveCloseLaneTraps, to: "trap cleanup EXIT\n" +
 			"trap 'exit 130' INT\ntrap 'exit 143' TERM\ntrap 'exit 129' HUP\n"},
 		{name: "solo-runs-after-lane-failure", from: "if [ \"$status_a\" -eq 0 ] && [ \"$status_b\" -eq 0 ]; then\n", to: "if true; then\n"},
-		{name: "solo-in-lane-b", from: "lane_b='18 ", to: "lane_b='31 32 33 18 "},
+		{name: "solo-in-lane-b", from: "lane_b='15 ", to: "lane_b='28 29 30 15 "},
 	} {
 		t.Run(broken.name, func(t *testing.T) {
 			mutated := strings.Replace(lanes, broken.from, broken.to, 1)
 			if broken.name == "solo-in-lane-b" {
-				mutated = strings.Replace(mutated, "\nsolo='31 32 33'\n", "\nsolo=''\n", 1)
+				mutated = strings.Replace(mutated, "\nsolo='28 29 30'\n", "\nsolo=''\n", 1)
 			}
 			if mutated == lanes {
 				t.Fatal("mutation changed nothing")

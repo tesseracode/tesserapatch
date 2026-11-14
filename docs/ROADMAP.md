@@ -19,8 +19,10 @@ TW-Q1 private drafts renamed to `.go.txt`; TW-Q2 existing release bodies
 and existing CI release job use canonical tagged CHANGELOG notes; GH #26
 closure and private crash-report deletion. No additional CI jobs or paid
 service. `WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`.
-Review and serial full-gate validation required; cleanup and full lane
-gates on the validation machine remain deferred.
+Housekeeping is complete: both renames preserve bytes, the report is
+deleted, GH #26 is closed, and all four release bodies match their tagged
+CHANGELOGs. CI/S6 implementation is awaiting review and validation;
+cleanup and full lane gates on the validation machine remain deferred.
 
 **Live inventory** (refreshed 2026-11-06T03:24Z): 11 open GitHub issues,
 16 closed issues, zero open PRs. GH #9 is CLOSED/completed as of

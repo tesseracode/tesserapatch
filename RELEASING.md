@@ -90,21 +90,22 @@ commits.
 
 ## Step 3 — Publish the GitHub Release
 
-Extract the CHANGELOG entry as release notes:
+The existing CI release job extracts the tagged CHANGELOG section with
+`scripts/release-notes.sh` and publishes it with `body_path`. This uses
+the existing runner and installed shell tools, not an additional job or
+service. Missing, empty or duplicate release sections stop publication.
+
+For a manual publication or repair, extract from the tag, not a newer
+working-tree CHANGELOG:
 
 ```bash
-# Replace vX.Y.Z below with your actual version, escaping the dots:
-awk '/^## v0\.11\.1 —/,/^## v0\.11\.0 —/' CHANGELOG.md | sed '$d' > /tmp/release-notes.md
+set -o pipefail
+git show vX.Y.Z:CHANGELOG.md |
+  sh scripts/release-notes.sh vX.Y.Z > /tmp/release-notes.md
 ```
 
-The end-of-range regex must reference the PREVIOUS release header (not a
-generic `/^## v/`) because the em-dash in `— YYYY-MM-DD` combined with
-awk's greedy range matching can otherwise return zero lines. Verify the
-notes file starts with the expected `## vX.Y.Z` header and ends immediately
-before the previous release section.
-
-The `sed '$d'` drops the trailing previous-release header line that `awk`
-picked up as the range terminator.
+Verify that extraction succeeded and the notes file contains only the
+expected release section. No previous-version argument is needed.
 
 Create the GitHub Release:
 

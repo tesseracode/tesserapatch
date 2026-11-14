@@ -1,3 +1,33 @@
+## Review dispatch — FW S6 merge and release-note publishing — 2026-11-14
+
+Implementation is ready for independent static review (gpt-6.1-sol, no
+Go runs by the reviewer). The validation machine formatted the three Go
+files after 61.4 s admission. Targeted Go checks and vet/build are next;
+the serial full gate follows review.
+
+Release-body repair is complete for v0.18.0, v0.19.0, v0.20.0 and v0.22.0:
+each body exactly matches its own tag's CHANGELOG section; all other
+queried metadata is unchanged. No publication comments or new releases.
+This and the earlier housekeeping are complete; CI/S6 changes are not yet
+accepted. Source scope: workflow, two runners, profiler and its tests,
+two S7 guard files, new release helper/test, AGENTS and RELEASING.
+
+## Implementation — FW housekeeping and coupled CI draft — 2026-11-14
+
+GH #26 closed as completed at 03:46:59Z, without a comment. The approved
+private report was deleted. Exactly two malformed private snapshot files
+were renamed to `.go.txt`; SHA256 confirms unchanged contents. Machine
+cleanup remains deferred.
+
+S6 uses the exact former alphabet union, reducing 39 test commands to
+36; merged S6 is in lane B. Only AR Rev19/20 moves from B to A for
+balance (previous measured peak 1.43 GB), with the module-walk barrier and
+solo observer families unchanged. The release helper will feed the
+existing release job; no new jobs, runners or services.
+
+The 40 Python profiler tests and shell syntax checks pass. Remote Go
+validation, release-body repairs and independent review are pending.
+
 ## Dispatch — FW approved follow-up — 2026-11-14
 
 The operator approved the reviewed S6 merge; renaming exactly two private

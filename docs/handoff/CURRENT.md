@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
-**FW approved follow-up: implementation in progress.** The operator
+**FW approved follow-up: review and validation pending.** The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
 No new paid service or CI job is authorized or needed. Validation-machine
@@ -28,7 +28,7 @@ is recorded (TW-D36); nothing was changed for it.
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
 - **Description**: Merge S6 with unchanged coverage; publish canonical
   release notes without new CI jobs; complete approved housekeeping
-- **Status**: In progress — implementation, review and validation pending
+- **Status**: Awaiting independent review and admitted remote validation
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
@@ -44,6 +44,31 @@ timeouts, module-walk barrier, and solo observer tail. Higher-memory S6
 belongs in lane B; paired measurements do not authorize full lane gates
 on the validation machine. Release-note extraction runs in the existing
 release job using installed tools, not an additional runner/service.
+
+### FW decisions and progress
+
+- **FW-D1:** GH #26 closed as completed at 2026-11-14T03:46:59Z (no
+  comment posted). The identified private diagnostic report was deleted.
+  Exactly two malformed snapshot files were renamed to `.go.txt`; their
+  before/after SHA256 values match. No machine cleanup was performed.
+- **FW-D2:** merge to `^TestS6[A-Z].*$`, not the broader trial pattern
+  `^TestS6.*$`, preserving the exact union and catch-all behavior. There
+  are now 36 test commands (39 including formatting/vet/build). Put the
+  merged shard in lane B. Move only the low-memory AR Rev19/20 command
+  from B to A to rebalance; all other surviving commands keep their lane.
+  Prior measured Rev19/20 peak RSS was 1.43 GB. The module-walk barrier
+  and the three solo observer families remain unchanged.
+- **FW-D3:** canonical notes are extracted from the tag's CHANGELOG with
+  a small shell/awk helper. The existing release job uses its output;
+  no new job, matrix entry, runner type or paid service. Historical repair
+  completed for v0.18.0, v0.19.0, v0.20.0 and v0.22.0: retrieved bodies
+  exactly equal the tagged CHANGELOG sections; other release metadata is
+  unchanged.
+- **Implementation:** partition, lane/CI guards, profiler and release
+  helper are implemented. Python profiler tests pass (40); shell syntax
+  checks pass. The validation machine formatted the three Go files after
+  a 61.4-second pressure admission. Targeted Go checks, vet/build and
+  independent static review are next; no full gate has run yet.
 
 ### Prior TW summary
 
@@ -136,7 +161,7 @@ with no jobs.
 
 ## Current State
 
-FW implementation in progress. `v0.22.0` is the latest release
+FW review and validation pending. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 

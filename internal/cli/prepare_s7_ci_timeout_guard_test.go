@@ -34,10 +34,7 @@ type s7CITimeoutStep struct {
 const (
 	s7CISplitPattern               = `^Test(S6[A-Z].*|S7[A-Z].*|AVP.*)$`
 	s7CIAVPPattern                 = `^TestAVP.*$`
-	s7CIS6AFPattern                = `^TestS6[A-F].*$`
-	s7CIS6GLPattern                = `^TestS6[G-L].*$`
-	s7CIS6MRPattern                = `^TestS6[M-R].*$`
-	s7CIS6SZPattern                = `^TestS6[S-Z].*$`
+	s7CIS6Pattern                  = `^TestS6[A-Z].*$`
 	s7CIS7EarlyPattern             = `^TestS7A[A-O].*$`
 	s7CIS7APPattern                = `^TestS7AP.*$`
 	s7CIS7AQPattern                = `^TestS7AQ.*$`
@@ -76,10 +73,7 @@ const (
 	s7CIGenericCommandPrefix       = `go test ./... -count=1 -timeout 40m -run '`
 	s7CINonWindowsAVPCommand       = s7CIGenericCommandPrefix + s7CIAVPPattern + "'"
 	s7CIGenericTestScript          = s7CINonWindowsAVPCommand + "\n" +
-		s7CIGenericCommandPrefix + s7CIS6AFPattern + "'\n" +
-		s7CIGenericCommandPrefix + s7CIS6GLPattern + "'\n" +
-		s7CIGenericCommandPrefix + s7CIS6MRPattern + "'\n" +
-		s7CIGenericCommandPrefix + s7CIS6SZPattern + "'\n" +
+		s7CIGenericCommandPrefix + s7CIS6Pattern + "'\n" +
 		s7CIGenericCommandPrefix + s7CIS7EarlyPattern + "'\n" +
 		s7CIGenericCommandPrefix + s7CIS7APPattern + "'\n" +
 		s7CIGenericCommandPrefix + s7CIS7AQPattern + "'\n" +
@@ -163,6 +157,19 @@ func TestS7WaveCloseShardParity(t *testing.T) {
 		mutateMakefile func(string) string
 		mutateScript   func(string) string
 	}{
+		{
+			name: "merged-s6-narrowed",
+			mutateScript: func(body string) string {
+				return strings.Replace(body, s7CIS6Pattern, "^TestS6[A-F].*$", 1)
+			},
+		},
+		{
+			name: "merged-s6-cli-only",
+			mutateScript: func(body string) string {
+				command := "go test -p=1 ./... -count=1 -timeout 40m -run '" + s7CIS6Pattern + "'"
+				return strings.Replace(body, command, strings.Replace(command, "./...", "./internal/cli", 1), 1)
+			},
+		},
 		{
 			name: "observer-removed",
 			mutateScript: func(body string) string {
@@ -1799,11 +1806,11 @@ func validateS7CITestStrategy(
 	return nil
 }
 
-const s7CIGenericShardCount = 15
+const s7CIGenericShardCount = 12
 
 func s7CITestShardPatterns() []string {
 	return []string{
-		s7CIAVPPattern, s7CIS6AFPattern, s7CIS6GLPattern, s7CIS6MRPattern, s7CIS6SZPattern,
+		s7CIAVPPattern, s7CIS6Pattern,
 		s7CIS7EarlyPattern, s7CIS7APPattern, s7CIS7AQPattern, s7CIS7ASPattern,
 		s7CIS7ATPattern, s7CIS7AUPattern, s7CIS7AVPattern, s7CIS7AWPattern,
 		s7CIS7AXPattern, s7CIS7OtherPattern,

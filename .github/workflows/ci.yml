@@ -82,10 +82,7 @@ jobs:
           set -euo pipefail
           go test ./... -count=1 -timeout 40m -skip '^Test(S6[A-Z].*|S7[A-Z].*|AVP.*)$'
           go test ./... -count=1 -timeout 40m -run '^TestAVP.*$'
-          go test ./... -count=1 -timeout 40m -run '^TestS6[A-F].*$'
-          go test ./... -count=1 -timeout 40m -run '^TestS6[G-L].*$'
-          go test ./... -count=1 -timeout 40m -run '^TestS6[M-R].*$'
-          go test ./... -count=1 -timeout 40m -run '^TestS6[S-Z].*$'
+          go test ./... -count=1 -timeout 40m -run '^TestS6[A-Z].*$'
           go test ./... -count=1 -timeout 40m -run '^TestS7A[A-O].*$'
           go test ./... -count=1 -timeout 40m -run '^TestS7AP.*$'
           go test ./... -count=1 -timeout 40m -run '^TestS7AQ.*$'
@@ -377,7 +374,7 @@ jobs:
           go test ./internal/cli -count=1 -timeout 40m -run '^TestS7ObservedAXRegistrationAuthority$'
 
   # Publish a GitHub Release whenever a v* tag is pushed.
-  # Release notes are generated from commits since the previous tag.
+  # Release notes come from the tagged CHANGELOG, not generated commit summaries.
   release:
     name: release
     needs: [test, s7-observers]
@@ -390,9 +387,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Extract canonical release notes
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          sh scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/release-notes.md
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
