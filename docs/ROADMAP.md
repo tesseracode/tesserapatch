@@ -13,7 +13,7 @@
 
 ## Current Backlog — Post-v0.18.0 (2026-11-04)
 
-**FW follow-up, 2026-11-14: 🚧 IN PROGRESS.** Operator-approved S6 merge
+**FW follow-up, 2026-11-14: ✅ ACCEPTED.** Operator-approved S6 merge
 with unchanged family coverage and updated serial/CI/lane parity;
 TW-Q1 private drafts renamed to `.go.txt`; TW-Q2 existing release bodies
 and existing CI release job use canonical tagged CHANGELOG notes; GH #26
@@ -21,16 +21,19 @@ closure and private crash-report deletion. No additional CI jobs or paid
 service. `WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`.
 Housekeeping is complete: both renames preserve bytes, the report is
 deleted, GH #26 is closed, and all four release bodies match their tagged
-CHANGELOGs. CI/S6 implementation awaits the full gate and hosted CI;
+CHANGELOGs. CI/S6 implementation passed review, full gate and hosted CI;
 cleanup and full lane gates on the validation machine remain deferred.
 FW rev-1 found a CI timeout-guard conflict with the helper's opaque
 `sh file` invocation. Rev-2 invokes the executable helper directly and
 adds the regression fixture, without changing that guard's fail-closed
 behavior. Rev-2 `a1bce30` static review **APPROVED** and admitted targeted
 checks, formatting, vet and build **PASS**. The tracking-only candidate
-is **published at `d8c46ce`: serial gate running (39 commands);
-hosted CI 43555426725 PASS (all five test jobs).**
-This is not yet wave acceptance. No new release requested.
+is **published at `d8c46ce`: serial gate PASS (39/39 commands, 8/8 checks,
+11,050.8 s); hosted CI 43555426725 PASS (all five test jobs).**
+Accepted source range **`c294b68..d8c46ce`**; trailing consolidation is
+tracking-only. S6 took 465.07 s with sampled tree peak 3.19 GB; no crash
+or memory-pressure stop. No new release requested.
+Terminal handoff archived under **2026-11-14T07:26:22Z**; CURRENT is IDLE.
 GH #26's detailed historical row below is retained as evidence; its
 terminal state is **CLOSED/completed at 2026-11-14T03:46:59Z**.
 

@@ -2,11 +2,11 @@
 
 ## Status
 
-**Cluster state**: APPROVED
+**Cluster state**: IDLE
 
-**FW validating: review, targeted validation and hosted CI PASS; full
-serial gate RUNNING.** The canonical field follows HK-D9 for gate admission,
-not wave acceptance. The operator
+**FW ACCEPTED: review, targeted validation, full serial gate and hosted
+CI PASS; archived at 2026-11-14T07:26:22Z.** No next implementation task
+is authorized. Accepted source range `c294b68..d8c46ce`. The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
 No new paid service or CI job is authorized or needed. Validation-machine
@@ -26,16 +26,25 @@ is recorded (TW-D36); nothing was changed for it.
 
 ## Active Task
 
-- **Task ID**: fw-approved-follow-up
+- **Task ID**: None — awaiting the operator's next scope
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
-- **Description**: Merge S6 with unchanged coverage; publish canonical
-  release notes without new CI jobs; complete approved housekeeping
-- **Status**: Review, targeted validation and CI PASS; full serial gate running
+- **Description**: FW complete; no additional implementation dispatched
+- **Status**: IDLE — FW accepted at d8c46ce
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
 
 ## Session Summary
+
+**FW closed.** The terminal handoff is archived under
+**2026-11-14T07:26:22Z - FW accepted: S6 merge and canonical release notes**.
+The existing HISTORY prefix was verified unchanged (1,383,200 bytes).
+The appended block is 17,434 bytes, SHA256
+`024f8df18de2ea672b4f496cbb43e66563c2be64a3243053785e987c4a39e409`.
+HISTORY is now 1,400,634 bytes, SHA256
+`a6db0f66c84750489218061c42479b07996f0b46b6b4313f67a2f838d279da11`.
+The full gate has exited with no owned processes left. The following
+sections retain the closed FW/TW context; no new unattended window began.
 
 **FW dispatch (2026-11-14T03:45:13Z).** Baseline on `main`, one worktree,
 no stash; only the prior measurement's three tracking files were modified.
@@ -49,14 +58,25 @@ release job using installed tools, not an additional runner/service.
 
 ### FW decisions and progress
 
+- **Full gate PASS:** `d8c46ce`, **39/39 commands (36 test commands)**,
+  wave-close-check 8/8, completed 2026-11-14T07:19:29Z in 11,050.8 s.
+  Exact command parity, outputs and all 6,838 raw samples independently
+  verified. Zero overlapping tests, no resource stop or new swap-outs,
+  normal pressure, no external Go, clean source, release tags unchanged,
+  no owned processes left. Hosted CI at this same commit also passed.
+- **FW-D7:** S6 took 465.07 s, sampled process-tree peak 3.19 GB
+  (time-reported RSS 3.11 GB). Whole-gate peak was 5.19 GB. Initial
+  admission was 61.2 s; brief load >5 caused two re-admission decisions
+  and 8.1 s additional command wait, not memory-pressure waiting.
+  This full serial result does not authorize a full lane retry.
 - **Hosted CI PASS:** **43555426725** at `d8c46ce`; all five test jobs
   succeeded, release skipped. The existing Windows allowed-failure
-  exception remains GH #17 debt. Full serial gate result still pending.
+  exception remains GH #17 debt. Full serial gate also passed.
 - **Gate launched:** pushed candidate
   `d8c46ce6e83744c24d093bb1bc2912275a18aec0`; isolated source clean and
   contained in origin/main. Serial runner startup and admission telemetry
   verified. Hosted CI **43555426725** passed. Safety deadline
-  2026-11-14T10:12:47Z. Full gate not accepted yet.
+  2026-11-14T10:12:47Z; the gate passed before that deadline.
 - **Rev-2 validation PASS** at `a1bce30`: formatting, targeted checks,
   vet and build. All four fresh quiet-minute admissions and all 266 raw
   samples verified; normal pressure, no new swap-outs, no active Go during
@@ -68,11 +88,12 @@ release job using installed tools, not an additional runner/service.
   gate and hosted CI must pass before FW is accepted.
 - **Rev-2 review: APPROVED** at `a1bce30` by the same independent
   gpt-6.1-sol reviewer (static only, no Go). No significant issues found.
-  Clean-source targeted rerun passed. Full gate and CI pending.
+  Clean-source targeted rerun, full gate and CI passed.
 - **Rev-1 review: NEEDS REVISION (gpt-6.1-sol, no Go).** F1 HIGH:
   the global CI timeout guard rejects the release helper's `sh file`
-  invocation as opaque, even in the tag-only job. Fix without relaxing
-  arbitrary opaque-shell rejection, then re-review. Source not pushed.
+  invocation as opaque, even in the tag-only job. Resolved in rev-2
+  without relaxing arbitrary opaque-shell rejection; not published
+  until fixed.
 - **Rev-2 fix:** invoke the executable helper directly, preserving the
   existing opaque-shell refusal unchanged. The release workflow test now
   also checks the global CI analyzer and rejects the exact rev-1 mutation;
@@ -111,7 +132,7 @@ release job using installed tools, not an additional runner/service.
   checks pass. The validation machine formatted the three Go files after
   a 61.4-second pressure admission. Rev-1 failed as recorded above;
   rev-2 targeted Go checks, vet/build and independent static review pass.
-  No full gate has completed yet.
+  The full serial gate and hosted CI now pass.
 
 ### Prior TW summary
 
@@ -192,17 +213,17 @@ Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
 
 Prior TW questions are resolved as recorded in FW: TW-Q1 renamed the
 two private drafts; TW-Q2 repaired four release pages and the reviewed
-CI helper; TW-Q3 approved the reviewed S6 merge, with full validation
-pending; GH #26 closed. The Spotlight setting (HK-D5) and validation
+CI helper; TW-Q3's reviewed S6 merge passed full validation and is
+accepted; GH #26 closed. The Spotlight setting (HK-D5) and validation
 machine cleanup (lane mode retry and TW-D37) remain deferred. The two
 stranded v0.21.0 CI runs (43098404929, 43098407794) are still queued
 with no jobs.
 
 ## Current State
 
-FW source `a1bce30` has independent static approval and targeted
-validation PASS. Hosted CI 43555426725 passed; the full serial gate at
-published `d8c46ce` is running. `v0.22.0` is the latest release
+FW is accepted: source `a1bce30` has independent static approval and
+targeted validation PASS; the full serial gate and hosted CI 43555426725
+passed at published `d8c46ce`. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 
@@ -226,12 +247,15 @@ unchanged; the prior handoff was appended at dispatch.
 
 ## Test Results
 
+- FW full serial gate `d8c46ce`: **PASS 39/39 commands**, 8/8 mechanical
+  checks, 11,050.8 s; 6,838 raw samples verified, normal pressure/no
+  swap-outs, no owned leftovers. Evidence: `bin/fw-20261114/gate-evidence/`.
 - FW hosted CI 43555426725 at `d8c46ce`: all five test jobs successful;
   release skipped. Existing Windows full-suite exemption unchanged.
   No failures in FW changed test families were found in the Windows log.
 - FW `a1bce30`: formatting clean; targeted Go PASS (package 164.959 s;
   command wall 204.5 s), vet PASS (27.4 s), build PASS (1.6 s). Fresh
-  admission waits 61.3 / 61.4 / 61.3 / 61.2 s. Full gate/CI pending.
+  admission waits 61.3 / 61.4 / 61.3 / 61.2 s. Full gate/CI also pass.
 - FW Python profiler: 40 tests PASS. Private fake-backend routing controls:
   16 PASS locally and on the validation machine. Shell syntax PASS.
 - FW rev-1: formatting PASS, targeted FAIL (opaque-shell invocation and
@@ -252,11 +276,10 @@ unchanged; the prior handoff was appended at dispatch.
 
 ## Next Steps
 
-1. Await the full serial gate at `d8c46ce` with the recorded FW WAVE_BASE
-   (39 commands); inspect its actual result. Hosted CI 43555426725 passed.
-   Stop at the first validation failure; do not relaunch blindly.
-2. If both pass, archive the terminal FW handoff, flip ROADMAP and log
-   acceptance, then commit/push tracking and verify its CI.
+1. Check the tracking-only consolidation's hosted CI after push; its
+   source remains identical to gated `d8c46ce`.
+2. Await the operator's next scope; do not reopen FW or another backlog
+   item automatically. Capture a fresh WAVE_BASE before any new wave.
 3. No new release, machine cleanup, lane retry or other issue work.
 
 ## Blockers
@@ -282,3 +305,7 @@ unchanged; the prior handoff was appended at dispatch.
   validation runs `TestPreparePIBPreChangeGoldens` whole (TW-D29, TW-D30).
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
 - **Private evidence:** `bin/fw-20261114/` and `bin/tw-20261112/` (ignored).
+- **Close proof:** full gate artifacts are in
+  `bin/fw-20261114/gate-evidence/`; the archive receipt is
+  `bin/fw-20261114/archive-receipt.txt`. Final tracking-only CI evidence
+  is saved alongside them after push.

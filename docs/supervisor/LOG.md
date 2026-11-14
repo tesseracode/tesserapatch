@@ -1,3 +1,51 @@
+## Consolidation — FW archived; IDLE — 2026-11-14T07:26:22Z
+
+The terminal ACCEPTED handoff was appended byte-for-byte to HISTORY.
+The prior 1,383,200-byte prefix is unchanged; the new block is 17,434
+bytes, SHA256 `024f8df18de2ea672b4f496cbb43e66563c2be64a3243053785e987c4a39e409`.
+CURRENT is IDLE and ROADMAP is ACCEPTED. All changes after gated
+`d8c46ce` are confined to the four tracking files; release pins and the
+wave-close allowlist are unchanged.
+
+Push this consolidation and check its CI before handing off. That is a
+post-push check of tracking-only changes, not a new implementation wave
+or release. The full gate has exited with no owned processes remaining.
+
+## Acceptance — FW `d8c46ce` — 2026-11-14T07:19:29Z
+
+### Verdict: ACCEPTED
+
+Reviewed source range **`c294b68..d8c46ce`** passed the full monitored
+serial gate: **39/39 commands (36 test commands), wave-close-check 8/8**,
+11,050.8 s (3 h 4 min). Hosted CI **43555426725** passed all five test
+jobs at the same commit. Rev-2 `a1bce30` has independent static APPROVED;
+rev-1's HIGH opaque-shell finding was fixed and mutation-covered without
+weakening the CI analyzer. No open FW findings.
+
+The actual command records, outputs and all **6,838 raw samples** were
+independently checked. Exact command multiset and preflight order match;
+zero overlapping test time, no resource stop, normal memory pressure,
+no new swap-outs, zero external Go, clean source and unchanged release
+tag objects. No owned processes remained; none needed post-run SIGTERM.
+Evidence is preserved privately in `bin/fw-20261114/gate-evidence/`.
+
+**FW-D7 (measurement interpretation):** merged S6 passed in **465.07 s**
+with time-reported RSS 3.11 GB and sampled process-tree peak **3.19 GB**.
+The whole gate peaked at 5.19 GB, not all attributable to S6. Initial
+admission took 61.2 s. Brief runtime load >5 caused two re-admission
+decisions, adding **8.1 s** of command wait; neither was a memory-pressure
+wait. This is one full serial run, not evidence that a full lane gate is
+safe before the deferred machine cleanup.
+
+### Action Taken
+
+Accept the S6 merge and canonical release-note automation. Housekeeping
+and four release-page repairs were already verified complete. Archive
+the terminal handoff byte-for-byte, set CURRENT to IDLE, flip ROADMAP,
+and push the tracking-only consolidation after confirming its diff.
+Check consolidation CI before final handoff. No tag, new release,
+machine cleanup, lane retry or other backlog work is authorized.
+
 ## CI result — FW `d8c46ce` — 2026-11-14
 
 Hosted CI **43555426725** completed successfully at the exact published
