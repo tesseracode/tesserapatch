@@ -4,8 +4,8 @@
 
 **Cluster state**: APPROVED
 
-**FW validating: review and targeted validation approved; full serial
-gate and hosted CI RUNNING.** The canonical field follows HK-D9 for gate admission,
+**FW validating: review, targeted validation and hosted CI PASS; full
+serial gate RUNNING.** The canonical field follows HK-D9 for gate admission,
 not wave acceptance. The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
@@ -30,7 +30,7 @@ is recorded (TW-D36); nothing was changed for it.
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
 - **Description**: Merge S6 with unchanged coverage; publish canonical
   release notes without new CI jobs; complete approved housekeeping
-- **Status**: Review and targeted validation APPROVED; full serial gate/CI running
+- **Status**: Review, targeted validation and CI PASS; full serial gate running
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
@@ -49,11 +49,14 @@ release job using installed tools, not an additional runner/service.
 
 ### FW decisions and progress
 
+- **Hosted CI PASS:** **43555426725** at `d8c46ce`; all five test jobs
+  succeeded, release skipped. The existing Windows allowed-failure
+  exception remains GH #17 debt. Full serial gate result still pending.
 - **Gate launched:** pushed candidate
   `d8c46ce6e83744c24d093bb1bc2912275a18aec0`; isolated source clean and
   contained in origin/main. Serial runner startup and admission telemetry
-  verified. Hosted CI **43555426725** is in progress. Safety deadline
-  2026-11-14T10:12:47Z. Neither full gate nor CI is accepted yet.
+  verified. Hosted CI **43555426725** passed. Safety deadline
+  2026-11-14T10:12:47Z. Full gate not accepted yet.
 - **Rev-2 validation PASS** at `a1bce30`: formatting, targeted checks,
   vet and build. All four fresh quiet-minute admissions and all 266 raw
   samples verified; normal pressure, no new swap-outs, no active Go during
@@ -198,8 +201,8 @@ with no jobs.
 ## Current State
 
 FW source `a1bce30` has independent static approval and targeted
-validation PASS. Full serial gate at published `d8c46ce` and hosted CI
-43555426725 are running. `v0.22.0` is the latest release
+validation PASS. Hosted CI 43555426725 passed; the full serial gate at
+published `d8c46ce` is running. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 
@@ -223,6 +226,9 @@ unchanged; the prior handoff was appended at dispatch.
 
 ## Test Results
 
+- FW hosted CI 43555426725 at `d8c46ce`: all five test jobs successful;
+  release skipped. Existing Windows full-suite exemption unchanged.
+  No failures in FW changed test families were found in the Windows log.
 - FW `a1bce30`: formatting clean; targeted Go PASS (package 164.959 s;
   command wall 204.5 s), vet PASS (27.4 s), build PASS (1.6 s). Fresh
   admission waits 61.3 / 61.4 / 61.3 / 61.2 s. Full gate/CI pending.
@@ -247,7 +253,7 @@ unchanged; the prior handoff was appended at dispatch.
 ## Next Steps
 
 1. Await the full serial gate at `d8c46ce` with the recorded FW WAVE_BASE
-   (39 commands) and hosted CI 43555426725; inspect both actual results.
+   (39 commands); inspect its actual result. Hosted CI 43555426725 passed.
    Stop at the first validation failure; do not relaunch blindly.
 2. If both pass, archive the terminal FW handoff, flip ROADMAP and log
    acceptance, then commit/push tracking and verify its CI.

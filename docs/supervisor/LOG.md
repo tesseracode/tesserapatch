@@ -1,3 +1,17 @@
+## CI result — FW `d8c46ce` — 2026-11-14
+
+Hosted CI **43555426725** completed successfully at the exact published
+gate candidate. All five test jobs succeeded; the release job was skipped
+as expected for a branch push. The existing GH #17 Windows full-suite
+allowed-failure exception is unchanged; job success is not a claim that
+all Windows test cases passed.
+The Windows job log was also inspected for the FW changed test families:
+no release-note, wave-close, CI-timeout or memory-shard guard failures.
+
+The full serial validation-machine gate is still pending. No source
+changes, new release, or additional work dispatched. Keep the running
+gate isolated at `d8c46ce`; close only after its actual result is verified.
+
 ## Gate running — FW `d8c46ce` — 2026-11-14
 
 Gate candidate `d8c46ce6e83744c24d093bb1bc2912275a18aec0` is pushed.
