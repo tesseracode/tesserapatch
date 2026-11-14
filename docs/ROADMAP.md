@@ -21,13 +21,15 @@ closure and private crash-report deletion. No additional CI jobs or paid
 service. `WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`.
 Housekeeping is complete: both renames preserve bytes, the report is
 deleted, GH #26 is closed, and all four release bodies match their tagged
-CHANGELOGs. CI/S6 implementation is awaiting review and validation;
+CHANGELOGs. CI/S6 implementation awaits the full gate and hosted CI;
 cleanup and full lane gates on the validation machine remain deferred.
 FW rev-1 found a CI timeout-guard conflict with the helper's opaque
 `sh file` invocation. Rev-2 invokes the executable helper directly and
 adds the regression fixture, without changing that guard's fail-closed
-behavior. Rev-2 `a1bce30` static review **APPROVED**; admitted rerun in
-progress, full serial gate and hosted CI pending. Nothing pushed.
+behavior. Rev-2 `a1bce30` static review **APPROVED** and admitted targeted
+checks, formatting, vet and build **PASS**. Prepare the tracking-only
+candidate for push and full serial gate (39 commands); hosted CI pending.
+This is not yet wave acceptance. No new release requested.
 GH #26's detailed historical row below is retained as evidence; its
 terminal state is **CLOSED/completed at 2026-11-14T03:46:59Z**.
 

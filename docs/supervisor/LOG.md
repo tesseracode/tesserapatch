@@ -1,3 +1,29 @@
+## Gate dispatch — FW reviewed and targeted-valid source — 2026-11-14T04:10Z
+
+Rev-2 source `a1bce30` passed formatting, targeted S6/CI/lane/release-note
+checks, `go vet -p=1 ./...` and `go build -p=1 ./cmd/tpatch`. Each command
+had a fresh 60-second admission (reported waits 61.2–61.4 s). All 266 raw
+samples were checked: normal pressure, no new swap-outs, no Go during
+admission, load <=5 during admission, maximum sample gap 2.199 s.
+The source checkout remained clean. Failed rev-1 evidence is retained.
+
+### Decision
+
+Prepare the tracking-only gate candidate, push it, then run the full
+**serial** gate with `WAVE_BASE=c294b686e970feb9848041124a41f33a7d75db72`.
+HK-D9's canonical APPROVED means static review and targeted validation
+approved; **full gate/hosted CI are still pending**, not accepted.
+The updated workload expects 36 test commands / 39 total, fresh caches,
+the accepted serial environment and continuously monitored stops.
+Six hours is a private run safety timeout, not a new unattended window
+or permission to start other work. The 16 fake-backend routing controls
+also passed on the validation machine. Machine cleanup/lane retry remain
+deferred; no release/tag requested.
+
+Preceding main CI `43376369259` at wave base `c294b68` is complete and
+green. Origin remains at that base; do not push again until the new
+candidate's hosted CI has completed.
+
 ## Review — FW rev-2 `a1bce30` — 2026-11-14
 
 **Reviewer:** independent static code review, gpt-6.1-sol (runtime

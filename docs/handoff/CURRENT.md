@@ -2,9 +2,11 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
-**FW approved follow-up: rev-2 review approved; validation running.** The operator
+**FW gate-ready: review and targeted validation approved; full gate and
+hosted CI PENDING.** The canonical field follows HK-D9 for gate admission,
+not wave acceptance. The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
 No new paid service or CI job is authorized or needed. Validation-machine
@@ -28,7 +30,7 @@ is recorded (TW-D36); nothing was changed for it.
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
 - **Description**: Merge S6 with unchanged coverage; publish canonical
   release notes without new CI jobs; complete approved housekeeping
-- **Status**: Rev-2 static review APPROVED; admitted validation in progress
+- **Status**: Review and targeted validation APPROVED; full serial gate/CI pending
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
@@ -47,9 +49,18 @@ release job using installed tools, not an additional runner/service.
 
 ### FW decisions and progress
 
+- **Rev-2 validation PASS** at `a1bce30`: formatting, targeted checks,
+  vet and build. All four fresh quiet-minute admissions and all 266 raw
+  samples verified; normal pressure, no new swap-outs, no active Go during
+  admission, admission load <=5, maximum sample gap 2.199 s. Source clean.
+- **FW-D6:** gate the tracking-only close candidate in serial mode after
+  pushing it, using fresh caches and the updated 39-command workload.
+  A six-hour private safety timeout bounds this run; it does not open a
+  new unattended window or authorize more backlog work. Both the full
+  gate and hosted CI must pass before FW is accepted.
 - **Rev-2 review: APPROVED** at `a1bce30` by the same independent
   gpt-6.1-sol reviewer (static only, no Go). No significant issues found.
-  Clean-source targeted rerun is in progress. Full gate and CI pending.
+  Clean-source targeted rerun passed. Full gate and CI pending.
 - **Rev-1 review: NEEDS REVISION (gpt-6.1-sol, no Go).** F1 HIGH:
   the global CI timeout guard rejects the release helper's `sh file`
   invocation as opaque, even in the tag-only job. Fix without relaxing
@@ -91,8 +102,8 @@ release job using installed tools, not an additional runner/service.
   helper are implemented. Python profiler tests pass (40); shell syntax
   checks pass. The validation machine formatted the three Go files after
   a 61.4-second pressure admission. Rev-1 failed as recorded above;
-  rev-2 targeted Go checks, vet/build and independent static review are
-  next. No full gate has run yet.
+  rev-2 targeted Go checks, vet/build and independent static review pass.
+  No full gate has run yet.
 
 ### Prior TW summary
 
@@ -171,21 +182,18 @@ Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
 | TW-D36 | S6 shard merge measured: saves about 570 s per gate but raises peak RSS to 3.10 GB from at most 1.84 GB; not adopted (TW-Q3). |
 | TW-D37 | The gate slowdown is machine-wide, not code; details private. |
 
-Prior TW questions (approved in FW above): TW-Q1 (two private draft test files under the
-ignored `bin/roc-s6-20261031/` fail `gofmt`: delete, rename or keep?);
-TW-Q2 (v0.22.0 and v0.18.0–v0.20.0 GitHub Release bodies show only a
-compare link: edit them, change the release job, both, or leave them?);
-TW-Q3 (merge the four S6 test commands, about 570 s per gate saved
-but peak RSS 3.10 GB from 1.84 GB: merge, measure two commands, or keep?);
-GH #26 can be closed (N2 shipped in v0.22.0; a close comment is drafted
-privately); the Spotlight setting on the validation machine (HK-D5);
-the validation machine's cleanup (lane mode retry and TW-D37). The two
+Prior TW questions are resolved as recorded in FW: TW-Q1 renamed the
+two private drafts; TW-Q2 repaired four release pages and the reviewed
+CI helper; TW-Q3 approved the reviewed S6 merge, with full validation
+pending; GH #26 closed. The Spotlight setting (HK-D5) and validation
+machine cleanup (lane mode retry and TW-D37) remain deferred. The two
 stranded v0.21.0 CI runs (43098404929, 43098407794) are still queued
 with no jobs.
 
 ## Current State
 
-FW review and validation pending. `v0.22.0` is the latest release
+FW source `a1bce30` has independent static approval and targeted
+validation PASS; full serial gate and hosted CI pending. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 
@@ -196,12 +204,27 @@ GH #24 has an approved PRD and no implementation authorization.
 
 ## Files Changed
 
-TW close and attended measurement follow-up (tracking files only): `docs/handoff/CURRENT.md`,
-`docs/handoff/HISTORY.md`, `docs/ROADMAP.md`, `docs/supervisor/LOG.md`.
-The follow-up leaves the archived HISTORY bytes unchanged.
+FW source: `.github/workflows/ci.yml`, `scripts/wave-close-test-shards.sh`,
+`scripts/wave-close-test-lanes.sh`, `scripts/profile-validation.py`,
+`scripts/profile-validation-test.py`, `scripts/release-notes.sh`,
+`internal/cli/prepare_s7_ci_timeout_guard_test.go`,
+`internal/cli/wave_close_lanes_test.go`, `internal/cli/release_notes_test.go`,
+`AGENTS.md`, `RELEASING.md`.
+
+Tracking: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
+`docs/ROADMAP.md`, `docs/supervisor/LOG.md`. Existing HISTORY bytes remain
+unchanged; the prior handoff was appended at dispatch.
 
 ## Test Results
 
+- FW `a1bce30`: formatting clean; targeted Go PASS (package 164.959 s;
+  command wall 204.5 s), vet PASS (27.4 s), build PASS (1.6 s). Fresh
+  admission waits 61.3 / 61.4 / 61.3 / 61.2 s. Full gate/CI pending.
+- FW Python profiler: 40 tests PASS. Private fake-backend routing controls:
+  16 PASS locally and on the validation machine. Shell syntax PASS.
+- FW rev-1: formatting PASS, targeted FAIL (opaque-shell invocation and
+  private PATH's missing `lsof`); vet/build correctly not run. Fixed in
+  rev-2; original outputs retained in ignored `bin/fw-20261114/`.
 - Hosted CI 43349254199 (`d71a067`): green on all five test jobs.
 - Validation-machine gate at `d71a067`, `WAVE_BASE=dd4c082`: **PASS
   (serial)**, 42/42, 12,221 s, wave-close-check 8/8.
@@ -217,12 +240,11 @@ The follow-up leaves the archived HISTORY bytes unchanged.
 
 ## Next Steps
 
-1. Complete the approved renames, report deletion and GH #26 closure;
-   repair release bodies from each tag's own CHANGELOG.
-2. Implement the merged S6 partition and canonical CI release notes;
-   update directly coupled parity/provenance guards and profiling tools.
-3. Independent static review, admitted remote validation and serial full
-   gate, then hosted CI and durable close. No new release is requested.
+1. Push the tracking-only gate candidate and run the admitted full serial
+   gate with the recorded FW WAVE_BASE (39 commands); verify hosted CI.
+2. If both pass, archive the terminal FW handoff, flip ROADMAP and log
+   acceptance, then commit/push tracking and verify its CI.
+3. No new release, machine cleanup, lane retry or other issue work.
 
 ## Blockers
 
@@ -234,7 +256,7 @@ The follow-up leaves the archived HISTORY bytes unchanged.
   pinned with `HostKeyAlias`; any LAN address stays in private notes).
   Its private runner is serial by default until the operator reports
   the cleanup.
-- **Validation root:** `R=/Users/jbencardino/tpatch-validation-s5-fBIN5H09`.
+- **Validation connection/root:** private session notes only.
 - **Gates:** run the gate at the close commit, whose canonical field is
   terminal (HK-D9). Do not push to `main` while the gated commit's CI is
   running.
@@ -246,4 +268,4 @@ The follow-up leaves the archived HISTORY bytes unchanged.
   moves its `CurrentSHA256` in the same reviewed change, and its targeted
   validation runs `TestPreparePIBPreChangeGoldens` whole (TW-D29, TW-D30).
 - **Reviewers:** OpenAI/MAI models only (gpt-6.1-sol); reviewers never run Go.
-- **Private evidence:** `bin/tw-20261112/` (ignored).
+- **Private evidence:** `bin/fw-20261114/` and `bin/tw-20261112/` (ignored).
