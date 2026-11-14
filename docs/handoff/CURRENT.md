@@ -2,9 +2,9 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
-**FW approved follow-up: rev-2 review and validation pending.** The operator
+**FW approved follow-up: rev-2 review approved; validation running.** The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
 No new paid service or CI job is authorized or needed. Validation-machine
@@ -28,7 +28,7 @@ is recorded (TW-D36); nothing was changed for it.
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
 - **Description**: Merge S6 with unchanged coverage; publish canonical
   release notes without new CI jobs; complete approved housekeeping
-- **Status**: Awaiting rev-2 review and admitted validation
+- **Status**: Rev-2 static review APPROVED; admitted validation in progress
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
@@ -47,6 +47,9 @@ release job using installed tools, not an additional runner/service.
 
 ### FW decisions and progress
 
+- **Rev-2 review: APPROVED** at `a1bce30` by the same independent
+  gpt-6.1-sol reviewer (static only, no Go). No significant issues found.
+  Clean-source targeted rerun is in progress. Full gate and CI pending.
 - **Rev-1 review: NEEDS REVISION (gpt-6.1-sol, no Go).** F1 HIGH:
   the global CI timeout guard rejects the release helper's `sh file`
   invocation as opaque, even in the tag-only job. Fix without relaxing

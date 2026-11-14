@@ -26,7 +26,8 @@ cleanup and full lane gates on the validation machine remain deferred.
 FW rev-1 found a CI timeout-guard conflict with the helper's opaque
 `sh file` invocation. Rev-2 invokes the executable helper directly and
 adds the regression fixture, without changing that guard's fail-closed
-behavior. Review and admitted rerun pending; nothing has been pushed.
+behavior. Rev-2 `a1bce30` static review **APPROVED**; admitted rerun in
+progress, full serial gate and hosted CI pending. Nothing pushed.
 GH #26's detailed historical row below is retained as evidence; its
 terminal state is **CLOSED/completed at 2026-11-14T03:46:59Z**.
 

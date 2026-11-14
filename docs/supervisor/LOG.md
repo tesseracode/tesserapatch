@@ -1,3 +1,19 @@
+## Review — FW rev-2 `a1bce30` — 2026-11-14
+
+**Reviewer:** independent static code review, gpt-6.1-sol (runtime
+confirmed), same agent `6c7eefcd-7c56-49fa-beb7-abe79d667502`; no Go runs.
+
+### Verdict: APPROVED
+
+No significant issues found in rev-2. The direct executable helper and
+regression fixture resolve rev-1 F1 without changing the global CI shell
+analyzer. This is static approval, not runtime or wave-close acceptance.
+
+### Action Taken
+
+Accept the source review. The clean-source admitted targeted rerun is in
+progress; full serial gate and hosted CI remain pending. Nothing pushed.
+
 ## Review dispatch — FW rev-2 — 2026-11-14
 
 Send the direct-executable fix, regression fixture and recorded rev-1
