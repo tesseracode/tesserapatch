@@ -23,6 +23,12 @@ Housekeeping is complete: both renames preserve bytes, the report is
 deleted, GH #26 is closed, and all four release bodies match their tagged
 CHANGELOGs. CI/S6 implementation is awaiting review and validation;
 cleanup and full lane gates on the validation machine remain deferred.
+FW rev-1 found a CI timeout-guard conflict with the helper's opaque
+`sh file` invocation. Rev-2 invokes the executable helper directly and
+adds the regression fixture, without changing that guard's fail-closed
+behavior. Review and admitted rerun pending; nothing has been pushed.
+GH #26's detailed historical row below is retained as evidence; its
+terminal state is **CLOSED/completed at 2026-11-14T03:46:59Z**.
 
 **Live inventory** (refreshed 2026-11-06T03:24Z): 11 open GitHub issues,
 16 closed issues, zero open PRs. GH #9 is CLOSED/completed as of

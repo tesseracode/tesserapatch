@@ -1,3 +1,45 @@
+## Review dispatch — FW rev-2 — 2026-11-14
+
+Send the direct-executable fix, regression fixture and recorded rev-1
+failures to the same independent reviewer. Preserve Bash-compatible
+fixture paths on Windows. A clean committed candidate will undergo a
+fresh admitted targeted run with the corrected private PATH, stopping
+at first failure; the full serial gate remains pending.
+
+## Revision — FW rev-2 and targeted run 1 — 2026-11-14
+
+The admitted run confirms F1: the global CI analyzer rejects `sh file`.
+Formatting passed; targeted Go exited 1, so vet/build did not run. A
+second failure was the lane runner correctly refusing to run without
+`lsof`: the private harness omitted `/usr/sbin` from PATH (FW-D5). Restore
+system utility directories, not a weaker cancellation check.
+
+Fix F1 by invoking the executable release helper directly. Its integration
+test now runs the global CI analyzer and includes the exact rejected
+`sh file` mutation. The fixture copies the helper's executable mode.
+No global analyzer exception or relaxed opaque-shell policy is added.
+The failed output is preserved; rev-2 review and validation are next.
+
+## Review — FW rev-1 `a94b5d0` — 2026-11-14
+
+**Reviewer:** independent static code review, gpt-6.1-sol (runtime
+confirmed), agent `6c7eefcd-7c56-49fa-beb7-abe79d667502`; no Go runs.
+
+### Verdict: NEEDS REVISION
+
+**F1 HIGH:** the CI timeout guard scans every job, including release.
+Its nested-shell analyzer rejects `sh scripts/release-notes.sh ...` as
+opaque invocation mode, so the new extraction step would fail ordinary
+main/PR CI as well as wave-close checks. Retain opaque-shell refusal;
+add only narrowly validated handling and mutation coverage for the
+canonical release helper, or avoid the opaque invocation.
+
+### Action Taken
+
+Return FW to implementation. The admitted targeted run is still
+fail-fast; its result will be preserved, not relabeled as a pass.
+No source pushed. Release-page repairs and housekeeping remain complete.
+
 ## Review dispatch — FW S6 merge and release-note publishing — 2026-11-14
 
 Implementation is ready for independent static review (gpt-6.1-sol, no

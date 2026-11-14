@@ -63,8 +63,9 @@ func TestReleaseNotesWorkflow(t *testing.T) {
 		{"wrong-body-file", "body_path: ${{ runner.temp }}/release-notes.md", "body_path: ${{ runner.temp }}/other.md"},
 		{"wrong-tag-source", "RELEASE_TAG: ${{ github.ref_name }}", "RELEASE_TAG: v0.22.0"},
 		{"wrong-extraction-tag", `release-notes.sh "$RELEASE_TAG"`, "release-notes.sh v0.22.0"},
-		{"failure-masked", `sh scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"`,
-			`sh scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md" || true`},
+		{"opaque-shell-invocation", `scripts/release-notes.sh "$RELEASE_TAG"`, `sh scripts/release-notes.sh "$RELEASE_TAG"`},
+		{"failure-masked", `scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"`,
+			`scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md" || true`},
 	} {
 		t.Run(mutation.name, func(t *testing.T) {
 			changed := strings.Replace(workflow, mutation.from, mutation.to, 1)
@@ -80,6 +81,9 @@ func TestReleaseNotesWorkflow(t *testing.T) {
 
 func checkReleaseNotesWorkflow(t *testing.T, root, workflow string) error {
 	t.Helper()
+	if err := validateS7CIFullSuiteTimeouts(workflow); err != nil {
+		return err
+	}
 	steps, err := parseS7CITimeoutSteps(workflow)
 	if err != nil {
 		return err
@@ -117,7 +121,11 @@ func checkReleaseNotesWorkflow(t *testing.T, root, workflow string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "scripts", "release-notes.sh"), script, 0644); err != nil {
+	info, err := os.Stat(filepath.Join(root, "scripts", "release-notes.sh"))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scripts", "release-notes.sh"), script, info.Mode().Perm()); err != nil {
 		return err
 	}
 	want := "## v0.23.0 - fixture\n\n- Canonical notes.\n\n"
@@ -127,7 +135,7 @@ func checkReleaseNotesWorkflow(t *testing.T, root, workflow string) error {
 	for _, tag := range []string{"v0.23.0", "v0.24.0"} {
 		cmd := exec.Command("bash", "-c", extract[0].run)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "BASH_ENV=/dev/null", "RELEASE_TAG="+tag, "RUNNER_TEMP="+dir)
+		cmd.Env = append(os.Environ(), "BASH_ENV=/dev/null", "RELEASE_TAG="+tag, "RUNNER_TEMP="+filepath.ToSlash(dir))
 		out, err := cmd.CombinedOutput()
 		if tag == "v0.24.0" {
 			if err == nil {

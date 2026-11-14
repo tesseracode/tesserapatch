@@ -393,7 +393,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          sh scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
+          scripts/release-notes.sh "$RELEASE_TAG" < CHANGELOG.md > "$RUNNER_TEMP/release-notes.md"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

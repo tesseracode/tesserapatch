@@ -4,7 +4,7 @@
 
 **Cluster state**: AWAITING REVIEW
 
-**FW approved follow-up: review and validation pending.** The operator
+**FW approved follow-up: rev-2 review and validation pending.** The operator
 approved the reviewed S6 merge, TW-Q1 renames, TW-Q2 canonical release
 notes and CI fix, closing GH #26, and deleting the private crash report.
 No new paid service or CI job is authorized or needed. Validation-machine
@@ -28,7 +28,7 @@ is recorded (TW-D36); nothing was changed for it.
 - **Milestone**: Post-v0.22 backlog — S6 merge and release-note parity
 - **Description**: Merge S6 with unchanged coverage; publish canonical
   release notes without new CI jobs; complete approved housekeeping
-- **Status**: Awaiting independent review and admitted remote validation
+- **Status**: Awaiting rev-2 review and admitted validation
 - **Assigned**: 2026-11-14
 - **WAVE_BASE** (FW): `c294b686e970feb9848041124a41f33a7d75db72`
   (`HEAD` and `origin/main` at dispatch)
@@ -47,6 +47,19 @@ release job using installed tools, not an additional runner/service.
 
 ### FW decisions and progress
 
+- **Rev-1 review: NEEDS REVISION (gpt-6.1-sol, no Go).** F1 HIGH:
+  the global CI timeout guard rejects the release helper's `sh file`
+  invocation as opaque, even in the tag-only job. Fix without relaxing
+  arbitrary opaque-shell rejection, then re-review. Source not pushed.
+- **Rev-2 fix:** invoke the executable helper directly, preserving the
+  existing opaque-shell refusal unchanged. The release workflow test now
+  also checks the global CI analyzer and rejects the exact rev-1 mutation;
+  its fixture preserves the helper's executable mode.
+- **Targeted run 1:** formatting passed; the Go command failed on F1 and
+  the lane runner's missing-`lsof` refusal. Vet/build did not run.
+  **FW-D5:** the latter was the private harness's PATH omitting
+  `/usr/sbin`, not a product change; restore system utility directories
+  for the rerun. Preserve the failed evidence in `bin/fw-20261114/targeted-1/`.
 - **FW-D1:** GH #26 closed as completed at 2026-11-14T03:46:59Z (no
   comment posted). The identified private diagnostic report was deleted.
   Exactly two malformed snapshot files were renamed to `.go.txt`; their
@@ -63,12 +76,20 @@ release job using installed tools, not an additional runner/service.
   no new job, matrix entry, runner type or paid service. Historical repair
   completed for v0.18.0, v0.19.0, v0.20.0 and v0.22.0: retrieved bodies
   exactly equal the tagged CHANGELOG sections; other release metadata is
-  unchanged.
+  unchanged. The repository is public and these are standard GitHub-hosted
+  runners, whose compute remains free under the current Actions billing
+  rules; no artifact upload or new cache is added by note extraction.
+- **FW-D4:** the private serial gate imports the updated profiler's exact
+  36-command partition. Its initial admission now explicitly rejects
+  external Go (the inherited private wrapper allowed it); runtime stops
+  are unchanged. The latest v0.22.0 tag is checked unchanged in addition
+  to the old v0.17.0 invariant. All 16 inherited routing controls pass.
 - **Implementation:** partition, lane/CI guards, profiler and release
   helper are implemented. Python profiler tests pass (40); shell syntax
   checks pass. The validation machine formatted the three Go files after
-  a 61.4-second pressure admission. Targeted Go checks, vet/build and
-  independent static review are next; no full gate has run yet.
+  a 61.4-second pressure admission. Rev-1 failed as recorded above;
+  rev-2 targeted Go checks, vet/build and independent static review are
+  next. No full gate has run yet.
 
 ### Prior TW summary
 
@@ -147,7 +168,7 @@ Full rationale is in the archived handoff and `docs/supervisor/LOG.md`.
 | TW-D36 | S6 shard merge measured: saves about 570 s per gate but raises peak RSS to 3.10 GB from at most 1.84 GB; not adopted (TW-Q3). |
 | TW-D37 | The gate slowdown is machine-wide, not code; details private. |
 
-Open for the operator: TW-Q1 (two private draft test files under the
+Prior TW questions (approved in FW above): TW-Q1 (two private draft test files under the
 ignored `bin/roc-s6-20261031/` fail `gofmt`: delete, rename or keep?);
 TW-Q2 (v0.22.0 and v0.18.0–v0.20.0 GitHub Release bodies show only a
 compare link: edit them, change the release job, both, or leave them?);
@@ -165,8 +186,8 @@ FW review and validation pending. `v0.22.0` is the latest release
 (tag on `d699713`). Wave 2 is accepted and unreleased; it ships with the
 next release.
 
-GH #26: N1 shipped in v0.21.0 and N2 in v0.22.0, so Amendment 4 is fully
-released; the issue can close. GH #17: prerequisites landed; 299 Windows
+GH #26: N1 shipped in v0.21.0 and N2 in v0.22.0; the issue was closed as
+completed on 2026-11-14. GH #17: prerequisites landed; 299 Windows
 failures remain (TW-D34). GH #25 stays open (B and C3 not authorized).
 GH #24 has an approved PRD and no implementation authorization.
 
