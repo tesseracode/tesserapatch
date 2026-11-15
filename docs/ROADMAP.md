@@ -13,6 +13,16 @@
 
 ## Current Backlog — Post-v0.18.0 (2026-11-04)
 
+**MW window, 2026-11-15: 🚧 IN PROGRESS.** Operator-approved GH #15
+shipped-label/link correction with coupled parity coverage, independent
+review and serial validation; then a reviewed planning proposal for
+GH #18-20, not migration implementation. Window:
+2026-11-15T09:41:12Z to 2026-11-15T21:41:12Z (12-hour ceiling);
+WAVE_BASE `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`.
+No release, lane retry, machine cleanup or other issue implementation.
+The required validation-machine T3 link is pending. SPEC's v0.17.0
+heading is already current; nine guide labels and the FAQ anchor are not.
+
 **FW follow-up, 2026-11-14: ✅ ACCEPTED.** Operator-approved S6 merge
 with unchanged family coverage and updated serial/CI/lane parity;
 TW-Q1 private drafts renamed to `.go.txt`; TW-Q2 existing release bodies

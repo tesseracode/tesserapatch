@@ -1,3 +1,30 @@
+## Dispatch — MW documentation and migration planning — 2026-11-15T09:41:12Z
+
+The operator accepted the proposed unattended plan. **MW-D1:** use the
+upper bound, 12 hours, ending at **2026-11-15T21:41:12Z**, with no automatic
+extension. Fresh fetched WAVE_BASE is
+`f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`; main is clean and the final FW
+CI 43571328967 passed. The superseded IDLE handoff is archived byte-for-byte
+with its prior HISTORY prefix preserved.
+
+MW-1 corrects GH #15 shipped-status labels in nine current guides, their
+links and coupled parity coverage, followed by independent static review,
+guarded serial validation and hosted CI. **MW-D2:** SPEC already has the
+v0.17.0 heading; the FAQ points at its obsolete planned/unreleased anchor.
+Retain historical pre-release parser fixtures, frozen planning surfaces
+and all substantive recipe-authority guarantees.
+
+MW-2 prepares and independently reviews a planning-only proposal for
+GH #18-20, leaving operator questions. No migration code, release,
+GH #17 fixes, GH #25 B, machine cleanup, lane retry or paid service.
+The supervisor owns tracking and the docs correction; any design/review
+delegation must have disjoint file ownership and no Go execution.
+
+**MW-D3:** T3 reports no linked validation environment. A link card was
+requested; full-gate acceptance is blocked until that connection exists.
+Do not bypass the linking boundary with SSH or replace the required gate
+with a hosted-CI-only claim. Source inspection and planning can proceed.
+
 ## Consolidation — FW archived; IDLE — 2026-11-14T07:26:22Z
 
 The terminal ACCEPTED handoff was appended byte-for-byte to HISTORY.
