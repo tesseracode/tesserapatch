@@ -1,3 +1,20 @@
+## Review dispatch — MW-2 legacy-migration PRD — 2026-11-15
+
+The delegated drafter returned
+`docs/prds/PRD-legacy-migration-adoption.md` as Draft, PROPOSED pending
+operator decisions, with ten operator questions and no other file
+touched. Before review, the supervisor replaced its line cites into
+newest-first `LOG.md` and the moving `ROADMAP.md` issues table with
+entry-heading and table-row anchors; those lines had already shifted
+under MW tracking prepends. The PRD cites `verify_anchored.go` by
+function name only, so the anchored-cite ledger is unaffected.
+
+A fresh independent static review (gpt-6.1-sol, no Go, no edits) checks
+cites, historical figures, ADR-024 and strict-verify preservation,
+operator-question quality and confidentiality. The PRD stays untracked
+until that verdict. MW-1 CI 43701685880 is still running; nothing is
+pushed over it.
+
 ## Decision — MW combined close preparation — 2026-11-15
 
 MW-1 source and review tracking are pushed at `4678055`; its hosted CI

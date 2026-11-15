@@ -17,8 +17,8 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   parity tests; independently review and serial-gate the correction.
   Prepare and independently review a design proposal for GH #18-20,
   ending with explicit operator questions, not migration implementation.
-- **Status**: MW-1 source-approved (`cb35556`); MW-2 drafting; one
-  full serial gate at the close candidate
+- **Status**: MW-1 source-approved (`cb35556`); MW-2 draft complete,
+  under independent review; one full serial gate at the close candidate
 - **Assigned / window start**: 2026-11-15T09:41:12Z
 - **Hard deadline**: 2026-11-15T21:41:12Z
 - **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
@@ -54,6 +54,13 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   work (including README/template surfaces). This separate documentation
   debt was not silently folded into the narrow GH #15 correction. The
   planning proposal must use current SPEC/ADRs, not these stale summaries.
+- **MW-2 draft:** the delegated drafter returned
+  `docs/prds/PRD-legacy-migration-adoption.md` (Draft, PROPOSED pending
+  operator decisions), touching no other file. Supervisor pre-review
+  replaced line cites into newest-first `LOG.md` and `ROADMAP.md` (which
+  had drifted after MW tracking prepends) with entry-heading and table-row
+  anchors, and confirmed no `verify_anchored.go` line cite. Ten operator
+  questions end the PRD; a fresh independent static review is running.
 
 ## Current State
 
@@ -78,7 +85,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`,
   `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`,
   `docs/commits.md`, `docs/path-b-operator-guide.md`.
-- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (drafting).
+- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (draft,
+  untracked until review).
   Docs-scanning guard: `internal/workflow/verify_anchored_cites_test.go`
   walks all `docs/**/*.md`; the PRD must not cite `verify_anchored.go`
   line numbers.
@@ -100,9 +108,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 ## Next Steps
 
 1. Preserve the running MW-1 CI at `4678055`; do not push over it.
-2. Finish the MW-2 planning draft (delegated, single new file
-   `docs/prds/PRD-legacy-migration-adoption.md`), get a fresh independent
-   review, fix findings, and run the targeted docs-scanning tests.
+2. Act on the running MW-2 independent review, fix findings, commit the
+   PRD by explicit path, and run the targeted docs-scanning tests.
 3. Set `Cluster state` to APPROVED at the close candidate, push after
    prior CI completes, then run the serial gate and hosted CI. Never claim
    acceptance without both.
