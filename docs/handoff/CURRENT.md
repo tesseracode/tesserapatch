@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: AWAITING REVIEW
 
 **MW: approved documentation correction and legacy-migration planning.**
 The operator accepted the proposed 10-12 hour unattended window. The
@@ -17,7 +17,7 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   parity tests; independently review and serial-gate the correction.
   Prepare and independently review a design proposal for GH #18-20,
   ending with explicit operator questions, not migration implementation.
-- **Status**: In Progress - baseline and source inspection
+- **Status**: Review - MW-1 source cb35556, runtime validation pending
 - **Assigned / window start**: 2026-11-15T09:41:12Z
 - **Hard deadline**: 2026-11-15T21:41:12Z
 - **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
@@ -38,10 +38,21 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   Nine user guides still say unreleased/planned; the FAQ links to the old,
   nonexistent SPEC anchor. Correct current guidance, not frozen planning
   history or deliberately retained pre-release parser fixtures.
-- **MW-D3:** validation stays serial under the inherited guarded resource
-  protocol. T3 reports no linked environments; a validation-machine link
-  card was requested. Do not bypass it with an ad hoc SSH connection or
+- **MW-D3 (revised):** validation stays serial under the inherited guarded
+  resource protocol. The T3 link attempt was refused for an unencrypted
+  address; that link is not the inherited route. Prior windows reached the
+  validation machine by SSH with batch mode and a pinned host key (see
+  archived NW/OV handoffs), and that route answered read-only. Use it; never
   represent hosted CI as the required validation-machine gate.
+- **Implementation:** `cb35556` corrects all nine GH #15 labels and the
+  FAQ link. Public parity now requires each shipped label and the actual
+  SPEC anchor; sensitivity cases cover removal, planned/unreleased labels,
+  wrong releases, duplicate labels and obsolete/missing FAQ anchors.
+  Existing Changelog pre-release controls and release pins are untouched.
+- **MW-D4:** adjacent prose also calls GH #13's shipped consumer future
+  work (including README/template surfaces). This separate documentation
+  debt was not silently folded into the narrow GH #15 correction. The
+  planning proposal must use current SPEC/ADRs, not these stale summaries.
 
 ## Current State
 
@@ -62,11 +73,16 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 
 - Tracking: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
   `docs/supervisor/LOG.md`, `docs/ROADMAP.md`.
-- Implementation and design files: none yet.
+- MW-1 source: `assets/recipe_authority_parity_test.go`; `docs/record.md`,
+  `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`,
+  `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`,
+  `docs/commits.md`, `docs/path-b-operator-guide.md`.
+- Design files: none yet.
 
 ## Test Results
 
-- No Go commands run in MW yet.
+- `gofmt` on the changed test and `git diff --check` passed.
+- No Go tests/build/vet run in MW yet; they wait for review.
 - Baseline hosted CI: 43571328967, success at WAVE_BASE.
 - Required after the correction: targeted parity/link checks, formatting,
   vet/build, independent static review, full guarded serial wave-close
@@ -74,9 +90,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 
 ## Next Steps
 
-1. Correct current release labels and the FAQ anchor; add sensitivity
-   coverage without weakening current-contract or historical-parser checks.
-2. Obtain independent static review and address findings. Reviewers do
+1. Obtain independent static review of `cb35556` and address findings.
+2. Arrange required validation. Reviewers do
    not run Go; only one admitted validation process may use the host.
 3. Push the reviewed candidate only after prior main CI is complete, then
    run the serial gate and hosted CI. Never claim acceptance without both.
@@ -87,8 +102,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 
 ## Blockers
 
-- Required validation machine is not linked to this T3 environment.
-  Link request is pending. Documentation and planning can proceed.
+- None. The inherited pinned-host-key SSH route to the validation machine
+  responds (MW-D3 revised).
 
 ## Context for Next Agent
 

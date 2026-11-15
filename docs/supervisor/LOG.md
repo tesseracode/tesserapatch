@@ -1,3 +1,30 @@
+## Decision — MW-D3 revised, validation route — 2026-11-15
+
+The T3 link card was refused because the offered address was unencrypted.
+Archived NW/OV handoffs show the inherited validation route is SSH in batch
+mode with the recorded host key pinned, not a T3 link, so the earlier
+"do not use SSH" wording was wrong. That route answered a read-only probe.
+Serial admission rules, private-only connection details and the
+hosted-CI-is-not-the-gate rule are unchanged.
+
+## Review dispatch — MW-1 shipped labels — 2026-11-15
+
+Source `cb35556` changes nine GH #15 status labels and the FAQ SPEC anchor.
+The existing parity validator now requires those shipped labels, the
+unchanged SPEC heading and the corrected FAQ target; regression cases
+exercise old/planned labels, removal, duplication, wrong releases and
+wrong/missing anchor targets. Historical Changelog parser controls remain
+unchanged. Formatting and diff-whitespace checks passed; no Go validation
+has run and nothing is pushed.
+
+Request an independent static review of source only, no Go commands or
+edits. Required serial validation remains blocked on the pending T3
+validation-machine link.
+
+**MW-D4:** adjacent GH #13 future-work summaries are separately stale;
+do not expand this GH #15 patch into unapproved general documentation
+reconciliation. Use the shipped SPEC/ADRs for MW-2 grounding.
+
 ## Dispatch — MW documentation and migration planning — 2026-11-15T09:41:12Z
 
 The operator accepted the proposed unattended plan. **MW-D1:** use the
