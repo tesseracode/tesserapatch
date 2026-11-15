@@ -1,3 +1,19 @@
+## Decision — MW combined close preparation — 2026-11-15
+
+MW-1 source and review tracking are pushed at `4678055`; its hosted CI
+43701685880 is still running. No acceptance or close is claimed. The
+MW-2 drafter remains the sole writer of its new PRD until handback; an
+independent planning review and the combined full serial gate are still
+required. Corrected ROADMAP's stale T3-link blocker to match MW-D3.
+
+The private serial runner and tool wrappers are byte-identical to the
+accepted FW harness; its 16 Python wrapper tests pass. Targeted evidence
+at `96d570c` has been retrieved from the validation machine. Production,
+SPEC, CHANGELOG, release pins, allowlist, scripts and CI remain unchanged.
+The gate will execute in the foreground of an attached SSH command, with
+the inherited resource guard and this window's hard deadline; no detached
+waiter or CI polling loop is needed.
+
 ## Review — MW-1 shipped labels — 2026-11-15
 
 **Reviewer**: independent delegated static reviewer (gpt-6.1-sol)

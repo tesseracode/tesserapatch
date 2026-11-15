@@ -20,8 +20,11 @@ GH #18-20, not migration implementation. Window:
 2026-11-15T09:41:12Z to 2026-11-15T21:41:12Z (12-hour ceiling);
 WAVE_BASE `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`.
 No release, lane retry, machine cleanup or other issue implementation.
-The required validation-machine T3 link is pending. SPEC's v0.17.0
-heading is already current; nine guide labels and the FAQ anchor are not.
+MW-1 source `cb35556` is independently approved; the nine guide labels
+and FAQ anchor are corrected, and targeted validation passed. The inherited
+pinned-key SSH validation route works (MW-D3 revised); a T3 link is not
+required. MW-2 remains a proposal draft, with review and the combined
+full serial gate still pending.
 
 **FW follow-up, 2026-11-14: ✅ ACCEPTED.** Operator-approved S6 merge
 with unchanged family coverage and updated serial/CI/lane parity;

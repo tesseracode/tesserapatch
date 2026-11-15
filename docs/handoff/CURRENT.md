@@ -92,12 +92,14 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   `go build -p=1 ./cmd/tpatch` clean. No other Go test pins the old label.
 - Baseline hosted CI: 43571328967, success at WAVE_BASE.
 - Independent static review of `cb35556`: APPROVED, no findings.
+- MW-1 and its review record are pushed at `4678055`; hosted CI
+  43701685880 is in progress, not yet acceptance evidence.
 - Still required: full guarded serial wave-close gate (39 commands / 36
   test commands) and hosted CI at the close candidate.
 
 ## Next Steps
 
-1. Push the approved MW-1 commits for hosted CI (prior main CI complete).
+1. Preserve the running MW-1 CI at `4678055`; do not push over it.
 2. Finish the MW-2 planning draft (delegated, single new file
    `docs/prds/PRD-legacy-migration-adoption.md`), get a fresh independent
    review, fix findings, and run the targeted docs-scanning tests.
