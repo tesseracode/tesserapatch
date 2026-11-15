@@ -51,6 +51,9 @@ func TestRecipeAuthorityPublicParity(t *testing.T) {
 }
 
 func rgaValidatePublicSurface(path, body string) error {
+	if err := rgaRequireShippedLabel(path, body); err != nil {
+		return err
+	}
 	if path == "CHANGELOG.md" {
 		current, err := rgaChangelogSection(body, rgaCurrentChangelogRelease)
 		if err != nil {
@@ -65,6 +68,82 @@ func rgaValidatePublicSurface(path, body string) error {
 		return rgaRequireEditorFailureDisclosure(body)
 	}
 	return nil
+}
+
+var rgaShippedLabels = []struct {
+	path  string
+	label string
+}{
+	{"SPEC.md", "#### Recipe generation authority (GH #15; v0.17.0)"},
+	{"docs/record.md", "## Capture modes and recipe authority (GH #15; v0.17.0)"},
+	{"docs/agent-as-provider.md", "### Coverage, preservation and explicit execution (GH #15; v0.17.0)"},
+	{"docs/land.md", "GH #15 implementation (shipped in v0.17.0)"},
+	{"docs/reconcile.md", "GH #15 implementation (shipped in v0.17.0)"},
+	{"docs/dependencies.md", "GH #15 implementation (shipped in v0.17.0)"},
+	{"docs/faq.md", "GH #15 implementation (shipped in v0.17.0)"},
+	{"docs/feature-layout.md", "### Recipe authority artifacts (GH #15; v0.17.0)"},
+	{"docs/commits.md", "### Current recipe authority (GH #15; v0.17.0)"},
+	{"docs/path-b-operator-guide.md", "GH #15 implementation (shipped in v0.17.0)"},
+}
+
+const rgaSpecAuthorityLink = "../SPEC.md#recipe-generation-authority-gh-15-v0170"
+
+func rgaRequireShippedLabel(path, body string) error {
+	for _, surface := range rgaShippedLabels {
+		if surface.path == path && strings.Count(body, surface.label) != 1 {
+			return fmt.Errorf("want one shipped recipe-authority label in %s: %q", path, surface.label)
+		}
+	}
+	if path == "docs/faq.md" && strings.Count(body, "]("+rgaSpecAuthorityLink+")") != 1 {
+		return fmt.Errorf("missing recipe-authority SPEC link: %s", rgaSpecAuthorityLink)
+	}
+	return nil
+}
+
+func TestRecipeAuthorityShippedLabelSensitivity(t *testing.T) {
+	for _, surface := range rgaShippedLabels {
+		t.Run(surface.path, func(t *testing.T) {
+			raw, err := os.ReadFile(filepath.Join("..", filepath.FromSlash(surface.path)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			good := string(raw)
+			if err := rgaValidatePublicSurface(surface.path, good); err != nil {
+				t.Fatalf("actual public baseline: %v", err)
+			}
+			for name, replacement := range map[string]string{
+				"removed":       "",
+				"unreleased":    strings.Replace(surface.label, "v0.17.0", "unreleased", 1),
+				"planned":       strings.Replace(surface.label, "v0.17.0", "v0.17 planned, unreleased", 1),
+				"wrong-release": strings.Replace(surface.label, "v0.17.0", "v0.18.0", 1),
+				"duplicate":     surface.label + "\n" + surface.label,
+			} {
+				t.Run(name, func(t *testing.T) {
+					wrong := strings.Replace(good, surface.label, replacement, 1)
+					if wrong == good {
+						t.Fatal("label mutation did not change its target")
+					}
+					if err := rgaValidatePublicSurface(surface.path, wrong); err == nil ||
+						!strings.Contains(err.Error(), "shipped recipe-authority label") {
+						t.Fatalf("same surface validator accepted a wrong release label: %v", err)
+					}
+				})
+			}
+			if surface.path == "docs/faq.md" {
+				for _, link := range []string{
+					"../SPEC.md#recipe-generation-authority-gh-15-v017-planned-unreleased",
+					"../SPEC.md#recipe-generation-authority-gh-15-v0180",
+					"../SPEC.md",
+				} {
+					wrong := strings.Replace(good, rgaSpecAuthorityLink, link, 1)
+					if err := rgaValidatePublicSurface(surface.path, wrong); err == nil ||
+						!strings.Contains(err.Error(), "recipe-authority SPEC link") {
+						t.Fatalf("same surface validator accepted broken link %q: %v", link, err)
+					}
+				}
+			}
+		})
+	}
 }
 
 func rgaEmbeddedSurface(t *testing.T, path string) string {

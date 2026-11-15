@@ -28,7 +28,7 @@ Authoritative source: PRD-tpatch-land §3.1.
 
 ## Coverage and landing are independent
 
-In the current GH #15 implementation (v0.17 planned, unreleased), the
+In the GH #15 implementation (shipped in v0.17.0), the
 embedded record step is **P1 `record`**, not a separate `land` producer.
 It publishes `recipe-capture-event.json` (**E**) before
 `recipe-coverage.json` (**C**), atomically per file, after record's owned

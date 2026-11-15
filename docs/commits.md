@@ -22,7 +22,7 @@ For the manual fallback, one feature → **two ordinary Git commits**, both carr
 The trailer records feature identity; by itself it does not provide the
 four-trailer landing evidence that modern verify evaluates.
 
-### Current recipe authority (GH #15; v0.17 planned, unreleased)
+### Current recipe authority (GH #15; v0.17.0)
 
 Record/embedded land is P1 of the
 [seven producers](../SPEC.md#seven-governed-producers). Canonical patch,

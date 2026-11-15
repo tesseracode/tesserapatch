@@ -150,7 +150,7 @@ comment field, when dependency handling is enabled. At `apply --mode execute`:
 
 ### Dependencies do not manufacture recipe coverage
 
-Current GH #15 implementation (v0.17 planned, unreleased) keeps dependency
+The GH #15 implementation (shipped in v0.17.0) keeps dependency
 gates independent from recipe coverage. A `created_by` declaration does not
 reconstruct an unobserved preimage or authorize using the parent's postimage
 as the child's base. An excluded parent-created target carries

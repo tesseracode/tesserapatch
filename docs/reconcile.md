@@ -33,7 +33,7 @@ evidence + review pipeline
 
 ## Recipe coverage is not a new reconcile replay path
 
-Current GH #15 implementation (v0.17 planned, unreleased) adds producer and
+The GH #15 implementation (shipped in v0.17.0) adds producer and
 reader authority, not GH #13's future operation-replay consumer.
 Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
 A warn/exit0 coverage row is not eligibility and never grants replay permission.

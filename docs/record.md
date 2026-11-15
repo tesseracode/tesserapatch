@@ -69,7 +69,7 @@ Previously this produced a 0-byte patch, advanced the feature state to `applied`
 | Committed feature A, then committed feature B on top, realise A needs a fix | see `feat-noncontiguous-feature-commits` (planned) |
 | Working tree clean, no commits either | Nothing to record — do your edits first |
 
-## Capture modes and recipe authority (GH #15; unreleased)
+## Capture modes and recipe authority (GH #15; v0.17.0)
 
 Choose one capture-mode family; `--files <paths>` and `--claimed-only` scope
 the selected capture rather than selecting another mode:

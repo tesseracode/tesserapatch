@@ -143,7 +143,7 @@ coverage. A preserved existing recipe is replaced only by explicit successful
 
 ## Read the coverage result, not just the exit code
 
-Current GH #15 implementation (v0.17 planned, unreleased) publishes
+The GH #15 implementation (shipped in v0.17.0) publishes
 `recipe-capture-event.json` (**E**) before `recipe-coverage.json` (**C**).
 Both are atomic replacements, not a cross-file transaction. E is unkeyed
 consistency evidence, not authentication/history; readers reconstruct the

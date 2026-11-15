@@ -135,7 +135,7 @@ git apply .tpatch/features/<slug>/artifacts/post-apply.patch
 
 Set by the apply flow when a started/done pair produces a delta that differs from the full diff (see `DeriveIncrementalPatch` in `internal/gitutil/`). Reconcile uses it in preference to `post-apply.patch` when both exist and the delta is smaller. You can ignore it for day-to-day work — it's an optimisation detail.
 
-### Recipe authority artifacts (GH #15; unreleased)
+### Recipe authority artifacts (GH #15; v0.17.0)
 
 The [seven producers](../SPEC.md#seven-governed-producers) are P1 record
 (including embedded land), P2 feature patch refresh/fixup, P3 reconcile

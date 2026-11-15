@@ -83,13 +83,13 @@ refresh if needed.
 No. Recipe coverage is necessary, not sufficient, for future replay eligibility; it is not cross-base safety.
 A warn/exit0 coverage row is not eligibility and never grants replay permission.
 
-Current GH #15 implementation (v0.17 planned, unreleased) proves correspondence
+The GH #15 implementation (shipped in v0.17.0) proves correspondence
 to an immutable captured reference, not a new upstream base. Complete v1
 admits only preimage-bearing `write-file` operations (including explicit-empty
 creation), subject to all ten predicates. Append, replacement and ungated
 writes are not complete v1 operations. GH #13's new reconcile replay consumer
 is future separate-release work; landing/attestation remains independent.
-See [the producer and proof contract](../SPEC.md#recipe-generation-authority-gh-15-v017-planned-unreleased).
+See [the producer and proof contract](../SPEC.md#recipe-generation-authority-gh-15-v0170).
 
 ## Why is verify green when coverage is missing, incomplete or marked stale?
 

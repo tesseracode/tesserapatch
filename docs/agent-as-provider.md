@@ -168,7 +168,7 @@ The recipe is a performance optimisation: it lets `apply --mode
 execute` run without invoking a provider on a clean snapshot. It is
 not the source of truth.
 
-### Coverage, preservation and explicit execution (GH #15; unreleased)
+### Coverage, preservation and explicit execution (GH #15; v0.17.0)
 
 `implement`, including `--manual`, is P6: it publishes
 `recipe-capture-event.json` then `recipe-coverage.json` with
