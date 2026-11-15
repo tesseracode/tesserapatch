@@ -1,3 +1,18 @@
+## Finding — MW-D5, coupled whole-document guard — 2026-11-15
+
+MW-1 CI 43701685880 failed Ubuntu job 132773995350 at
+`TestRGAS6DanglingDocDeltaAndSensitivity`. The only mismatched owned
+surface is `docs/feature-layout.md`: its GH #15 heading changed, but
+the AP -> S6 -> S9 whole-document projection still expects the old bytes.
+The initial `./assets/` targeted selection and static review missed this
+coupled test. Other CI jobs are still running; do not push over them.
+
+Revise the guard by appending the exact single-file MW delta, retaining
+all historical projection hashes and all other document bodies. Negative
+controls must reject upstream drift and unapproved prose changes. Run the
+affected CLI doc guards on the validation machine before the full gate.
+This fixes a regression caused by MW-1, not an expansion into production.
+
 ## Review dispatch — MW-2 legacy-migration PRD — 2026-11-15
 
 The delegated drafter returned

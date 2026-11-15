@@ -17,8 +17,8 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   parity tests; independently review and serial-gate the correction.
   Prepare and independently review a design proposal for GH #18-20,
   ending with explicit operator questions, not migration implementation.
-- **Status**: MW-1 source-approved (`cb35556`); MW-2 draft complete,
-  under independent review; one full serial gate at the close candidate
+- **Status**: Revising MW-1 coupled doc-hash guard after CI failure;
+  MW-2 draft under independent review; full serial gate still required
 - **Assigned / window start**: 2026-11-15T09:41:12Z
 - **Hard deadline**: 2026-11-15T21:41:12Z
 - **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
@@ -61,6 +61,15 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   had drifted after MW tracking prepends) with entry-heading and table-row
   anchors, and confirmed no `verify_anchored.go` line cite. Ten operator
   questions end the PRD; a fresh independent static review is running.
+- **MW-D5:** MW-1 CI exposed a coupled whole-document hash projection:
+  `TestRGAS6DanglingDocDeltaAndSensitivity` rejects the changed
+  `docs/feature-layout.md` heading. The assets-only targeted run missed
+  this `internal/cli` guard. Preserve the historical AP/S6/S9 oracles,
+  append the single-file MW projection with negative controls, and run
+  the affected CLI guards before the full gate. No production change.
+  The correction appends a fixed feature-layout digest after the unchanged
+  AP/S6/S9 chain; mutants cover every missing/drifted input, extra paths,
+  repeated projection and restoration of the obsolete heading.
 
 ## Current State
 
@@ -90,6 +99,9 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   Docs-scanning guard: `internal/workflow/verify_anchored_cites_test.go`
   walks all `docs/**/*.md`; the PRD must not cite `verify_anchored.go`
   line numbers.
+- MW-D5 coupled test correction:
+  `internal/cli/recipe_authority_s6_doc_delta_test.go`,
+  `internal/cli/prepare_s7_ap_dangling_test.go`.
 
 ## Test Results
 
@@ -101,7 +113,9 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 - Baseline hosted CI: 43571328967, success at WAVE_BASE.
 - Independent static review of `cb35556`: APPROVED, no findings.
 - MW-1 and its review record are pushed at `4678055`; hosted CI
-  43701685880 is in progress, not yet acceptance evidence.
+  43701685880 has a failed Ubuntu test job (132773995350): the S6
+  dangling-document test reports only feature-layout hash drift. Other
+  jobs are still running; do not push over them.
 - Still required: full guarded serial wave-close gate (39 commands / 36
   test commands) and hosted CI at the close candidate.
 
@@ -118,8 +132,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 
 ## Blockers
 
-- None. The inherited pinned-host-key SSH route to the validation machine
-  responds (MW-D3 revised).
+- MW-1's coupled document-hash guard must be revised and validated (MW-D5).
+  The inherited pinned-host-key SSH route responds (MW-D3 revised).
 
 ## Context for Next Agent
 

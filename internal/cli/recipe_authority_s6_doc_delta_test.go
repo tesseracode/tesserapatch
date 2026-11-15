@@ -125,3 +125,82 @@ func TestRGAS6DanglingDocDeltaAndSensitivity(t *testing.T) {
 		})
 	}
 }
+
+// Preserve AP/S6/S9 history; MW changes only feature-layout's shipped label.
+func rgaMWExpectedDanglingSurfaces(previous map[string]string) (map[string]string, error) {
+	expected, err := rgaS6ExpectedDanglingSurfaces(s7APAcceptedDanglingSurfaces)
+	if err != nil {
+		return nil, err
+	}
+	expected, err = rocS9ExpectedDanglingSurfaces(expected)
+	if err != nil {
+		return nil, err
+	}
+	if !reflect.DeepEqual(previous, expected) {
+		return nil, fmt.Errorf("MW dangling-doc projection refuses S9 inventory or body drift")
+	}
+	expected["docs/feature-layout.md"] = "bdc7595db208b7be0f31e7ebf3629019a7d979d5092b75d5bea17b44485fd8ab"
+	return expected, nil
+}
+
+func TestRGAMWDanglingDocProjectionAndSensitivity(t *testing.T) {
+	before, err := rgaS6ExpectedDanglingSurfaces(s7APAcceptedDanglingSurfaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err = rocS9ExpectedDanglingSurfaces(before)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := s7APCloneStringMap(before)
+	want := s7APCloneStringMap(before)
+	want["docs/feature-layout.md"] = "bdc7595db208b7be0f31e7ebf3629019a7d979d5092b75d5bea17b44485fd8ab"
+	after, err := rgaMWExpectedDanglingSurfaces(before)
+	if err != nil || !reflect.DeepEqual(after, want) {
+		t.Fatalf("MW projection differs from the single reviewed heading change: got=%v want=%v err=%v", after, want, err)
+	}
+	if !reflect.DeepEqual(before, original) {
+		t.Fatal("MW projection mutated its historical input")
+	}
+	reject := func(t *testing.T, wrong map[string]string) {
+		t.Helper()
+		snapshot := s7APCloneStringMap(wrong)
+		if got, err := rgaMWExpectedDanglingSurfaces(wrong); err == nil || got != nil {
+			t.Fatalf("MW projection accepted invalid input: got=%v err=%v", got, err)
+		}
+		if wrong != nil && !reflect.DeepEqual(wrong, snapshot) {
+			t.Fatal("rejected MW projection mutated its input")
+		}
+	}
+	extra := s7APCloneStringMap(before)
+	extra["docs/unowned.md"] = strings.Repeat("a", 64)
+	for name, wrong := range map[string]map[string]string{
+		"nil": nil, "empty": {}, "extra-path": extra, "already-projected": after,
+	} {
+		t.Run(name, func(t *testing.T) { reject(t, wrong) })
+	}
+	for path := range before {
+		t.Run("missing/"+path, func(t *testing.T) {
+			wrong := s7APCloneStringMap(before)
+			delete(wrong, path)
+			reject(t, wrong)
+		})
+		t.Run("drifted/"+path, func(t *testing.T) {
+			wrong := s7APCloneStringMap(before)
+			wrong[path] = strings.Repeat("a", 64)
+			reject(t, wrong)
+		})
+	}
+	surfaces := s7APDanglingOwnedSurfaces(t)
+	if err := validateS7APDanglingOwnedSurfaces(surfaces); err != nil {
+		t.Fatalf("MW current bodies failed the AP validator: %v", err)
+	}
+	path := "docs/feature-layout.md"
+	surfaces[path] = strings.Replace(surfaces[path],
+		"### Recipe authority artifacts (GH #15; v0.17.0)",
+		"### Recipe authority artifacts (GH #15; v0.17 planned, unreleased)", 1)
+	if err := validateS7APDanglingOwnedSurfaces(surfaces); err == nil ||
+		!strings.Contains(err.Error(), "prose surface content drift") {
+		t.Fatalf("AP validator accepted the superseded MW heading: %v", err)
+	}
+}
