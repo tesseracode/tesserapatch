@@ -1,3 +1,55 @@
+## Review — MW-2 legacy-migration proposal — 2026-11-15
+
+**Reviewer**: independent delegated static reviewer (gpt-6.1-sol)
+**Task**: `docs/prds/PRD-legacy-migration-adoption.md`
+**Verdict: APPROVED** — no findings requiring revision.
+
+The reviewer verified all body/Appendix A citations (C01-C49), the named
+LOG entries and ROADMAP issue rows, and the three GitHub issues. Historical
+counts and their overlap are accurately scoped; no fresh downstream result
+is implied. Strict verification, ADR-024's historical-v1-backfill prohibition,
+and the separation of compatibility, current integrity and origin remain.
+All ten operator questions have recommendations; unknowns remain explicit.
+No ledger-counted anchored-verifier line cite or private operational detail
+was found. The reviewer modified no files and ran no Go.
+
+Accept the document as a reviewed PROPOSED planning deliverable only.
+Its architectural recommendations are not accepted decisions and authorize
+no code or downstream writes. Both MW deliverables are now source-approved;
+commit the PRD, run the cite guard, and validate the combined candidate.
+Final window acceptance still requires full serial gate and exact-head CI.
+
+## Review — MW-D5 exact document projection — 2026-11-15
+
+**Reviewer**: independent delegated static reviewer (gpt-6.1-sol)
+**Task**: two-file correction at `e48b026`
+**Verdict: APPROVED** — no high-confidence actionable findings.
+
+The reviewer confirmed the exact single-file delta, preservation of all
+AP/S6/S9 historical oracles and other surfaces, invalid-input and
+superseded-content rejection, independent expected hashes, compatible
+build tags and validator integration. No missed coupled freeze/golden
+guard was identified. No Go commands or edits by the reviewer.
+
+Admitted targeted regression checks, formatting, vet and build already
+passed at the same source commit. The Ubuntu observer failure in the old
+CI is the same dependency: its PIB-459 target calls the repaired AP
+validator. Full serial and revised-candidate CI remain required.
+
+## Review dispatch — MW-D5 exact document projection — 2026-11-15
+
+Revision `e48b026` appends the single normalized feature-layout digest after
+the unchanged AP/S6/S9 projection chain. It refuses any prior inventory or
+body drift without mutating its input. New sensitivity cases cover every
+missing/drifted input, extra paths, repeated projection and the obsolete
+heading; the existing per-surface unapproved-body controls remain.
+
+Admitted validation-machine checks passed: gofmt; S6/MW/S9 doc projections
+plus S7 AP public workflows (50 s); vet; build. The original failing CI
+case is included. Request a bounded independent static review of these two
+test files, without Go or edits; the existing MW-2 reviewer remains scoped
+to the proposal. No frozen hash, golden fixture or production file moved.
+
 ## Finding — MW-D5, coupled whole-document guard — 2026-11-15
 
 MW-1 CI 43701685880 failed Ubuntu job 132773995350 at

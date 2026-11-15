@@ -23,8 +23,12 @@ No release, lane retry, machine cleanup or other issue implementation.
 MW-1 source `cb35556` is independently approved; the nine guide labels
 and FAQ anchor are corrected, and targeted validation passed. The inherited
 pinned-key SSH validation route works (MW-D3 revised); a T3 link is not
-required. MW-2 remains a proposal draft, with review and the combined
-full serial gate still pending.
+required. MW-2's [proposal](prds/PRD-legacy-migration-adoption.md) is independently
+approved as a planning deliverable, still PROPOSED pending ten operator
+decisions. Old-candidate CI found a coupled feature-layout hash guard;
+the exact single-file projection fix `e48b026` is reviewed and targeted
+checks pass, with historical oracles unchanged. Combined full serial
+gate and revised-candidate CI remain pending.
 
 **FW follow-up, 2026-11-14: ✅ ACCEPTED.** Operator-approved S6 merge
 with unchanged family coverage and updated serial/CI/lane parity;

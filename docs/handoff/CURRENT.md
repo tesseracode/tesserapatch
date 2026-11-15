@@ -2,12 +2,14 @@
 
 ## Status
 
-**Cluster state**: IN PROGRESS
+**Cluster state**: APPROVED
 
 **MW: approved documentation correction and legacy-migration planning.**
 The operator accepted the proposed 10-12 hour unattended window. The
 supervisor uses 12 hours as the hard ceiling, with no automatic extension.
 FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
+APPROVED denotes source/design review approval; full gate and revised
+hosted CI are still required before this window is ACCEPTED.
 
 ## Active Task
 
@@ -17,8 +19,8 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   parity tests; independently review and serial-gate the correction.
   Prepare and independently review a design proposal for GH #18-20,
   ending with explicit operator questions, not migration implementation.
-- **Status**: Revising MW-1 coupled doc-hash guard after CI failure;
-  MW-2 draft under independent review; full serial gate still required
+- **Status**: Both deliverables independently approved; combined candidate
+  awaiting final cite check, full serial gate and hosted CI
 - **Assigned / window start**: 2026-11-15T09:41:12Z
 - **Hard deadline**: 2026-11-15T21:41:12Z
 - **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
@@ -60,7 +62,9 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   replaced line cites into newest-first `LOG.md` and `ROADMAP.md` (which
   had drifted after MW tracking prepends) with entry-heading and table-row
   anchors, and confirmed no `verify_anchored.go` line cite. Ten operator
-  questions end the PRD; a fresh independent static review is running.
+  questions end the PRD. Independent review APPROVED with no findings:
+  all C01-C49 claims/citations checked, no privacy or cite-ledger problem.
+  Planning acceptance does not accept its architecture or authorize code.
 - **MW-D5:** MW-1 CI exposed a coupled whole-document hash projection:
   `TestRGAS6DanglingDocDeltaAndSensitivity` rejects the changed
   `docs/feature-layout.md` heading. The assets-only targeted run missed
@@ -94,8 +98,8 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`,
   `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`,
   `docs/commits.md`, `docs/path-b-operator-guide.md`.
-- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (draft,
-  untracked until review).
+- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (reviewed
+  Draft/PROPOSED, pending operator decisions).
   Docs-scanning guard: `internal/workflow/verify_anchored_cites_test.go`
   walks all `docs/**/*.md`; the PRD must not cite `verify_anchored.go`
   line numbers.
@@ -112,6 +116,13 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   `go build -p=1 ./cmd/tpatch` clean. No other Go test pins the old label.
 - Baseline hosted CI: 43571328967, success at WAVE_BASE.
 - Independent static review of `cb35556`: APPROVED, no findings.
+- MW-D5 correction `e48b026`: admitted `gofmt`, the S6/MW/S9 document
+  projection tests and S7 AP public workflows, vet and build all passed.
+  CLI test command: 50 s wall; no resource stop. The failed CI case is now
+  covered by the targeted selection instead of relying only on assets.
+- MW-D5 independent static review: APPROVED, no findings. Old-CI Ubuntu
+  observer failure is its PIB-459 dependency on the same repaired validator.
+- MW-2 independent review: APPROVED, no findings; no runtime claims.
 - MW-1 and its review record are pushed at `4678055`; hosted CI
   43701685880 has a failed Ubuntu test job (132773995350): the S6
   dangling-document test reports only feature-layout hash drift. Other
@@ -122,18 +133,16 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
 ## Next Steps
 
 1. Preserve the running MW-1 CI at `4678055`; do not push over it.
-2. Act on the running MW-2 independent review, fix findings, commit the
-   PRD by explicit path, and run the targeted docs-scanning tests.
-3. Set `Cluster state` to APPROVED at the close candidate, push after
-   prior CI completes, then run the serial gate and hosted CI. Never claim
-   acceptance without both.
+2. Commit the reviewed PRD and run the targeted docs-scanning tests.
+3. Push the source-approved close candidate after prior CI completes,
+   then run the serial gate and hosted CI. Never claim acceptance without both.
 4. Archive completed work, update tracking, push and verify final CI before
    the deadline. Leave unresolved operator questions explicit.
 
 ## Blockers
 
-- MW-1's coupled document-hash guard must be revised and validated (MW-D5).
-  The inherited pinned-host-key SSH route responds (MW-D3 revised).
+- None. MW-D5 is fixed, reviewed and targeted-validated. The inherited
+  pinned-host-key SSH route responds (MW-D3 revised).
 
 ## Context for Next Agent
 
