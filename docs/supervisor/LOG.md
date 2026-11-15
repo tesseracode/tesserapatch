@@ -1,3 +1,23 @@
+## Decision — MW gate candidate preparation — 2026-11-15
+
+Both deliverables are committed at `bc6c315` (MW-1 source `cb35556`,
+coupled guard revision `e48b026`, reviewed MW-2 PRD). The repository's
+anchored-citation ledger and its sensitivity test pass on the validation
+machine at that combined commit. No planning recommendation is an accepted
+architecture decision.
+
+**MW-D6:** old CI 43701685880 has the same proven doc-hash regression in
+both main Unix jobs and Ubuntu's AP observer. Its logs are preserved.
+Cancellation of the two remaining obsolete jobs was requested explicitly,
+rather than pushing over a running job; wait for terminal status before
+the next push. This run is FAILED/superseded evidence, never acceptance
+evidence. The revised candidate must pass its own full hosted CI.
+
+The next tracking-only candidate will run the unchanged guarded serial
+wave-close harness at the exact pushed commit with WAVE_BASE `f61e2b6`,
+the 2026-11-15T21:41:12Z hard deadline, and isolated fresh gate caches.
+No gate or CI success is claimed at dispatch.
+
 ## Review — MW-2 legacy-migration proposal — 2026-11-15
 
 **Reviewer**: independent delegated static reviewer (gpt-6.1-sol)
