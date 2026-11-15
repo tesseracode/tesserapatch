@@ -21118,3 +21118,176 @@ unchanged; the prior handoff was appended at dispatch.
   `bin/fw-20261114/gate-evidence/`; the archive receipt is
   `bin/fw-20261114/archive-receipt.txt`. Final tracking-only CI evidence
   is saved alongside them after push.
+
+---
+
+## 2026-11-15T13:25:35Z - MW accepted documentation and legacy-migration planning
+
+# Current Handoff
+
+## Status
+
+**Cluster state**: ACCEPTED
+
+**MW: approved documentation correction and legacy-migration planning.**
+The operator accepted the proposed 10-12 hour unattended window. The
+supervisor uses 12 hours as the hard ceiling, with no automatic extension.
+FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
+MW is accepted at `efc3660`: independent reviews, full guarded serial gate
+and exact-candidate hosted CI passed. No new release was created.
+
+## Active Task
+
+- **Task ID**: MW-1, then MW-2
+- **Milestone**: Post-v0.22 documentation and legacy-migration planning
+- **Description**: Correct GH #15 shipped-status labels, links and coupled
+  parity tests; independently review and serial-gate the correction.
+  Prepare and independently review a design proposal for GH #18-20,
+  ending with explicit operator questions, not migration implementation.
+- **Status**: Complete - both deliverables accepted at `efc3660`;
+  tracking-only consolidation follows
+- **Assigned / window start**: 2026-11-15T09:41:12Z
+- **Hard deadline**: 2026-11-15T21:41:12Z
+- **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
+
+## Session Summary
+
+- Recorded clean `main`, no local changes, and fetched `origin/main`;
+  both point to WAVE_BASE. Final FW CI 43571328967 is completed/success.
+- Archived the superseded final FW IDLE handoff byte-for-byte under
+  `2026-11-15T09:41:12Z - FW final IDLE handoff superseded by MW`.
+  Archived body: 18,244 bytes, SHA256
+  `885d507c0196d765e0c4b607768f01b8a964fb75ad3408ab4bbe5fc064ab0266`.
+  Prior HISTORY prefix is unchanged.
+- **MW-D1:** 12-hour ceiling; stop sooner when scope is complete. No
+  release/tag, migration implementation, GH #17 fixes, GH #25 B, machine
+  cleanup, Spotlight change, lane retry, or CI-job/service expansion.
+- **MW-D2:** the live SPEC recipe-authority heading already says v0.17.0.
+  Nine user guides still say unreleased/planned; the FAQ links to the old,
+  nonexistent SPEC anchor. Correct current guidance, not frozen planning
+  history or deliberately retained pre-release parser fixtures.
+- **MW-D3 (revised):** validation stays serial under the inherited guarded
+  resource protocol. The T3 link attempt was refused for an unencrypted
+  address; that link is not the inherited route. Prior windows reached the
+  validation machine by SSH with batch mode and a pinned host key (see
+  archived NW/OV handoffs), and that route answered read-only. Use it; never
+  represent hosted CI as the required validation-machine gate.
+- **Implementation:** `cb35556` corrects all nine GH #15 labels and the
+  FAQ link. Public parity now requires each shipped label and the actual
+  SPEC anchor; sensitivity cases cover removal, planned/unreleased labels,
+  wrong releases, duplicate labels and obsolete/missing FAQ anchors.
+  Existing Changelog pre-release controls and release pins are untouched.
+- **MW-D4:** adjacent prose also calls GH #13's shipped consumer future
+  work (including README/template surfaces). This separate documentation
+  debt was not silently folded into the narrow GH #15 correction. The
+  planning proposal must use current SPEC/ADRs, not these stale summaries.
+- **MW-2 draft:** the delegated drafter returned
+  `docs/prds/PRD-legacy-migration-adoption.md` (Draft, PROPOSED pending
+  operator decisions), touching no other file. Supervisor pre-review
+  replaced line cites into newest-first `LOG.md` and `ROADMAP.md` (which
+  had drifted after MW tracking prepends) with entry-heading and table-row
+  anchors, and confirmed no `verify_anchored.go` line cite. Ten operator
+  questions end the PRD. Independent review APPROVED with no findings:
+  all C01-C49 claims/citations checked, no privacy or cite-ledger problem.
+  Planning acceptance does not accept its architecture or authorize code.
+- **MW-D5:** MW-1 CI exposed a coupled whole-document hash projection:
+  `TestRGAS6DanglingDocDeltaAndSensitivity` rejects the changed
+  `docs/feature-layout.md` heading. The assets-only targeted run missed
+  this `internal/cli` guard. Preserve the historical AP/S6/S9 oracles,
+  append the single-file MW projection with negative controls, and run
+  the affected CLI guards before the full gate. No production change.
+  The correction appends a fixed feature-layout digest after the unchanged
+  AP/S6/S9 chain; mutants cover every missing/drifted input, extra paths,
+  repeated projection and restoration of the obsolete heading.
+
+## Current State
+
+No product behavior or schema change is authorized. MW-1 owns the nine
+current user guides and `assets/recipe_authority_parity_test.go`; SPEC may
+change only if an actual coupled correction is needed. CHANGELOG and its
+v0.22.0 release pin remain unchanged.
+
+MW-2 is planning only: re-ground GH #18 cumulative stacks, GH #19 manual
+recipe provenance, and GH #20 legacy generation adoption in current code,
+accepted ADRs and the SW-D13 evidence. Historical reproduction is not a
+fresh run. Do not fabricate timestamps/provenance, assume current-stack
+integrity from old-base replay, or bypass ADR-024's backfill prohibition.
+Any proposed architecture remains explicitly PROPOSED pending operator
+decisions. No existing accepted ADR or frozen parity block is rewritten.
+
+## Files Changed
+
+- Tracking: `docs/handoff/CURRENT.md`, `docs/handoff/HISTORY.md`,
+  `docs/supervisor/LOG.md`, `docs/ROADMAP.md`.
+- MW-1 source: `assets/recipe_authority_parity_test.go`; `docs/record.md`,
+  `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`,
+  `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`,
+  `docs/commits.md`, `docs/path-b-operator-guide.md`.
+- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (reviewed
+  Draft/PROPOSED, pending operator decisions).
+  Docs-scanning guard: `internal/workflow/verify_anchored_cites_test.go`
+  walks all `docs/**/*.md`; the PRD must not cite `verify_anchored.go`
+  line numbers.
+- MW-D5 coupled test correction:
+  `internal/cli/recipe_authority_s6_doc_delta_test.go`,
+  `internal/cli/prepare_s7_ap_dangling_test.go`.
+
+## Test Results
+
+- `gofmt` on the changed test and `git diff --check` passed.
+- Targeted validation-machine checks at `96d570c` (source = `cb35556`),
+  serial, each stage admitted after a 60 s window: `gofmt -l .` clean;
+  `go test -p=1 ./assets/ -count=1` ok (58 s); `go vet -p=1 ./...` and
+  `go build -p=1 ./cmd/tpatch` clean. No other Go test pins the old label.
+- Baseline hosted CI: 43571328967, success at WAVE_BASE.
+- Independent static review of `cb35556`: APPROVED, no findings.
+- MW-D5 correction `e48b026`: admitted `gofmt`, the S6/MW/S9 document
+  projection tests and S7 AP public workflows, vet and build all passed.
+  CLI test command: 50 s wall; no resource stop. The failed CI case is now
+  covered by the targeted selection instead of relying only on assets.
+- MW-D5 independent static review: APPROVED, no findings. Old-CI Ubuntu
+  observer failure is its PIB-459 dependency on the same repaired validator.
+- MW-2 independent review: APPROVED, no findings; no runtime claims.
+- Combined source `bc6c315`: anchored-citation ledger and sensitivity test
+  PASS on the validation machine (20.9 s wall after a 61.2 s admission).
+- MW-1 and its review record are pushed at `4678055`; hosted CI
+  43701685880 failed both main Unix jobs on the feature-layout hash and
+  the Ubuntu observer on PIB-459's same dependency. Remaining obsolete
+  jobs were explicitly cancelled (MW-D6) and terminal status confirmed
+  before pushing the revision.
+- Exact pushed candidate `efc3660`: full serial gate PASS, 39/39 commands,
+  36 uncached test commands and all 8 mechanical checks; 11,004.1 s,
+  completed 2026-11-15T13:22:27Z. CI 43703465056 PASS, all five test jobs.
+- Independently checked all 39 command records and 6,783 execution samples:
+  exact command/order parity, no concurrent test commands, normal pressure,
+  no new swap-outs, no external Go and no resource stop. The source is
+  clean, pinned releases unchanged and no owned process remains.
+
+## Next Steps
+
+1. Archive this accepted handoff, set the next handoff to IDLE, and push
+   tracking-only consolidation; source remains identical to gated `efc3660`.
+2. Operator: consider the ten questions in the reviewed PROPOSED PRD.
+   Recommended first authorization is a fresh read-only evidence inventory,
+   not a migration writer or relaxed verify state.
+3. Keep GH #13 stale future-work prose as a separate follow-up (MW-D4).
+   Machine cleanup, Spotlight, lane retry and implementation backlogs remain
+   outside this completed window.
+
+## Blockers
+
+- None. MW-D5 is fixed, reviewed and targeted-validated. The inherited
+  pinned-host-key SSH route responds (MW-D3 revised).
+
+## Context for Next Agent
+
+- Use a fresh WAVE_BASE for any later wave, not the historical FW base.
+- Reviewers: OpenAI/MAI only; inherited selection is gpt-6.1-sol, static
+  review only. Every new review/re-check is a fresh delegated review.
+- Stage explicit file paths only. Every commit includes the Copilot trailer.
+- Keep old releases, `.wave-close-allowlist`, CLI flags, report schemas,
+  source behavior, serial/CI partitions and existing safety guards unchanged.
+- FreezeCurrent changes require their hash pin and the whole
+  `TestPreparePIBPreChangeGoldens` targeted run; avoid those sources here.
+- Private prior validation evidence is under `bin/fw-20261114/`; connection
+  details and resource telemetry must not enter tracked documents.

@@ -13,22 +13,20 @@
 
 ## Current Backlog — Post-v0.18.0 (2026-11-04)
 
-**MW window, 2026-11-15: 🚧 IN PROGRESS.** Operator-approved GH #15
-shipped-label/link correction with coupled parity coverage, independent
-review and serial validation; then a reviewed planning proposal for
-GH #18-20, not migration implementation. Window:
-2026-11-15T09:41:12Z to 2026-11-15T21:41:12Z (12-hour ceiling);
-WAVE_BASE `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`.
-No release, lane retry, machine cleanup or other issue implementation.
-MW-1 source `cb35556` is independently approved; the nine guide labels
-and FAQ anchor are corrected, and targeted validation passed. The inherited
-pinned-key SSH validation route works (MW-D3 revised); a T3 link is not
-required. MW-2's [proposal](prds/PRD-legacy-migration-adoption.md) is independently
-approved as a planning deliverable, still PROPOSED pending ten operator
-decisions. Old-candidate CI found a coupled feature-layout hash guard;
-the exact single-file projection fix `e48b026` is reviewed and targeted
-checks pass, with historical oracles unchanged. Combined full serial
-gate and revised-candidate CI remain pending.
+**MW window, 2026-11-15: ✅ ACCEPTED.** Source range
+`f61e2b6..efc3660`: nine GH #15 shipped labels and the FAQ SPEC link are
+corrected, with public parity and the coupled normalized document-hash
+projection updated without changing historical AP/S6/S9 oracles.
+Initial source, guard revision `e48b026`, and the
+[legacy-migration proposal](prds/PRD-legacy-migration-adoption.md) each
+received independent APPROVED verdicts. Exact candidate `efc3660` passed
+the full guarded serial gate (39/39 commands, 36 uncached test commands,
+8/8 mechanical checks, 11,004.1 s) and CI 43703465056 (all five test jobs).
+The PRD remains PROPOSED pending ten operator decisions, not authorization
+for migration code. No release, lane retry, machine cleanup or other
+issue implementation. WAVE_BASE `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`;
+window began 2026-11-15T09:41:12Z, gate completed 13:22:27Z before the
+21:41:12Z ceiling. Trailing consolidation is tracking-only.
 
 **FW follow-up, 2026-11-14: ✅ ACCEPTED.** Operator-approved S6 merge
 with unchanged family coverage and updated serial/CI/lane parity;
@@ -206,7 +204,8 @@ acceptance and implementation as separate decisions.
 | Validation-run queue ✅ (private) | A validation-machine gate validates one commit for about 3 hours. Pushing to `main` during a run broke its serial fallback (NW-D24), and runs for different versions cannot be lined up. Operator (2026-11-07): add a mechanism to queue validation runs for different versions even when `origin/main` advances. HK makes the tracked `[3/8]` check and the private runner accept a pushed `HEAD` that `origin/main` has moved past (HK-D2); a queue is the next step. | Not scheduled. Design questions: where the queue lives (the private runner on the validation host or a tracked script), one run at a time with a FIFO of commit SHAs, per-run isolated checkouts and evidence, and how a queued run reports to the handoff. **Done (SW-D7):** a private, untracked queue on the validation machine: first in, first out, one worker, expired entries recorded and not run, verdict taken from the gate's own verdict line; 15 self-tests pass and seven mutations are caught. It never changes the reviewed runner. |
 | Test-time profiling ✅ (measured; ROCS8 fix ✅, others ⬜) | Operator (2026-11-07): time the tests that take longest and find out whether the cost comes from too many tests running, unoptimized tests, or computation the tests genuinely need. Starting points: the hosted observer categories (AR core ~527 s, AQ ~449 s, AP ~371 s, AM–AO ~274 s serial on the validation machine), mutation-sensitivity rows that compile mutated packages (for example PIB-487), and the slowest `internal/workflow` and `internal/cli` shards. | Not scheduled. Measure first (per-test wall time from `go test -json`, child-build counts, package compile time), then propose. Plan only; no budget or test changes without a reviewed wave. **Measured 2026-11-11 (SW-D14):** the largest single saving is the `internal/workflow` ROCS8 family, where about 60 subtests each rebuild the same reconcile fixture (~600 s per gate); a build-once-and-copy template is the first proposal. Second, the S6 shards may each rebuild the per-process `s6ContractBaseline` (188 s); a shard merge is an unmeasured hypothesis and would change the CI partition, so it needs a decision. The S7 type-check shards and PIB-221's cold cross-builds are cost the tests genuinely need under the parity environment. About 1,050 s of 04-go wall time is not CPU time and is not yet explained. No change made; each fix needs its own reviewed wave. **ROCS8 template landed in TW wave 2 (`7ac05c0`):** measured on the validation machine, the ROCS8 family takes 731 s with fresh builds and 460 s with the template, about 245 s saved per gate after its two new guard tests (TW-D16, TW-D27); the rest of each acceptance row is acceptance work (TW-D18). **S6 shard merge measured after TW gate 3 (TW-D36):** the four S6 commands take 1,050 s and one merged command 474-481 s with identical passing results, because each shard repeats a once-per-process setup of about 195 s; the merged command's peak RSS is 3.10 GB against at most 1.84 GB per shard, and the shards were split on 2026-10-29 to bound memory. Not adopted; the operator decides (TW-Q3). |
 | Validation machine: serial gates ⬜ | Lane mode stopped or was skipped on the validation machine in every recent window because its swap use stays above the lane limit even when idle (OV-D17, NW-D9/NW-D10). Operator (2026-11-07): keep serial for now; the operator will report when the machine is cleaned up. | Gates there run `WAVE_CLOSE_TEST_LANES=0` until the operator reports the cleanup; then retry lane mode once. |
-| GH #15 post-release label drift ⬜ | Found in TW (2026-11-13, TW-D24): `SPEC.md`'s recipe-authority heading and nine user docs (`docs/record.md`, `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`, `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`, `docs/commits.md`, `docs/path-b-operator-guide.md`) still call GH #15 recipe authority "v0.17 planned, unreleased", but v0.17.0 shipped it on 2026-09-20. | Not scheduled. The SPEC heading is a link anchor (`docs/faq.md` links to it) and `assets/recipe_authority_parity_test.go` pins Unreleased-heading shapes, so the relabel needs the anchor, its links and the parity fixtures moved together in one reviewed change. |
+| GH #15 post-release label drift ✅ | TW-D24 reported stale planned/unreleased wording. MW reinspection found SPEC already correct; nine guide labels and the FAQ anchor needed correction. | **ACCEPTED in MW at `efc3660`**: corrected in `cb35556`, with public parity and sensitivity coverage. CI exposed the coupled feature-layout hash projection; `e48b026` adds its exact reviewed delta, retaining all historical AP/S6/S9 hashes. Independent reviews, targeted tests, full serial gate and exact-head CI passed. Historical Unreleased parser fixtures remain unchanged. |
+| GH #13 post-release wording debt ⬜ | MW-D4: README/template and adjacent user-guide summaries still describe the operation-replay consumer as future separate-release work, although it shipped opt-in in v0.18.0. | Not authorized in MW. Correct the current summaries in a separate reviewed documentation change, preserving the distinction between coverage and independent replay authority and checking coupled parity/hash guards. |
 
 **TW-Q3 attended follow-up, 2026-11-13 (measurement only):** the requested
 higher-memory trial completed and its raw evidence was verified. Merged S6

@@ -1,3 +1,62 @@
+## Consolidation — MW archived; IDLE — 2026-11-15
+
+The terminal ACCEPTED handoff was appended byte-for-byte to HISTORY at
+2026-11-15T13:25:35Z. The prior 1,418,946-byte prefix is unchanged.
+Archived body: 9,434 bytes, SHA256
+`070a8150602f59b085e9d423c6dcdeec6572aad6d4e2dae744e04b9028a62a3f`.
+CURRENT is IDLE; ROADMAP marks MW and the GH #15 label track ACCEPTED,
+and keeps the separately discovered GH #13 prose debt pending.
+
+All consolidation changes are confined to CURRENT, HISTORY, LOG and
+ROADMAP. Reviewed/gated source `efc3660` is unchanged. Push this close
+record after candidate CI 43703465056's confirmed success. Any CI on the
+tracking-only push is additional post-consolidation evidence, not a claim
+that migration recommendations are accepted or a new release was created.
+
+## Acceptance — MW `efc3660` — 2026-11-15
+
+**Verdict: ACCEPTED.** Gated commit
+`efc3660d03cb67a0518cd102c3f3c8c4ed41dfb0`, source range
+`f61e2b6..efc3660`, passed the guarded serial wave-close gate:
+**39/39 commands, 36 uncached test commands, all 8 mechanical checks**,
+11,004.1 s (3 h 3 min), completed 2026-11-15T13:22:27Z.
+Exact-head CI **43703465056** succeeded in all five test jobs; the release
+job was correctly skipped. This does not claim the pre-existing Windows
+allowed-failure backlog is repaired.
+
+Independent examination of all 39 command records and 6,783 raw execution
+samples confirms exact command order/partition, serial test execution,
+normal pressure, no new swap-outs, no external Go, no telemetry stop,
+clean source and unchanged pinned releases. No owned processes remain.
+The runner performed its required readmissions after transient load rises;
+there was no resource-stop bypass. Evidence stays private in
+`bin/mw-20261115/gate-evidence/`.
+
+Review scoreboard: MW-1 initial source APPROVED; the coupled hash-guard
+revision `e48b026` APPROVED; MW-2 proposal APPROVED, all without findings.
+CI caught the omitted normalized whole-document hash projection after the
+assets-only targeted run. It was fixed without altering historical
+AP/S6/S9 oracles, then covered by targeted regression tests and the full
+gate. Old CI 43701685880 remains failed/superseded, not acceptance evidence.
+
+Close MW, archive the accepted handoff, mark ROADMAP and the GH #15 label
+track complete, and push tracking-only consolidation. The migration PRD
+remains PROPOSED: its ten questions require operator decisions; no migration,
+release, machine cleanup, lane retry or GH #13 wording fix was authorized.
+
+## Dispatch — MW full serial gate at `efc3660` — 2026-11-15
+
+Old CI 43701685880 reached terminal cancelled status before the next push.
+Reviewed source `bc6c315` plus tracking-only dispatch `efc3660` is now on
+origin/main. Exact-candidate CI 43703465056 is running.
+
+The attached validation-machine gate is running at
+`efc3660d03cb67a0518cd102c3f3c8c4ed41dfb0`, WAVE_BASE
+`f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`, serial mode. Its inherited
+resource guard is responsive, formatting/vet/build passed, and check 8
+is executing the uncached test shards. No further source changes or
+pushes while the candidate CI is active. Full gate/CI verdicts are pending.
+
 ## Decision — MW gate candidate preparation — 2026-11-15
 
 Both deliverables are committed at `bc6c315` (MW-1 source `cb35556`,
