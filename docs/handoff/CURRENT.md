@@ -2,7 +2,7 @@
 
 ## Status
 
-**Cluster state**: AWAITING REVIEW
+**Cluster state**: IN PROGRESS
 
 **MW: approved documentation correction and legacy-migration planning.**
 The operator accepted the proposed 10-12 hour unattended window. The
@@ -17,7 +17,8 @@ FW remains accepted at `f61e2b6`; v0.22.0 remains the latest release.
   parity tests; independently review and serial-gate the correction.
   Prepare and independently review a design proposal for GH #18-20,
   ending with explicit operator questions, not migration implementation.
-- **Status**: Review - MW-1 source cb35556, runtime validation pending
+- **Status**: MW-1 source-approved (`cb35556`); MW-2 drafting; one
+  full serial gate at the close candidate
 - **Assigned / window start**: 2026-11-15T09:41:12Z
 - **Hard deadline**: 2026-11-15T21:41:12Z
 - **WAVE_BASE**: `f61e2b68b8b23e43cb1fdfdf24cda95f87588c04`
@@ -77,27 +78,33 @@ decisions. No existing accepted ADR or frozen parity block is rewritten.
   `docs/agent-as-provider.md`, `docs/land.md`, `docs/reconcile.md`,
   `docs/dependencies.md`, `docs/faq.md`, `docs/feature-layout.md`,
   `docs/commits.md`, `docs/path-b-operator-guide.md`.
-- Design files: none yet.
+- Design files: `docs/prds/PRD-legacy-migration-adoption.md` (drafting).
+  Docs-scanning guard: `internal/workflow/verify_anchored_cites_test.go`
+  walks all `docs/**/*.md`; the PRD must not cite `verify_anchored.go`
+  line numbers.
 
 ## Test Results
 
 - `gofmt` on the changed test and `git diff --check` passed.
-- No Go tests/build/vet run in MW yet; they wait for review.
+- Targeted validation-machine checks at `96d570c` (source = `cb35556`),
+  serial, each stage admitted after a 60 s window: `gofmt -l .` clean;
+  `go test -p=1 ./assets/ -count=1` ok (58 s); `go vet -p=1 ./...` and
+  `go build -p=1 ./cmd/tpatch` clean. No other Go test pins the old label.
 - Baseline hosted CI: 43571328967, success at WAVE_BASE.
-- Required after the correction: targeted parity/link checks, formatting,
-  vet/build, independent static review, full guarded serial wave-close
-  gate (39 commands / 36 test commands), and exact-candidate hosted CI.
+- Independent static review of `cb35556`: APPROVED, no findings.
+- Still required: full guarded serial wave-close gate (39 commands / 36
+  test commands) and hosted CI at the close candidate.
 
 ## Next Steps
 
-1. Obtain independent static review of `cb35556` and address findings.
-2. Arrange required validation. Reviewers do
-   not run Go; only one admitted validation process may use the host.
-3. Push the reviewed candidate only after prior main CI is complete, then
-   run the serial gate and hosted CI. Never claim acceptance without both.
-4. Prepare and review the legacy-migration proposal; independent planning
-   may proceed during validation, with no shared-file implementation.
-5. Archive completed work, update tracking, push and verify final CI before
+1. Push the approved MW-1 commits for hosted CI (prior main CI complete).
+2. Finish the MW-2 planning draft (delegated, single new file
+   `docs/prds/PRD-legacy-migration-adoption.md`), get a fresh independent
+   review, fix findings, and run the targeted docs-scanning tests.
+3. Set `Cluster state` to APPROVED at the close candidate, push after
+   prior CI completes, then run the serial gate and hosted CI. Never claim
+   acceptance without both.
+4. Archive completed work, update tracking, push and verify final CI before
    the deadline. Leave unresolved operator questions explicit.
 
 ## Blockers

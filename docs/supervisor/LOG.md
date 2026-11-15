@@ -1,3 +1,34 @@
+## Review — MW-1 shipped labels — 2026-11-15
+
+**Reviewer**: independent delegated static reviewer (gpt-6.1-sol)
+**Task**: MW-1, source `cb35556` against `48e4450`
+
+### Checklist
+- [x] Compiles (validation machine at `96d570c`: vet and build clean)
+- [x] Tests pass (targeted `./assets/` package, validation machine)
+- [x] Formatted (`gofmt -l .` clean)
+- [x] Artifacts deterministic (no `.tpatch/` or schema change)
+- [x] Secrets safe
+- [x] Matches SPEC (labels and FAQ fragment match SPEC's v0.17.0 heading)
+- [x] Handoff accurate
+
+### Verdict: APPROVED
+
+### Notes
+No high-confidence findings. All nine guide labels name v0.17.0; the FAQ
+fragment matches the unchanged SPEC heading. The parity guard covers the
+nine guides plus SPEC, and its mutations (removal, obsolete or wrong
+release, duplication, broken or missing link) run through the public
+validator. Existing safety and sensitivity checks, historical Unreleased
+parser controls, the release pin and CHANGELOG are unchanged. GH #13
+"future work" prose is pre-existing debt outside scope (MW-D4). The
+reviewer ran no Go and edited no files.
+
+### Action Taken
+MW-1 is source-approved. Push for hosted CI; the full serial gate runs
+once at the close candidate, after MW-2's planning document lands, so
+one gate covers the whole window.
+
 ## Decision — MW-D3 revised, validation route — 2026-11-15
 
 The T3 link card was refused because the offered address was unencrypted.
