@@ -1,3 +1,24 @@
+## Operator-Approved Validation-Machine Disk Cleanup — 2026-11-16
+
+The operator approved freeing disk space on the validation machine while
+keeping cited evidence. Its data volume was 98% full (about 11.7 GiB free).
+Inside the private validation root, 44 regenerable directories were
+deleted: 26 Go build/module caches from earlier gates and experiments, and
+18 clean source checkouts whose commits are on `origin/main` and that no
+tracking document names. Free space is now about 51.4 GiB; the root fell
+from about 46 GB to 6.8 GB.
+
+Kept: all 21 evidence directories, logs, bundles, harness scripts, the
+pinned Go 1.26.5 toolchain, the MW and FW window folders, both checkouts
+with uncommitted changes and every checkout HISTORY or LOG cites. No Go
+command ran, no process was using the root and no system setting changed.
+
+This is disk cleanup only. It does not address the idle swap level behind
+the serial-only rule, so gates there stay `WAVE_CLOSE_TEST_LANES=0` and
+the single lane retry still waits for the operator's cleanup report.
+Final MW tracking-only CI 43719081743 (`8285dd8`) succeeded in all five
+test jobs.
+
 ## Consolidation — MW archived; IDLE — 2026-11-15
 
 The terminal ACCEPTED handoff was appended byte-for-byte to HISTORY at

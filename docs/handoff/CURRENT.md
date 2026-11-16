@@ -84,8 +84,8 @@ were not rerun; no per-feature conversion feasibility is claimed.
 
 ## Next Steps
 
-1. Verify the final tracking-only push and its CI; do not rerun source
-   acceptance or claim a release.
+1. Done: final tracking-only push `8285dd8` CI 43719081743 succeeded in
+   all five test jobs. No source acceptance rerun or release.
 2. Operator: answer section 10 of the reviewed proposal. The recommended
    first authorization is a fresh read-only inventory, not a migration
    writer or a non-failing legacy verify state.
@@ -93,9 +93,10 @@ were not rerun; no per-feature conversion feasibility is claimed.
    implement-only manual validation tightening, an ADR-024 receipt
    amendment and bounded recovery journaling. No implicit approval.
 4. Keep GH #13 stale future-work summaries as a separately reviewed
-   documentation follow-up (MW-D4, ROADMAP). Machine cleanup/Spotlight,
-   the deferred lane retry and existing implementation backlogs remain
-   operator-owned.
+   documentation follow-up (MW-D4, ROADMAP). Spotlight, the swap-related
+   machine cleanup that triggers the deferred lane retry and existing
+   implementation backlogs remain operator-owned. Operator-approved disk
+   cleanup on the validation machine is done (LOG, 2026-11-16).
 
 ## Blockers
 
